@@ -1,0 +1,53 @@
+name: Afyx Graph Stable Build Verification
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-verify:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 24
+      - run: python scripts/validate-afyx-graph.py
+      - working-directory: afyx-graph/engine
+        run: npm ci && npm run build:clean && npm test && npm run test:semantic && npm run test:smoke
+      - working-directory: afyx-graph/engine
+        run: |
+          set -euo pipefail
+          for target in $(node scripts/distribution-contract.mjs targets); do
+            bash scripts/build-bundle.sh "$target"
+          done
+          (cd release && sha256sum afyx-graph-* > SHA256SUMS)
+          version=$(node -p "require('../afyx-graph.json').product_version")
+          node ../../scripts/afyx-graph-artifact.mjs create-release-manifest \
+            --directory release --output release/RELEASE-MANIFEST.json \
+            --revision "$GITHUB_SHA" --version "$version" --tag "afyx-graph-v$version"
+      - name: Attest release archives
+        uses: actions/attest-build-provenance@e8998f949152b193b063cb0ec769d69d929409be # v2.4.0
+        with:
+          subject-path: afyx-graph/engine/release/afyx-graph-*
+      # Stable publication requires a separate, owner-authorized workflow with a
+      # configured protected environment. This workflow only retains build and
+      # verification/attestation capability.
+      - name: Upload build verification output
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: afyx-graph-stable-build-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            afyx-graph/engine/release/afyx-graph-*.tar.gz
+            afyx-graph/engine/release/afyx-graph-*.zip
+            afyx-graph/engine/release/SHA256SUMS
+            afyx-graph/engine/release/RELEASE-MANIFEST.json
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 30

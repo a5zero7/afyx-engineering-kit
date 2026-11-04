@@ -1,0 +1,28 @@
+{
+  "product_name": "Afyx Forge Core",
+  "product_version": "0.1.0",
+  "distribution_channel": "technical-alpha",
+  "component_id": "afyx-forge",
+  "runtime_mode": "ASSISTIVE_GUIDANCE_ONLY",
+  "evaluation_gate": {
+    "contract": "AFYX_FORGE_A0_A3_CONTRACT",
+    "gate": "A8_FORMAL_CAMPAIGN",
+    "status": "EVALUATION_GATED",
+    "autonomous_code_execution": false,
+    "uncontrolled_model_invocation": false
+  },
+  "capabilities": [
+    "task-classification",
+    "adaptive-policy-selection",
+    "actionable-guidance-generation",
+    "graph-aware-routing",
+    "bounded-execution-enforcement",
+    "agent-surface-integration"
+  ],
+  "supported_agent_surfaces": [
+    "codex",
+    "antigravity",
+    "claude"
+  ]
+}
+

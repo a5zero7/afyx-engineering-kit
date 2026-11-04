@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "AfyxCapabilityRequest/v1",
+  "type": "object",
+  "required": ["contract", "taskId", "intent", "capability", "targetComponentId", "callerComponentId", "permissions", "budgetLimits", "hopCount", "invocationReason"],
+  "properties": {
+    "contract": { "const": "AfyxCapabilityRequest/v1" },
+    "taskId": { "type": "string", "minLength": 1 },
+    "intent": { "type": "string" },
+    "capability": { "type": "string", "minLength": 1 },
+    "targetComponentId": { "type": "string", "minLength": 1 },
+    "callerComponentId": { "type": "string", "minLength": 1 },
+    "candidateProviders": { "type": "array", "items": { "type": "string" }, "uniqueItems": true },
+    "workspaceIdentity": { "type": ["string", "null"] },
+    "sourceRevision": { "type": ["string", "null"] },
+    "evidenceScope": { "type": "string" },
+    "permissions": { "type": "object", "required": ["authorized"], "properties": { "authorized": { "const": true } }, "additionalProperties": false },
+    "budgetLimits": { "$ref": "#/$defs/budgets" },
+    "hopCount": { "type": "integer", "minimum": 0 },
+    "invocationReason": { "type": "string", "minLength": 1 },
+    "sourceIdentity": { "type": ["string", "null"] }
+  },
+  "$defs": {
+    "budgets": {
+      "type": "object",
+      "required": ["maxToolCalls", "maxContextBytes", "maxExecutionMs", "maxCapabilities", "maxHops"],
+      "properties": {
+        "maxToolCalls": { "type": "integer", "minimum": 0 },
+        "maxContextBytes": { "type": "integer", "minimum": 0 },
+        "maxExecutionMs": { "type": "integer", "minimum": 1 },
+        "maxCapabilities": { "type": "integer", "minimum": 0 },
+        "maxHops": { "type": "integer", "minimum": 0 }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

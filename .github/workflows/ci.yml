@@ -1,0 +1,217 @@
+name: CI
+
+# Zero-model CI: static analysis, deterministic fixtures and local tests only.
+# Afyx Graph engine build/tests live in graph-build.yml (path filtered);
+# all six release bundles are built only by graph-release.yml.
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+      - dev
+      - alpha
+  pull_request:
+    branches:
+      - main
+      - dev
+      - alpha
+
+permissions:
+  contents: read
+
+env:
+  PYTHONDONTWRITEBYTECODE: '1'
+
+jobs:
+  linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - name: Check Bash syntax
+        run: bash -n install.sh update.sh uninstall.sh verify.sh scripts/install-afyx-graph.sh scripts/install-afyx-forge.sh scripts/afyx-doctor.sh scripts/afyx-project.sh scripts/lib/afyx-components.sh scripts/lib/afyx-skill-lifecycle.sh
+      - name: Validate Afyx Graph identity and metadata
+        run: python scripts/validate-afyx-graph.py
+      - name: Validate the component contract
+        run: |
+          python scripts/validate-components.py
+          python scripts/validate-engineering-assurance.py
+      - name: Operational independence audit (legacy references must be legal or negative tests only)
+        run: python scripts/audit-legacy-identity.py
+      - name: Compile and validate evaluation assets
+        run: |
+          python -m py_compile evals/harness/*.py
+          python evals/harness/validate.py
+          python -m py_compile evals/forge/validate.py
+          python evals/forge/validate.py --check-fixtures
+      - name: Zero-token skill routing validation
+        run: python evals/harness/routing.py
+      - name: Deterministic tests (component contract, project detector, doctor, routing guard)
+        run: python -m unittest discover -s scripts/tests -p 'test_*.py' -v
+      - name: Afyx Forge Core unit and acceptance tests
+        run: |
+          node --test afyx-forge/test/*.test.js
+          node scripts/tests/test_forge_acceptance.mjs
+          node --test afyx-context/test/graph-integration.test.js
+          node --test afyx-context/test/graph-mcp-bridge.test.js
+          node --test scripts/tests/test_capability_orchestrator.mjs
+      - name: Validate installer assets
+        run: ./install.sh --validate-only
+      - name: Verify repository remains clean
+        run: |
+          if [[ -n "$(git status --porcelain)" ]]; then
+            git status --short
+            exit 1
+          fi
+
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - name: Check PowerShell syntax
+        shell: pwsh
+        run: |
+          $failed = $false
+          $files = @('install.ps1', 'update.ps1', 'uninstall.ps1', 'verify.ps1') +
+            (Get-ChildItem -Path scripts, tools -Recurse -Include *.ps1, *.psm1 | ForEach-Object { Resolve-Path -Relative $_.FullName })
+          foreach ($file in $files) {
+            $tokens = $null
+            $errors = $null
+            [System.Management.Automation.Language.Parser]::ParseFile(
+              (Resolve-Path $file),
+              [ref] $tokens,
+              [ref] $errors
+            ) | Out-Null
+            foreach ($parseError in $errors) {
+              Write-Error "$file`: $($parseError.Message)"
+            }
+            if ($errors.Count -gt 0) {
+              $failed = $true
+            }
+          }
+          if ($failed) {
+            exit 1
+          }
+      - name: Installer ValidateOnly
+        shell: pwsh
+        run: ./install.ps1 -ValidateOnly
+      - name: Validate identity, metadata and component contract
+        run: |
+          $commands = @(
+            @('scripts/validate-afyx-graph.py'),
+            @('scripts/validate-components.py'),
+            @('scripts/validate-engineering-assurance.py'),
+            @('scripts/audit-legacy-identity.py'),
+            @('-m', 'py_compile', 'evals/forge/validate.py'),
+            @('evals/forge/validate.py', '--check-fixtures')
+          )
+          $failed = $false
+          foreach ($arguments in $commands) {
+            & python @arguments
+            if ($LASTEXITCODE -ne 0) { $failed = $true }
+          }
+          if ($failed) { exit 1 }
+      - name: Usage Tracker deterministic tests
+        shell: pwsh
+        run: ./tools/codex-usage/tests/run-tests.ps1
+      - name: Forge frozen input newline portability
+        run: python -m unittest scripts.tests.test_forge_portability -v
+      - name: Afyx Forge Core unit and acceptance tests
+        shell: pwsh
+        run: |
+          node --test (Get-ChildItem afyx-forge/test/*.test.js)
+          node scripts/tests/test_forge_acceptance.mjs
+          node --test afyx-context/test/graph-integration.test.js
+          node --test afyx-context/test/graph-mcp-bridge.test.js
+          node --test scripts/tests/test_capability_orchestrator.mjs
+      - name: Codex native host and MCP lifecycle regressions
+        run: python -m unittest scripts.tests.test_codex_host_resolution scripts.tests.test_mcp_integration -v
+      - name: Component contract, project detector and doctor tests (PowerShell and Git Bash)
+        run: |
+          $commands = @(
+            @('scripts/tests/test_components.py'),
+            @('scripts/tests/test_lifecycle.py'),
+            @('scripts/tests/test_skill_lifecycle_security.py'),
+            @('scripts/tests/test_skill_legacy_adoption.py'),
+            @('scripts/tests/test_control_plane.py'),
+            @('scripts/tests/test_provider_integration.py'),
+            @('-m', 'unittest', 'scripts.tests.test_unified_installer', '-v'),
+            @('scripts/tests/test_context_lifecycle.py'),
+            @('scripts/tests/test_context_companion_contract.py'),
+            @('scripts/tests/test_engineering_assurance.py'),
+            @('scripts/tests/test_alpha_acceptance_preflight.py'),
+            @('scripts/tests/test_artifact_identity.py'),
+            @('scripts/tests/test_project_detect.py'),
+            @('scripts/tests/test_doctor.py'),
+            @('scripts/tests/test_forge_lifecycle_regressions.py')
+          )
+          $failed = $false
+          foreach ($arguments in $commands) {
+            & python @arguments
+            if ($LASTEXITCODE -ne 0) { $failed = $true }
+          }
+          if ($failed) { exit 1 }
+      - name: Verify repository remains clean
+        shell: pwsh
+        run: |
+          $changes = git status --porcelain
+          if ($changes) {
+            $changes
+            exit 1
+          }
+
+  macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - name: Bash 3.2 syntax and portability (system /bin/bash)
+        run: |
+          /bin/bash --version | head -n 1
+          for f in install.sh update.sh uninstall.sh verify.sh scripts/install-afyx-graph.sh scripts/install-afyx-forge.sh scripts/afyx-doctor.sh scripts/afyx-project.sh scripts/lib/afyx-components.sh scripts/lib/afyx-skill-lifecycle.sh; do
+            /bin/bash -n "$f"
+          done
+      - name: Installer ValidateOnly (system /bin/bash)
+        run: /bin/bash ./install.sh --validate-only
+      - name: Verifier on a staged skills root (system /bin/bash)
+        run: |
+          root="$RUNNER_TEMP/skills"
+          mkdir -p "$root"
+          cp -R skills/efficient-coding skills/odoo-engineering "$root/"
+          # Default skills must verify without Prompt Master; the overall exit may be non-zero only because no Codex host exists on a CI runner.
+          /bin/bash ./verify.sh --skills-root "$root" | tee verify.out || true
+          grep -q '^\[OK\] Efficient Coding' verify.out
+          grep -q '^\[OK\] Odoo Engineering' verify.out
+          ! grep -q '^\[FAIL\] \(Efficient Coding\|Odoo Engineering\)' verify.out
+          ! grep -q '^\[FAIL\] Prompt Master' verify.out
+          rm -f verify.out
+      - name: Afyx Forge Core unit and acceptance tests
+        run: |
+          node --test afyx-forge/test/*.test.js
+          node scripts/tests/test_forge_acceptance.mjs
+          node --test afyx-context/test/graph-integration.test.js
+          node --test afyx-context/test/graph-mcp-bridge.test.js
+          node --test scripts/tests/test_capability_orchestrator.mjs
+      - name: Component contract and project detector (system /bin/bash)
+        run: |
+          export PATH="/bin:$PATH"
+          python3 scripts/validate-components.py
+          python3 scripts/validate-engineering-assurance.py
+          python3 -m py_compile evals/forge/validate.py
+          python3 evals/forge/validate.py --check-fixtures
+          python3 scripts/tests/test_components.py
+          python3 scripts/tests/test_lifecycle.py
+          python3 scripts/tests/test_skill_lifecycle_security.py
+          python3 scripts/tests/test_skill_legacy_adoption.py
+          python3 scripts/tests/test_control_plane.py
+          python3 scripts/tests/test_provider_integration.py
+          python3 scripts/tests/test_engineering_assurance.py
+          python3 scripts/tests/test_alpha_acceptance_preflight.py
+          python3 scripts/tests/test_artifact_identity.py
+          python3 scripts/tests/test_project_detect.py
+          python3 scripts/tests/test_forge_lifecycle_regressions.py
+      - name: Verify repository remains clean
+        run: |
+          if [[ -n "$(git status --porcelain)" ]]; then
+            git status --short
+            exit 1
+          fi

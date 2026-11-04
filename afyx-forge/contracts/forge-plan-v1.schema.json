@@ -1,0 +1,127 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "AfyxForgePlanResultV1",
+  "type": "object",
+  "required": [
+    "contract",
+    "version",
+    "timestamp",
+    "taskSummary",
+    "classification",
+    "adaptivePolicy",
+    "guidance",
+    "boundedExecution",
+    "status"
+  ],
+  "properties": {
+    "contract": {
+      "type": "string",
+      "const": "afyx-forge-plan/v1"
+    },
+    "version": {
+      "type": "string"
+    },
+    "timestamp": {
+      "type": "string"
+    },
+    "taskSummary": {
+      "type": "object",
+      "required": ["title", "observedComplexity", "domainContext"],
+      "properties": {
+        "title": { "type": "string" },
+        "observedComplexity": { "type": "string", "enum": ["LOW", "MEDIUM", "HIGH", "CRITICAL"] },
+        "domainContext": { "type": "string" },
+        "relevantFiles": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "classification": {
+      "type": "object",
+      "required": ["primaryCategory", "riskLevel", "confidence"],
+      "properties": {
+        "primaryCategory": {
+          "type": "string",
+          "enum": [
+            "KNOWN_FILE_BUG",
+            "UNKNOWN_DEFECT_DIAGNOSIS",
+            "CROSS_MODULE_CHANGE",
+            "SECURITY_SENSITIVE",
+            "DATA_RELIABILITY",
+            "NEGATIVE_SIMPLE"
+          ]
+        },
+        "riskLevel": { "type": "string", "enum": ["LOW", "MEDIUM", "HIGH", "CRITICAL"] },
+        "frameworks": { "type": "array", "items": { "type": "string" } },
+        "confidence": { "type": "number", "minimum": 0, "maximum": 1 }
+      }
+    },
+    "adaptivePolicy": {
+      "type": "object",
+      "required": ["executionMode", "graphRouting", "contextEngine", "expertEngagement"],
+      "properties": {
+        "executionMode": {
+          "type": "string",
+          "enum": [
+            "DIRECT_MINIMAL",
+            "FOCUSED_INVESTIGATION",
+            "STRUCTURAL_GRAPH_AWARE",
+            "DOMAIN_SPECIALIST",
+            "SECURITY_DEFENSE_IN_DEPTH"
+          ]
+        },
+        "graphRouting": {
+          "type": "string",
+          "enum": ["BYPASS", "RECOMMENDED", "NOT_AVAILABLE"]
+        },
+        "graphRoutingReason": { "type": "string" },
+        "contextEngine": {
+          "type": "string",
+          "enum": ["BYPASS_DEFAULT_OFF", "EXPLICIT_OPT_IN_REQUIRED", "ACTIVE"]
+        },
+        "expertEngagement": { "type": "string" }
+      }
+    },
+    "guidance": {
+      "type": "object",
+      "required": [
+        "investigationPriorities",
+        "toolRecommendations",
+        "validationScope",
+        "completionCriteria"
+      ],
+      "properties": {
+        "investigationPriorities": { "type": "array", "items": { "type": "string" } },
+        "toolRecommendations": {
+          "type": "object",
+          "required": ["preferred", "avoided"],
+          "properties": {
+            "preferred": { "type": "array", "items": { "type": "string" } },
+            "avoided": { "type": "array", "items": { "type": "string" } }
+          }
+        },
+        "validationScope": { "type": "array", "items": { "type": "string" } },
+        "completionCriteria": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "boundedExecution": {
+      "type": "object",
+      "required": [
+        "autonomousCodeExecution",
+        "uncontrolledModelInvocation",
+        "privilegeElevationAllowed",
+        "governanceGateA8"
+      ],
+      "properties": {
+        "autonomousCodeExecution": { "type": "boolean" },
+        "uncontrolledModelInvocation": { "type": "boolean" },
+        "privilegeElevationAllowed": { "type": "boolean" },
+        "governanceGateA8": { "type": "string" }
+      }
+    },
+    "status": {
+      "type": "string",
+      "enum": ["PLANNED", "PREPARED", "VALIDATED", "REFUSED_UNSAFE"]
+    },
+    "refusalReason": { "type": "string" }
+  }
+}
+

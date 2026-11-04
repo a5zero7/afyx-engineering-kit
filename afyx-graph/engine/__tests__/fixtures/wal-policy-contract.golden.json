@@ -1,0 +1,2920 @@
+{
+  "resolveWalValveMb undefined": {
+    "trace": [],
+    "walBytesFinal": 0,
+    "value": 256
+  },
+  "resolveWalValveMb empty": {
+    "trace": [],
+    "walBytesFinal": 0,
+    "value": 256
+  },
+  "resolveWalValveMb zero": {
+    "trace": [],
+    "walBytesFinal": 0,
+    "value": 256
+  },
+  "resolveWalValveMb negative": {
+    "trace": [],
+    "walBytesFinal": 0,
+    "value": 256
+  },
+  "resolveWalValveMb nan": {
+    "trace": [],
+    "walBytesFinal": 0,
+    "value": 256
+  },
+  "resolveWalValveMb one": {
+    "trace": [],
+    "walBytesFinal": 0,
+    "value": 1
+  },
+  "resolveWalValveMb fractional": {
+    "trace": [],
+    "walBytesFinal": 0,
+    "value": 12
+  },
+  "resolveWalValveMb large": {
+    "trace": [],
+    "walBytesFinal": 0,
+    "value": 9999
+  },
+  "resolveWalValveMb dbSize small (below the 256 floor)": {
+    "trace": [],
+    "walBytesFinal": 0,
+    "value": 256
+  },
+  "resolveWalValveMb dbSize mid (500)": {
+    "trace": [],
+    "walBytesFinal": 0,
+    "value": 500
+  },
+  "resolveWalValveMb dbSize huge (clamped to 2048)": {
+    "trace": [],
+    "walBytesFinal": 0,
+    "value": 2048
+  },
+  "resolveWalValveMb dbSize zero": {
+    "trace": [],
+    "walBytesFinal": 0,
+    "value": 256
+  },
+  "resolveWalValveMb env overrides dbSize": {
+    "trace": [],
+    "walBytesFinal": 0,
+    "value": 7
+  },
+  "check: WAL absent": {
+    "trace": [
+      [
+        "size",
+        0
+      ]
+    ],
+    "walBytesFinal": 0,
+    "fired": false
+  },
+  "check: growth below soft (soft-1)": {
+    "trace": [
+      [
+        "size",
+        1048575
+      ]
+    ],
+    "walBytesFinal": 1048575,
+    "fired": false
+  },
+  "check: growth exactly at soft (not strictly greater — no fire)": {
+    "trace": [
+      [
+        "size",
+        1048576
+      ]
+    ],
+    "walBytesFinal": 1048576,
+    "fired": false
+  },
+  "check: growth soft+1 fires a passive checkpoint": {
+    "trace": [
+      [
+        "size",
+        1048577
+      ],
+      [
+        "size",
+        1048577
+      ],
+      [
+        "passive",
+        {
+          "busy": 0,
+          "log": 100,
+          "checkpointed": 100
+        },
+        1048577
+      ],
+      [
+        "size",
+        1048577
+      ],
+      [
+        "size",
+        1048577
+      ]
+    ],
+    "walBytesFinal": 1048577,
+    "fired": true
+  },
+  "check: a full passive backfill resets the baseline (growth back to 0)": {
+    "trace": [
+      [
+        "size",
+        2097152
+      ],
+      [
+        "size",
+        2097152
+      ],
+      [
+        "passive",
+        {
+          "busy": 0,
+          "log": 100,
+          "checkpointed": 100
+        },
+        2097152
+      ],
+      [
+        "size",
+        2097152
+      ],
+      [
+        "size",
+        2097152
+      ],
+      [
+        "size",
+        2097152
+      ]
+    ],
+    "walBytesFinal": 2097152,
+    "passiveCallsTotal": 1
+  },
+  "check: no second fire while one is inflight": {
+    "trace": [
+      [
+        "size",
+        3145728
+      ],
+      [
+        "size",
+        3145728
+      ],
+      [
+        "passive",
+        null,
+        3145728
+      ]
+    ],
+    "walBytesFinal": 3145728,
+    "passiveCallsTotal": 1
+  },
+  "check: PASSIVE never truncates on its own (deliberate — would block an active writer)": {
+    "trace": [
+      [
+        "size",
+        5242880
+      ],
+      [
+        "size",
+        5242880
+      ],
+      [
+        "passive",
+        {
+          "busy": 0,
+          "log": 100,
+          "checkpointed": 100
+        },
+        5242880
+      ],
+      [
+        "size",
+        5242880
+      ],
+      [
+        "size",
+        5242880
+      ]
+    ],
+    "walBytesFinal": 5242880,
+    "truncateCallsTotal": 0,
+    "walAfter": 5242880
+  },
+  "start: idempotent (a second start does not add a second timer)": {
+    "trace": [
+      [
+        "size",
+        2097152
+      ],
+      [
+        "size",
+        2097152
+      ],
+      [
+        "passive",
+        {
+          "busy": 0,
+          "log": 100,
+          "checkpointed": 100
+        },
+        2097152
+      ],
+      [
+        "size",
+        2097152
+      ],
+      [
+        "size",
+        2097152
+      ]
+    ],
+    "walBytesFinal": 2097152,
+    "passiveCallsTotal": 1
+  },
+  "start: repeated pressure across several ticks, each above soft": {
+    "trace": [
+      [
+        "size",
+        3145728
+      ],
+      [
+        "size",
+        3145728
+      ],
+      [
+        "passive",
+        {
+          "busy": 0,
+          "log": 100,
+          "checkpointed": 100
+        },
+        3145728
+      ],
+      [
+        "size",
+        3145728
+      ],
+      [
+        "size",
+        3145728
+      ],
+      [
+        "size",
+        4694304
+      ],
+      [
+        "size",
+        4694304
+      ],
+      [
+        "passive",
+        {
+          "busy": 0,
+          "log": 100,
+          "checkpointed": 100
+        },
+        4694304
+      ],
+      [
+        "size",
+        4694304
+      ],
+      [
+        "size",
+        4694304
+      ]
+    ],
+    "walBytesFinal": 4694304,
+    "passiveCallsTotal": 2
+  },
+  "start: below soft never fires across many ticks (idle database)": {
+    "trace": [
+      [
+        "size",
+        500000
+      ],
+      [
+        "size",
+        500000
+      ],
+      [
+        "size",
+        500000
+      ],
+      [
+        "size",
+        500000
+      ],
+      [
+        "size",
+        500000
+      ],
+      [
+        "size",
+        500000
+      ],
+      [
+        "size",
+        500000
+      ],
+      [
+        "size",
+        500000
+      ],
+      [
+        "size",
+        500000
+      ],
+      [
+        "size",
+        500000
+      ]
+    ],
+    "walBytesFinal": 500000,
+    "passiveCallsTotal": 0
+  },
+  "stop: clears the timer so no further ticks fire": {
+    "trace": [],
+    "walBytesFinal": 3145728,
+    "passiveCallsTotal": 0
+  },
+  "backpressure: under both caps returns null (no wait)": {
+    "trace": [
+      [
+        "size",
+        1572864
+      ],
+      [
+        "size",
+        1572864
+      ]
+    ],
+    "walBytesFinal": 1572864,
+    "result": {
+      "state": "null"
+    }
+  },
+  "backpressure: growth exactly at hard cap (inclusive) still returns null": {
+    "trace": [
+      [
+        "size",
+        2097152
+      ],
+      [
+        "size",
+        2097152
+      ]
+    ],
+    "walBytesFinal": 2097152,
+    "result": {
+      "state": "null"
+    }
+  },
+  "backpressure: growth one byte over the hard cap pauses the writer": {
+    "trace": [
+      [
+        "size",
+        2097153
+      ],
+      [
+        "size",
+        2097153
+      ],
+      [
+        "passive",
+        {
+          "busy": 0,
+          "log": 100,
+          "checkpointed": 100
+        },
+        2097153
+      ],
+      [
+        "size",
+        2097153
+      ],
+      [
+        "truncate",
+        {
+          "busy": 0,
+          "log": 100,
+          "checkpointed": 100
+        },
+        32768
+      ],
+      [
+        "size",
+        32768
+      ],
+      [
+        "size",
+        32768
+      ],
+      [
+        "size",
+        32768
+      ]
+    ],
+    "walBytesFinal": 32768,
+    "result": {
+      "state": "resolved"
+    }
+  },
+  "backpressure: walBytes exactly at the file cap (inclusive) still returns null": {
+    "trace": [
+      [
+        "size",
+        4184304
+      ],
+      [
+        "size",
+        4184304
+      ],
+      [
+        "passive",
+        {
+          "busy": 0,
+          "log": 100,
+          "checkpointed": 100
+        },
+        4184304
+      ],
+      [
+        "size",
+        4184304
+      ],
+      [
+        "truncate",
+        {
+          "busy": 0,
+          "log": 1,
+          "checkpointed": 1
+        },
+        4184304
+      ],
+      [
+        "size",
+        4184304
+      ],
+      [
+        "size",
+        4184304
+      ],
+      [
+        "size",
+        4194304
+      ],
+      [
+        "size",
+        4194304
+      ]
+    ],
+    "walBytesFinal": 4194304,
+    "result": {
+      "state": "null"
+    }
+  },
+  "backpressure: walBytes one byte over the file cap pauses even though growth is small": {
+    "trace": [
+      [
+        "size",
+        4184304
+      ],
+      [
+        "size",
+        4184304
+      ],
+      [
+        "passive",
+        {
+          "busy": 0,
+          "log": 100,
+          "checkpointed": 100
+        },
+        4184304
+      ],
+      [
+        "size",
+        4184304
+      ],
+      [
+        "truncate",
+        {
+          "busy": 0,
+          "log": 1,
+          "checkpointed": 1
+        },
+        4184304
+      ],
+      [
+        "size",
+        4184304
+      ],
+      [
+        "size",
+        4184304
+      ],
+      [
+        "size",
+        4194305
+      ],
+      [
+        "size",
+        4194305
+      ],
+      [
+        "size",
+        4194305
+      ],
+      [
+        "passive",
+        {
+          "busy": 0,
+          "log": 100,
+          "checkpointed": 100
+        },
+        4194305
+      ],
+      [
+        "size",
+        4194305
+      ],
+      [
+        "truncate",
+        {
+          "busy": 0,
+          "log": 100,
+          "checkpointed": 100
+        },
+        32768
+      ],
+      [
+        "size",
+        32768
+      ],
+      [
+        "size",
+        32768
+      ],
+      [
+        "size",
+        32768
+      ]
+    ],
+    "walBytesFinal": 32768,
+    "result": {
+      "state": "resolved"
+    },
+    "passiveCallsTotal": 2,
+    "truncateCallsTotal": 2
+  },
+  "backpressure: a second call while already paused returns the SAME pending promise": {
+    "trace": [
+      [
+        "size",
+        2097153
+      ],
+      [
+        "size",
+        2097153
+      ],
+      [
+        "passive",
+        null,
+        2097153
+      ]
+    ],
+    "walBytesFinal": 2097153,
+    "samePromise": true
+  },
+  "backpressure: resolves once the backfill drains (reader releases mid-wait)": {
+    "trace": [
+      [
+        "size",
+        2097153
+      ],
+      [
+        "size",
+        2097153
+      ],
+      [
+        "passive",
+        {
+          "busy": 1,
+          "log": 10,
+          "checkpointed": 4
+        },
+        2097153
+      ],
+      [
+        "size",
+        2097153
+      ],
+      [
+        "passive",
+        {
+          "busy": 0,
+          "log": 100,
+          "checkpointed": 100
+        },
+        2097153
+      ],
+      [
+        "size",
+        2097153
+      ],
+      [
+        "truncate",
+        {
+          "busy": 0,
+          "log": 100,
+          "checkpointed": 100
+        },
+        32768
+      ],
+      [
+        "size",
+        32768
+      ],
+      [
+        "size",
+        32768
+      ],
+      [
+        "size",
+        32768
+      ]
+    ],
+    "walBytesFinal": 32768,
+    "result": {
+      "state": "resolved"
+    },
+    "passiveCallsTotal": 2,
+    "truncateCallsTotal": 1
+  },
+  "backfillFully (via backpressure): 19 partial passes then a full one on pass 20 succeeds": {
+    "trace": [
+      [
+        "size",
+        2097153
+      ],
+      [
+        "size",
+        2097153
+      ],
+      [
+        "passive",
+        {
+          "busy": 1,
+          "log": 10,
+          "checkpointed": 3
+        },
+        2097153
+      ],
+      [
+        "size",
+        2097153
+      ],
+      [
+        "passive",
+        {
+          "busy": 1,
+          "log": 10,
+          "checkpointed": 3
+        },
+        2097153
+      ],
+      [
+        "size",
+        2097153
+      ],
+      [
+        "passive",
+        {
+          "busy": 1,
+          "log": 10,
+          "checkpointed": 3
+        },
+        2097153
+      ],
+      [
+        "size",
+        2097153
+      ],
+      [
+        "passive",
+        {
+          "busy": 1,
+          "log": 10,
+          "checkpointed": 3
+        },
+        2097153
+      ],
+      [
+        "size",
+        2097153
+      ],
+      [
+        "passive",
+        {
+          "busy": 1,
+          "log": 10,
+          "checkpointed": 3
+        },
+        2097153
+      ],
+      [
+        "size",
+        2097153
+      ],
+      [
+        "passive",
+        {
+          "busy": 1,
+          "log": 10,
+          "checkpointed": 3
+        },
+        2097153
+      ],
+      [
+        "size",
+        2097153
+      ],
+      [
+        "passive",
+        {
+          "busy": 1,
+          "log": 10,
+          "checkpointed": 3
+        },
+        2097153
+      ],
+      [
+        "size",
+        2097153
+      ],
+      [
+        "passive",
+        {
+          "busy": 1,
+          "log": 10,
+          "checkpointed": 3
+        },
+        2097153
+      ],
+      [
+        "size",
+        2097153
+      ],
+      [
+        "passive",
+        {
+          "busy": 1,
+          "log": 10,
+          "checkpointed": 3
+        },
+        2097153
+      ],
+      [
+        "size",
+        2097153
+      ],
+      [
+        "passive",
+        {
+          "busy": 1,
+          "log": 10,
+          "checkpointed": 3
+        },
+        2097153
+      ],
+      [
+        "size",
+        2097153
+      ],
+      [
+        "passive",
+        {
+          "busy": 1,
+          "log": 10,
+          "checkpointed": 3
+        },
+        2097153
+      ],
+      [
+        "size",
+        2097153
+      ],
+      [
+        "passive",
+        {
+          "busy": 1,
+          "log": 10,
+          "checkpointed": 3
+        },
+        2097153
+      ],
+      [
+        "size",
+        2097153
+      ],
+      [
+        "passive",
+        {
+          "busy": 1,
+          "log": 10,
+          "checkpointed": 3
+        },
+        2097153
+      ],
+      [
+        "size",
+        2097153
+      ],
+      [
+        "passive",
+        {
+          "busy": 1,
+          "log": 10,
+          "checkpointed": 3
+        },
+        2097153
+      ],
+      [
+        "size",
+        2097153
+      ],
+      [
+        "passive",
+        {
+          "busy": 1,
+          "log": 10,
+          "checkpointed": 3
+        },
+        2097153
+      ],
+      [
+        "size",
+        2097153
+      ],
+      [
+        "passive",
+        {
+          "busy": 1,
+          "log": 10,
+          "checkpointed": 3
+        },
+        2097153
+      ],
+      [
+        "size",
+        2097153
+      ],
+      [
+        "passive",
+        {
+          "busy": 1,
+          "log": 10,
+          "checkpointed": 3
+        },
+        2097153
+      ],
+      [
+        "size",
+        2097153
+      ],
+      [
+        "passive",
+        {
+          "busy": 1,
+          "log": 10,
+          "checkpointed": 3
+        },
+        2097153
+      ],
+      [
+        "size",
+        2097153
+      ],
+      [
+        "passive",
+        {
+          "busy": 1,
+          "log": 10,
+          "checkpointed": 3
+        },
+        2097153
+      ],
+      [
+        "size",
+        2097153
+      ],
+      [
+        "passive",
+        {
+          "busy": 0,
+          "log": 100,
+          "checkpointed": 100
+        },
+        2097153
+      ],
+      [
+        "size",
+        2097153
+      ],
+      [
+        "truncate",
+        {
+          "busy": 0,
+          "log": 100,
+          "checkpointed": 100
+        },
+        32768
+      ],
+      [
+        "size",
+        32768
+      ],
+      [
+        "size",
+        32768
+      ],
+      [
+        "size",
+        32768
+      ]
+    ],
+    "walBytesFinal": 32768,
+    "result": {
+      "state": "resolved"
+    },
+    "passiveCallsTotal": 20,
+    "truncateCallsTotal": 1
+  },
+  "backfillFully (via backpressure): fails closed after 20 give-ups over the hard cap alone": {
+    "trace": [
+      [
+        "size",
+        2097153
+      ],
+      [
+        "size",
+        2097153
+      ],
+      [
+        "passive",
+        {
+          "busy": 1,
+          "log": 10,
+          "checkpointed": 3
+        },
+        2097153
+      ],
+      [
+        "size",
+        2097153
+      ],
+      [
+        "passive",
+        {
+          "busy": 1,
+          "log": 10,
+          "checkpointed": 3
+        },
+        2097153
+      ],
+      [
+        "size",
+        2097153
+      ],
+      [
+        "passive",
+        {
+          "busy": 1,
+          "log": 10,
+          "checkpointed": 3
+        },
+        2097153
+      ],
+      [
+        "size",
+        2097153
+      ],
+      [
+        "passive",
+        {
+          "busy": 1,
+          "log": 10,
+          "checkpointed": 3
+        },
+        2097153
+      ],
+      [
+        "size",
+        2097153
+      ],
+      [
+        "passive",
+        {
+          "busy": 1,
+          "log": 10,
+          "checkpointed": 3
+        },
+        2097153
+      ],
+      [
+        "size",
+        2097153
+      ],
+      [
+        "passive",
+        {
+          "busy": 1,
+          "log": 10,
+          "checkpointed": 3
+        },
+        2097153
+      ],
+      [
+        "size",
+        2097153
+      ],
+      [
+        "passive",
+        {
+          "busy": 1,
+          "log": 10,
+          "checkpointed": 3
+        },
+        2097153
+      ],
+      [
+        "size",
+        2097153
+      ],
+      [
+        "passive",
+        {
+          "busy": 1,
+          "log": 10,
+          "checkpointed": 3
+        },
+        2097153
+      ],
+      [
+        "size",
+        2097153
+      ],
+      [
+        "passive",
+        {
+          "busy": 1,
+          "log": 10,
+          "checkpointed": 3
+        },
+        2097153
+      ],
+      [
+        "size",
+        2097153
+      ],
+      [
+        "passive",
+        {
+          "busy": 1,
+          "log": 10,
+          "checkpointed": 3
+        },
+        2097153
+      ],
+      [
+        "size",
+        2097153
+      ],
+      [
+        "passive",
+        {
+          "busy": 1,
+          "log": 10,
+          "checkpointed": 3
+        },
+        2097153
+      ],
+      [
+        "size",
+        2097153
+      ],
+      [
+        "passive",
+        {
+          "busy": 1,
+          "log": 10,
+          "checkpointed": 3
+        },
+        2097153
+      ],
+      [
+        "size",
+        2097153
+      ],
+      [
+        "passive",
+        {
+          "busy": 1,
+          "log": 10,
+          "checkpointed": 3
+        },
+        2097153
+      ],
+      [
+        "size",
+        2097153
+      ],
+      [
+        "passive",
+        {
+          "busy": 1,
+          "log": 10,
+          "checkpointed": 3
+        },
+        2097153
+      ],
+      [
+        "size",
+        2097153
+      ],
+      [
+        "passive",
+        {
+          "busy": 1,
+          "log": 10,
+          "checkpointed": 3
+        },
+        2097153
+      ],
+      [
+        "size",
+        2097153
+      ],
+      [
+        "passive",
+        {
+          "busy": 1,
+          "log": 10,
+          "checkpointed": 3
+        },
+        2097153
+      ],
+      [
+        "size",
+        2097153
+      ],
+      [
+        "passive",
+        {
+          "busy": 1,
+          "log": 10,
+          "checkpointed": 3
+        },
+        2097153
+      ],
+      [
+        "size",
+        2097153
+      ],
+      [
+        "passive",
+        {
+          "busy": 1,
+          "log": 10,
+          "checkpointed": 3
+        },
+        2097153
+      ],
+      [
+        "size",
+        2097153
+      ],
+      [
+        "passive",
+        {
+          "busy": 1,
+          "log": 10,
+          "checkpointed": 3
+        },
+        2097153
+      ],
+      [
+        "size",
+        2097153
+      ],
+      [
+        "passive",
+        {
+          "busy": 1,
+          "log": 10,
+          "checkpointed": 3
+        },
+        2097153
+      ],
+      [
+        "size",
+        2097153
+      ],
+      [
+        "size",
+        2097153
+      ],
+      [
+        "size",
+        2097153
+      ],
+      [
+        "size",
+        2097153
+      ]
+    ],
+    "walBytesFinal": 2097153,
+    "result": {
+      "state": "rejected",
+      "error": "WAL checkpoint cannot progress while a reader pins frames (wal=2MB, growth=2MB, fileCap=4MB, hard=2MB, give-ups=1). Aborting to avoid unbounded disk growth. Close concurrent readers (for example the MCP query pool) and retry, or raise AFYX_GRAPH_WAL_VALVE_MB if the threshold is too tight for this project."
+    },
+    "passiveCallsTotal": 20
+  },
+  "backfillFully (via backpressure): fails closed after 20 give-ups over the file cap alone": {
+    "trace": [
+      [
+        "size",
+        3694304
+      ],
+      [
+        "size",
+        3694304
+      ],
+      [
+        "passive",
+        {
+          "busy": 0,
+          "log": 100,
+          "checkpointed": 100
+        },
+        3694304
+      ],
+      [
+        "size",
+        3694304
+      ],
+      [
+        "truncate",
+        {
+          "busy": 0,
+          "log": 1,
+          "checkpointed": 1
+        },
+        3694304
+      ],
+      [
+        "size",
+        3694304
+      ],
+      [
+        "size",
+        3694304
+      ],
+      [
+        "size",
+        4194305
+      ],
+      [
+        "size",
+        4194305
+      ],
+      [
+        "size",
+        4194305
+      ],
+      [
+        "passive",
+        {
+          "busy": 1,
+          "log": 10,
+          "checkpointed": 3
+        },
+        4194305
+      ],
+      [
+        "size",
+        4194305
+      ],
+      [
+        "passive",
+        {
+          "busy": 1,
+          "log": 10,
+          "checkpointed": 3
+        },
+        4194305
+      ],
+      [
+        "size",
+        4194305
+      ],
+      [
+        "passive",
+        {
+          "busy": 1,
+          "log": 10,
+          "checkpointed": 3
+        },
+        4194305
+      ],
+      [
+        "size",
+        4194305
+      ],
+      [
+        "passive",
+        {
+          "busy": 1,
+          "log": 10,
+          "checkpointed": 3
+        },
+        4194305
+      ],
+      [
+        "size",
+        4194305
+      ],
+      [
+        "passive",
+        {
+          "busy": 1,
+          "log": 10,
+          "checkpointed": 3
+        },
+        4194305
+      ],
+      [
+        "size",
+        4194305
+      ],
+      [
+        "passive",
+        {
+          "busy": 1,
+          "log": 10,
+          "checkpointed": 3
+        },
+        4194305
+      ],
+      [
+        "size",
+        4194305
+      ],
+      [
+        "passive",
+        {
+          "busy": 1,
+          "log": 10,
+          "checkpointed": 3
+        },
+        4194305
+      ],
+      [
+        "size",
+        4194305
+      ],
+      [
+        "passive",
+        {
+          "busy": 1,
+          "log": 10,
+          "checkpointed": 3
+        },
+        4194305
+      ],
+      [
+        "size",
+        4194305
+      ],
+      [
+        "passive",
+        {
+          "busy": 1,
+          "log": 10,
+          "checkpointed": 3
+        },
+        4194305
+      ],
+      [
+        "size",
+        4194305
+      ],
+      [
+        "passive",
+        {
+          "busy": 1,
+          "log": 10,
+          "checkpointed": 3
+        },
+        4194305
+      ],
+      [
+        "size",
+        4194305
+      ],
+      [
+        "passive",
+        {
+          "busy": 1,
+          "log": 10,
+          "checkpointed": 3
+        },
+        4194305
+      ],
+      [
+        "size",
+        4194305
+      ],
+      [
+        "passive",
+        {
+          "busy": 1,
+          "log": 10,
+          "checkpointed": 3
+        },
+        4194305
+      ],
+      [
+        "size",
+        4194305
+      ],
+      [
+        "passive",
+        {
+          "busy": 1,
+          "log": 10,
+          "checkpointed": 3
+        },
+        4194305
+      ],
+      [
+        "size",
+        4194305
+      ],
+      [
+        "passive",
+        {
+          "busy": 1,
+          "log": 10,
+          "checkpointed": 3
+        },
+        4194305
+      ],
+      [
+        "size",
+        4194305
+      ],
+      [
+        "passive",
+        {
+          "busy": 1,
+          "log": 10,
+          "checkpointed": 3
+        },
+        4194305
+      ],
+      [
+        "size",
+        4194305
+      ],
+      [
+        "passive",
+        {
+          "busy": 1,
+          "log": 10,
+          "checkpointed": 3
+        },
+        4194305
+      ],
+      [
+        "size",
+        4194305
+      ],
+      [
+        "passive",
+        {
+          "busy": 1,
+          "log": 10,
+          "checkpointed": 3
+        },
+        4194305
+      ],
+      [
+        "size",
+        4194305
+      ],
+      [
+        "passive",
+        {
+          "busy": 1,
+          "log": 10,
+          "checkpointed": 3
+        },
+        4194305
+      ],
+      [
+        "size",
+        4194305
+      ],
+      [
+        "passive",
+        {
+          "busy": 1,
+          "log": 10,
+          "checkpointed": 3
+        },
+        4194305
+      ],
+      [
+        "size",
+        4194305
+      ],
+      [
+        "passive",
+        {
+          "busy": 1,
+          "log": 10,
+          "checkpointed": 3
+        },
+        4194305
+      ],
+      [
+        "size",
+        4194305
+      ],
+      [
+        "size",
+        4194305
+      ],
+      [
+        "size",
+        4194305
+      ],
+      [
+        "size",
+        4194305
+      ]
+    ],
+    "walBytesFinal": 4194305,
+    "result": {
+      "state": "rejected",
+      "error": "WAL checkpoint cannot progress while a reader pins frames (wal=4MB, growth=0MB, fileCap=4MB, hard=2MB, give-ups=1). Aborting to avoid unbounded disk growth. Close concurrent readers (for example the MCP query pool) and retry, or raise AFYX_GRAPH_WAL_VALVE_MB if the threshold is too tight for this project."
+    },
+    "passiveCallsTotal": 21
+  },
+  "backfillFully (via backpressure): machinery unavailable over the file cap fails closed immediately": {
+    "trace": [
+      [
+        "size",
+        4194305
+      ],
+      [
+        "size",
+        4194305
+      ],
+      [
+        "passive",
+        null,
+        4194305
+      ],
+      [
+        "size",
+        4194305
+      ],
+      [
+        "size",
+        4194305
+      ],
+      [
+        "size",
+        4194305
+      ]
+    ],
+    "walBytesFinal": 4194305,
+    "result": {
+      "state": "rejected",
+      "error": "WAL checkpoint machinery unavailable while over the documented cap (wal=4MB, fileCap=4MB). Aborting to avoid unbounded disk growth."
+    },
+    "passiveCallsTotal": 1
+  },
+  "backfillFully (via backpressure): machinery unavailable, file cap alone breached (growth stays small) still fails closed": {
+    "trace": [
+      [
+        "size",
+        3694304
+      ],
+      [
+        "size",
+        3694304
+      ],
+      [
+        "passive",
+        {
+          "busy": 0,
+          "log": 100,
+          "checkpointed": 100
+        },
+        3694304
+      ],
+      [
+        "size",
+        3694304
+      ],
+      [
+        "truncate",
+        {
+          "busy": 0,
+          "log": 1,
+          "checkpointed": 1
+        },
+        3694304
+      ],
+      [
+        "size",
+        3694304
+      ],
+      [
+        "size",
+        3694304
+      ],
+      [
+        "size",
+        4194305
+      ],
+      [
+        "size",
+        4194305
+      ],
+      [
+        "size",
+        4194305
+      ],
+      [
+        "passive",
+        null,
+        4194305
+      ],
+      [
+        "size",
+        4194305
+      ],
+      [
+        "size",
+        4194305
+      ],
+      [
+        "size",
+        4194305
+      ]
+    ],
+    "walBytesFinal": 4194305,
+    "result": {
+      "state": "rejected",
+      "error": "WAL checkpoint machinery unavailable while over the documented cap (wal=4MB, fileCap=4MB). Aborting to avoid unbounded disk growth."
+    },
+    "passiveCallsTotal": 2
+  },
+  "check: never fires while a backpressure pause is in flight": {
+    "trace": [
+      [
+        "size",
+        2097153
+      ],
+      [
+        "size",
+        2097153
+      ],
+      [
+        "passive",
+        {
+          "busy": 0,
+          "log": 5,
+          "checkpointed": 5
+        },
+        2097153
+      ],
+      [
+        "size",
+        2097153
+      ],
+      [
+        "truncate",
+        {
+          "busy": 0,
+          "log": 100,
+          "checkpointed": 100
+        },
+        32768
+      ],
+      [
+        "size",
+        32768
+      ],
+      [
+        "size",
+        32768
+      ],
+      [
+        "size",
+        32768
+      ]
+    ],
+    "walBytesFinal": 32768,
+    "passiveAfterCheck": 1,
+    "passiveCallsTotal": 1
+  },
+  "backfillFully (via backpressure): an in-flight timer checkpoint is folded into the first pass": {
+    "trace": [
+      [
+        "size",
+        3145728
+      ],
+      [
+        "size",
+        3145728
+      ],
+      [
+        "passive",
+        {
+          "busy": 0,
+          "log": 5,
+          "checkpointed": 5
+        },
+        3145728
+      ],
+      [
+        "size",
+        3145728
+      ],
+      [
+        "size",
+        3145728
+      ],
+      [
+        "size",
+        3145728
+      ],
+      [
+        "size",
+        3145728
+      ],
+      [
+        "passive",
+        {
+          "busy": 0,
+          "log": 100,
+          "checkpointed": 100
+        },
+        3145728
+      ],
+      [
+        "size",
+        3145728
+      ],
+      [
+        "truncate",
+        {
+          "busy": 0,
+          "log": 100,
+          "checkpointed": 100
+        },
+        32768
+      ],
+      [
+        "size",
+        32768
+      ],
+      [
+        "size",
+        32768
+      ],
+      [
+        "size",
+        32768
+      ]
+    ],
+    "walBytesFinal": 32768,
+    "result": {
+      "state": "resolved"
+    },
+    "passiveCallsTotal": 2,
+    "truncateCallsTotal": 1
+  },
+  "backfillFully (via foldNow): gives up softly after 20 partial passes on a modest backlog": {
+    "trace": [
+      [
+        "size",
+        500000
+      ],
+      [
+        "size",
+        500000
+      ],
+      [
+        "passive",
+        {
+          "busy": 1,
+          "log": 10,
+          "checkpointed": 3
+        },
+        500000
+      ],
+      [
+        "size",
+        500000
+      ],
+      [
+        "passive",
+        {
+          "busy": 1,
+          "log": 10,
+          "checkpointed": 3
+        },
+        500000
+      ],
+      [
+        "size",
+        500000
+      ],
+      [
+        "passive",
+        {
+          "busy": 1,
+          "log": 10,
+          "checkpointed": 3
+        },
+        500000
+      ],
+      [
+        "size",
+        500000
+      ],
+      [
+        "passive",
+        {
+          "busy": 1,
+          "log": 10,
+          "checkpointed": 3
+        },
+        500000
+      ],
+      [
+        "size",
+        500000
+      ],
+      [
+        "passive",
+        {
+          "busy": 1,
+          "log": 10,
+          "checkpointed": 3
+        },
+        500000
+      ],
+      [
+        "size",
+        500000
+      ],
+      [
+        "passive",
+        {
+          "busy": 1,
+          "log": 10,
+          "checkpointed": 3
+        },
+        500000
+      ],
+      [
+        "size",
+        500000
+      ],
+      [
+        "passive",
+        {
+          "busy": 1,
+          "log": 10,
+          "checkpointed": 3
+        },
+        500000
+      ],
+      [
+        "size",
+        500000
+      ],
+      [
+        "passive",
+        {
+          "busy": 1,
+          "log": 10,
+          "checkpointed": 3
+        },
+        500000
+      ],
+      [
+        "size",
+        500000
+      ],
+      [
+        "passive",
+        {
+          "busy": 1,
+          "log": 10,
+          "checkpointed": 3
+        },
+        500000
+      ],
+      [
+        "size",
+        500000
+      ],
+      [
+        "passive",
+        {
+          "busy": 1,
+          "log": 10,
+          "checkpointed": 3
+        },
+        500000
+      ],
+      [
+        "size",
+        500000
+      ],
+      [
+        "passive",
+        {
+          "busy": 1,
+          "log": 10,
+          "checkpointed": 3
+        },
+        500000
+      ],
+      [
+        "size",
+        500000
+      ],
+      [
+        "passive",
+        {
+          "busy": 1,
+          "log": 10,
+          "checkpointed": 3
+        },
+        500000
+      ],
+      [
+        "size",
+        500000
+      ],
+      [
+        "passive",
+        {
+          "busy": 1,
+          "log": 10,
+          "checkpointed": 3
+        },
+        500000
+      ],
+      [
+        "size",
+        500000
+      ],
+      [
+        "passive",
+        {
+          "busy": 1,
+          "log": 10,
+          "checkpointed": 3
+        },
+        500000
+      ],
+      [
+        "size",
+        500000
+      ],
+      [
+        "passive",
+        {
+          "busy": 1,
+          "log": 10,
+          "checkpointed": 3
+        },
+        500000
+      ],
+      [
+        "size",
+        500000
+      ],
+      [
+        "passive",
+        {
+          "busy": 1,
+          "log": 10,
+          "checkpointed": 3
+        },
+        500000
+      ],
+      [
+        "size",
+        500000
+      ],
+      [
+        "passive",
+        {
+          "busy": 1,
+          "log": 10,
+          "checkpointed": 3
+        },
+        500000
+      ],
+      [
+        "size",
+        500000
+      ],
+      [
+        "passive",
+        {
+          "busy": 1,
+          "log": 10,
+          "checkpointed": 3
+        },
+        500000
+      ],
+      [
+        "size",
+        500000
+      ],
+      [
+        "passive",
+        {
+          "busy": 1,
+          "log": 10,
+          "checkpointed": 3
+        },
+        500000
+      ],
+      [
+        "size",
+        500000
+      ],
+      [
+        "passive",
+        {
+          "busy": 1,
+          "log": 10,
+          "checkpointed": 3
+        },
+        500000
+      ],
+      [
+        "size",
+        500000
+      ],
+      [
+        "size",
+        500000
+      ],
+      [
+        "size",
+        500000
+      ]
+    ],
+    "walBytesFinal": 500000,
+    "result": {
+      "state": "resolved"
+    },
+    "passiveCallsTotal": 20
+  },
+  "backfillFully (via foldNow): machinery unavailable on a modest backlog softly returns, no throw": {
+    "trace": [
+      [
+        "size",
+        500000
+      ],
+      [
+        "size",
+        500000
+      ],
+      [
+        "passive",
+        null,
+        500000
+      ],
+      [
+        "size",
+        500000
+      ],
+      [
+        "size",
+        500000
+      ]
+    ],
+    "walBytesFinal": 500000,
+    "result": {
+      "state": "resolved"
+    },
+    "passiveCallsTotal": 1
+  },
+  "backfillFully (via foldNow): busy=0 but log!=checkpointed is NOT a false full-backfill": {
+    "trace": [
+      [
+        "size",
+        500000
+      ],
+      [
+        "size",
+        500000
+      ],
+      [
+        "passive",
+        {
+          "busy": 0,
+          "log": 10,
+          "checkpointed": 5
+        },
+        500000
+      ],
+      [
+        "size",
+        500000
+      ],
+      [
+        "passive",
+        {
+          "busy": 0,
+          "log": 10,
+          "checkpointed": 5
+        },
+        500000
+      ],
+      [
+        "size",
+        500000
+      ],
+      [
+        "passive",
+        {
+          "busy": 0,
+          "log": 10,
+          "checkpointed": 5
+        },
+        500000
+      ],
+      [
+        "size",
+        500000
+      ],
+      [
+        "passive",
+        {
+          "busy": 0,
+          "log": 10,
+          "checkpointed": 5
+        },
+        500000
+      ],
+      [
+        "size",
+        500000
+      ],
+      [
+        "passive",
+        {
+          "busy": 0,
+          "log": 10,
+          "checkpointed": 5
+        },
+        500000
+      ],
+      [
+        "size",
+        500000
+      ],
+      [
+        "passive",
+        {
+          "busy": 0,
+          "log": 10,
+          "checkpointed": 5
+        },
+        500000
+      ],
+      [
+        "size",
+        500000
+      ],
+      [
+        "passive",
+        {
+          "busy": 0,
+          "log": 10,
+          "checkpointed": 5
+        },
+        500000
+      ],
+      [
+        "size",
+        500000
+      ],
+      [
+        "passive",
+        {
+          "busy": 0,
+          "log": 10,
+          "checkpointed": 5
+        },
+        500000
+      ],
+      [
+        "size",
+        500000
+      ],
+      [
+        "passive",
+        {
+          "busy": 0,
+          "log": 10,
+          "checkpointed": 5
+        },
+        500000
+      ],
+      [
+        "size",
+        500000
+      ],
+      [
+        "passive",
+        {
+          "busy": 0,
+          "log": 10,
+          "checkpointed": 5
+        },
+        500000
+      ],
+      [
+        "size",
+        500000
+      ],
+      [
+        "passive",
+        {
+          "busy": 0,
+          "log": 10,
+          "checkpointed": 5
+        },
+        500000
+      ],
+      [
+        "size",
+        500000
+      ],
+      [
+        "passive",
+        {
+          "busy": 0,
+          "log": 10,
+          "checkpointed": 5
+        },
+        500000
+      ],
+      [
+        "size",
+        500000
+      ],
+      [
+        "passive",
+        {
+          "busy": 0,
+          "log": 10,
+          "checkpointed": 5
+        },
+        500000
+      ],
+      [
+        "size",
+        500000
+      ],
+      [
+        "passive",
+        {
+          "busy": 0,
+          "log": 10,
+          "checkpointed": 5
+        },
+        500000
+      ],
+      [
+        "size",
+        500000
+      ],
+      [
+        "passive",
+        {
+          "busy": 0,
+          "log": 10,
+          "checkpointed": 5
+        },
+        500000
+      ],
+      [
+        "size",
+        500000
+      ],
+      [
+        "passive",
+        {
+          "busy": 0,
+          "log": 10,
+          "checkpointed": 5
+        },
+        500000
+      ],
+      [
+        "size",
+        500000
+      ],
+      [
+        "passive",
+        {
+          "busy": 0,
+          "log": 10,
+          "checkpointed": 5
+        },
+        500000
+      ],
+      [
+        "size",
+        500000
+      ],
+      [
+        "passive",
+        {
+          "busy": 0,
+          "log": 10,
+          "checkpointed": 5
+        },
+        500000
+      ],
+      [
+        "size",
+        500000
+      ],
+      [
+        "passive",
+        {
+          "busy": 0,
+          "log": 10,
+          "checkpointed": 5
+        },
+        500000
+      ],
+      [
+        "size",
+        500000
+      ],
+      [
+        "passive",
+        {
+          "busy": 0,
+          "log": 10,
+          "checkpointed": 5
+        },
+        500000
+      ],
+      [
+        "size",
+        500000
+      ],
+      [
+        "size",
+        500000
+      ],
+      [
+        "size",
+        500000
+      ]
+    ],
+    "walBytesFinal": 500000,
+    "result": {
+      "state": "resolved"
+    },
+    "passiveCallsTotal": 20,
+    "truncateCallsTotal": 0
+  },
+  "backfillFully (via foldNow): a backlog that IS over the hard cap still fails closed": {
+    "trace": [
+      [
+        "size",
+        2097153
+      ],
+      [
+        "size",
+        2097153
+      ],
+      [
+        "passive",
+        {
+          "busy": 1,
+          "log": 10,
+          "checkpointed": 3
+        },
+        2097153
+      ],
+      [
+        "size",
+        2097153
+      ],
+      [
+        "passive",
+        {
+          "busy": 1,
+          "log": 10,
+          "checkpointed": 3
+        },
+        2097153
+      ],
+      [
+        "size",
+        2097153
+      ],
+      [
+        "passive",
+        {
+          "busy": 1,
+          "log": 10,
+          "checkpointed": 3
+        },
+        2097153
+      ],
+      [
+        "size",
+        2097153
+      ],
+      [
+        "passive",
+        {
+          "busy": 1,
+          "log": 10,
+          "checkpointed": 3
+        },
+        2097153
+      ],
+      [
+        "size",
+        2097153
+      ],
+      [
+        "passive",
+        {
+          "busy": 1,
+          "log": 10,
+          "checkpointed": 3
+        },
+        2097153
+      ],
+      [
+        "size",
+        2097153
+      ],
+      [
+        "passive",
+        {
+          "busy": 1,
+          "log": 10,
+          "checkpointed": 3
+        },
+        2097153
+      ],
+      [
+        "size",
+        2097153
+      ],
+      [
+        "passive",
+        {
+          "busy": 1,
+          "log": 10,
+          "checkpointed": 3
+        },
+        2097153
+      ],
+      [
+        "size",
+        2097153
+      ],
+      [
+        "passive",
+        {
+          "busy": 1,
+          "log": 10,
+          "checkpointed": 3
+        },
+        2097153
+      ],
+      [
+        "size",
+        2097153
+      ],
+      [
+        "passive",
+        {
+          "busy": 1,
+          "log": 10,
+          "checkpointed": 3
+        },
+        2097153
+      ],
+      [
+        "size",
+        2097153
+      ],
+      [
+        "passive",
+        {
+          "busy": 1,
+          "log": 10,
+          "checkpointed": 3
+        },
+        2097153
+      ],
+      [
+        "size",
+        2097153
+      ],
+      [
+        "passive",
+        {
+          "busy": 1,
+          "log": 10,
+          "checkpointed": 3
+        },
+        2097153
+      ],
+      [
+        "size",
+        2097153
+      ],
+      [
+        "passive",
+        {
+          "busy": 1,
+          "log": 10,
+          "checkpointed": 3
+        },
+        2097153
+      ],
+      [
+        "size",
+        2097153
+      ],
+      [
+        "passive",
+        {
+          "busy": 1,
+          "log": 10,
+          "checkpointed": 3
+        },
+        2097153
+      ],
+      [
+        "size",
+        2097153
+      ],
+      [
+        "passive",
+        {
+          "busy": 1,
+          "log": 10,
+          "checkpointed": 3
+        },
+        2097153
+      ],
+      [
+        "size",
+        2097153
+      ],
+      [
+        "passive",
+        {
+          "busy": 1,
+          "log": 10,
+          "checkpointed": 3
+        },
+        2097153
+      ],
+      [
+        "size",
+        2097153
+      ],
+      [
+        "passive",
+        {
+          "busy": 1,
+          "log": 10,
+          "checkpointed": 3
+        },
+        2097153
+      ],
+      [
+        "size",
+        2097153
+      ],
+      [
+        "passive",
+        {
+          "busy": 1,
+          "log": 10,
+          "checkpointed": 3
+        },
+        2097153
+      ],
+      [
+        "size",
+        2097153
+      ],
+      [
+        "passive",
+        {
+          "busy": 1,
+          "log": 10,
+          "checkpointed": 3
+        },
+        2097153
+      ],
+      [
+        "size",
+        2097153
+      ],
+      [
+        "passive",
+        {
+          "busy": 1,
+          "log": 10,
+          "checkpointed": 3
+        },
+        2097153
+      ],
+      [
+        "size",
+        2097153
+      ],
+      [
+        "passive",
+        {
+          "busy": 1,
+          "log": 10,
+          "checkpointed": 3
+        },
+        2097153
+      ],
+      [
+        "size",
+        2097153
+      ],
+      [
+        "size",
+        2097153
+      ],
+      [
+        "size",
+        2097153
+      ]
+    ],
+    "walBytesFinal": 2097153,
+    "result": {
+      "state": "rejected",
+      "error": "WAL checkpoint cannot progress while a reader pins frames (wal=2MB, growth=2MB, fileCap=4MB, hard=2MB, give-ups=1). Aborting to avoid unbounded disk growth. Close concurrent readers (for example the MCP query pool) and retry, or raise AFYX_GRAPH_WAL_VALVE_MB if the threshold is too tight for this project."
+    },
+    "passiveCallsTotal": 20
+  },
+  "drain: resolves immediately when nothing is running": {
+    "trace": [],
+    "walBytesFinal": 0,
+    "drained": true
+  },
+  "drain: waits for an in-flight timer checkpoint": {
+    "trace": [
+      [
+        "size",
+        3145728
+      ],
+      [
+        "size",
+        3145728
+      ],
+      [
+        "passive",
+        {
+          "busy": 0,
+          "log": 1,
+          "checkpointed": 1
+        },
+        3145728
+      ],
+      [
+        "size",
+        3145728
+      ],
+      [
+        "size",
+        3145728
+      ]
+    ],
+    "walBytesFinal": 3145728,
+    "stillWaiting": true,
+    "drainedAfterRelease": true
+  },
+  "drain: waits for a paused backpressure backfill (close-while-pressure-exists)": {
+    "trace": [
+      [
+        "size",
+        2097153
+      ],
+      [
+        "size",
+        2097153
+      ],
+      [
+        "passive",
+        {
+          "busy": 0,
+          "log": 1,
+          "checkpointed": 1
+        },
+        2097153
+      ],
+      [
+        "size",
+        2097153
+      ],
+      [
+        "truncate",
+        {
+          "busy": 0,
+          "log": 100,
+          "checkpointed": 100
+        },
+        32768
+      ],
+      [
+        "size",
+        32768
+      ],
+      [
+        "size",
+        32768
+      ],
+      [
+        "size",
+        32768
+      ]
+    ],
+    "walBytesFinal": 32768,
+    "stillWaiting": true,
+    "drainedAfterRelease": true
+  },
+  "foldNow: no growth is a no-op (no checkpoint calls at all)": {
+    "trace": [
+      [
+        "size",
+        0
+      ]
+    ],
+    "walBytesFinal": 0,
+    "passiveCallsTotal": 0
+  },
+  "foldNow: any growth (even under soft) triggers a full backfill": {
+    "trace": [
+      [
+        "size",
+        100
+      ],
+      [
+        "size",
+        100
+      ],
+      [
+        "passive",
+        {
+          "busy": 0,
+          "log": 100,
+          "checkpointed": 100
+        },
+        100
+      ],
+      [
+        "size",
+        100
+      ],
+      [
+        "truncate",
+        {
+          "busy": 0,
+          "log": 100,
+          "checkpointed": 100
+        },
+        32768
+      ],
+      [
+        "size",
+        32768
+      ],
+      [
+        "size",
+        32768
+      ]
+    ],
+    "walBytesFinal": 32768,
+    "passiveCallsTotal": 1,
+    "truncateCallsTotal": 1
+  },
+  "foldNow: drains a prior in-flight timer pass first": {
+    "trace": [
+      [
+        "size",
+        3145728
+      ],
+      [
+        "size",
+        3145728
+      ],
+      [
+        "passive",
+        {
+          "busy": 0,
+          "log": 1,
+          "checkpointed": 1
+        },
+        3145728
+      ],
+      [
+        "size",
+        3145728
+      ],
+      [
+        "size",
+        3145728
+      ],
+      [
+        "size",
+        3145728
+      ]
+    ],
+    "walBytesFinal": 3145728,
+    "stillWaiting": true,
+    "doneAfterRelease": true
+  },
+  "log: a supplied log callback is invoked on a fired checkpoint": {
+    "trace": [
+      [
+        "size",
+        2097152
+      ],
+      [
+        "size",
+        2097152
+      ],
+      [
+        "passive",
+        {
+          "busy": 0,
+          "log": 100,
+          "checkpointed": 100
+        },
+        2097152
+      ],
+      [
+        "size",
+        2097152
+      ],
+      [
+        "size",
+        2097152
+      ]
+    ],
+    "walBytesFinal": 2097152,
+    "anyLogged": true
+  }
+}

@@ -1,0 +1,46 @@
+{
+  "name": "@a5zero7/afyx-graph-ui",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "The Afyx Graph reader as native browser views behind one data adapter.",
+  "keywords": [
+    "afyx-graph",
+    "browser-ui",
+    "code-intelligence",
+    "knowledge-graph"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/a5zero7/afyx-engineering-kit.git",
+    "directory": "afyx-graph/engine/ui"
+  },
+  "license": "MIT",
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "sideEffects": [
+    "**/*.css"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./theme.css": "./dist/lib/theme.css",
+    "./package.json": "./package.json"
+  },
+  "scripts": {
+    "build": "vite build",
+    "dev": "vite",
+    "preview": "vite preview",
+    "check": "tsc --noEmit -p ./tsconfig.json"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0",
+    "vite": "^7.3.6"
+  }
+}

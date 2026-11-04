@@ -1,0 +1,401 @@
+{
+  "schema_version": 1,
+  "mode": "smoke",
+  "random_seed": 3102026,
+  "repetitions": 1,
+  "run_order": [
+    "smoke-python-001-E-r1-bb9ed821",
+    "smoke-prompt-001-P-r1-92d270fe",
+    "smoke-odoo-001-O-r1-e0ec52e7"
+  ],
+  "pass_count": 3,
+  "total_count": 3,
+  "results": [
+    {
+      "schema_version": 1,
+      "run_id": "smoke-python-001-E-r1-bb9ed821",
+      "timestamp": "2026-09-23T05:26:25.791675+00:00",
+      "scenario_id": "smoke-python-001",
+      "configuration": "E",
+      "isolated_skills": [
+        "efficient-coding"
+      ],
+      "observed_skill_reads": [
+        "efficient-coding"
+      ],
+      "isolation_method": "session skills.config disable + repository-local selected copies",
+      "component_versions": {
+        "efficient-coding": {
+          "version": "1.1.0",
+          "source": "repository"
+        },
+        "odoo-engineering": {
+          "version": "1.1.0",
+          "source": "repository"
+        },
+        "prompt-master": {
+          "version": "1.8.0",
+          "git_sha": "2bd92518e26bf659e21e3d9ab90573fcf3ddeccb",
+          "source": "user checkout"
+        }
+      },
+      "model_provider_fingerprint": {
+        "os": "Windows",
+        "codex_cli": "0.155.1",
+        "model": "gpt-5.6-sol",
+        "reasoning_effort": "medium",
+        "provider": "openai",
+        "service_tier": "default",
+        "git": "2.55.0.windows.3",
+        "python": "3.10.11"
+      },
+      "result": "PASS",
+      "process_returncode": 0,
+      "assertions": [
+        {
+          "type": "validation_exit",
+          "expected": 0,
+          "passed": true
+        },
+        {
+          "type": "forbidden_pattern",
+          "expected": "eval(",
+          "passed": true
+        },
+        {
+          "type": "forbidden_pattern",
+          "expected": "exec(",
+          "passed": true
+        },
+        {
+          "type": "required_skill_reads",
+          "expected": [
+            "efficient-coding"
+          ],
+          "observed": [
+            "efficient-coding"
+          ],
+          "passed": true
+        },
+        {
+          "type": "forbidden_skill_reads",
+          "expected": [],
+          "observed": [
+            "efficient-coding"
+          ],
+          "passed": true
+        },
+        {
+          "type": "available_skill_reads",
+          "expected": [
+            "efficient-coding"
+          ],
+          "observed": [
+            "efficient-coding"
+          ],
+          "passed": true
+        },
+        {
+          "type": "allowed_file_scope",
+          "passed": true
+        },
+        {
+          "type": "expected_file_scope",
+          "passed": true
+        },
+        {
+          "type": "canonical_fixture_unchanged",
+          "passed": true
+        }
+      ],
+      "first_pass_success": true,
+      "correction_turns": 0,
+      "input_tokens": 105276,
+      "cached_input_tokens": 91520,
+      "output_tokens": 754,
+      "reasoning_tokens": 87,
+      "total_tokens": null,
+      "derived_input_output_tokens": 106030,
+      "derived_uncached_input_tokens": 13756,
+      "wall_time": 62.48294619999979,
+      "tool_calls": 5,
+      "search_calls": 1,
+      "read_calls": 2,
+      "files_opened": null,
+      "unique_files_opened": null,
+      "duplicate_reads": null,
+      "files_modified": [
+        "calculator.py"
+      ],
+      "validation_commands": [
+        [
+          "python",
+          "-m",
+          "unittest",
+          "-q"
+        ]
+      ],
+      "failed_tools": 1,
+      "wrong_version_api_count": 0,
+      "wrong_version_xml_count": null,
+      "unsupported_assumption_count": null,
+      "canonical_fixture_unchanged": true,
+      "validation_exit": 0,
+      "validation_output": "----------------------------------------------------------------------\nRan 1 test in 0.000s\n\nOK\n",
+      "generated_prompt_path": null,
+      "error_summary": null
+    },
+    {
+      "schema_version": 1,
+      "run_id": "smoke-prompt-001-P-r1-92d270fe",
+      "timestamp": "2026-09-23T05:27:17.171230+00:00",
+      "scenario_id": "smoke-prompt-001",
+      "configuration": "P",
+      "isolated_skills": [
+        "prompt-master"
+      ],
+      "observed_skill_reads": [
+        "prompt-master"
+      ],
+      "isolation_method": "session skills.config disable + repository-local selected copies",
+      "component_versions": {
+        "efficient-coding": {
+          "version": "1.1.0",
+          "source": "repository"
+        },
+        "odoo-engineering": {
+          "version": "1.1.0",
+          "source": "repository"
+        },
+        "prompt-master": {
+          "version": "1.8.0",
+          "git_sha": "2bd92518e26bf659e21e3d9ab90573fcf3ddeccb",
+          "source": "user checkout"
+        }
+      },
+      "model_provider_fingerprint": {
+        "os": "Windows",
+        "codex_cli": "0.155.1",
+        "model": "gpt-5.6-sol",
+        "reasoning_effort": "medium",
+        "provider": "openai",
+        "service_tier": "default",
+        "git": "2.55.0.windows.3",
+        "python": "3.10.11"
+      },
+      "result": "PASS",
+      "process_returncode": 0,
+      "assertions": [
+        {
+          "type": "output_contains",
+          "expected": "greeting.py",
+          "passed": true
+        },
+        {
+          "type": "output_contains",
+          "expected": "test",
+          "passed": true
+        },
+        {
+          "type": "required_skill_reads",
+          "expected": [
+            "prompt-master"
+          ],
+          "observed": [
+            "prompt-master"
+          ],
+          "passed": true
+        },
+        {
+          "type": "forbidden_skill_reads",
+          "expected": [],
+          "observed": [
+            "prompt-master"
+          ],
+          "passed": true
+        },
+        {
+          "type": "available_skill_reads",
+          "expected": [
+            "prompt-master"
+          ],
+          "observed": [
+            "prompt-master"
+          ],
+          "passed": true
+        },
+        {
+          "type": "allowed_file_scope",
+          "passed": true
+        },
+        {
+          "type": "expected_file_scope",
+          "passed": true
+        },
+        {
+          "type": "canonical_fixture_unchanged",
+          "passed": true
+        }
+      ],
+      "first_pass_success": true,
+      "correction_turns": 0,
+      "input_tokens": 68330,
+      "cached_input_tokens": 51456,
+      "output_tokens": 945,
+      "reasoning_tokens": 291,
+      "total_tokens": null,
+      "derived_input_output_tokens": 69275,
+      "derived_uncached_input_tokens": 16874,
+      "wall_time": 51.31994519999989,
+      "tool_calls": 2,
+      "search_calls": 0,
+      "read_calls": 2,
+      "files_opened": null,
+      "unique_files_opened": null,
+      "duplicate_reads": null,
+      "files_modified": [],
+      "validation_commands": [],
+      "failed_tools": 0,
+      "wrong_version_api_count": 0,
+      "wrong_version_xml_count": null,
+      "unsupported_assumption_count": null,
+      "canonical_fixture_unchanged": true,
+      "validation_exit": null,
+      "validation_output": null,
+      "generated_prompt_path": "generated_prompt.txt",
+      "error_summary": null
+    },
+    {
+      "schema_version": 1,
+      "run_id": "smoke-odoo-001-O-r1-e0ec52e7",
+      "timestamp": "2026-09-23T05:28:57.602255+00:00",
+      "scenario_id": "smoke-odoo-001",
+      "configuration": "O",
+      "isolated_skills": [
+        "odoo-engineering"
+      ],
+      "observed_skill_reads": [
+        "odoo-engineering"
+      ],
+      "isolation_method": "session skills.config disable + repository-local selected copies",
+      "component_versions": {
+        "efficient-coding": {
+          "version": "1.1.0",
+          "source": "repository"
+        },
+        "odoo-engineering": {
+          "version": "1.1.0",
+          "source": "repository"
+        },
+        "prompt-master": {
+          "version": "1.8.0",
+          "git_sha": "2bd92518e26bf659e21e3d9ab90573fcf3ddeccb",
+          "source": "user checkout"
+        }
+      },
+      "model_provider_fingerprint": {
+        "os": "Windows",
+        "codex_cli": "0.155.1",
+        "model": "gpt-5.6-sol",
+        "reasoning_effort": "medium",
+        "provider": "openai",
+        "service_tier": "default",
+        "git": "2.55.0.windows.3",
+        "python": "3.10.11"
+      },
+      "result": "PASS",
+      "process_returncode": 0,
+      "assertions": [
+        {
+          "type": "validation_exit",
+          "expected": 0,
+          "passed": true
+        },
+        {
+          "type": "forbidden_pattern",
+          "expected": "fields.Command",
+          "passed": true
+        },
+        {
+          "type": "forbidden_pattern",
+          "expected": "Command.set",
+          "passed": true
+        },
+        {
+          "type": "required_skill_reads",
+          "expected": [
+            "odoo-engineering"
+          ],
+          "observed": [
+            "odoo-engineering"
+          ],
+          "passed": true
+        },
+        {
+          "type": "forbidden_skill_reads",
+          "expected": [],
+          "observed": [
+            "odoo-engineering"
+          ],
+          "passed": true
+        },
+        {
+          "type": "available_skill_reads",
+          "expected": [
+            "odoo-engineering"
+          ],
+          "observed": [
+            "odoo-engineering"
+          ],
+          "passed": true
+        },
+        {
+          "type": "allowed_file_scope",
+          "passed": true
+        },
+        {
+          "type": "expected_file_scope",
+          "passed": true
+        },
+        {
+          "type": "canonical_fixture_unchanged",
+          "passed": true
+        }
+      ],
+      "first_pass_success": true,
+      "correction_turns": 0,
+      "input_tokens": 148029,
+      "cached_input_tokens": 130688,
+      "output_tokens": 1314,
+      "reasoning_tokens": 213,
+      "total_tokens": null,
+      "derived_input_output_tokens": 149343,
+      "derived_uncached_input_tokens": 17341,
+      "wall_time": 100.33211990000018,
+      "tool_calls": 7,
+      "search_calls": 1,
+      "read_calls": 5,
+      "files_opened": null,
+      "unique_files_opened": null,
+      "duplicate_reads": null,
+      "files_modified": [
+        "module/models.py"
+      ],
+      "validation_commands": [
+        [
+          "python",
+          "test_compat.py"
+        ]
+      ],
+      "failed_tools": 0,
+      "wrong_version_api_count": 0,
+      "wrong_version_xml_count": null,
+      "unsupported_assumption_count": null,
+      "canonical_fixture_unchanged": true,
+      "validation_exit": 0,
+      "validation_output": "compatibility check passed\n",
+      "generated_prompt_path": null,
+      "error_summary": null
+    }
+  ]
+}

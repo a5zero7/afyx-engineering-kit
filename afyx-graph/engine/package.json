@@ -1,0 +1,68 @@
+{
+  "name": "@a5zero7/afyx-graph",
+  "version": "1.0.0",
+  "description": "Afyx-owned local structural code intelligence.",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/a5zero7/afyx-engineering-kit.git",
+    "directory": "afyx-graph/engine"
+  },
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "bin": {
+    "afyx-graph": "./dist/bin/afyx-graph.js"
+  },
+  "files": [
+    "dist",
+    "scripts",
+    "README.md"
+  ],
+  "workspaces": [
+    "ui"
+  ],
+  "scripts": {
+    "build": "tsc && npm run copy-assets && npm run build:ui && node -e \"require('fs').chmodSync('dist/bin/afyx-graph.js', 0o755)\"",
+    "build:ui": "npm run build --workspace ui && node scripts/check-ui-build.mjs",
+    "preuninstall": "node dist/bin/uninstall.js",
+    "copy-assets": "node -e \"const fs=require('fs');fs.mkdirSync('dist/db',{recursive:true});fs.copyFileSync('src/db/schema.sql','dist/db/schema.sql')\"",
+    "dev": "tsc --watch",
+    "cli": "npm run build && node dist/bin/afyx-graph.js",
+    "build:clean": "npm run clean && npm run build",
+    "pretest": "node scripts/check-dist-clean.mjs",
+    "test": "vitest run",
+    "test:semantic": "node scripts/semantic-baseline.mjs",
+    "test:smoke": "node scripts/smoke-cli-mcp.mjs",
+    "bench": "node scripts/benchmark.mjs",
+    "bench:context": "node scripts/benchmark-context.mjs",
+    "bench:graph": "node scripts/benchmark-graph.mjs",
+    "bench:db": "node scripts/benchmark-db.mjs",
+    "bench:db-query": "node scripts/benchmark-db-query.mjs",
+    "bench:wal": "node scripts/benchmark-wal-policy.mjs",
+    "bench:impact": "node scripts/benchmark-impact.mjs",
+    "bench:sync": "node scripts/benchmark-watcher-policy.mjs",
+    "bench:extraction": "node scripts/benchmark-extraction.mjs",
+    "bench:daemon": "node scripts/benchmark-daemon.mjs",
+    "test:watch": "vitest",
+    "test:eval": "vitest run __tests__/evaluation/",
+    "eval": "npm run build && npx tsx __tests__/evaluation/runner.ts",
+    "clean": "node -e \"const fs=require('fs');fs.rmSync('dist',{recursive:true,force:true})\""
+  },
+  "keywords": [
+    "code-intelligence",
+    "knowledge-graph",
+    "static-analysis"
+  ],
+  "author": "Afyx",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.0",
+    "@types/node": "^20.19.30",
+    "jsdom": "^25.0.1",
+    "typescript": "^5.0.0",
+    "vite": "6.4.3",
+    "vitest": "4.1.11"
+  },
+  "engines": {
+    "node": ">=22.5.0"
+  }
+}

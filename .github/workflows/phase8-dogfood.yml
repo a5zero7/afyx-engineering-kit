@@ -1,0 +1,76 @@
+name: Phase 8 Representative Dogfood
+
+# Real Graph-Context representative engineering workload dogfooding.
+# Zero-model CI: executes local structural intelligence and standalone context engine
+# on Linux, Windows and macOS (Node 24).
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main, dev, alpha, 'afyx/p08-phase8-dogfood-closure']
+    paths:
+      - 'scripts/phase8-representative-workload.mjs'
+      - 'scripts/tests/test_phase8_runner_signal.mjs'
+      - 'docs/evidence/afyx-64/phase8-representative-dogfood-closure-20261031.json'
+      - 'docs/AFYX_64_PHASE8_DOGFOOD.md'
+      - 'afyx-context/**'
+      - 'afyx-graph/**'
+      - '.github/workflows/phase8-dogfood.yml'
+  pull_request:
+    branches: [main, dev, alpha]
+    paths:
+      - 'scripts/phase8-representative-workload.mjs'
+      - 'scripts/tests/test_phase8_runner_signal.mjs'
+      - 'docs/evidence/afyx-64/phase8-representative-dogfood-closure-20261031.json'
+      - 'docs/AFYX_64_PHASE8_DOGFOOD.md'
+      - 'afyx-context/**'
+      - 'afyx-graph/**'
+      - '.github/workflows/phase8-dogfood.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  dogfood:
+    name: dogfood (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 24
+
+      - name: Install locked dependencies (Afyx Context)
+        working-directory: afyx-context
+        run: npm ci
+
+      - name: Clean build (Afyx Context)
+        working-directory: afyx-context
+        run: npm run build
+
+      - name: Install locked dependencies (Afyx Graph)
+        working-directory: afyx-graph/engine
+        run: npm ci
+
+      - name: Clean build (Afyx Graph)
+        working-directory: afyx-graph/engine
+        run: npm run build
+
+      - name: Signal integrity and negative regression tests
+        run: node scripts/tests/test_phase8_runner_signal.mjs
+
+      - name: Execute Phase 8 representative workload runner (CI-safe mode)
+        run: node scripts/phase8-representative-workload.mjs --ci
+
+      - name: Verify repository remains clean
+        shell: bash
+        run: |
+          if [ -n "$(git status --porcelain)" ]; then
+            echo "::error::Repository has uncommitted changes after CI run"
+            git status --porcelain
+            exit 1
+          fi

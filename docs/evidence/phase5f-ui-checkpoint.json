@@ -1,0 +1,101 @@
+{
+  "task_id": "AFYX-91852",
+  "phase": "Phase 5F",
+  "boundary": "UI Runtime Replacement",
+  "captured_on": "2026-10-04",
+  "canonical_main_baseline": "48b6078ed37349e405213258819fa5225bcdb3fb",
+  "start_checkpoint": "28f0f84f74468279cb574a22cb09fdf210268633",
+  "status": "PHASE_5F_PARTIAL_UI_RUNTIME_COMPLETE",
+  "ownership": {
+    "adapter_wire_navigation_semantics_changed": false,
+    "core_graph_semantics_moved_to_browser": false,
+    "native_runtime_modules": [
+      "ui/src/native/app.ts",
+      "ui/src/native/components.ts",
+      "ui/src/native/dom.ts",
+      "ui/src/native/graph.ts",
+      "ui/src/native/search.ts",
+      "ui/src/native/viewport.ts",
+      "ui/src/native/views.ts",
+      "ui/src/lib/native-state.ts",
+      "ui/src/lib/router.ts"
+    ],
+    "active_svelte_files": 0,
+    "ui_production_dependencies": 0,
+    "ui_peer_dependencies": 0
+  },
+  "removed_packages": [
+    "svelte",
+    "svelte-check",
+    "@sveltejs/package",
+    "@sveltejs/vite-plugin-svelte",
+    "@xyflow/svelte",
+    "@xyflow/system",
+    "d3 transitives from XYFlow",
+    "@fontsource-variable/archivo",
+    "@fontsource/ibm-plex-mono"
+  ],
+  "viewer": {
+    "before": {
+      "files": 46,
+      "bytes": 1077326,
+      "js_bytes": 506225,
+      "css_bytes": 100782,
+      "font_files": 43,
+      "font_bytes": 469752
+    },
+    "after": {
+      "files": 3,
+      "bytes": 85615,
+      "js_bytes": 77003,
+      "css_bytes": 8045,
+      "font_files": 0,
+      "font_bytes": 0,
+      "source_maps": 0
+    },
+    "signature_scan": {
+      "svelte": 0,
+      "xyflow": 0,
+      "d3": 0,
+      "fontsource": 0,
+      "archivo": 0,
+      "ibm_plex": 0,
+      "node_modules_paths": 0
+    }
+  },
+  "validation": {
+    "clean_npm_install": "PASS",
+    "ui_campaign": { "passed": 687, "skipped": 4, "failed": 0 },
+    "clean_build": "PASS",
+    "semantic_fixtures": 6,
+    "smoke_checks": 21,
+    "repository_validator": "PASS",
+    "real_browser": "NOT AVAILABLE"
+  },
+  "artifact": {
+    "target": "win32-x64",
+    "node_version": "v24.16.0",
+    "archive": "afyx-graph-win32-x64.zip",
+    "archive_sha256": "a422fe665596a1fbfcecef77092401e3440d193b0bed0f6f316c2b821dbd2517",
+    "archive_bytes": 48932591,
+    "file_count": 1517,
+    "uncompressed_bytes": 227437426,
+    "viewer_files": 3,
+    "viewer_bytes": 85615,
+    "font_files": 0,
+    "distribution_verifier": {
+      "result": "PASS",
+      "assets": 2,
+      "grammar_count": 29,
+      "engine_source_maps": 343,
+      "legal_files": 2
+    }
+  },
+  "legal_files_changed": false,
+  "pending": [
+    "parser/grammar replacement",
+    "native kernel closure",
+    "bundled Node/node_modules final removal",
+    "final Phase 5F artifact audit"
+  ]
+}

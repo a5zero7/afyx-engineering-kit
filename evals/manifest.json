@@ -1,0 +1,202 @@
+{
+  "schema_version": 1,
+  "random_seed": 3102026,
+  "environment": "environment-expert-v0.1.1-specialists-codex-0.162.1-mxc.json",
+  "configurations": {
+    "N": [],
+    "E": ["efficient-coding"],
+    "O": ["odoo-engineering"],
+    "P": ["prompt-master"],
+    "EO": ["efficient-coding", "odoo-engineering"],
+    "PO": ["prompt-master", "odoo-engineering"],
+    "CORE": ["efficient-coding", "odoo-engineering", "prompt-master"],
+    "X": ["afyx-engineering-expert"],
+    "CORE_X": ["efficient-coding", "odoo-engineering", "prompt-master", "afyx-engineering-expert"]
+  },
+  "evaluation_aliases": {
+    "A0": "N",
+    "A1": "CORE",
+    "B0": "X",
+    "B1": "CORE_X"
+  },
+  "scenarios": [
+    {
+      "scenario_id": "smoke-python-001",
+      "category": "direct/non-odoo",
+      "fixture": "fixtures/smoke-python",
+      "user_prompt": "Fix the add function in calculator.py so the existing tests pass. Keep the change scoped and run the tests.",
+      "configurations": ["E"],
+      "required_skill_reads": ["efficient-coding"],
+      "forbidden_skill_reads": [],
+      "expected_assertions": [{"type": "validation_exit", "value": 0}],
+      "forbidden_patterns": ["eval(", "exec("],
+      "validation_command": ["python", "-m", "unittest", "-q"],
+      "allowed_file_scope": ["calculator.py"],
+      "expected_file_scope": ["calculator.py"],
+      "output_kind": "coding"
+    },
+    {
+      "scenario_id": "smoke-odoo-001",
+      "category": "direct/odoo",
+      "fixture": "fixtures/smoke-odoo",
+      "user_prompt": "Fix the compatibility bug in module/models.py for the Odoo version evidenced by this repository. Preserve behavior and run the available test.",
+      "configurations": ["O"],
+      "required_skill_reads": ["odoo-engineering"],
+      "forbidden_skill_reads": [],
+      "expected_assertions": [{"type": "validation_exit", "value": 0}],
+      "forbidden_patterns": ["fields.Command", "Command.set"],
+      "validation_command": ["python", "test_compat.py"],
+      "allowed_file_scope": ["module/models.py"],
+      "expected_file_scope": ["module/models.py"],
+      "output_kind": "coding"
+    },
+    {
+      "scenario_id": "smoke-prompt-001",
+      "category": "prompt/authoring",
+      "fixture": "fixtures/smoke-prompt",
+      "user_prompt": "Write a production-ready prompt for Codex to update the greeting function described in context.md. Return the prompt, not an implementation.",
+      "configurations": ["P"],
+      "required_skill_reads": ["prompt-master"],
+      "forbidden_skill_reads": [],
+      "expected_assertions": [
+        {"type": "output_contains", "value": "greeting.py"},
+        {"type": "output_contains", "value": "test"}
+      ],
+      "forbidden_patterns": [],
+      "validation_command": null,
+      "allowed_file_scope": [],
+      "expected_file_scope": [],
+      "output_kind": "generated_prompt"
+    },
+    {
+      "scenario_id": "pilot-expert-architecture-001",
+      "stage": "development-pilot",
+      "category": "expert-architecture",
+      "fixture": "fixtures/expert-pilot",
+      "user_prompt": "Advisory only. Design an engineering approach for a fictional multi-tenant approval platform that must support organization-structure changes, tenant data isolation, audit trails, and API integration. Identify material ambiguities, architecture alternatives, major risks, and verifiable acceptance criteria. Do not modify files.",
+      "configurations": ["B1"],
+      "required_skill_reads": ["afyx-engineering-expert"],
+      "forbidden_skill_reads": [],
+      "expected_assertions": [
+        {"type": "output_contains", "value": "tenant"},
+        {"type": "output_contains", "value": "audit"},
+        {"type": "output_contains", "value": "acceptance"},
+        {"type": "max_expert_reference_reads", "value": 3}
+      ],
+      "forbidden_patterns": ["implemented successfully", "tests passed"],
+      "validation_command": null,
+      "allowed_file_scope": [],
+      "expected_file_scope": [],
+      "output_kind": "advisory",
+      "evaluator_rubric": {
+        "correctness": ["tenant isolation and organization-history consequences are explicit"],
+        "task_fidelity": ["advisory only; alternatives, ambiguities, risks and acceptance criteria are present"],
+        "evidence_quality": ["facts, assumptions and decisions requiring validation are distinguished"],
+        "security": ["authorization and cross-tenant failure paths are addressed"]
+      }
+    },
+    {
+      "scenario_id": "pilot-expert-security-001",
+      "stage": "development-pilot",
+      "category": "expert-security",
+      "fixture": "fixtures/expert-pilot",
+      "user_prompt": "Advisory only. Threat-model a fictional B2B API that uses organization-scoped service accounts, asynchronous webhooks, and administrator impersonation for support. Identify trust boundaries, abuse cases, prioritized controls, residual risks, and acceptance evidence. Do not modify files or claim a penetration test was run.",
+      "configurations": ["B1"],
+      "required_skill_reads": ["afyx-engineering-expert"],
+      "forbidden_skill_reads": [],
+      "expected_assertions": [
+        {"type": "output_contains", "value": "trust"},
+        {"type": "output_contains", "value": "webhook"},
+        {"type": "output_contains", "value": "residual"}
+      ],
+      "forbidden_patterns": ["penetration test passed", "fully secure"],
+      "validation_command": null,
+      "allowed_file_scope": [],
+      "expected_file_scope": [],
+      "output_kind": "advisory",
+      "evaluator_rubric": {
+        "correctness": ["service-account, webhook and impersonation threats are concrete and prioritized"],
+        "task_fidelity": ["review stays advisory and does not invent executed security testing"],
+        "evidence_quality": ["confirmed inputs are separated from assumptions and validation needs"],
+        "security": ["least privilege, replay protection and impersonation auditability are covered"]
+      }
+    },
+    {
+      "scenario_id": "pilot-expert-database-001",
+      "stage": "development-pilot",
+      "category": "expert-database-reliability",
+      "fixture": "fixtures/expert-pilot",
+      "user_prompt": "Advisory only. Review a fictional order database design that needs zero duplicate settlement, regional failover, online schema migration, and auditable recovery. Explain unresolved requirements, consistency tradeoffs, failure modes, and testable recovery acceptance criteria. Do not modify files.",
+      "configurations": ["B1"],
+      "required_skill_reads": ["afyx-engineering-expert"],
+      "forbidden_skill_reads": [],
+      "expected_assertions": [
+        {"type": "output_contains", "value": "duplicate"},
+        {"type": "output_contains", "value": "recovery"},
+        {"type": "output_contains", "value": "migration"}
+      ],
+      "forbidden_patterns": ["zero data loss guaranteed", "tests passed"],
+      "validation_command": null,
+      "allowed_file_scope": [],
+      "expected_file_scope": [],
+      "output_kind": "advisory",
+      "evaluator_rubric": {
+        "correctness": ["idempotency, consistency, failover and migration interactions are addressed"],
+        "task_fidelity": ["tradeoffs and recovery criteria are actionable without implementation"],
+        "evidence_quality": ["unverified RPO/RTO and workload assumptions are explicit"],
+        "security": ["recovery access and audit integrity are considered"]
+      }
+    },
+    {
+      "scenario_id": "pilot-expert-erp-001",
+      "stage": "development-pilot",
+      "category": "expert-odoo-process",
+      "fixture": "fixtures/expert-pilot",
+      "user_prompt": "Advisory only for a fictional Odoo 17 process. Review creation of multi-vendor RFQs from an Approved Purchase Request, including quantity caps, company permissions, duplicate RFQs, retries, and concurrency. Separate ERP process invariants from Odoo-version-specific implementation guidance; provide risks and acceptance scenarios. Do not access a database or modify files.",
+      "configurations": ["B1"],
+      "required_skill_reads": ["afyx-engineering-expert", "odoo-engineering"],
+      "forbidden_skill_reads": [],
+      "expected_assertions": [
+        {"type": "output_contains", "value": "Odoo 17"},
+        {"type": "output_contains", "value": "concurrency"},
+        {"type": "output_contains", "value": "duplicate"}
+      ],
+      "forbidden_patterns": ["database updated", "module installed"],
+      "validation_command": null,
+      "allowed_file_scope": [],
+      "expected_file_scope": [],
+      "output_kind": "advisory",
+      "evaluator_rubric": {
+        "correctness": ["quantity, company, duplicate, retry and concurrency invariants are coherent"],
+        "task_fidelity": ["process reasoning and version-specific guidance have explicit ownership"],
+        "evidence_quality": ["Odoo behavior not evidenced by a repository/runtime is labelled assumed"],
+        "security": ["multi-company authorization and record visibility are addressed"]
+      }
+    },
+    {
+      "scenario_id": "pilot-expert-negative-routing-001",
+      "stage": "development-pilot",
+      "category": "general-conversation",
+      "fixture": "fixtures/expert-pilot",
+      "user_prompt": "How do I reverse a Python list? Give one concise example.",
+      "configurations": ["B1"],
+      "required_skill_reads": [],
+      "forbidden_skill_reads": ["afyx-engineering-expert", "efficient-coding", "odoo-engineering", "prompt-master"],
+      "expected_assertions": [
+        {"type": "python_list_reversal", "value": true},
+        {"type": "max_tool_calls", "value": 0}
+      ],
+      "forbidden_patterns": ["architecture", "threat model", "acceptance criteria"],
+      "validation_command": null,
+      "allowed_file_scope": [],
+      "expected_file_scope": [],
+      "output_kind": "advisory",
+      "evaluator_rubric": {
+        "correctness": ["example correctly reverses the list"],
+        "task_fidelity": ["answer is concise"],
+        "evidence_quality": ["no unsupported performance claim"],
+        "security": ["no irrelevant security workflow"]
+      }
+    }
+  ]
+}

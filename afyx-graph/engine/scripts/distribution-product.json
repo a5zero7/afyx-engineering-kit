@@ -1,0 +1,32 @@
+{
+  "productName": "Afyx Graph",
+  "releaseChannel": "technical-alpha",
+  "packageName": "@a5zero7/afyx-graph",
+  "cli": "afyx-graph",
+  "bundlePrefix": "afyx-graph",
+  "runtime": {
+    "name": "Node.js",
+    "ownership": "external_platform",
+    "executable": "node",
+    "minimumVersion": "22.5.0"
+  },
+  "targets": [
+    "darwin-arm64",
+    "darwin-x64",
+    "linux-arm64",
+    "linux-x64",
+    "win32-arm64",
+    "win32-x64"
+  ],
+  "engineSentinels": [
+    "bin/afyx-graph.js",
+    "index.js",
+    "ui/shimmer-progress.js"
+  ],
+  "legalFiles": [
+    {
+      "source": "LICENSE",
+      "bundlePath": "LICENSE"
+    }
+  ]
+}

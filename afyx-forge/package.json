@@ -1,0 +1,26 @@
+{
+  "name": "@afyx/forge-core",
+  "version": "0.1.0",
+  "description": "Afyx Forge Core: Standalone adaptive engineering guidance and policy engine",
+  "main": "src/index.js",
+  "bin": {
+    "afyx-forge": "bin/afyx-forge.js"
+  },
+  "type": "module",
+  "scripts": {
+    "test": "node --test test/*.test.js"
+  },
+  "keywords": [
+    "afyx",
+    "forge",
+    "engineering-policy",
+    "adaptive-guidance",
+    "developer-tooling"
+  ],
+  "author": "Afyx Engineering Team",
+  "license": "Apache-2.0",
+  "engines": {
+    "node": ">=22.5.0"
+  }
+}
+

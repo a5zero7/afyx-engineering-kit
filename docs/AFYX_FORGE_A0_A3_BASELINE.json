@@ -1,0 +1,169 @@
+{
+  "schema_version": 1,
+  "task": "T08",
+  "track": "Afyx Forge A0-A3",
+  "frozen_at": "2026-10-16",
+  "source_revision": "9333616035e71f63f30c4ebcabf13354f91b2399",
+  "status": "CONTRACT_COMPLETE_T09_EXECUTION_BLOCKED",
+  "amendments": [
+    {
+      "amendment_id": "A0-ROUTE-B-2026-10-16",
+      "date": "2026-10-16",
+      "authorization": "EXPLICIT_OWNER_ROUTE_B",
+      "change": "Use the newly authored Afyx Independent Engineering Baseline 0.1.0 for candidate slot B2 and construct dependent B3/B4 identities.",
+      "historical_original_b2": "UNRESOLVED_NOT_REPLACED_OR_RELABELED",
+      "benchmark_authorized": false,
+      "a8_go": false
+    }
+  ],
+  "source_inputs": {
+    "efficient_coding": {
+      "version": "1.2.0",
+      "path": "skills/efficient-coding",
+      "tree_sha256": "deab6d987eb8af8ad2ab312f7ed9facb3be1cbda20622eeeaedc80a1db0829a4",
+      "git_tree": "6c904f2a349a596dde6943145e6a5de9228f3605",
+      "verification": "VERIFIED"
+    },
+    "independent_master_prompt": {
+      "authorized_source": null,
+      "source_revision": null,
+      "content_sha256": null,
+      "provenance": null,
+      "verification": "UNRESOLVED_NOT_PRESENT_IN_CANONICAL_REPOSITORY"
+    },
+    "prompt_master_behavioral_evidence": {
+      "version": "1.8.0",
+      "upstream_git_sha": "2bd92518e26bf659e21e3d9ab90573fcf3ddeccb",
+      "result_path": "evals/results/latest-summary.json",
+      "result_sha256": "7c62a9e0629b180ce33ad71913e98b8d3457631410358cb4859e8dc6bda47f75",
+      "result_git_blob": "08ce65dbfb651beaef00760848a269ed2b9b7201",
+      "run_id": "smoke-prompt-001-P-r1-92d270fe",
+      "result": "PASS",
+      "scope": "SINGLE_PROMPT_AUTHORING_SMOKE_ONLY"
+    },
+    "existing_afyx_engineering_evidence": {
+      "revision": "9333616035e71f63f30c4ebcabf13354f91b2399",
+      "master_roadmap_path": "docs/AFYX_V1_MASTER_ROADMAP.md",
+      "master_roadmap_sha256": "78e41de712654049c427cba8ac5ab3412096f092e17eaff706147149cd107d7d",
+      "master_roadmap_git_blob": "b30642517d53283350397b5808ddd2ed7b287c31",
+      "classification": "HISTORICAL_CONTEXT_NOT_COMPARATIVE_FORGE_EVIDENCE"
+    }
+  },
+  "development_preflight": {
+    "os": "Windows",
+    "codex_cli": "0.162.1",
+    "node": "26.8.1",
+    "npm": "11.19.0",
+    "python": "3.10.11",
+    "powershell": "7.6.6",
+    "git": "2.55.0.windows.5",
+    "campaign_runtime_selected": false
+  },
+  "candidate_definitions": {
+    "B0": {
+      "definition": "no additional engineering directive",
+      "identity": "NOT_CREATED"
+    },
+    "B1": {
+      "definition": "Efficient Coding 1.2.0",
+      "source_identity": "VERIFIED",
+      "campaign_identity": "NOT_CREATED"
+    },
+    "B2": {
+      "definition": "Afyx Independent Engineering Baseline 0.1.0 under controlled Route B amendment",
+      "identity": "06ada73c05824b014a1ff0aa3ab801115cbd4cd4625f4ab1dc9538bf21fe413e",
+      "historical_original_b2": "UNRESOLVED_NOT_RELABELED"
+    },
+    "B3": {
+      "definition": "exact B1 plus exact Route B B2 with deterministic composition order",
+      "identity": "884eaacf98c4f80d83e5b84a2216f5253db91f7e9930c869fa0fe3248ae9234d"
+    },
+    "B4": {
+      "definition": "Afyx Forge Refined Convergence Candidate 0.1.0",
+      "identity": "ecb1d698956cd490fc65cb6d1abf085ff123053ddeae043add45c74703f2f452"
+    },
+    "B5": {
+      "definition": "independent Afyx-native Forge candidate",
+      "identity": "NOT_CONSTRUCTED_A4"
+    }
+  },
+  "evaluation_contract": {
+    "public_categories": [
+      "known_file_bug",
+      "unknown_defect_diagnosis",
+      "cross_module_change",
+      "security_sensitive_change",
+      "data_reliability_change",
+      "negative_simple_task"
+    ],
+    "discovery": {
+      "candidates": 6,
+      "categories": 6,
+      "repetitions": 1,
+      "cells": 36,
+      "order": "DETERMINISTIC_INTERLEAVED_RECORDED_SEED",
+      "comparative_claim_allowed": false
+    },
+    "budget": {
+      "expert_27_run_ceiling_applies": false,
+      "forge_36_cell_budget": "REQUIRES_EXPLICIT_OWNER_APPROVAL",
+      "confirmation_budget": "REQUIRES_EXPLICIT_OWNER_APPROVAL"
+    },
+    "hard_gates_in_order": [
+      "correctness",
+      "task_fidelity",
+      "evidence_quality",
+      "security"
+    ],
+    "efficiency_metrics": [
+      "provider_reported_tokens",
+      "wall_time",
+      "tool_search_read_calls",
+      "unique_files_and_duplicate_reads",
+      "failed_tools",
+      "correction_turns",
+      "first_pass_success",
+      "validation_outcomes",
+      "changed_file_scope"
+    ],
+    "monetary_cost": "PROVIDER_REPORTED_ONLY_OTHERWISE_NOT_AVAILABLE",
+    "environment_fingerprint": "UNRESOLVED_OWNER_SELECTION_REQUIRED",
+    "evaluator_isolation": "BLOCKED_NOT_INDEPENDENTLY_DEMONSTRATED_FOR_FORGE",
+    "private_material_policy": "EVALUATOR_ONLY_OUTSIDE_DEVELOPER_AND_EVALUATED_AGENT_ACCESS",
+    "architecture_decision": "DEFERRED_TO_A8"
+  },
+  "gate_results": {
+    "A0": "SPECIFICATION_FROZEN_EXECUTION_BLOCKED",
+    "A1": "COMPLETE_WITH_UNAVAILABLE_INPUT_EXCLUDED",
+    "A2": "COMPLETE_NO_PERFORMANCE_CLAIM",
+    "A3": "COMPLETE_ARCHITECTURE_NOT_SELECTED"
+  },
+  "t09_handoff": {
+    "readiness": "CANDIDATE_MATRIX_COMPLETE_CAMPAIGN_AUTHORIZATION_BLOCKED",
+    "blockers": [
+      "OWNER_APPROVED_RUNTIME_FINGERPRINT",
+      "INDEPENDENT_EVALUATOR_ISOLATION",
+      "FORGE_36_CELL_BUDGET_APPROVAL",
+      "CONFIRMATION_BUDGET_APPROVAL",
+      "INDEPENDENT_EVALUATOR_ARRANGEMENT_APPROVAL",
+      "EVALUATOR_ONLY_BUNDLE_FREEZE",
+      "FINAL_CAMPAIGN_EXECUTION_APPROVAL"
+    ]
+  },
+  "jira": {
+    "parent": "AFYX-12",
+    "A0": ["AFYX-88", "AFYX-171", "AFYX-172"],
+    "A1": ["AFYX-89", "AFYX-173", "AFYX-174"],
+    "A2": ["AFYX-90", "AFYX-175"],
+    "A3": ["AFYX-91", "AFYX-176"],
+    "write_status": "NOT_PERFORMED_DIRECT_ACCESS_UNAVAILABLE"
+  },
+  "claims": {
+    "benchmark_executed": false,
+    "performance_improvement": "NOT_CLAIMED",
+    "a8_architecture_go": false,
+    "forge_implemented": false,
+    "alpha_promoted": false,
+    "v1_release_contract_changed": false
+  }
+}

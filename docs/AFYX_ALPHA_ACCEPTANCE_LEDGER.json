@@ -1,0 +1,251 @@
+{
+  "schema_version": 1,
+  "contract": "afyx.alpha.acceptance/v1",
+  "purpose": "Sanitized evidence readiness ledger, not a runtime test result or release approval",
+  "baseline": {
+    "branch": "dev",
+    "observed_source_sha": "b273b7b27ba33838075c86870e0b8a58fdbaca95",
+    "candidate_source_sha": null,
+    "artifact_digest_sha256": null
+  },
+  "execution": {
+    "provider_calls_observed": 0,
+    "real_world_pilot_executed": false,
+    "independent_evaluator_run": false,
+    "owner_release_approval": false
+  },
+  "gates": [
+    {
+      "id": "GRAPH_STANDALONE",
+      "required_verifier": "owner",
+      "depends_on": [],
+      "status": "NOT_RUN",
+      "reason_code": "INSTALLED_RUNTIME_NOT_OBSERVED",
+      "evidence": []
+    },
+    {
+      "id": "CONTEXT_STANDALONE",
+      "required_verifier": "owner",
+      "depends_on": [],
+      "status": "NOT_RUN",
+      "reason_code": "INSTALLED_RUNTIME_NOT_OBSERVED",
+      "evidence": []
+    },
+    {
+      "id": "FORGE_STANDALONE",
+      "required_verifier": "owner",
+      "depends_on": [],
+      "status": "NOT_RUN",
+      "reason_code": "ASSISTIVE_ALPHA_ONLY",
+      "evidence": []
+    },
+    {
+      "id": "ODOO_STANDALONE",
+      "required_verifier": "owner",
+      "depends_on": [],
+      "status": "NOT_RUN",
+      "reason_code": "DOMAIN_REAL_WORKLOAD_NOT_OBSERVED",
+      "evidence": []
+    },
+    {
+      "id": "EXPERT_STANDALONE",
+      "required_verifier": "owner",
+      "depends_on": [],
+      "status": "NOT_RUN",
+      "reason_code": "INDEPENDENT_ACCEPTANCE_PENDING",
+      "evidence": []
+    },
+    {
+      "id": "GRAPH_ACE_RUNTIME",
+      "required_verifier": "owner",
+      "depends_on": [
+        "GRAPH_STANDALONE",
+        "CONTEXT_STANDALONE"
+      ],
+      "status": "BLOCKED",
+      "reason_code": "NATIVE_MCP_WIRING_NOT_ACCEPTED",
+      "evidence": []
+    },
+    {
+      "id": "PROVIDER_THREE_HOST",
+      "required_verifier": "owner",
+      "depends_on": [
+        "GRAPH_STANDALONE"
+      ],
+      "status": "NOT_RUN",
+      "reason_code": "LIVE_PROVIDER_SESSION_NOT_OBSERVED",
+      "evidence": []
+    },
+    {
+      "id": "INSTALLER_LIFECYCLE",
+      "required_verifier": "owner",
+      "depends_on": [],
+      "status": "NOT_RUN",
+      "reason_code": "ACTUAL_INSTALLED_ARTIFACT_NOT_TESTED",
+      "evidence": []
+    },
+    {
+      "id": "EXPERT_D6",
+      "required_verifier": "independent_evaluator",
+      "depends_on": [
+        "EXPERT_STANDALONE",
+        "ODOO_STANDALONE"
+      ],
+      "status": "BLOCKED",
+      "reason_code": "INDEPENDENT_D6_NOT_EXECUTED",
+      "evidence": []
+    },
+    {
+      "id": "FORGE_FORMAL_36",
+      "required_verifier": "independent_evaluator",
+      "depends_on": [
+        "FORGE_STANDALONE"
+      ],
+      "status": "BLOCKED",
+      "reason_code": "FORMAL_CUSTODY_AND_BUDGET_NOT_APPROVED",
+      "evidence": []
+    },
+    {
+      "id": "FORGE_A8_DECISION",
+      "required_verifier": "independent_evaluator",
+      "depends_on": [
+        "FORGE_FORMAL_36"
+      ],
+      "status": "BLOCKED",
+      "reason_code": "FORMAL_A8_NO_GO_DECISION",
+      "evidence": []
+    },
+    {
+      "id": "FORGE_A9_A12",
+      "required_verifier": "independent_evaluator",
+      "depends_on": [
+        "FORGE_A8_DECISION"
+      ],
+      "status": "BLOCKED",
+      "reason_code": "A8_GO_NOT_GRANTED",
+      "evidence": []
+    },
+    {
+      "id": "PLATFORM_TB7",
+      "required_verifier": "owner",
+      "depends_on": [
+        "PROVIDER_THREE_HOST"
+      ],
+      "status": "BLOCKED",
+      "reason_code": "INSTALLED_PROVIDER_MATRIX_PENDING",
+      "evidence": []
+    },
+    {
+      "id": "PHASE8_REAL_DOGFOOD",
+      "required_verifier": "independent_evaluator",
+      "depends_on": [
+        "GRAPH_ACE_RUNTIME",
+        "EXPERT_D6"
+      ],
+      "status": "NOT_RUN",
+      "reason_code": "REPRESENTATIVE_PAIRED_RUNS_PENDING",
+      "evidence": []
+    },
+    {
+      "id": "PHASE9_HARDENING",
+      "required_verifier": "owner",
+      "depends_on": [
+        "INSTALLER_LIFECYCLE"
+      ],
+      "status": "NOT_RUN",
+      "reason_code": "INSTALLED_FAULT_MATRIX_PENDING",
+      "evidence": []
+    },
+    {
+      "id": "T12_INSTALLED_PRODUCT",
+      "required_verifier": "release_reviewer",
+      "depends_on": [
+        "GRAPH_ACE_RUNTIME",
+        "PLATFORM_TB7",
+        "FORGE_A9_A12",
+        "PHASE8_REAL_DOGFOOD",
+        "PHASE9_HARDENING",
+        "EXPERT_D6"
+      ],
+      "status": "BLOCKED",
+      "reason_code": "COMPONENT_GATES_NOT_ACCEPTED",
+      "evidence": []
+    },
+    {
+      "id": "PHASE10_PRIVATE_BETA",
+      "required_verifier": "release_reviewer",
+      "depends_on": [
+        "T12_INSTALLED_PRODUCT"
+      ],
+      "status": "BLOCKED",
+      "reason_code": "T12_NOT_ACCEPTED",
+      "evidence": []
+    },
+    {
+      "id": "PHASE11_STABLE",
+      "required_verifier": "release_reviewer",
+      "depends_on": [
+        "PHASE10_PRIVATE_BETA"
+      ],
+      "status": "BLOCKED",
+      "reason_code": "PRIVATE_BETA_EXIT_NOT_ACCEPTED",
+      "evidence": []
+    }
+  ],
+  "scenarios": [
+    {
+      "id": "KNOWN_SYMBOL_DIRECT",
+      "task_family": "known_symbol",
+      "size_band": "small",
+      "method": "CONTROL_TREATMENT",
+      "status": "NOT_RUN",
+      "reason_code": "REAL_WORLD_RUN_NOT_CAPTURED",
+      "evidence": []
+    },
+    {
+      "id": "ODOO_CROSS_MODULE",
+      "task_family": "odoo_multimodule",
+      "size_band": "large",
+      "method": "CONTROL_TREATMENT",
+      "status": "NOT_RUN",
+      "reason_code": "REAL_WORLD_RUN_NOT_CAPTURED",
+      "evidence": []
+    },
+    {
+      "id": "PYTHON_REGRESSION",
+      "task_family": "python",
+      "size_band": "medium",
+      "method": "CONTROL_TREATMENT",
+      "status": "NOT_RUN",
+      "reason_code": "REAL_WORLD_RUN_NOT_CAPTURED",
+      "evidence": []
+    },
+    {
+      "id": "TYPESCRIPT_MONOREPO",
+      "task_family": "typescript_monorepo",
+      "size_band": "large",
+      "method": "CONTROL_TREATMENT",
+      "status": "NOT_RUN",
+      "reason_code": "REAL_WORLD_RUN_NOT_CAPTURED",
+      "evidence": []
+    },
+    {
+      "id": "ACE_LARGE_REPEAT_RECOVERY",
+      "task_family": "context_recovery",
+      "size_band": "large",
+      "method": "CONTROL_TREATMENT",
+      "status": "NOT_RUN",
+      "reason_code": "REAL_WORLD_RUN_NOT_CAPTURED",
+      "evidence": []
+    },
+    {
+      "id": "PROVIDER_RESTART_ROLLBACK",
+      "task_family": "provider_lifecycle",
+      "size_band": "medium",
+      "method": "OBSERVATIONAL",
+      "status": "NOT_RUN",
+      "reason_code": "REAL_WORLD_RUN_NOT_CAPTURED",
+      "evidence": []
+    }
+  ]
+}

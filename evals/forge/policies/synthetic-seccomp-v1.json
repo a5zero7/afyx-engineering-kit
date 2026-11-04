@@ -1,0 +1,62 @@
+{
+  "archMap": [
+    {
+      "architecture": "SCMP_ARCH_X86_64",
+      "subArchitectures": [
+        "SCMP_ARCH_X86",
+        "SCMP_ARCH_X32"
+      ]
+    }
+  ],
+  "defaultAction": "SCMP_ACT_ERRNO",
+  "defaultErrnoRet": 1,
+  "syscalls": [
+    {
+      "action": "SCMP_ACT_ALLOW",
+      "names": [
+        "access",
+        "arch_prctl",
+        "brk",
+        "close",
+        "dup",
+        "dup2",
+        "dup3",
+        "execve",
+        "exit",
+        "exit_group",
+        "faccessat2",
+        "fcntl",
+        "fstat",
+        "futex",
+        "getcwd",
+        "getdents64",
+        "getegid",
+        "geteuid",
+        "getgid",
+        "getpid",
+        "getrandom",
+        "getuid",
+        "ioctl",
+        "lseek",
+        "madvise",
+        "mmap",
+        "mprotect",
+        "munmap",
+        "newfstatat",
+        "openat",
+        "pread64",
+        "prlimit64",
+        "read",
+        "readlink",
+        "readlinkat",
+        "rseq",
+        "rt_sigaction",
+        "rt_sigprocmask",
+        "set_robust_list",
+        "set_tid_address",
+        "statx",
+        "write"
+      ]
+    }
+  ]
+}

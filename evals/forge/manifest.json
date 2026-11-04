@@ -1,0 +1,348 @@
+{
+  "schema_version": 2,
+  "task": "T09.P2A",
+  "status": "CANDIDATE_MATRIX_COMPLETE_CAMPAIGN_AUTHORIZATION_BLOCKED",
+  "a0_contract": {
+    "path": "docs/AFYX_FORGE_A0_A3_CONTRACT.md",
+    "sha256": "1b3d21a13bac1cb10fefdbf8d3ae049aca4722bb261aecfa57d306342f0afa4c",
+    "identity_algorithm": "sha256 of UTF-8 content normalized to LF"
+  },
+  "environment": {
+    "path": "evals/forge/environment.proposed.json",
+    "sha256": "63bc0a5ee147840a43e6d881daefec8c435fbef40f806bfbbeb1b45f8371654c",
+    "approval": "OWNER_APPROVAL_REQUIRED",
+    "identity_algorithm": "sha256 of UTF-8 content normalized to LF"
+  },
+  "public_handoff": {
+    "path": "docs/AFYX_FORGE_T09_E1_SECURE_HANDOFF.md",
+    "sha256": "7a527a0e36c2ded4fd107958ddb9c8d536cf2fa12a0b4e588e7c3d157a7d4102",
+    "identity_algorithm": "sha256 of UTF-8 content normalized to LF",
+    "status": "PUBLIC_CONTRACT_PREPARED_CAMPAIGN_BLOCKED",
+    "benchmark_cells_executed": 0
+  },
+  "a0_amendment": {
+    "amendment_id": "A0-ROUTE-B-2026-10-16",
+    "decision": "CONTROLLED_B2_BASELINE_REVISION",
+    "authorization": "EXPLICIT_OWNER_ROUTE_B",
+    "authorization_date": "2026-10-16",
+    "scope": "construct a new independent B2 baseline and dependent B3/B4 candidates; deterministic validation only",
+    "historical_b2": {
+      "definition": "owner-authorized original Independent Master Prompt",
+      "identity": "UNRESOLVED_INPUT_UNAVAILABLE",
+      "replacement_claim": false
+    },
+    "excluded_authority": [
+      "model benchmark execution",
+      "evaluator self-approval",
+      "runtime or budget approval",
+      "A8 GO",
+      "Prompt Master removal",
+      "release scope changes"
+    ]
+  },
+  "candidate_order": ["B0", "B1", "B2", "B3", "B4", "B5"],
+  "candidates": {
+    "B0": {
+      "definition": "no additional engineering directive",
+      "comparison_role": "host_baseline_without_additional_directive",
+      "readiness": "PREPARED_EXECUTABLE_NOT_RUN",
+      "content_identity": "b43d351e73d703787e7da80d47c945f76e60094159cccfc3cf6052af8b15e64f",
+      "identity_algorithm": "sha256 of UTF-8 AFYX_FORGE_B0_NO_ADDITIONAL_DIRECTIVE newline",
+      "source": null,
+      "composition_order": [],
+      "dependencies": [],
+      "activation": "none",
+      "entry_point": "plain evaluated workspace without repository-local Afyx directive",
+      "materialization": {
+        "kind": "empty_workspace",
+        "must_be_absent": ["AGENTS.md", ".agents/skills/efficient-coding"]
+      }
+    },
+    "B1": {
+      "definition": "Efficient Coding 1.2.0",
+      "comparison_role": "focused_existing_engineering_workflow",
+      "readiness": "PREPARED_EXECUTABLE_NOT_RUN",
+      "content_identity": "deab6d987eb8af8ad2ab312f7ed9facb3be1cbda20622eeeaedc80a1db0829a4",
+      "identity_algorithm": "sorted POSIX-relative path and LF-normalized UTF-8 content SHA-256",
+      "source": "evals/forge/candidates/B1/efficient-coding",
+      "provenance": {
+        "repository": "a5zero7/afyx-codex-engineering-kit",
+        "commit": "42caee21083c8e08774344dd698adffe1b38790e",
+        "path": "skills/efficient-coding",
+        "version": "1.2.0"
+      },
+      "composition_order": ["efficient-coding"],
+      "dependencies": [],
+      "activation": "implicit host skill routing; successful SKILL.md read must be observed",
+      "entry_point": "evaluated workspace .agents/skills/efficient-coding/SKILL.md",
+      "materialization": {
+        "kind": "copy_tree",
+        "source": "evals/forge/candidates/B1/efficient-coding",
+        "destination": ".agents/skills/efficient-coding",
+        "identity_root": ".agents/skills/efficient-coding"
+      }
+    },
+    "B2": {
+      "definition": "Afyx Independent Engineering Baseline 0.1.0",
+      "comparison_role": "independent_route_b_task_contract",
+      "version": "0.1.0",
+      "readiness": "PREPARED_EXECUTABLE_NOT_RUN",
+      "content_identity": "06ada73c05824b014a1ff0aa3ab801115cbd4cd4625f4ab1dc9538bf21fe413e",
+      "identity_algorithm": "sorted POSIX-relative path and LF-normalized UTF-8 content SHA-256",
+      "source": "evals/forge/candidates/B2",
+      "composition_order": ["B2/AGENTS.md"],
+      "dependencies": ["public A0-A3 behavior contract"],
+      "activation": "repository instruction automatically loaded by Codex host",
+      "entry_point": "copy candidates/B2/AGENTS.md to evaluated workspace root AGENTS.md",
+      "materialization": {
+        "kind": "copy_tree_contents",
+        "source": "evals/forge/candidates/B2",
+        "destination": ".",
+        "identity_root": "."
+      },
+      "provenance": "independently authored Afyx-owned Route B baseline from public A0-A3 behavior requirements; no original B2, Prompt Master source, or third-party implementation transplanted",
+      "license_usage": "Afyx-owned evaluation material authorized by owner for T09.P2A candidate construction and later separately authorized evaluation",
+      "historical_original_b2_status": "UNRESOLVED_NOT_RELABELED"
+    },
+    "B3": {
+      "definition": "exact Efficient Coding 1.2.0 plus exact Afyx Independent Engineering Baseline 0.1.0",
+      "comparison_role": "additive_skill_then_task_contract",
+      "readiness": "PREPARED_EXECUTABLE_NOT_RUN",
+      "content_identity": "884eaacf98c4f80d83e5b84a2216f5253db91f7e9930c869fa0fe3248ae9234d",
+      "identity_algorithm": "sha256 of ordered component labels and identities: B1 NUL hash LF, then B2 NUL hash LF",
+      "source": null,
+      "composition_order": ["B1", "B2"],
+      "dependencies": ["B1", "B2"],
+      "activation": "materialize B1 first, then B2; observe B1 skill read when routed and root B2 instruction loading",
+      "entry_point": "workspace root B2 AGENTS.md plus .agents/skills/efficient-coding/SKILL.md",
+      "materialization": {
+        "kind": "ordered_composition",
+        "components": ["B1", "B2"],
+        "component_verification": {
+          "B1": {"kind": "tree_identity", "path": ".agents/skills/efficient-coding"},
+          "B2": {"kind": "overlay_identity", "path": "."}
+        }
+      },
+      "provenance": "deterministic composition of exact B1 and Route B B2 identities; no merged or rewritten source"
+    },
+    "B4": {
+      "definition": "Afyx Forge Refined Convergence Candidate 0.1.0",
+      "comparison_role": "deduplicated_refined_convergence",
+      "version": "0.1.0",
+      "readiness": "PREPARED_EVALUATION_ONLY_NOT_RUN",
+      "content_identity": "ecb1d698956cd490fc65cb6d1abf085ff123053ddeae043add45c74703f2f452",
+      "identity_algorithm": "sorted POSIX-relative path and LF-normalized UTF-8 content SHA-256",
+      "source": "evals/forge/candidates/B4",
+      "composition_order": ["B4/AGENTS.md"],
+      "dependencies": ["B1", "B2", "A3 behavior contract"],
+      "activation": "repository instruction automatically loaded by Codex host",
+      "entry_point": "copy candidates/B4/AGENTS.md to evaluated workspace root AGENTS.md",
+      "materialization": {
+        "kind": "copy_tree_contents",
+        "source": "evals/forge/candidates/B4",
+        "destination": ".",
+        "identity_root": "."
+      },
+      "provenance": "original Afyx convergence of reviewed B1, Route B B2, and A3 behavior contracts; duplicated instructions removed without upstream source transplantation",
+      "product_status": "evaluation candidate; not production Forge and not A8-approved architecture"
+    },
+    "B5": {
+      "definition": "independent Afyx-native evaluation directive",
+      "comparison_role": "independent_a3_native_behavior_contract",
+      "readiness": "PREPARED_EVALUATION_ONLY_NOT_RUN",
+      "content_identity": "0b4e610c6772fa03dcce3d7f49e7a427bd97bded6abc2b1719f0e9a1b1e8cb58",
+      "identity_algorithm": "sorted POSIX-relative path and LF-normalized UTF-8 content SHA-256",
+      "source": "evals/forge/candidates/B5",
+      "composition_order": ["B5/AGENTS.md"],
+      "dependencies": ["A3 behavior contract"],
+      "activation": "repository instruction automatically loaded by Codex host",
+      "entry_point": "copy candidates/B5/AGENTS.md to evaluated workspace root AGENTS.md",
+      "materialization": {
+        "kind": "copy_tree_contents",
+        "source": "evals/forge/candidates/B5",
+        "destination": ".",
+        "identity_root": "."
+      },
+      "provenance": "independent A3 contract derivation; no B2 or historical third-party source transplanted",
+      "product_status": "evaluation prototype; not production Forge and not A8-approved architecture"
+    }
+  },
+  "public_fixture": {
+    "path": "evals/forge/fixtures/public-engineering",
+    "tree_sha256": "02947fd6e29d0517cc5e0d768aa91ea3ec88b483aed42d7fc3a853bd3f12720e",
+    "identity_algorithm": "sorted POSIX-relative path and LF-normalized UTF-8 content SHA-256",
+    "synthetic": true,
+    "customer_data": false
+  },
+  "categories": [
+    "known_file_bug",
+    "unknown_defect_diagnosis",
+    "cross_module_change",
+    "security_sensitive_change",
+    "data_reliability_change",
+    "negative_simple_task"
+  ],
+  "scenarios": [
+    {
+      "scenario_id": "forge-known-file-001",
+      "category": "known_file_bug",
+      "fixture": "evals/forge/fixtures/public-engineering",
+      "user_prompt": "Fix clamp() in known_math.py so the existing tests pass. Keep the change scoped and run the focused test.",
+      "validation_command": ["python", "-m", "unittest", "-q", "test_known_math.py"],
+      "baseline_expected_exit": 1,
+      "target_validation_exit": 0,
+      "allowed_file_scope": ["known_math.py"],
+      "expected_file_scope": ["known_math.py"],
+      "output_kind": "coding"
+    },
+    {
+      "scenario_id": "forge-unknown-defect-001",
+      "category": "unknown_defect_diagnosis",
+      "fixture": "evals/forge/fixtures/public-engineering",
+      "user_prompt": "The focused invoice tests fail. Diagnose the actual defect, apply the smallest correction, and run the focused test. Do not modify tests.",
+      "validation_command": ["python", "-m", "unittest", "-q", "test_invoice.py"],
+      "baseline_expected_exit": 1,
+      "target_validation_exit": 0,
+      "allowed_file_scope": ["invoice.py"],
+      "expected_file_scope": ["invoice.py"],
+      "output_kind": "coding"
+    },
+    {
+      "scenario_id": "forge-cross-module-001",
+      "category": "cross_module_change",
+      "fixture": "evals/forge/fixtures/public-engineering",
+      "user_prompt": "Make percentage-point tax handling consistent across tax.py and checkout.py so both focused tests pass. Preserve Decimal arithmetic and run the focused test.",
+      "validation_command": ["python", "-m", "unittest", "-q", "test_checkout.py"],
+      "baseline_expected_exit": 1,
+      "target_validation_exit": 0,
+      "allowed_file_scope": ["tax.py", "checkout.py"],
+      "expected_file_scope": ["tax.py", "checkout.py"],
+      "output_kind": "coding"
+    },
+    {
+      "scenario_id": "forge-security-001",
+      "category": "security_sensitive_change",
+      "fixture": "evals/forge/fixtures/public-engineering",
+      "user_prompt": "Harden resolve_export_path() against parent traversal and absolute paths outside its root while preserving valid child paths. Make the smallest scoped change and run the focused test.",
+      "validation_command": ["python", "-m", "unittest", "-q", "test_safe_path.py"],
+      "baseline_expected_exit": 1,
+      "target_validation_exit": 0,
+      "allowed_file_scope": ["safe_path.py"],
+      "expected_file_scope": ["safe_path.py"],
+      "output_kind": "coding"
+    },
+    {
+      "scenario_id": "forge-data-reliability-001",
+      "category": "data_reliability_change",
+      "fixture": "evals/forge/fixtures/public-engineering",
+      "user_prompt": "Make SettlementLedger.apply() idempotent by event ID and reject empty IDs or non-positive amounts without mutation. Keep the change scoped and run the focused test.",
+      "validation_command": ["python", "-m", "unittest", "-q", "test_settlement.py"],
+      "baseline_expected_exit": 1,
+      "target_validation_exit": 0,
+      "allowed_file_scope": ["settlement.py"],
+      "expected_file_scope": ["settlement.py"],
+      "output_kind": "coding"
+    },
+    {
+      "scenario_id": "forge-negative-simple-001",
+      "category": "negative_simple_task",
+      "fixture": "evals/forge/fixtures/public-engineering",
+      "user_prompt": "How do I reverse a Python list? Give one concise example.",
+      "validation_command": null,
+      "baseline_expected_exit": null,
+      "target_validation_exit": null,
+      "allowed_file_scope": [],
+      "expected_file_scope": [],
+      "output_kind": "advisory",
+      "public_assertions": [
+        {"type": "python_list_reversal", "value": true},
+        {"type": "max_tool_calls", "value": 0},
+        {"type": "max_files_modified", "value": 0}
+      ]
+    }
+  ],
+  "discovery": {
+    "candidate_count": 6,
+    "category_count": 6,
+    "repetitions": 1,
+    "expected_cells": 36,
+    "seed": 16102026,
+    "order": "deterministic interleaved shuffle",
+    "cell_order_sha256": "e5bda9785e3570611753737ef9b75e931220b21c304e10d78fe02162d154603a",
+    "execution_authorized": false,
+    "budget": "NOT_APPROVED"
+  },
+  "evaluator_bundle": {
+    "storage": "outside developer and evaluated-agent roots",
+    "status": "NOT_FROZEN",
+    "required_identity_fields": [
+      "bundle_id",
+      "manifest_sha256",
+      "rubric_sha256",
+      "canary_protocol_sha256",
+      "private_holdout_sha256",
+      "evaluator_identity"
+    ],
+    "hard_gates_in_order": ["correctness", "task_fidelity", "evidence_quality", "security"],
+    "developer_visible_output": "sanitized verdict and bounded evidence only"
+  },
+  "run_contract": {
+    "fresh_session_per_cell": true,
+    "fresh_workspace_per_cell": true,
+    "run_id_required": true,
+    "control_run_id_required": true,
+    "candidate_fixture_environment_fingerprints_required": true,
+    "timeout_record_required": true,
+    "cleanup_record_required": true,
+    "failure_exclusion_record_required": true,
+    "confirmation_sampling": "only ambiguity or eligibility-changing failure; separately approved budget",
+    "quality_before_efficiency": true
+  },
+  "result_schema": {
+    "required_fields": [
+      "evaluation_run_id",
+      "control_run_id",
+      "cell_id",
+      "candidate_id",
+      "scenario_id",
+      "candidate_fingerprint",
+      "fixture_fingerprint",
+      "environment_fingerprint",
+      "hard_gate_results",
+      "result",
+      "provider_tokens",
+      "wall_time_seconds",
+      "tool_calls",
+      "repeated_reads",
+      "retry_count",
+      "first_pass_success",
+      "validation_outcomes",
+      "files_modified",
+      "timeout",
+      "cleanup",
+      "exclusion_reason"
+    ],
+    "monetary_cost": "provider reported only; otherwise NOT AVAILABLE"
+  },
+  "campaign_gate": {
+    "status": "CANDIDATE_MATRIX_COMPLETE_CAMPAIGN_AUTHORIZATION_BLOCKED",
+    "campaign_identity": null,
+    "campaign_source_revision": null,
+    "environment_fingerprint": null,
+    "evaluator_identity": null,
+    "private_bundle_manifest_sha256": null,
+    "isolation_acceptance": "NOT_TESTED",
+    "candidate_matrix_frozen": true,
+    "execution_authorization": "NOT_GRANTED",
+    "benchmark_execution": false
+  },
+  "benchmark_execution_blockers": [
+    "OWNER_APPROVED_RUNTIME_CONFIGURATION",
+    "INDEPENDENTLY_ENFORCED_EVALUATOR_ISOLATION",
+    "EXPLICIT_36_CELL_BUDGET_APPROVAL",
+    "EXPLICIT_CONFIRMATION_BUDGET_APPROVAL",
+    "INDEPENDENT_EVALUATOR_ARRANGEMENT_APPROVAL",
+    "FINAL_CAMPAIGN_EXECUTION_APPROVAL",
+    "EVALUATOR_ONLY_BUNDLE_FREEZE"
+  ]
+}

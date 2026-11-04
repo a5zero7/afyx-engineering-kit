@@ -1,0 +1,68 @@
+name: Afyx Context Build
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main, dev, alpha]
+    paths:
+      - 'afyx-context/**'
+      - 'docs/AFYX_CONTEXT_ENGINE_FOUNDATION.md'
+      - '.github/workflows/context-build.yml'
+  pull_request:
+    branches: [main, dev, alpha]
+    paths:
+      - 'afyx-context/**'
+      - 'docs/AFYX_CONTEXT_ENGINE_FOUNDATION.md'
+      - '.github/workflows/context-build.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: afyx-context/package-lock.json
+      - name: Install locked package metadata
+        working-directory: afyx-context
+        run: npm ci
+      - name: Install locked Graph package metadata
+        working-directory: afyx-graph/engine
+        run: npm ci
+      - name: Build Graph real-consumer dependency
+        working-directory: afyx-graph/engine
+        run: npm run build:clean
+      - name: Clean build
+        working-directory: afyx-context
+        run: npm run build:clean
+      - name: Unit, CLI and failure-isolation tests
+        working-directory: afyx-context
+        run: npm test
+      - name: Comparative benchmark harness smoke
+        working-directory: afyx-context
+        run: npm run test:comparative -- --samples 1 --summary
+      - name: Graph ACE real-consumer integration
+        working-directory: afyx-context
+        run: npm run test:graph-integration
+      - name: Integrated Graph ACE dogfood
+        working-directory: afyx-context
+        run: npm run test:integrated-dogfood
+      - name: Package smoke
+        working-directory: afyx-context
+        run: npm pack --dry-run
+      - name: Verify repository remains clean
+        shell: bash
+        run: |
+          if [[ -n "$(git status --porcelain)" ]]; then
+            git status --short
+            exit 1
+          fi

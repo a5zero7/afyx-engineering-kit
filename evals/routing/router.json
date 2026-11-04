@@ -1,0 +1,65 @@
+{
+  "schema_version": 1,
+  "note": "Deterministic keyword model of when each skill's description says it applies. A zero-token regression guard for routing intent; it is NOT evidence of runtime model routing quality.",
+  "skills": {
+    "efficient-coding": {
+      "source": "repository",
+      "skill_file": "skills/efficient-coding/SKILL.md",
+      "anchors": ["coding work", "prompt writing", "document-only"]
+    },
+    "odoo-engineering": {
+      "source": "repository",
+      "skill_file": "skills/odoo-engineering/SKILL.md",
+      "anchors": ["Odoo"]
+    },
+    "afyx-engineering-expert": {
+      "source": "repository",
+      "skill_file": "skills/afyx-engineering-expert/SKILL.md",
+      "anchors": ["cross-disciplinary", "simple programming syntax"]
+    },
+    "prompt-master": {
+      "source": "upstream",
+      "version": "1.8.0",
+      "description_snapshot": "Generates optimized prompts for AI tools. Activates only when the user explicitly asks to write, fix, improve, or adapt a prompt for a specific AI tool (LLM, Cursor, Midjourney, image AI, video AI, coding agents, etc.). Does not activate for general conversation, coding tasks, document writing, or other non-prompt-engineering work.",
+      "anchors": ["explicitly asks", "prompt", "Does not activate for"]
+    }
+  },
+  "signals": {
+    "prompt_authoring": [
+      "\\b(write|create|draft|craft|improve|fix|rewrite|refine|optimi[sz]e|generate|adapt|tune|polish)\\b[^.?!]{0,60}\\b(system prompts?|prompts?)\\b",
+      "\\b(what|which)\\b[^.?!]{0,30}\\bprompt\\b"
+    ],
+    "odoo_domain": [
+      "\\bodoo\\b",
+      "__manifest__",
+      "\\b(res\\.partner|sale\\.order|account\\.move|ir\\.model|ir\\.rule|ir\\.ui\\.view)\\b",
+      "\\bqweb\\b"
+    ],
+    "coding_verbs": [
+      "\\b(fix|debug|refactor|implement|add|change|update|make|write|create|optimi[sz]e|migrate|upgrade|rename|remove|investigate|trace|patch|why does|crash(es)?)\\b"
+    ],
+    "coding_nouns": [
+      "\\b(function|method|class|module|code|codebase|repo|repository|bug|stack trace|traceback|exception|failing test|unit test|test suite|compile|build|lint|query|sql|api|endpoint|script|service|migration|field|view|form view|model|record rule|orm|xml|python|javascript|typescript|server|startup|button)\\b"
+    ],
+    "coding_strong": [
+      "\\b(stack trace|traceback|failing test|compile error|segfault)\\b"
+    ],
+    "document_only": [
+      "\\b(readme|email|summary|summari[sz]e|meeting|transcript|essay|blog post|release notes|documentation section)\\b"
+    ],
+    "expert_domain": [
+      "\\b(product discovery|product strategy|business requirements?|business process|system architecture|solution architecture|architecture tradeoffs?)\\b",
+      "\\b(threat model|security-sensitive design|security design review|devsecops review)\\b",
+      "\\b(production incident|incident response|reliability review|availability review|postmortem)\\b",
+      "\\b(database reliability architecture|database architecture|schema migration strategy)\\b",
+      "\\b(ai solution|machine learning solution|data solution|model evaluation|data pipeline review)\\b",
+      "\\b(purchase request|multi-vendor rfqs?|erp workflow|transactional workflow)\\b"
+    ]
+  },
+  "rules": [
+    {"skill": "prompt-master", "when": "prompt_authoring"},
+    {"skill": "efficient-coding", "when": "coding and not prompt_authoring"},
+    {"skill": "odoo-engineering", "when": "odoo_domain and (coding or prompt_authoring or expert_domain)"},
+    {"skill": "afyx-engineering-expert", "when": "expert_domain and not prompt_authoring"}
+  ]
+}

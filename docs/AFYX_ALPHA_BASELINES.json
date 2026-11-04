@@ -1,0 +1,300 @@
+{
+  "schema_version": 1,
+  "observed_at": "2026-10-15T00:00:00+07:00",
+  "purpose": "T01 identity ledger; observations are not promotion or installation claims",
+  "workspace_boundary": {
+    "canonical_development_repository": "D:\\Project\\workspace\\afyx-codex-engineering-kit",
+    "alpha_acceptance_environment": "D:\\Project\\afyx-alpha",
+    "applies_to": "T01-T12",
+    "alpha_allowed_uses": [
+      "clean_installation",
+      "candidate_update",
+      "installed_identity_and_provenance_verification",
+      "post_install_smoke_and_acceptance"
+    ],
+    "alpha_prohibited_uses": [
+      "source_development_or_patching",
+      "commits",
+      "source_benchmarks",
+      "builds_or_release_preparation"
+    ],
+    "defect_feedback_loop": "REPRODUCE_FIX_BUILD_IN_CANONICAL_REPOSITORY_THEN_REINSTALL_OR_UPDATE_IN_ALPHA_ENVIRONMENT"
+  },
+  "development_source": {
+    "branch": "afyx/native-phase5f-parser-grammar",
+    "revision": "cdce74c7b75fae94ca99966bb80451afdb766e60",
+    "upstream_revision": "cdce74c7b75fae94ca99966bb80451afdb766e60",
+    "verification": "VERIFIED_LOCAL_GIT"
+  },
+  "t01_documentation_closure": {
+    "revision": "a5112a36f76a1f0168e3a85900ffe33d34ebcb08",
+    "committed_at": "2026-10-15T14:06:33+07:00",
+    "verification": "VERIFIED_LOCAL_GIT",
+    "note": "Documentation closure only; does not replace the historical development-source observation."
+  },
+  "jira_snapshot": {
+    "observed_at": "2026-10-15",
+    "provenance": "EXTERNALLY_SUPPLIED_BY_USER_NOT_LIVE_VERIFIED_BY_THIS_CODEX_SESSION",
+    "issues": {
+      "AFYX-12": "To Do",
+      "AFYX-248": "In Progress",
+      "AFYX-269": "To Do",
+      "AFYX-279": "In Review",
+      "AFYX-282": "Done",
+      "AFYX-283": "In Progress"
+    }
+  },
+  "accepted_distribution_candidate": {
+    "channel": "technical-alpha",
+    "source_revision": "a431ba9ad5fae7bd06329f1fc6e42f1ba503f6dd",
+    "source_committed_at": "2026-10-11T18:09:40+07:00",
+    "artifact_digests": "NOT_VERIFIED",
+    "publisher_authenticity": "NOT_VERIFIED",
+    "verification": "SOURCE_IDENTITY_RECORDED_ARTIFACT_IDENTITY_INCOMPLETE",
+    "note": "PR #59 is an open security promotion and does not prove inclusion of AFYX-282 inventory changes."
+  },
+  "pilot_runtimes": {
+    "windows_afyx_248": {
+      "last_observed_source_revision": "5b6ab08d98717fd436ecf23b6a7c91b864e61f03",
+      "last_observed_at": "2026-10-11T16:15:52+07:00",
+      "current_revision": "NOT_VERIFIED",
+      "index_extraction_version": "NOT_VERIFIED",
+      "index_freshness": "NOT_VERIFIED",
+      "verification": "HISTORICAL_OBSERVATION_ONLY"
+    },
+    "macos_afyx_269": {
+      "current_revision": "NOT_VERIFIED",
+      "index_extraction_version": "NOT_VERIFIED",
+      "index_freshness": "NOT_VERIFIED",
+      "verification": "NOT_VERIFIED"
+    }
+  },
+  "graph": {
+    "source_package_version": "1.0.0",
+    "source_extraction_version": 28,
+    "source_revision": "cdce74c7b75fae94ca99966bb80451afdb766e60",
+    "afyx_282_graph_build_run": "https://github.com/a5zero7/afyx-codex-engineering-kit/actions/runs/38324265023",
+    "knowledge_catalog_implementation": "8837ea98aa63a4c93a2c15c599f82148ad3320b0",
+    "knowledge_catalog_graph_build_run": "https://github.com/a5zero7/afyx-codex-engineering-kit/actions/runs/38357255978",
+    "installed_artifact_acceptance_for_extraction_v28": "NOT_VERIFIED"
+  },
+  "t02_correctness_closure": {
+    "starting_revision": "df310f23e519ab22f5b3f3c183f9a8d350c13c74",
+    "implementation_revision": "7fe932892c06fb9aae873bafb686de0ff05be330",
+    "package_version": "1.0.0",
+    "extraction_version": 28,
+    "development_package": {
+      "filename": "a5zero7-afyx-graph-1.0.0.tgz",
+      "size_bytes": 2263791,
+      "unpacked_size_bytes": 9301747,
+      "file_count": 1377,
+      "sha256": "56fc427324ea085aa61697c542a2f42c9c0bd4dc0c4f74b6025e4fe7f75d919d",
+      "cli_sha256": "0bd19746ce165a317accd5b6d125155c9b64f0aac88a8325973883062f655456",
+      "verification": "LOCAL_DEVELOPMENT_BUILD_ONLY_NOT_PROMOTED"
+    },
+    "synthetic_ground_truth": {
+      "supported_declarations": 9,
+      "files": 3,
+      "modules": 3,
+      "dynamic_unresolved": 1,
+      "indexed_files": 4,
+      "skipped": 0,
+      "unsupported": 0,
+      "failed": 0
+    },
+    "installed_artifact_acceptance": "NOT_PERFORMED_T04_T05",
+    "promotion": "NOT_PERFORMED_T03",
+    "exact_final_head_ci": "https://github.com/a5zero7/afyx-codex-engineering-kit/actions/runs/38700997957"
+  },
+  "t03_promotion_preparation": {
+    "observed_at": "2026-10-15",
+    "main": {
+      "branch": "main",
+      "revision": "5349c4a184e539f0ac0752d895ff3262c6326e29",
+      "branch_protection": "NOT_CONFIGURED"
+    },
+    "development": {
+      "branch": "dev",
+      "starting_revision": "ad1560dd930ccde94b0dadaa7b42d804be55714f",
+      "tracks": "origin/dev"
+    },
+    "alpha": {
+      "branch": "alpha",
+      "starting_revision": "018dce0a31f927f2dc200c7be0bc8b71a8a3535c",
+      "source_branch": "release/alpha-0.1",
+      "branch_protection": "NOT_CONFIGURED"
+    },
+    "security_gate": {
+      "pull_request": "https://github.com/a5zero7/afyx-codex-engineering-kit/pull/59",
+      "head_revision": "0ca928da5e4b6f3ce170d954fed31d50319da2bb",
+      "state": "OPEN_MERGEABLE_CHECKS_PASS_REVIEW_NOT_RECORDED"
+    },
+    "candidate": {
+      "status": "NOT_CREATED_PROMOTION_BLOCKED",
+      "package_version": "1.0.0",
+      "channel": "technical-alpha",
+      "node_compatibility": ">=22.5.0",
+      "ci_tested_node": "24",
+      "extraction_version": 28,
+      "targets": [
+        "win32-x64",
+        "win32-arm64",
+        "linux-x64",
+        "linux-arm64",
+        "darwin-x64",
+        "darwin-arm64"
+      ],
+      "source_revision": "NOT_CREATED",
+      "archive_sha256": "NOT_CREATED",
+      "publisher_authenticity": "NOT_VERIFIED",
+      "installed_acceptance": "NOT_PERFORMED_T04_T05"
+    },
+    "promotion_status": "PREPARED_PROMOTION_BLOCKED"
+  },
+  "t03_1_workspace_hygiene": {
+    "observed_at": "2026-10-15",
+    "starting_revision": "84a122f01fc15a58b07b9939960b3c7167dfc430",
+    "active_branch": "dev",
+    "environment_observation": {
+      "git": "2.55.0.windows.5",
+      "node": "26.8.1",
+      "npm": "11.19.0",
+      "python": "3.10.11",
+      "powershell": "7.6.6",
+      "codex_cli": "0.162.1",
+      "expert_v0_1_1_directory_content_sha256": "06d947c595f164ed1ad94e8ef97aa412a3ec7559c5f79cb467f0ec1ad488095c",
+      "mxc_environment_sha256": "6203b5dd2f016fade8b04c1d2fd02be5ed8bf24763d1a4404e6931cbb4447c6c"
+    },
+    "expert_d5": {
+      "evaluation_run_id": "384826dee91d45f0a3388d5d276407ae",
+      "summary_schema_version": 2,
+      "summary_sha256": "f14f5473107d7b85fc924cd0571ec55f6f60bf3574b91acf39c2f779e4857eaa",
+      "scenario_count": 5,
+      "reported_result": "PASS",
+      "classification": "DEVELOPMENT_D5_INPUT_NOT_D6_OR_FORMAL_A1_B1"
+    },
+    "evidence_archive": {
+      "location_class": "OWNER_CONTROLLED_LOCALAPPDATA_OUTSIDE_REPOSITORY_NOT_COMMITTED",
+      "file_count": 25,
+      "bytes": 252383,
+      "manifest_sha256": "799d34b5934928606954b6fb19b3f8b834e010224a558c85cdfcd527dd48e926",
+      "source_and_final_readback": "PASS",
+      "acl": "INHERITANCE_DISABLED_OWNER_AND_SYSTEM_ONLY",
+      "separate_generated_prompt_files": "NOT_AVAILABLE_RECORDED_LIMITATION",
+      "raw_material_published": false
+    },
+    "latest_summary_disposition": {
+      "restored_head_blob": "08ce65dbfb651beaef00760848a269ed2b9b7201",
+      "restored_schema_version": 1,
+      "generated_evidence_preserved_before_restore": true
+    },
+    "branch_roles": {
+      "main": "CANONICAL_INTEGRATION",
+      "dev": "ACTIVE_DEVELOPMENT",
+      "alpha": "ACTIVE_STABILIZATION_BLOCKED",
+      "afyx/afyx-279-alpha-security-promotion": "ACTIVE_REVIEW_PR_59",
+      "release/alpha-0.1": "LEGACY_PRESERVED",
+      "afyx/native-phase5f-parser-grammar": "LEGACY_PRESERVED"
+    },
+    "github_protection": {
+      "main": false,
+      "alpha": false,
+      "dev": false,
+      "rulesets": 0,
+      "plan_capability": "NOT_VERIFIED",
+      "changes_applied": false
+    },
+    "promotion_status": "BLOCKED_UNCHANGED"
+  },
+  "t06_expert_d6_review": {
+    "observed_at": "2026-10-15",
+    "decision": "BLOCKED_REVIEW_PREPARED_SUBSTANTIVE_REVIEW_NOT_EXECUTED",
+    "provenance": "DEVELOPER_PREPARATION_ONLY_NO_SANITIZED_INDEPENDENT_REVIEW_VERDICT",
+    "candidate_version": "0.1.1",
+    "subject_revision": "8df29c3f9e31aa4661cc1e7d6f80328096e3f1ce",
+    "content_sha256": "06d947c595f164ed1ad94e8ef97aa412a3ec7559c5f79cb467f0ec1ad488095c",
+    "environment_sha256": "6203b5dd2f016fade8b04c1d2fd02be5ed8bf24763d1a4404e6931cbb4447c6c",
+    "evaluation_run_id": "384826dee91d45f0a3388d5d276407ae",
+    "archive_manifest_sha256": "799d34b5934928606954b6fb19b3f8b834e010224a558c85cdfcd527dd48e926",
+    "scenario_count": 5,
+    "automated_d5_result": "REPORTED_PASS_5_OF_5",
+    "substantive_scenario_verdict": "BLOCKED_ALL_FIVE",
+    "erp_odoo_routing": "EXPERT_AND_ODOO_ENGINEERING_OBSERVED",
+    "negative_routing": "NO_SKILL_NO_TOOL_OBSERVED",
+    "narrow_odoo_exclusion": "NOT_TESTED",
+    "historical_seven_reference_regression": "OPEN",
+    "generated_prompt_files": "NOT_ARCHIVED_RECORDED_LIMITATION",
+    "formal_a1_b1": "BLOCKED_BY_T06",
+    "source_changed": false
+  },
+  "expert": {
+    "historical_v0_1_0": {
+      "version": "0.1.0",
+      "content_sha256": "69f85c93dbab28fb11460b0a9a2bbc38dbcf9c04f02747af7199ba84077334db",
+      "tree_sha256": "9ebefe30bf9c7f73b101a53542b3cb09c993cfe9a4d565d15afc5834465569b7",
+      "verification": "HISTORICAL_FROZEN"
+    },
+    "candidate_v0_1_1": {
+      "version": "0.1.1",
+      "subject_revision": "8df29c3f9e31aa4661cc1e7d6f80328096e3f1ce",
+      "closure_revision": "cdce74c7b75fae94ca99966bb80451afdb766e60",
+      "content_sha256": "06d947c595f164ed1ad94e8ef97aa412a3ec7559c5f79cb467f0ec1ad488095c",
+      "tree_sha256": "40cfa1f8b4fe3743a7eca81f8e4eb76c879d7adcd650c33b5611b0a2775ea138",
+      "environment": "evals/environment-expert-v0.1.1-codex-0.162.1-mxc.json",
+      "environment_sha256": "6203b5dd2f016fade8b04c1d2fd02be5ed8bf24763d1a4404e6931cbb4447c6c",
+      "engineering_ci": "https://github.com/a5zero7/afyx-codex-engineering-kit/actions/runs/38499899438",
+      "d5_automated_result": "REPORTED_PASS_5_OF_5_NOT_REVERIFIED_BY_T01",
+      "d6_substantive_review": "BLOCKED_REVIEW_PREPARED_SUBSTANTIVE_REVIEW_NOT_EXECUTED",
+      "formal_a1_b1": "NOT_RUN"
+    }
+  },
+  "forge": {
+    "jira": "AFYX-12",
+    "jira_status_evidence": "EXTERNALLY_SUPPLIED_IN_PROGRESS_2026-10-16",
+    "jira_progress": {
+      "AFYX-12": "In Progress",
+      "AFYX-88": "In Progress",
+      "AFYX-171": "In Progress",
+      "A0_2_AND_A1_TO_A3": "Done within documented contract scope",
+      "provenance": "EXTERNALLY_SUPPLIED_NOT_LIVE_VERIFIED_OR_WRITTEN_BY_THIS_SESSION"
+    },
+    "track": "A",
+    "gates": "A0-A12",
+    "a0_a3_contract": "docs/AFYX_FORGE_A0_A3_CONTRACT.md",
+    "a0_a3_baseline": "docs/AFYX_FORGE_A0_A3_BASELINE.json",
+    "a0_a3_source_revision": "9333616035e71f63f30c4ebcabf13354f91b2399",
+    "a0_a3_status": "CONTRACT_COMPLETE_T09_EXECUTION_BLOCKED",
+    "t09_p0_readiness": "docs/AFYX_FORGE_T09_P0_READINESS.md",
+    "t09_p0_manifest": "evals/forge/manifest.json",
+    "t09_p0_environment": "evals/forge/environment.proposed.json",
+    "t09_p0_status": "PREPARATION_COMPLETE_BENCHMARK_EXECUTION_BLOCKED",
+    "t09_p1_status": "PREPARATION_COMPLETE_EXTERNAL_GATES_BLOCKED",
+    "t09_p1_materialization": "B0_B1_B5_DETERMINISTIC_PASS",
+    "t09_p1_campaign_gate": "FAIL_CLOSED_NINE_EXTERNAL_BLOCKERS",
+    "t09_p2a_status": "CANDIDATE_MATRIX_COMPLETE_CAMPAIGN_AUTHORIZATION_BLOCKED",
+    "t09_p2a_amendment": "A0-ROUTE-B-2026-10-16",
+    "t09_p2a_materialization": "B0_B1_B2_B3_B4_B5_DETERMINISTIC_PASS",
+    "t09_p2a_campaign_gate": "FAIL_CLOSED_SEVEN_EXTERNAL_BLOCKERS",
+    "campaign_authorization": "NOT_GRANTED",
+    "candidate_definitions": {
+      "B0": "no directive",
+      "B1": "Efficient Coding 1.2.0",
+      "B2": "Afyx Independent Engineering Baseline 0.1.0 under Route B amendment",
+      "B3": "exact Efficient Coding 1.2.0 plus exact Route B B2",
+      "B4": "Afyx Forge Refined Convergence Candidate 0.1.0",
+      "B5": "Afyx Forge native candidate"
+    },
+    "independent_master_prompt_identity": "UNRESOLVED_NOT_PRESENT_IN_CANONICAL_REPOSITORY",
+    "route_b_candidate_identities": {
+      "B2": "06ada73c05824b014a1ff0aa3ab801115cbd4cd4625f4ab1dc9538bf21fe413e",
+      "B3": "884eaacf98c4f80d83e5b84a2216f5253db91f7e9930c869fa0fe3248ae9234d",
+      "B4": "ecb1d698956cd490fc65cb6d1abf085ff123053ddeae043add45c74703f2f452"
+    },
+    "discovery_cells": 36,
+    "forge_budget_approval": "NOT_APPROVED",
+    "frozen_harness_configuration": "PROPOSED_OWNER_APPROVAL_REQUIRED",
+    "evaluator_isolation": "BLOCKED_NOT_INDEPENDENTLY_DEMONSTRATED_FOR_FORGE",
+    "candidate_identity": "COMPLETE_B0_B5_PREPARED_NOT_RUN",
+    "verification": "T09_P2A_DETERMINISTIC_CANDIDATE_CONSTRUCTION_ONLY_NO_MODEL_BENCHMARK_NO_A8_DECISION"
+  }
+}

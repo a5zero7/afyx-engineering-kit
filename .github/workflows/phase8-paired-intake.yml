@@ -1,0 +1,52 @@
+name: Phase 8 Paired Evidence Intake
+
+# Synthetic/negative schema regressions only. No real provider calls or user evidence.
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [dev, alpha, main]
+    paths:
+      - 'scripts/phase8-paired-evidence.mjs'
+      - 'scripts/tests/test_phase8_paired_evidence.mjs'
+      - 'scripts/phase8-session-recorder.mjs'
+      - 'scripts/tests/test_phase8_session_recorder.mjs'
+      - 'docs/AFYX_8_PAIRED_EVIDENCE_INTAKE.md'
+      - '.github/workflows/phase8-paired-intake.yml'
+  push:
+    branches: [dev, alpha, main]
+    paths:
+      - 'scripts/phase8-paired-evidence.mjs'
+      - 'scripts/tests/test_phase8_paired_evidence.mjs'
+      - 'scripts/phase8-session-recorder.mjs'
+      - 'scripts/tests/test_phase8_session_recorder.mjs'
+      - 'docs/AFYX_8_PAIRED_EVIDENCE_INTAKE.md'
+      - '.github/workflows/phase8-paired-intake.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  intake:
+    name: intake (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 24
+      - name: Verify paired intake, synthetic isolation and negative controls
+        run: node --test scripts/tests/test_phase8_paired_evidence.mjs
+      - name: Verify local-only session recorder and strict evidence integration
+        run: node --test scripts/tests/test_phase8_session_recorder.mjs
+      - name: Assert no generated files in repository
+        shell: bash
+        run: |
+          if [ -n "$(git status --porcelain)" ]; then
+            echo "::error::Paired intake mutated checkout"
+            git status --porcelain
+            exit 1
+          fi

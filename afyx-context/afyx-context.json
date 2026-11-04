@@ -1,0 +1,28 @@
+{
+  "schema_version": 1,
+  "product_name": "Afyx Context Engine",
+  "product_version": "0.1.0",
+  "cli": "afyx-context",
+  "runtime": "node",
+  "ownership_class": "AFYX",
+  "standalone": true,
+  "integration_contract": "ace.integration/v1",
+  "optional_consumers": {
+    "graph": {
+      "contract": "graph.ace.consumer/v1",
+      "default_enabled": false,
+      "execution": "local-terminable-worker"
+    }
+  },
+  "local_coordination": {
+    "contract_version": 1,
+    "scope": "state-root-exclusive",
+    "default_timeout_ms": 5000,
+    "recovery": "same-host-pid-absence-fail-closed"
+  },
+  "kit_management": {
+    "contract_version": 1,
+    "lifecycle_integration": "managed-optional",
+    "default_presets": []
+  }
+}

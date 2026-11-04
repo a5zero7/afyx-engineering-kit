@@ -1,0 +1,44 @@
+name: Tool family routing contract
+
+on:
+  pull_request:
+    paths:
+      - 'scripts/afyx-tool-family-routing.mjs'
+      - 'scripts/afyx-global-routing.mjs'
+      - 'scripts/afyx-global-routing-policy.md'
+      - 'scripts/tests/test_global_routing.py'
+      - 'scripts/tests/test_tool_family_routing.py'
+      - 'skills/efficient-coding/references/tool-routing.md'
+      - 'scripts/tests/test_efficient_coding_refinement.py'
+      - 'docs/AFYX_TOOL_FAMILY_ROUTING.md'
+      - '.github/workflows/tool-family-routing.yml'
+  push:
+    branches: [dev]
+    paths:
+      - 'scripts/afyx-tool-family-routing.mjs'
+      - 'scripts/tests/test_tool_family_routing.py'
+      - 'skills/efficient-coding/references/tool-routing.md'
+      - 'scripts/tests/test_efficient_coding_refinement.py'
+      - '.github/workflows/tool-family-routing.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  routing:
+    name: routing-${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify pure routing policy and efficient-coding contract
+        run: python -m unittest scripts.tests.test_tool_family_routing scripts.tests.test_efficient_coding_refinement scripts.tests.test_global_routing -v

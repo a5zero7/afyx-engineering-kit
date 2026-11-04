@@ -1,0 +1,221 @@
+/* =====================================================================
+   afyx-graph ui — the app's global primitives
+
+   The design tokens themselves live in `lib/theme.css`, which is also
+   what `@a5zero7/afyx-graph-ui` exports for a host to import and
+   override. This file is everything ON TOP of them that only the
+   standalone viewer needs: the reset, the shell grid, and the handful of
+   primitives shared across views.
+
+   Native view-specific rules live below.
+   ===================================================================== */
+
+@import './lib/theme.css';
+
+/* ---------- reset ---------- */
+html,
+body {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  /* body always paints --paper: the bars are transparent over it and a
+     short view must not reveal the browser's own canvas colour. */
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--sans);
+  font-size: 13px;
+  line-height: 1.45;
+  -webkit-font-smoothing: antialiased;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  /* Square corners are non-negotiable in this system, including on the
+     UA-styled controls (input, select, button) we do not restyle. */
+  border-radius: 0 !important;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+}
+
+h1,
+h2,
+h3 {
+  font-weight: 600;
+  text-wrap: balance;
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition: none !important;
+    animation: none !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ---------- app shell ----------
+   Design spec §3.1: top bar 48px / trail bar 34px / main. The grid is on
+   index.html's mount host, which the native application fills once.
+
+   The trail row is `auto`, not `--trailbar-h`: the bar keeps that height on
+   its own and grows only while the save-trail form is
+   open. Pinning the row instead would clip the form. */
+#app {
+  height: 100vh;
+}
+
+.native-app {
+  height: 100%;
+  display: grid;
+  grid-template-rows: var(--topbar-h) auto minmax(0, 1fr);
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 0 18px;
+  border-bottom: 1px solid var(--rule);
+  background: var(--paper);
+  min-width: 0;
+}
+
+.brand { display: inline-flex; align-items: baseline; gap: 6px; font-weight: 700; white-space: nowrap; }
+.brand-mark { width: 10px; height: 10px; background: var(--accent); display: inline-block; }
+.brand-sub, .native-meta, .native-row-meta, .palette-meta, .palette-location { color: var(--ink-3); }
+.views { display: flex; align-self: stretch; align-items: stretch; }
+.views a { display: grid; place-items: center; padding: 0 9px; border-bottom: 2px solid transparent; white-space: nowrap; }
+.views a:hover, .views a.active { border-bottom-color: var(--accent); color: var(--accent-ink); }
+.topbar-search { flex: 1; min-width: 180px; position: relative; }
+.native-search input { width: 100%; border: 1px solid var(--rule-soft); background: var(--paper-2); color: var(--ink); padding: 7px 10px; font: inherit; }
+.native-palette { position: absolute; z-index: 30; left: 0; right: 0; top: calc(100% + 8px); max-height: min(70vh, 620px); overflow: auto; background: var(--paper); border: 1px solid var(--rule); }
+.native-search:not(.open) .native-palette { display: none; }
+.palette-section h3, .palette-section > p { margin: 0; padding: 8px 10px 2px; }
+.palette-row { width: 100%; display: grid; grid-template-columns: minmax(100px, 1fr) minmax(80px, 1fr) auto; gap: 12px; text-align: left; padding: 7px 10px; border-top: 1px solid var(--rule-faint); }
+.palette-row.selected, .palette-row:hover { background: var(--press); }
+.palette-name { font-family: var(--mono); }
+.project { margin-left: auto; display: flex; flex-direction: column; text-align: right; font-size: 11px; white-space: nowrap; }
+.offline, .drift, .error { color: var(--accent-ink); }
+
+.trailbar { min-height: 34px; display: flex; align-items: center; gap: 8px; padding: 5px 18px; border-bottom: 1px solid var(--rule-soft); background: var(--paper-2); overflow-x: auto; }
+.trailbar a.current { color: var(--accent-ink); font-weight: 600; }
+.trail-empty, .trail-arrow { color: var(--ink-3); }
+.native-main, .view-host, .native-view { min-height: 0; height: 100%; overflow: auto; }
+.native-view { display: flex; flex-direction: column; }
+.native-view-header { min-height: 58px; display: flex; align-items: center; gap: 12px; padding: 10px 18px; border-bottom: 1px solid var(--rule-soft); }
+.native-view-header h1 { margin: 0; font-size: 18px; }
+.native-view-header p { margin: 2px 0 0; }
+.native-view-header > .native-meta, .native-view-header > nav { margin-left: auto; }
+.native-summary { padding: 0 18px; color: var(--ink-2); }
+.health-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); border-bottom: 1px solid var(--rule-soft); }
+.health-row { min-width: 0; padding: 14px 18px; border-right: 1px solid var(--rule-soft); border-top: 1px solid var(--rule-faint); display: grid; gap: 3px; }
+.health-label, .health-detail { color: var(--ink-3); }
+.health-label { font-size: 11px; text-transform: uppercase; letter-spacing: .04em; }
+.health-value { font: 600 13px/1.4 var(--mono); }
+.health-detail { font-size: 12px; }
+.mode-tabs { display: flex; gap: 12px; }
+.mode-tabs a.active { color: var(--accent-ink); border-bottom: 2px solid var(--accent); }
+
+.symbol-grid, .file-grid { display: grid; grid-template-columns: minmax(220px, 300px) minmax(360px, 1fr) minmax(220px, 320px); min-height: 0; flex: 1; }
+.native-panel { min-width: 0; border-right: 1px solid var(--rule-soft); padding: 12px; overflow: auto; }
+.native-panel-header { display: flex; justify-content: space-between; align-items: baseline; }
+.native-panel h2, .native-panel-header h2 { margin: 0 0 10px; font-size: 13px; }
+.native-list { display: flex; flex-direction: column; }
+.native-row { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 3px 8px; text-align: left; padding: 7px 6px; border-top: 1px solid var(--rule-faint); }
+.native-row:hover { background: var(--press); }
+.native-row-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; font-family: var(--mono); }
+.native-row-meta { grid-column: 2; font-size: 11px; }
+.kind-glyph { width: 18px; height: 18px; display: inline-grid; place-items: center; border: 1px solid currentColor; font: 600 10px/1 var(--mono); }
+
+.native-source { margin: 0; overflow: auto; font: 12px/20px var(--mono); background: var(--paper); }
+.native-code { display: table; min-width: 100%; }
+.native-code-line { display: table-row; }
+.native-line-number, .native-line-text { display: table-cell; white-space: pre; }
+.native-line-number { width: 1%; padding: 0 12px; text-align: right; user-select: none; color: var(--ink-4); border-right: 1px solid var(--rule-faint); }
+.native-line-text { padding: 0 14px; }
+.source-panel { padding: 0; }
+
+.native-graph { position: relative; flex: 1; min-height: 360px; overflow: hidden; background: var(--paper-2); touch-action: none; cursor: grab; }
+.native-graph.panning { cursor: grabbing; }
+.native-graph-svg { width: 100%; height: 100%; display: block; overflow: visible; }
+.native-edge { stroke: var(--ink-3); vector-effect: non-scaling-stroke; }
+.native-edge.back, .native-edge.thin { stroke-dasharray: 4 4; opacity: .55; }
+.native-node { cursor: pointer; }
+.native-node > rect:first-child { fill: var(--paper); stroke: var(--rule); vector-effect: non-scaling-stroke; }
+.native-node:hover > rect:first-child, .native-node:focus > rect:first-child { fill: var(--press); stroke: var(--accent); }
+.native-node-title { fill: var(--ink); font: 600 12px var(--mono); }
+.native-node-subtitle { fill: var(--ink-3); font: 10px var(--sans); }
+.native-node-weight { fill: var(--ink-2); opacity: .4; }
+.native-flow-code { fill: var(--ink-2); font: 10px var(--mono); }
+.viewport-controls { position: absolute; right: 12px; bottom: 12px; display: flex; border: 1px solid var(--rule); background: var(--paper); }
+.viewport-controls button { padding: 6px 9px; border-left: 1px solid var(--rule-soft); }
+.viewport-controls button:first-child { border-left: 0; }
+.toast { position: fixed; right: 16px; bottom: 16px; z-index: 50; padding: 8px 12px; background: var(--ink); color: var(--paper); }
+
+@media (max-width: 900px) {
+  .views { overflow-x: auto; }
+  .project { display: none; }
+  .symbol-grid, .file-grid { grid-template-columns: 1fr; }
+  .native-panel { border-right: 0; border-bottom: 1px solid var(--rule-soft); }
+}
+
+/* ---------- cross-view primitives ---------- */
+.mono {
+  font-family: var(--mono);
+}
+
+.dim {
+  color: var(--ink-3);
+}
+
+.tnum {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Empty / not-yet-loaded states. Sentence case, no exclamation marks —
+   say what is missing and what to do about it. */
+.emptystate {
+  padding: 40px;
+  max-width: 60ch;
+  color: var(--ink-2);
+  line-height: 1.5;
+}
+
+.emptystate h2 {
+  margin: 0 0 8px;
+  font-size: 16px;
+  color: var(--ink);
+}
+
+.emptystate p {
+  margin: 0 0 10px;
+}
+
+.emptystate code {
+  font-family: var(--mono);
+  font-size: 12px;
+  background: var(--press);
+  padding: 1px 4px;
+}

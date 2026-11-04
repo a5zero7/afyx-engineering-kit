@@ -1,0 +1,68 @@
+{
+  "schema_version": 1,
+  "status": "OWNER_APPROVAL_REQUIRED",
+  "purpose": "Proposed reproducible Afyx Forge B0-B5 discovery environment; no benchmark authorization",
+  "preparation_source_revision": "b2c1d1016b2a1401a651e2b539e9a029ee0606c5",
+  "campaign_source_revision": null,
+  "proposal_basis": "T08 contract plus historical Expert MXC environment; not inherited approval",
+  "runtime": {
+    "os": "Windows 11",
+    "codex_cli": "0.162.1",
+    "model": "gpt-5.6-sol",
+    "provider": "openai",
+    "reasoning_effort": "medium",
+    "service_tier": "priority",
+    "python": "3.10.11",
+    "node": "26.8.1",
+    "powershell": "7.6.6",
+    "git": "2.55.0.windows.5"
+  },
+  "execution": {
+    "permission_profile": "afyx-forge-evaluation",
+    "filesystem_policy": "root deny; minimal runtime read; one disposable evaluated workspace read/write; evaluator-only root deny",
+    "network": "disabled",
+    "approval_policy": "never",
+    "available_tools": [
+      "command_execution",
+      "file_change"
+    ],
+    "disabled_optional_tools": [
+      "afyx_graph",
+      "headroom",
+      "external_mcp"
+    ],
+    "cell_timeout_seconds": 300,
+    "control_timeout_seconds": 45,
+    "model_retry_count": 0,
+    "fresh_session_per_cell": true,
+    "fresh_workspace_per_cell": true,
+    "owned_process_tree_cleanup": true
+  },
+  "ordering": {
+    "seed": 16102026,
+    "strategy": "deterministic_interleaved_candidate_category",
+    "discovery_cells": 36
+  },
+  "candidate_activation": {
+    "B0": "no repository-local directive or Afyx skill",
+    "B1": "copy exact Efficient Coding 1.2.0 to repository-local .agents/skills/efficient-coding",
+    "B2": "copy exact Afyx Independent Engineering Baseline 0.1.0 to evaluated workspace root AGENTS.md",
+    "B3": "materialize exact B1 skill first, then exact Route B B2 root instruction",
+    "B4": "copy exact Afyx Forge Refined Convergence Candidate 0.1.0 to evaluated workspace root AGENTS.md",
+    "B5": "copy exact evaluation-only candidate to evaluated workspace root AGENTS.md"
+  },
+  "isolation": {
+    "required_boundary": "independently controlled OS account, VM, container, or equivalent ACL boundary",
+    "developer_private_material_access": "DENY_REQUIRED_NOT_VERIFIED",
+    "evaluated_agent_private_material_access": "DENY_REQUIRED_NOT_VERIFIED",
+    "synthetic_canary_controls": "REQUIRED_NOT_EXECUTED",
+    "sanitized_feedback_only": true
+  },
+  "owner_decisions": {
+    "runtime_configuration": "NOT_APPROVED",
+    "forge_36_cell_budget": "NOT_APPROVED",
+    "confirmation_budget": "NOT_APPROVED",
+    "independent_evaluator_arrangement": "NOT_APPROVED",
+    "final_campaign_execution": "NOT_APPROVED"
+  }
+}

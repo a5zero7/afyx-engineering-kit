@@ -1,0 +1,9 @@
+{
+  "purpose": "Frozen structural snapshot used to prove Afyx Graph keeps the analysis behaviour of the pre-independence implementation.",
+  "frozen_from_commit": "e5241020e304862474d313c3c35ff67cfbe68dd2",
+  "frozen_from_description": "Last implementation before the independence cutover (Afyx Graph 1.0.0 engine with the original product surface). Built from a clean export of that commit and run through scripts/semantic-baseline.mjs --write with AFYX_SEMANTIC_CLI pointing at that build's CLI.",
+  "frozen_with_node": "v26.7.0",
+  "snapshot_sha256": "670aeedbb64d4eb4f46dd900c7c1d76982ba575933b324b1a4b1c423817c9667",
+  "fixtures": ["typescript", "javascript", "python", "java", "go", "odoo"],
+  "rule": "Never refreeze from the independent implementation. A difference is a regression to investigate, not a snapshot to update."
+}

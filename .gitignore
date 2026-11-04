@@ -1,0 +1,10 @@
+backups/
+*.tmp
+*.bak
+.vs/
+.afyx-graph/
+dist/
+__pycache__/
+*.pyc
+node_modules/
+.afyx-report-staging*

@@ -1,0 +1,391 @@
+name: Afyx Graph Technical Alpha Build and Attest
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+    paths:
+      - .github/workflows/graph-alpha-build-attest.yml
+
+# Publication is deliberately absent. A future owner-authorized publication
+# workflow must download the immutable artifact ID produced here, verify its
+# attestations, and use a protected environment without rebuilding it.
+permissions:
+  contents: read
+
+concurrency:
+  group: afyx-249-alpha-build-attest-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  ALPHA_SOURCE_SHA: 3b8360c44bd148739a6048b309898a41558e2141
+  ALPHA_SOURCE_TREE: 0ee87ab17cbfcdabd2234cfd264a28c5f3950238
+  ALPHA_VERSION: 1.0.0
+  ALPHA_CHANNEL: technical-alpha
+  ALPHA_EXTRACTION_VERSION: "28"
+  ALPHA_RELEASE_ID: afyx-graph-v1.0.0-technical-alpha.3b8360c
+  RELEASE_ARTIFACT_NAME: afyx-graph-technical-alpha-3b8360c-${{ github.run_id }}-${{ github.run_attempt }}
+  SIGNER_WORKFLOW: a5zero7/afyx-codex-engineering-kit/.github/workflows/graph-alpha-build-attest.yml
+
+jobs:
+  build:
+    name: Build exact Alpha source
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    permissions:
+      contents: read
+    outputs:
+      artifact-id: ${{ steps.upload.outputs.artifact-id }}
+      artifact-digest: ${{ steps.upload.outputs.artifact-digest }}
+      artifact-name: ${{ env.RELEASE_ARTIFACT_NAME }}
+    steps:
+      - name: Check out frozen Alpha source
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          ref: ${{ env.ALPHA_SOURCE_SHA }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: afyx-graph/engine/package-lock.json
+
+      - name: Verify frozen source contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$ALPHA_SOURCE_SHA"
+          test "$(git rev-parse 'HEAD^{tree}')" = "$ALPHA_SOURCE_TREE"
+          node <<'NODE'
+          const fs = require('node:fs');
+          const product = JSON.parse(fs.readFileSync('afyx-graph/afyx-graph.json', 'utf8'));
+          const distribution = JSON.parse(fs.readFileSync('afyx-graph/engine/scripts/distribution-product.json', 'utf8'));
+          const extraction = fs.readFileSync('afyx-graph/engine/src/extraction/extraction-version.ts', 'utf8')
+            .match(/export const EXTRACTION_VERSION = (\d+);/)?.[1];
+          const targets = distribution.targets.join(' ');
+          const expectedTargets = 'darwin-arm64 darwin-x64 linux-arm64 linux-x64 win32-arm64 win32-x64';
+          if (product.product_version !== process.env.ALPHA_VERSION) throw new Error('version mismatch');
+          if (distribution.releaseChannel !== process.env.ALPHA_CHANNEL) throw new Error('channel mismatch');
+          if (extraction !== process.env.ALPHA_EXTRACTION_VERSION) throw new Error('extraction version mismatch');
+          if (targets !== expectedTargets) throw new Error(`target contract mismatch: ${targets}`);
+          NODE
+          test "$(node --version | cut -d. -f1)" = "v24"
+          printf 'node=%s\nnpm=%s\nsource=%s\ntree=%s\n' \
+            "$(node --version)" "$(npm --version)" "$ALPHA_SOURCE_SHA" "$ALPHA_SOURCE_TREE" \
+            | tee "$RUNNER_TEMP/build-environment.txt"
+
+      - name: Install exact dependencies and run focused distribution checks
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/validate-afyx-graph.py
+          python scripts/tests/test_artifact_identity.py
+          cd afyx-graph/engine
+          npm ci
+          npx --no-install vitest run __tests__/distribution-contract.test.ts
+
+      - name: Build six archives and release manifest
+        shell: bash
+        working-directory: afyx-graph/engine
+        run: |
+          set -euo pipefail
+          mapfile -t targets < <(node scripts/distribution-contract.mjs targets | tr ' ' '\n' | sed '/^$/d')
+          test "${#targets[@]}" -eq 6
+          for target in "${targets[@]}"; do
+            bash scripts/build-bundle.sh "$target"
+          done
+          mapfile -t archives < <(find release -maxdepth 1 -type f \
+            \( -name 'afyx-graph-*.tar.gz' -o -name 'afyx-graph-*.zip' \) -printf '%f\n' | sort)
+          test "${#archives[@]}" -eq 6
+          (
+            cd release
+            sha256sum "${archives[@]}" > SHA256SUMS
+          )
+          node ../../scripts/afyx-graph-artifact.mjs create-release-manifest \
+            --directory release \
+            --output release/RELEASE-MANIFEST.json \
+            --revision "$ALPHA_SOURCE_SHA" \
+            --version "$ALPHA_VERSION" \
+            --tag "$ALPHA_RELEASE_ID"
+
+      - name: Verify identities and create exact-SHA ledger
+        shell: bash
+        run: |
+          set -euo pipefail
+          release=afyx-graph/engine/release
+          mapfile -t archives < <(find "$release" -maxdepth 1 -type f \
+            \( -name 'afyx-graph-*.tar.gz' -o -name 'afyx-graph-*.zip' \) | sort)
+          test "${#archives[@]}" -eq 6
+          (cd "$release" && sha256sum -c SHA256SUMS)
+          probe="$(mktemp -d)"
+          trap 'rm -rf "$probe"' EXIT
+          for archive in "${archives[@]}"; do
+            name="$(basename "$archive")"
+            target="${name#afyx-graph-}"
+            target="${target%.tar.gz}"
+            target="${target%.zip}"
+            metadata="$probe/$target.json"
+            if [[ "$name" == *.zip ]]; then
+              unzip -p "$archive" "afyx-graph-$target/metadata.json" > "$metadata"
+            else
+              tar -xOzf "$archive" "afyx-graph-$target/metadata.json" > "$metadata"
+            fi
+            node scripts/afyx-graph-artifact.mjs verify-release-manifest \
+              --manifest "$release/RELEASE-MANIFEST.json" \
+              --archive "$archive" \
+              --metadata "$metadata" >/dev/null
+            node scripts/afyx-graph-artifact.mjs require-revision \
+              --metadata "$metadata" \
+              --requested-revision "$ALPHA_SOURCE_SHA" >/dev/null
+            node - "$metadata" "$target" <<'NODE'
+          const fs = require('node:fs');
+          const [metadataFile, target] = process.argv.slice(2);
+          const metadata = JSON.parse(fs.readFileSync(metadataFile, 'utf8'));
+          if (metadata.source_revision !== process.env.ALPHA_SOURCE_SHA) throw new Error('archive source mismatch');
+          if (metadata.artifact_target !== target) throw new Error('archive target mismatch');
+          if (metadata.product_version !== process.env.ALPHA_VERSION) throw new Error('archive version mismatch');
+          if (metadata.release_channel !== process.env.ALPHA_CHANNEL) throw new Error('archive channel mismatch');
+          if (String(metadata.extraction_version) !== process.env.ALPHA_EXTRACTION_VERSION) throw new Error('archive extraction mismatch');
+          NODE
+          done
+          node <<'NODE'
+          const crypto = require('node:crypto');
+          const fs = require('node:fs');
+          const path = require('node:path');
+          const release = 'afyx-graph/engine/release';
+          const manifest = JSON.parse(fs.readFileSync(path.join(release, 'RELEASE-MANIFEST.json'), 'utf8'));
+          const local = {
+            'afyx-graph-darwin-arm64.tar.gz': '174a6a8888fbc1e9c617e117f1e0a5c45389f6509a2eacd577a104c6796881be',
+            'afyx-graph-darwin-x64.tar.gz': '04ad0e39587953eb0d03bb2e301ac5f421120ebe669fcf91fe5e34d1cf08b72a',
+            'afyx-graph-linux-arm64.tar.gz': 'cab2cd33ae0160f240b66287e37168261339ed3add1d539028127106531885d1',
+            'afyx-graph-linux-x64.tar.gz': 'edf86908371092a94e29ee7747a5203aecaa0fa99cae101a34d67be3f3f76eed',
+            'afyx-graph-win32-arm64.zip': 'df45841ddc572d635117013ab43101b9249002ab80ec488d73147f7c28a4af41',
+            'afyx-graph-win32-x64.zip': '54ebdd26dfebad092b4db84e982de43a64e31b75a05d97a29f3767c64a2357d4',
+          };
+          if (manifest.source_revision !== process.env.ALPHA_SOURCE_SHA) throw new Error('manifest source mismatch');
+          if (manifest.product_version !== process.env.ALPHA_VERSION) throw new Error('manifest version mismatch');
+          if (manifest.release_tag !== process.env.ALPHA_RELEASE_ID) throw new Error('manifest release identity mismatch');
+          if (manifest.artifacts.length !== 6) throw new Error('manifest target count mismatch');
+          const sha256 = (file) => crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex');
+          const artifacts = manifest.artifacts.map((artifact) => {
+            const githubSha256 = sha256(path.join(release, artifact.file));
+            if (githubSha256 !== artifact.sha256) throw new Error(`manifest digest mismatch: ${artifact.file}`);
+            return {
+              ...artifact,
+              local_candidate_sha256: local[artifact.file],
+              digest_comparison: githubSha256 === local[artifact.file] ? 'MATCH' : 'DIFFERENT',
+            };
+          });
+          const ledger = {
+            schema: 1,
+            product: 'Afyx Graph',
+            channel: process.env.ALPHA_CHANNEL,
+            release_identity: process.env.ALPHA_RELEASE_ID,
+            approved_source_sha: process.env.ALPHA_SOURCE_SHA,
+            approved_source_tree: process.env.ALPHA_SOURCE_TREE,
+            workflow_execution: {
+              repository: process.env.GITHUB_REPOSITORY,
+              workflow_ref: process.env.GITHUB_WORKFLOW_REF,
+              workflow_sha: process.env.GITHUB_WORKFLOW_SHA,
+              event_sha: process.env.GITHUB_SHA,
+              run_id: process.env.GITHUB_RUN_ID,
+              run_attempt: process.env.GITHUB_RUN_ATTEMPT,
+            },
+            local_candidate: {
+              source_sha: '077abe19cadd861e676b6b2c14a229d11a0a5717',
+              release_manifest_sha256: '0abfa125671a06aad0a724b2bbbf30eff3c9cdfeea797dd45c5c30878a7db04c',
+              checksums_sha256: 'bb9a3a5bfcc4346df23fa93800ecd9123b813db476dd82890faf5178b86fe797',
+            },
+            github_build: {
+              release_manifest_sha256: sha256(path.join(release, 'RELEASE-MANIFEST.json')),
+              checksums_sha256: sha256(path.join(release, 'SHA256SUMS')),
+              publisher_authenticity: 'PENDING_GITHUB_ATTESTATION',
+              build_provenance: 'PENDING_GITHUB_ATTESTATION',
+            },
+            artifacts,
+            future_publication: {
+              rebuild_allowed: false,
+              owner_authorization_required: true,
+              protected_environment_required: 'technical-alpha-publication',
+            },
+          };
+          fs.writeFileSync(path.join(release, 'ARTIFACT-IDENTITY-LEDGER.json'), `${JSON.stringify(ledger, null, 2)}\n`);
+          NODE
+
+      - name: Upload immutable release set
+        id: upload
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: ${{ env.RELEASE_ARTIFACT_NAME }}
+          path: |
+            afyx-graph/engine/release/afyx-graph-*.tar.gz
+            afyx-graph/engine/release/afyx-graph-*.zip
+            afyx-graph/engine/release/SHA256SUMS
+            afyx-graph/engine/release/RELEASE-MANIFEST.json
+            afyx-graph/engine/release/ARTIFACT-IDENTITY-LEDGER.json
+          if-no-files-found: error
+          compression-level: 0
+          overwrite: false
+          retention-days: 90
+
+      - name: Record build summary
+        shell: bash
+        run: |
+          {
+            echo '## Technical Alpha build'
+            echo "- Approved source: \`$ALPHA_SOURCE_SHA\`"
+            echo "- Approved tree: \`$ALPHA_SOURCE_TREE\`"
+            echo "- Workflow SHA: \`$GITHUB_WORKFLOW_SHA\`"
+            echo "- Event SHA: \`$GITHUB_SHA\`"
+            echo "- Artifact ID: \`${{ steps.upload.outputs.artifact-id }}\`"
+            echo "- Artifact digest: \`${{ steps.upload.outputs.artifact-digest }}\`"
+            echo '- Publication: disabled'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  attest:
+    name: Attest and verify immutable release set
+    needs: build
+    # Never grant OIDC/attestation write capability to pull-request workflow
+    # definitions. This job becomes reachable only after this workflow exists
+    # on the default branch and an owner explicitly dispatches it.
+    if: needs.build.result == 'success' && github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+    steps:
+      - name: Check out verifier from frozen Alpha source
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          ref: ${{ env.ALPHA_SOURCE_SHA }}
+          path: source
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Download immutable release set by artifact ID
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          artifact-ids: ${{ needs.build.outputs.artifact-id }}
+          path: release
+          merge-multiple: true
+
+      - name: Reverify downloaded source and artifact identities
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git -C source rev-parse HEAD)" = "$ALPHA_SOURCE_SHA"
+          test "$(git -C source rev-parse 'HEAD^{tree}')" = "$ALPHA_SOURCE_TREE"
+          (cd release && sha256sum -c SHA256SUMS)
+          node - <<'NODE'
+          const fs = require('node:fs');
+          const manifest = JSON.parse(fs.readFileSync('release/RELEASE-MANIFEST.json', 'utf8'));
+          const ledger = JSON.parse(fs.readFileSync('release/ARTIFACT-IDENTITY-LEDGER.json', 'utf8'));
+          if (manifest.source_revision !== process.env.ALPHA_SOURCE_SHA) throw new Error('manifest source mismatch');
+          if (manifest.release_tag !== process.env.ALPHA_RELEASE_ID) throw new Error('manifest release identity mismatch');
+          if (ledger.approved_source_sha !== process.env.ALPHA_SOURCE_SHA) throw new Error('ledger source mismatch');
+          if (ledger.approved_source_tree !== process.env.ALPHA_SOURCE_TREE) throw new Error('ledger tree mismatch');
+          if (ledger.workflow_execution.workflow_sha !== process.env.GITHUB_WORKFLOW_SHA) throw new Error('workflow SHA mismatch');
+          NODE
+          probe="$(mktemp -d)"
+          trap 'rm -rf "$probe"' EXIT
+          for archive in release/afyx-graph-*.tar.gz release/afyx-graph-*.zip; do
+            name="$(basename "$archive")"
+            target="${name#afyx-graph-}"
+            target="${target%.tar.gz}"
+            target="${target%.zip}"
+            metadata="$probe/$target.json"
+            if [[ "$name" == *.zip ]]; then
+              unzip -p "$archive" "afyx-graph-$target/metadata.json" > "$metadata"
+            else
+              tar -xOzf "$archive" "afyx-graph-$target/metadata.json" > "$metadata"
+            fi
+            node source/scripts/afyx-graph-artifact.mjs verify-release-manifest \
+              --manifest release/RELEASE-MANIFEST.json \
+              --archive "$archive" \
+              --metadata "$metadata" >/dev/null
+            node source/scripts/afyx-graph-artifact.mjs require-revision \
+              --metadata "$metadata" \
+              --requested-revision "$ALPHA_SOURCE_SHA" >/dev/null
+          done
+
+      - name: Attest exact downloaded files
+        id: attest
+        uses: actions/attest-build-provenance@e8998f949152b193b063cb0ec769d69d929409be # v2.4.0
+        with:
+          subject-path: release/*
+
+      - name: Verify repository, signer workflow, workflow SHA, and artifact digests
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BUILD_ARTIFACT_ID: ${{ needs.build.outputs.artifact-id }}
+          BUILD_ARTIFACT_DIGEST: ${{ needs.build.outputs.artifact-digest }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir verification
+          for file in release/*; do
+            output="verification/$(basename "$file").attestation.json"
+            gh attestation verify "$file" \
+              --repo "$GITHUB_REPOSITORY" \
+              --signer-workflow "$SIGNER_WORKFLOW" \
+              --source-digest "$GITHUB_WORKFLOW_SHA" \
+              --deny-self-hosted-runners \
+              --format json > "$output"
+          done
+          node <<'NODE'
+          const crypto = require('node:crypto');
+          const fs = require('node:fs');
+          const path = require('node:path');
+          const files = fs.readdirSync('release').sort().map((name) => ({
+            file: name,
+            sha256: crypto.createHash('sha256').update(fs.readFileSync(path.join('release', name))).digest('hex'),
+            verification: `${name}.attestation.json`,
+          }));
+          const ledger = {
+            schema: 1,
+            status: 'VERIFIED',
+            repository: process.env.GITHUB_REPOSITORY,
+            signer_workflow: process.env.SIGNER_WORKFLOW,
+            workflow_execution_sha: process.env.GITHUB_WORKFLOW_SHA,
+            event_sha: process.env.GITHUB_SHA,
+            approved_alpha_source_sha: process.env.ALPHA_SOURCE_SHA,
+            approved_alpha_source_tree: process.env.ALPHA_SOURCE_TREE,
+            build_artifact_id: process.env.BUILD_ARTIFACT_ID,
+            build_artifact_digest: process.env.BUILD_ARTIFACT_DIGEST,
+            files,
+            publication: 'NOT_AUTHORIZED',
+          };
+          fs.writeFileSync('verification/ATTESTATION-VERIFICATION-LEDGER.json', `${JSON.stringify(ledger, null, 2)}\n`);
+          NODE
+
+      - name: Upload verification ledger
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: afyx-graph-technical-alpha-attestation-ledger-${{ github.run_id }}-${{ github.run_attempt }}
+          path: verification/
+          if-no-files-found: error
+          compression-level: 0
+          overwrite: false
+          retention-days: 90
+
+      - name: Record attestation summary
+        shell: bash
+        run: |
+          {
+            echo '## Technical Alpha attestation'
+            echo "- Approved source: \`$ALPHA_SOURCE_SHA\`"
+            echo "- Workflow execution SHA: \`$GITHUB_WORKFLOW_SHA\`"
+            echo "- Repository: \`$GITHUB_REPOSITORY\`"
+            echo "- Signer workflow: \`$SIGNER_WORKFLOW\`"
+            echo "- Immutable artifact ID: \`${{ needs.build.outputs.artifact-id }}\`"
+            echo '- Repository, signer, workflow SHA, and every file digest: VERIFIED'
+            echo '- Publication: NOT AUTHORIZED'
+          } >> "$GITHUB_STEP_SUMMARY"

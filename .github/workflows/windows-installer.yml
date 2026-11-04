@@ -1,0 +1,155 @@
+name: Windows Unified Installer CI
+
+# Builds and validates the unified 7-component AfyxSetup.exe installer
+# on Windows runner and uploads verified Alpha candidate artifacts.
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+      - dev
+      - alpha
+      - 'afyx/**'
+    paths:
+      - 'install.ps1'
+      - 'update.ps1'
+      - 'uninstall.ps1'
+      - 'verify.ps1'
+      - 'scripts/**'
+      - 'tools/windows-setup/**'
+      - 'skills/**'
+      - 'afyx-context/**'
+      - 'afyx-forge/**'
+      - 'afyx-graph/**'
+      - '.github/workflows/windows-installer.yml'
+  pull_request:
+    branches:
+      - main
+      - dev
+      - alpha
+    paths:
+      - 'install.ps1'
+      - 'update.ps1'
+      - 'uninstall.ps1'
+      - 'verify.ps1'
+      - 'scripts/**'
+      - 'tools/windows-setup/**'
+      - 'skills/**'
+      - 'afyx-context/**'
+      - 'afyx-forge/**'
+      - 'afyx-graph/**'
+      - '.github/workflows/windows-installer.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-verify:
+    name: Build & Smoke Test AfyxSetup.exe
+    runs-on: windows-latest
+    steps:
+      - name: Checkout source repository
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js 24
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: afyx-graph/engine/package-lock.json
+
+      - name: Check PowerShell syntax
+        shell: pwsh
+        run: |
+          $failed = $false
+          $files = @('install.ps1', 'update.ps1', 'uninstall.ps1', 'verify.ps1') +
+            (Get-ChildItem -Path scripts, tools -Recurse -Include *.ps1, *.psm1 | ForEach-Object { Resolve-Path -Relative $_.FullName })
+          foreach ($file in $files) {
+            $tokens = $null
+            $errors = $null
+            [System.Management.Automation.Language.Parser]::ParseFile(
+              (Resolve-Path $file),
+              [ref] $tokens,
+              [ref] $errors
+            ) | Out-Null
+            foreach ($parseError in $errors) {
+              Write-Error "$file`: $($parseError.Message)"
+            }
+            if ($errors.Count -gt 0) {
+              $failed = $true
+            }
+          }
+          if ($failed) {
+            exit 1
+          }
+
+      - name: Validate component contract
+        run: python scripts/validate-components.py
+
+      - name: Build Afyx Graph win32 release bundle
+        shell: pwsh
+        run: |
+          $graphReleaseDir = "afyx-graph/engine/release"
+          $graphZip = Join-Path $graphReleaseDir "afyx-graph-win32-x64.zip"
+          if (-not (Test-Path -LiteralPath $graphZip)) {
+            Write-Host "Building Afyx Graph win32 release bundle..." -ForegroundColor Cyan
+            Push-Location afyx-graph/engine
+            npm ci
+            & "C:\Program Files\Git\bin\bash.exe" scripts/build-bundle.sh win32-x64
+            if ($LASTEXITCODE -ne 0) {
+              throw "Failed to build afyx-graph-win32-x64.zip"
+            }
+            Push-Location release
+            Get-FileHash -Algorithm SHA256 afyx-graph-win32-x64.zip | ForEach-Object { "$($_.Hash.ToLower())  $($_.Path | Split-Path -Leaf)" } | Set-Content -Path SHA256SUMS -Encoding utf8
+            Pop-Location
+            Pop-Location
+          } else {
+            Write-Host "Afyx Graph win32 release bundle already exists at $graphZip" -ForegroundColor Green
+          }
+
+      - name: Build Unified Windows Installer AfyxSetup.exe
+        shell: pwsh
+        run: |
+          pwsh -NoProfile -File scripts/build-windows-installer.ps1
+
+      - name: Verify installer artifact and manifest
+        shell: pwsh
+        run: |
+          if (-not (Test-Path -LiteralPath 'dist/AfyxSetup.exe')) {
+            throw "dist/AfyxSetup.exe was not generated"
+          }
+          if (-not (Test-Path -LiteralPath 'dist/build-manifest.json')) {
+            throw "dist/build-manifest.json was not generated"
+          }
+          if (-not (Test-Path -LiteralPath 'dist/SHA256SUMS')) {
+            throw "dist/SHA256SUMS was not generated"
+          }
+
+          Write-Host "Generated build artifacts in dist/:" -ForegroundColor Green
+          Get-ChildItem -Path dist | Format-Table Name, Length, LastWriteTime
+
+          Write-Host "Build Manifest:" -ForegroundColor Green
+          Get-Content -Path dist/build-manifest.json
+
+          Write-Host "Checksums:" -ForegroundColor Green
+          Get-Content -Path dist/SHA256SUMS
+
+      - name: Run U-A03 EXE Smoke Tests (Discovery, 7-Component Clean Install, Verify, Idempotence, Safe Uninstall)
+        shell: pwsh
+        run: |
+          pwsh -NoProfile -File scripts/tests/test_exe_installation.ps1
+
+      - name: Upload Alpha Installer Artifacts
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: afyx-windows-alpha-installer
+          path: |
+            dist/AfyxSetup.exe
+            dist/build-manifest.json
+            dist/SHA256SUMS
+            dist/AfyxSetup.exe.sha256
+          if-no-files-found: error
+          retention-days: 14

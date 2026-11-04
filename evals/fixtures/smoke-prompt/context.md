@@ -1,0 +1,1 @@
+The target is `greeting.py` in a small Python project. Change `greet(name)` to return `Hello, <name>!`, preserve unrelated behavior, and validate with the existing unittest suite. Do not add dependencies.
