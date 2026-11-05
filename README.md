@@ -6,16 +6,19 @@
 >
 > **Best Verified Output. Maximum Accuracy & Precision. Peak Performance. Minimum Effort.**
 >
-> **Standalone by Design. Integrated by Contract.**
+> **Standalone by Design. Integrated by Contract. Activated by Need.**
 
 AFYX Engineering Kit is a local-first ecosystem for understanding code,
 orchestrating engineering decisions, validating changes, and managing supporting
 tools safely. It is not a prompt collection, a replacement for tests, or a
 promise of universal token savings.
 
-The Kit combines four primary product components with focused supporting skills
-and lifecycle tooling. Each primary component has an independent operating
-boundary; integrations are explicit, versioned, and designed to fall back safely.
+The Kit provides six functional Afyx products (Graph, Engineering Expert, Forge,
+Context Engine, Efficient Coding, and Odoo Engineering), an optional Windows
+Codex Usage Tracking tool, and a shared lifecycle/control plane. Its four
+engineering pillars are Graph, Expert, Forge, and Context Engine. Products remain
+usable independently; cross-product collaboration is contract-driven, selected
+by task relevance, and bounded by permissions and failure isolation.
 
 ## Why Afyx
 
@@ -46,12 +49,14 @@ unqualified automation claims.
 |---|---|---|
 | [Afyx Graph](afyx-graph/engine/README.md) | Local structural indexing; CLI and optional MCP discovery, navigation, query, inventory, impact, affected-test, freshness, and daemon capabilities | Standalone Node.js runtime; **Technical Alpha** |
 | [Afyx Engineering Expert](skills/afyx-engineering-expert/README.md) | Adaptive engineering skill spanning 13 disciplines and six optional workflows | Standalone instruction skill; v0.1.1; final D.6 substantive acceptance is not claimed |
-| [Afyx Forge](docs/COMPONENTS.md#afyx-forge) | Public deterministic fixtures, candidate contracts, validation, isolation prototypes, and a fail-closed campaign controller | Engineering/evaluation foundation; campaign authorization and native acceptance remain incomplete |
+| [Afyx Forge Core](afyx-forge/README.md) | Standalone Node.js v0.1.0 CLI for task classification, adaptive execution policy, bounded engineering plans, and `doctor`; separate formal evaluator fixtures and controller | **Technical Alpha assistive guidance**; available by explicit component selection on supported surfaces; A8 formal 36-cell campaign remains `0/36 NOT_RUN` |
 | [Afyx Context Engine (ACE)](afyx-context/README.md) | Conservative context reduction, local crash-safe storage, and byte-exact original recovery | Standalone Node.js v0.1.0; managed explicit Kit opt-in; Graph integration default **OFF** |
 
-Supporting components are [Efficient Coding](skills/efficient-coding/SKILL.md),
-[Odoo Engineering](skills/odoo-engineering/SKILL.md), the cross-platform Kit
-lifecycle, and optional Windows [Usage Tracking](docs/CODEX_USAGE_TRACKER.md).
+Supporting products are [Afyx Efficient Coding](skills/efficient-coding/README.md)
+and [Afyx Odoo Engineering](skills/odoo-engineering/README.md). The cross-platform
+Kit lifecycle and optional Windows [Afyx Codex Usage Tracking](docs/CODEX_USAGE_TRACKER.md)
+complete the current registry. The component registry—not this README—is the
+source of truth for ownership, presets, host selection, and installable IDs.
 
 ## How the pieces fit
 
@@ -74,11 +79,13 @@ flowchart LR
     U --> S
     E -. optional repository evidence .-> G
     G -. graph.ace.consumer/v1<br/>default OFF .-> A
-    F -. evaluation contracts;<br/>not a default runtime path .-> E
+    F -. optional assistive plan;<br/>not autonomous execution .-> E
 ```
 
-Solid lines are implemented normal-use paths. Dashed lines are optional or
-evaluation contracts; they are not prerequisites for standalone operation.
+Solid lines are regular, implemented paths. Dashed lines represent optional
+collaboration or an independent evaluation boundary; they do not mean every
+component runs on every task. The installed-component discovery/router contract
+is not permission to bypass user OFF settings, provider scope, or Forge A8.
 
 ## Current product status
 
@@ -88,14 +95,26 @@ unverified unless an artifact has an independently verified attestation.
 
 - Graph, the Kit lifecycle, ACE standalone operation, and the supporting skills
   have executable implementations and regression evidence.
-- ACE can be installed and managed by the Kit only through explicit component
-  selection; it is absent from Minimal, Recommended, and Full.
-- Graph–ACE integration is opt-in and disabled by default. Measurements include
-  both positive and negative net-context cases; no universal savings claim is made.
-- Forge has executable preparation/validation surfaces, but its full candidate
-  campaign and native acceptance gates are not complete.
+- ACE and Forge are absent from Minimal, Recommended, and Full presets and must
+  be selected explicitly. Healthy installed ACE can be discovered for eligible
+  on-demand work, respecting explicit disable, without running on every task.
+- Automatic Graph–ACE MCP interception remains unproven/default OFF; optional
+  consumer paths have exact-original fallback. Context measurements include
+  positive and negative net results—no universal savings claim is made.
+- Forge Core has a real standalone assistive CLI/API and explicitly selectable
+  runtime on supported installation paths. This is distinct from the formal Forge
+  B0–B5 evaluator campaign: its 36 cells are still `NOT_RUN` and A8 has no GO.
 - Engineering Expert is usable as a skill, while final D.6 substantive review is
   still outside the accepted claims.
+
+**Verified CI checkpoint (2026-11-05):** the `dev` merge
+[`e332230`](https://github.com/a5zero7/afyx-engineering-kit/commit/e332230a2c0ba162b447af1359cf591057ce26b6)
+closed a Windows Vitest hook-timeout regression. The four post-merge workflows
+reported `SUCCESS`: [Graph Build](https://github.com/a5zero7/afyx-engineering-kit/actions/runs/41988333699),
+[Kit CI](https://github.com/a5zero7/afyx-engineering-kit/actions/runs/41988333765),
+[Windows Installer](https://github.com/a5zero7/afyx-engineering-kit/actions/runs/41988333733), and
+[Phase 8 Dogfood](https://github.com/a5zero7/afyx-engineering-kit/actions/runs/41988333780).
+This is a CI checkpoint, **not** independent installed-product or Stable v1 acceptance.
 
 See [Product Vision](docs/PRODUCT_VISION.md) for the maintained product contract
 and [Component Guide](docs/COMPONENTS.md) for capability and limitation details.
@@ -142,15 +161,19 @@ continuing.
 | `full` | Recommended + Afyx Graph + Windows-only Usage Tracking |
 | `custom` | Only components repeated with `CustomComponent` / `--custom-component` |
 
-ACE is absent from all implicit presets. Install ACE explicitly
-without enabling Graph integration:
+ACE and Forge Core are absent from implicit presets. On Windows, select
+specific runtimes explicitly; installation does not authorize autonomous
+Forge execution or automatic Graph MCP interception:
 
 ```powershell
 .\install.ps1 -Preset custom -CustomComponent afyx-context -Confirm:$false
+.\install.ps1 -Preset custom -CustomComponent afyx-forge -Confirm:$false
 ```
 
 ```bash
 ./install.sh --preset custom --custom-component afyx-context
+# Forge Core has a dedicated standalone Unix installer:
+./scripts/install-afyx-forge.sh --validate-only
 ```
 
 Install Recommended:
@@ -211,6 +234,19 @@ afyx-graph affected --path . src/directory.ts
 Graph output is static repository evidence. It does not prove runtime behavior;
 run the relevant tests and runtime checks before accepting a change.
 
+### Plan a substantial engineering task with Forge Core
+
+After installing the explicitly selected Forge runtime, ask it for a bounded
+plan; it does not edit source files or execute tests on your behalf:
+
+```bash
+afyx-forge doctor
+afyx-forge plan --task "Trace a cross-module data consistency regression" --format markdown
+```
+
+For source and full usage, see [Forge Core](afyx-forge/README.md). A planned
+validation checklist is **not** a completed validation or formal A8 verdict.
+
 ### Ask for a cross-disciplinary review
 
 ```text
@@ -251,12 +287,11 @@ providers, models, unrelated MCP entries, and external tools are preserved.
 
 ## License and third-party boundaries
 
-The repository's Afyx-owned code and documentation are distributed under the
-[MIT License](LICENSE), except where package metadata explicitly states a
-different license. Graph and ACE include their own MIT license files in their
-package roots. Following the full native reimplementation of historical Graph and
-UI subsystems (AFYX-320), active production deliverables carry zero inherited
-third-party source files or retained upstream attribution obligations.
-External software remains governed by its own terms and is outside the Kit's
-ownership boundary. Historical independence, attribution, and license evidence
-remains preserved in Phase 5 documentation and Git history.
+License scope must be checked **per package**. The Kit root, Graph and ACE are
+MIT-licensed in their respective license/metadata files; the standalone Forge
+Core package currently declares `Apache-2.0` in `afyx-forge/package.json`.
+Do not infer one blanket license from the umbrella README. The Phase 5/AFYX-320
+native Graph/UI replacement and provenance review are recorded as completed
+for their declared artifact boundary, not as a legal guarantee about every
+future dependency or distribution. External tools remain under their own terms;
+retain required notices and review provenance before release.
