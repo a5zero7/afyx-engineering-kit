@@ -2,6 +2,13 @@
 
 A single portable Agent Skill with 13 core disciplines, 16 supplemental specialist references, and 6 optional workflows. Its goal is adaptive, evidence-based product and software engineering across technologies, including ERP when relevant. No external scripts, runtime dependencies, MCP requirement, code borrowed from other projects, or implicit network access.
 
+## Product status and boundaries
+
+The skill is usable in compatible hosts and is installed by the Kit's
+`recommended` and `full` presets; it does not require Graph, ACE, or Forge.
+Final broad Expert D.6 substantive acceptance and independent SME
+certification are **not** claimed. See [development status](../../docs/DEVELOPMENT_STATUS.md).
+
 ## Content
 
 - `SKILL.md` — skill manifest, activation/routing, adaptive execution, quality contract.

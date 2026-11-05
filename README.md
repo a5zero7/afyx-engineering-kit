@@ -46,12 +46,13 @@ unqualified automation claims.
 |---|---|---|
 | [Afyx Graph](afyx-graph/engine/README.md) | Local structural indexing; CLI and optional MCP discovery, navigation, query, inventory, impact, affected-test, freshness, and daemon capabilities | Standalone Node.js runtime; **Technical Alpha** |
 | [Afyx Engineering Expert](skills/afyx-engineering-expert/README.md) | Adaptive engineering skill spanning 13 disciplines and six optional workflows | Standalone instruction skill; v0.1.1; final D.6 substantive acceptance is not claimed |
-| [Afyx Forge](docs/COMPONENTS.md#afyx-forge) | Public deterministic fixtures, candidate contracts, validation, isolation prototypes, and a fail-closed campaign controller | Engineering/evaluation foundation; campaign authorization and native acceptance remain incomplete |
+| [Afyx Forge](afyx-forge/README.md) | Standalone `plan`/`doctor` engineering-guidance CLI plus a separate deterministic evaluation foundation | Core CLI v0.1.0 exists; formal evaluator campaign and Kit preset activation are not accepted |
 | [Afyx Context Engine (ACE)](afyx-context/README.md) | Conservative context reduction, local crash-safe storage, and byte-exact original recovery | Standalone Node.js v0.1.0; managed explicit Kit opt-in; Graph integration default **OFF** |
 
-Supporting components are [Efficient Coding](skills/efficient-coding/SKILL.md),
-[Odoo Engineering](skills/odoo-engineering/SKILL.md), the cross-platform Kit
-lifecycle, and optional Windows [Usage Tracking](docs/CODEX_USAGE_TRACKER.md).
+Supporting components are [Efficient Coding](skills/efficient-coding/README.md),
+[Odoo Engineering](skills/odoo-engineering/README.md), the cross-platform Kit
+lifecycle, and optional Windows [Usage Tracking](tools/codex-usage/README.md).
+The [Graph UI](afyx-graph/engine/ui/README.md) is bundled with Graph, not a separately installed product.
 
 ## How the pieces fit
 
@@ -92,10 +93,22 @@ unverified unless an artifact has an independently verified attestation.
   selection; it is absent from Minimal, Recommended, and Full.
 - Graph–ACE integration is opt-in and disabled by default. Measurements include
   both positive and negative net-context cases; no universal savings claim is made.
-- Forge has executable preparation/validation surfaces, but its full candidate
-  campaign and native acceptance gates are not complete.
+- Forge Core exposes a standalone `plan`/`doctor` CLI; its separate evaluator
+  foundation has prepared validation surfaces, but full candidate campaigns
+  and native release acceptance are not complete.
 - Engineering Expert is usable as a skill, while final D.6 substantive review is
   still outside the accepted claims.
+
+**Verified development checkpoint — 5 November 2026:** the Graph semantic-mapping,
+monorepo alias, and Windows CI fixes are integrated into `dev` via
+[PR #1](https://github.com/a5zero7/afyx-engineering-kit/pull/1) and
+[PR #2](https://github.com/a5zero7/afyx-engineering-kit/pull/2).
+The engineering baseline at `e332230a2c0ba162b447af1359cf591057ce26b6`
+has successful post-merge Graph Build, repository CI, representative dogfood,
+and Windows installer workflows. Accuracy claims are limited to named fixtures
+and supported static constructs, not every extension or runtime behavior.
+The formal v1 release and remaining provider/dogfood acceptance are separate.
+See [current development status](docs/DEVELOPMENT_STATUS.md) for exact evidence.
 
 See [Product Vision](docs/PRODUCT_VISION.md) for the maintained product contract
 and [Component Guide](docs/COMPONENTS.md) for capability and limitation details.
@@ -117,6 +130,7 @@ Windows:
 ```powershell
 git clone https://github.com/a5zero7/afyx-engineering-kit.git
 Set-Location afyx-engineering-kit
+git checkout dev  # current validated development line
 .\install.ps1 -ValidateOnly
 .\install.ps1 -WhatIf -Preset recommended
 ```
@@ -126,12 +140,14 @@ Linux or macOS:
 ```bash
 git clone https://github.com/a5zero7/afyx-engineering-kit.git
 cd afyx-engineering-kit
+git checkout dev  # current validated development line
 ./install.sh --validate-only
 ./install.sh --dry-run --preset recommended
 ```
 
-Preview is non-mutating. Inspect every destination and planned action before
-continuing.
+Cloning defaults to GitHub's `main` branch; the updated Technical Alpha work
+is on `dev`. Preview is non-mutating. Inspect every destination and planned
+action before continuing.
 
 ### 2. Select an actual preset
 
@@ -248,15 +264,14 @@ providers, models, unrelated MCP entries, and external tools are preserved.
 - Product principles and maturity: [Product Vision](docs/PRODUCT_VISION.md)
 - Canonical development plan: [Afyx v1 Master Roadmap](docs/AFYX_V1_MASTER_ROADMAP.md)
 - Benchmark scope and interpretation: [Benchmarks](docs/BENCHMARKS.md)
+- Branch-verified milestone and CI evidence: [Development Status](docs/DEVELOPMENT_STATUS.md)
 
 ## License and third-party boundaries
 
-The repository's Afyx-owned code and documentation are distributed under the
-[MIT License](LICENSE), except where package metadata explicitly states a
-different license. Graph and ACE include their own MIT license files in their
-package roots. Following the full native reimplementation of historical Graph and
-UI subsystems (AFYX-320), active production deliverables carry zero inherited
-third-party source files or retained upstream attribution obligations.
-External software remains governed by its own terms and is outside the Kit's
-ownership boundary. Historical independence, attribution, and license evidence
-remains preserved in Phase 5 documentation and Git history.
+AFYX-owned repository content uses the [MIT License](LICENSE), except where
+individual package metadata or license files define another applicable license
+(e.g. Forge Core currently declares Apache-2.0). Third-party software and
+assets retain their own applicable terms. Historic provenance and license
+evidence remains in the repository's retained documentation and Git history.
+This development README does not substitute for a release-specific rights or
+artifact review.
