@@ -373,7 +373,7 @@ export function requestDaemonShutdown(
     try { socket = net.createConnection(managementSocketPath(info)); }
     catch (err) {
       clearTimeout(timer);
-      resolve({ outcome: 'unavailable', detail: err instanceof Error ? err.message : String(err) });
+      resolve(classifyDaemonIpcError(err as NodeJS.ErrnoException));
       return;
     }
     socket.setEncoding('utf8');

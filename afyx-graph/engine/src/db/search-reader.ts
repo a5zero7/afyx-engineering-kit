@@ -110,8 +110,14 @@ export class SearchReader {
    * which name nothing in the corpus.
    */
   private foldInExactNames(results: SearchResult[], query: string, kinds: NodeKind[] | undefined, languages: Language[] | undefined): void {
-    const existingIds = new Set(results.map((r) => r.node.id));
-    const maxScore = Math.max(...results.map((r) => r.score));
+    const existingIds = new Set<string>();
+    let maxScore = -Infinity;
+    for (const r of results) {
+      existingIds.add(r.node.id);
+      if (r.score > maxScore) maxScore = r.score;
+    }
+    if (!Number.isFinite(maxScore)) maxScore = 1;
+
     for (const term of query.split(/\s+/).filter((t) => t.length >= 2)) {
       for (const node of this.candidates.exactTerm(term, { kinds, languages }, 20)) {
         if (existingIds.has(node.id)) continue;

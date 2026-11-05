@@ -35,22 +35,35 @@ export function pathProximityFromDirs(sourceDirs: string[], candidateFilePath: s
   return Math.min(shared * 15, 80);
 }
 
-/** Compute directory proximity between two file paths. */
+/** Compute directory proximity between two file paths without array allocations. */
 export function computePathProximity(sourceFilePath: string, candidateFilePath: string): number {
-  const sourceDirs = sourceFilePath.split('/');
-  sourceDirs.pop();
-  return pathProximityFromDirs(sourceDirs, candidateFilePath);
+  const minLen = Math.min(sourceFilePath.length, candidateFilePath.length);
+  const sourceLastSlash = sourceFilePath.lastIndexOf('/');
+  const candLastSlash = candidateFilePath.lastIndexOf('/');
+  const maxScan = Math.min(minLen, sourceLastSlash, candLastSlash);
+  let sharedDepth = 0;
+  for (let i = 0; i <= maxScan; i++) {
+    const sc = sourceFilePath.charCodeAt(i);
+    const cc = candidateFilePath.charCodeAt(i);
+    if (sc !== cc) break;
+    if (sc === 47 /* '/' */) sharedDepth++;
+  }
+  return Math.min(sharedDepth * 15, 80);
 }
 
 /**
- * Select the highest-scoring candidate. Equal scores deliberately retain the
- * first candidate so indexed order remains deterministic and backward-compatible.
+ * Select the highest-scoring candidate. Callers that need fail-closed handling
+ * for an unqualified lookup can require a unique winner; compatibility paths
+ * with stronger language-specific evidence retain stable first-candidate ties.
  */
-export function selectBestCandidate(ref: UnresolvedRef, candidates: Node[]): Node | null {
+export function selectBestCandidate(
+  ref: UnresolvedRef,
+  candidates: Node[],
+  requireUniqueBest = false,
+): Node | null {
   let bestScore = -1;
   let bestNode: Node | null = null;
-  const sourceDirs = ref.filePath.split('/');
-  sourceDirs.pop();
+  let bestIsAmbiguous = false;
 
   // A same-language candidate always out-scores a cross-language candidate:
   // same-language starts at +50 while cross-language cannot exceed +35.
@@ -60,7 +73,7 @@ export function selectBestCandidate(ref: UnresolvedRef, candidates: Node[]): Nod
     if (hasSameLanguage && candidate.language !== ref.language) continue;
 
     let score = candidate.filePath === ref.filePath ? 100 : 0;
-    score += pathProximityFromDirs(sourceDirs, candidate.filePath);
+    score += computePathProximity(ref.filePath, candidate.filePath);
     score += candidate.language === ref.language ? 50 : -80;
 
     if (
@@ -92,8 +105,11 @@ export function selectBestCandidate(ref: UnresolvedRef, candidates: Node[]): Nod
     if (score > bestScore) {
       bestScore = score;
       bestNode = candidate;
+      bestIsAmbiguous = false;
+    } else if (score === bestScore) {
+      bestIsAmbiguous = true;
     }
   }
 
-  return bestNode;
+  return requireUniqueBest && bestIsAmbiguous ? null : bestNode;
 }

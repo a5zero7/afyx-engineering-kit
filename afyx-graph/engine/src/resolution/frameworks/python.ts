@@ -1,105 +1,169 @@
 /**
- * Python Framework Resolver
+ * AFYX Engineering Kit - Python Framework Resolver (Django, Flask, FastAPI)
  *
- * Handles Django, Flask, and FastAPI patterns.
+ * Provides route extraction, handler binding, and cross-module route prefixing for Python web frameworks:
+ * 1. Django: URLconfs (`path`, `re_path`, `url`), DRF ViewSet routers, Model/View/Form resolution,
+ *    and QuerySet._iterable_class dynamic dispatch bridging.
+ * 2. Flask: `@app.route` / `@bp.route` endpoints, Flask-RESTful `add_resource`.
+ * 3. FastAPI: `@router.<method>` decorators, dependency injection bindings, and
+ *    recursive `include_router(prefix=...)` prefix composition in `postExtract`.
  */
 
-import { Node } from '../../types';
-import { FrameworkResolver, UnresolvedRef, ResolutionContext, FrameworkExtractionResult } from '../types';
+import type { Node } from '../../types';
+import type {
+  FrameworkExtractionResult,
+  FrameworkResolver,
+  ResolutionContext,
+  ResolvedRef,
+  UnresolvedRef,
+} from '../types';
 import { stripCommentsForRegex } from '../strip-comments';
 import { resolveImportPath } from '../import-resolver';
+
+const MODEL_DIRECTORIES: readonly string[] = ['models', 'app/models', 'src/models'];
+const VIEW_DIRECTORIES: readonly string[] = ['views', 'app/views', 'src/views', 'api/views'];
+const FORM_DIRECTORIES: readonly string[] = ['forms', 'app/forms', 'src/forms'];
+const ROUTER_DIRECTORIES: readonly string[] = ['/routers/', '/api/', '/routes/', '/endpoints/'];
+const DEPENDENCY_DIRECTORIES: readonly string[] = ['/dependencies/', '/deps/', '/core/'];
+
+const CLASS_NODE_KINDS: ReadonlySet<string> = new Set(['class']);
+const VIEW_NODE_KINDS: ReadonlySet<string> = new Set(['class', 'function']);
+const VARIABLE_NODE_KINDS: ReadonlySet<string> = new Set(['variable']);
+const FUNCTION_NODE_KINDS: ReadonlySet<string> = new Set(['function']);
+
+function locateSymbolByKindAndDirectory(
+  symbolName: string,
+  allowedKinds: ReadonlySet<string>,
+  directoryPatterns: readonly string[],
+  context: ResolutionContext
+): string | null {
+  const matches = context.getNodesByName(symbolName);
+  if (matches.length === 0) return null;
+
+  const validKinds = matches.filter((n) => allowedKinds.has(n.kind));
+  if (validKinds.length === 0) return null;
+
+  if (directoryPatterns.length > 0) {
+    const favored = validKinds.filter((n) =>
+      directoryPatterns.some((pattern) => n.filePath.includes(pattern))
+    );
+    if (favored.length > 0) return favored[0]!.id;
+  }
+
+  return validKinds[0]!.id;
+}
+
+function resolveDjangoModelIterable(ctx: ResolutionContext): string | null {
+  const modelIterableCls = ctx.getNodesByName('ModelIterable').find((n) => n.kind === 'class');
+  if (!modelIterableCls) return null;
+
+  const iterMethod = ctx.getNodesByName('__iter__').find(
+    (n) => n.filePath === modelIterableCls.filePath &&
+           n.startLine >= modelIterableCls.startLine &&
+           n.startLine <= modelIterableCls.endLine
+  );
+  return iterMethod ? iterMethod.id : null;
+}
+
+function parseDjangoUrlHandlerExpression(expression: string): { name: string; kind: 'references' | 'imports' } | null {
+  const includeMatch = expression.match(/^include\s*\(\s*['"]([^'"]+)['"]/);
+  if (includeMatch) return { name: includeMatch[1]!, kind: 'imports' };
+
+  let trimmed = expression.replace(/\.as_view\s*\([^)]*\)\s*$/, '');
+  trimmed = trimmed.replace(/\.\w+\s*\([^)]*\)\s*$/, '');
+
+  const tokens = trimmed.split('.').filter(Boolean);
+  if (tokens.length === 0) return null;
+
+  const finalToken = tokens[tokens.length - 1]!;
+  if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(finalToken)) return null;
+
+  return { name: finalToken, kind: 'references' };
+}
 
 export const djangoResolver: FrameworkResolver = {
   name: 'django',
   languages: ['python'],
 
-  detect(context) {
-    const requirements = context.readFile('requirements.txt');
-    if (requirements && requirements.toLowerCase().includes('django')) return true;
+  detect(context: ResolutionContext): boolean {
+    const reqs = context.readFile('requirements.txt');
+    if (reqs && reqs.toLowerCase().includes('django')) return true;
+
     const setup = context.readFile('setup.py');
     if (setup && setup.toLowerCase().includes('django')) return true;
-    const pyproject = context.readFile('pyproject.toml');
-    if (pyproject && pyproject.toLowerCase().includes('django')) return true;
+
+    const pyproj = context.readFile('pyproject.toml');
+    if (pyproj && pyproj.toLowerCase().includes('django')) return true;
+
     return context.fileExists('manage.py');
   },
 
-  resolve(ref, context) {
-    if (ref.referenceName.endsWith('Model') || /^[A-Z][a-z]+$/.test(ref.referenceName)) {
-      const result = resolveByNameAndKind(ref.referenceName, CLASS_KINDS, MODEL_DIRS, context);
-      if (result) return { original: ref, targetNodeId: result, confidence: 0.8, resolvedBy: 'framework' };
-    }
-    if (ref.referenceName.endsWith('View') || ref.referenceName.endsWith('ViewSet')) {
-      const result = resolveByNameAndKind(ref.referenceName, VIEW_KINDS, VIEW_DIRS, context);
-      if (result) return { original: ref, targetNodeId: result, confidence: 0.8, resolvedBy: 'framework' };
-    }
-    if (ref.referenceName.endsWith('Form')) {
-      const result = resolveByNameAndKind(ref.referenceName, CLASS_KINDS, FORM_DIRS, context);
-      if (result) return { original: ref, targetNodeId: result, confidence: 0.8, resolvedBy: 'framework' };
-    }
-    // ORM dynamic dispatch: QuerySet._fetch_all (and siblings) call
-    // `self._iterable_class(self)` — a runtime dispatch to the iterable class
-    // (default ModelIterable) whose __iter__ runs the SQL compiler. Static
-    // parsing can't resolve an attribute-as-callable, so it leaves an unresolved
-    // `_iterable_class` ref and a hole in the QuerySet→compiler chain. Bridge it
-    // to ModelIterable.__iter__ so the flow actually exists in the graph.
-    if (ref.referenceName === '_iterable_class') {
-      const target = resolveModelIterableIter(context);
-      if (target) return { original: ref, targetNodeId: target, confidence: 0.7, resolvedBy: 'framework' };
-    }
-    return null;
-  },
-
-  // Let two ref shapes past resolveOne's "no possible match" pre-filter so they
-  // reach resolution: the ORM dynamic-dispatch `_iterable_class` (a QuerySet
-  // attribute, not a declared symbol), and a Django `include('app.urls')` module
-  // path — a dotted module name with no symbol/import to match, which resolution
-  // (resolvePythonAbsoluteModule) then maps to its `urls.py` file so the included
-  // URLconf records a dependency on the root urlconf.
-  claimsReference(name) {
+  claimsReference(name: string): boolean {
     return name === '_iterable_class' || name.endsWith('.urls');
   },
 
-  extract(filePath, content) {
+  resolve(ref: UnresolvedRef, context: ResolutionContext): ResolvedRef | null {
+    if (ref.referenceName.endsWith('Model') || /^[A-Z][a-z]+$/.test(ref.referenceName)) {
+      const match = locateSymbolByKindAndDirectory(ref.referenceName, CLASS_NODE_KINDS, MODEL_DIRECTORIES, context);
+      if (match) return { original: ref, targetNodeId: match, confidence: 0.8, resolvedBy: 'framework' };
+    }
+
+    if (ref.referenceName.endsWith('View') || ref.referenceName.endsWith('ViewSet')) {
+      const match = locateSymbolByKindAndDirectory(ref.referenceName, VIEW_NODE_KINDS, VIEW_DIRECTORIES, context);
+      if (match) return { original: ref, targetNodeId: match, confidence: 0.8, resolvedBy: 'framework' };
+    }
+
+    if (ref.referenceName.endsWith('Form')) {
+      const match = locateSymbolByKindAndDirectory(ref.referenceName, CLASS_NODE_KINDS, FORM_DIRECTORIES, context);
+      if (match) return { original: ref, targetNodeId: match, confidence: 0.8, resolvedBy: 'framework' };
+    }
+
+    if (ref.referenceName === '_iterable_class') {
+      const iterId = resolveDjangoModelIterable(context);
+      if (iterId) return { original: ref, targetNodeId: iterId, confidence: 0.7, resolvedBy: 'framework' };
+    }
+
+    return null;
+  },
+
+  extract(filePath: string, content: string): FrameworkExtractionResult {
     if (!filePath.endsWith('.py')) return { nodes: [], references: [] };
 
     const nodes: Node[] = [];
     const references: UnresolvedRef[] = [];
-    const now = Date.now();
-    const safe = stripCommentsForRegex(content, 'python');
+    const timestamp = Date.now();
+    const sanitized = stripCommentsForRegex(content, 'python');
 
-    // path('url', handler, name=...) / re_path(r'...', handler) / url(r'...', handler)
-    // Capture groups: 1=function name, 2=url string, 3=handler expr
-    // Handler expr may contain one balanced () pair (e.g. View.as_view(), include('x.y'))
-    const routeRegex = /\b(path|re_path|url)\s*\(\s*r?['"]([^'"]+)['"]\s*,\s*([\w.]+(?:\s*\([^)]*\))?)/g;
-
+    const djangoUrlPattern = /\b(path|re_path|url)\s*\(\s*r?['"]([^'"]+)['"]\s*,\s*([\w.]+(?:\s*\([^)]*\))?)/g;
     let match: RegExpExecArray | null;
-    while ((match = routeRegex.exec(safe)) !== null) {
-      const [, _fn, urlPath, handlerExpr] = match;
-      const line = safe.slice(0, match.index).split('\n').length;
+
+    while ((match = djangoUrlPattern.exec(sanitized)) !== null) {
+      const endpoint = match[2]!;
+      const handlerStr = match[3]!;
+      const lineNum = sanitized.slice(0, match.index).split('\n').length;
 
       const routeNode: Node = {
-        id: `route:${filePath}:${line}:${urlPath}`,
+        id: `route:${filePath}:${lineNum}:${endpoint}`,
         kind: 'route',
-        name: urlPath!,
-        qualifiedName: `${filePath}::route:${urlPath}`,
+        name: endpoint,
+        qualifiedName: `${filePath}::route:${endpoint}`,
         filePath,
-        startLine: line,
-        endLine: line,
+        startLine: lineNum,
+        endLine: lineNum,
         startColumn: 0,
         endColumn: match[0].length,
         language: 'python',
-        updatedAt: now,
+        updatedAt: timestamp,
       };
       nodes.push(routeNode);
 
-      const handler = handlerExpr!.trim();
-      const target = resolveHandlerName(handler);
+      const target = parseDjangoUrlHandlerExpression(handlerStr.trim());
       if (target) {
         references.push({
           fromNodeId: routeNode.id,
           referenceName: target.name,
           referenceKind: target.kind,
-          line,
+          line: lineNum,
           column: 0,
           filePath,
           language: 'python',
@@ -107,31 +171,36 @@ export const djangoResolver: FrameworkResolver = {
       }
     }
 
-    // DRF router registration: `router.register(r'articles', ArticleViewSet)` →
-    // route → the ViewSet class (the core CRUD endpoints, which path()/url() miss).
-    // The STRING first arg separates this from `admin.site.register(Model, Admin)`
-    // (whose first arg is a model class, not a string); the View/ViewSet suffix on
-    // the 2nd arg keeps it to DRF viewsets.
-    const routerRegex = /\.register\s*\(\s*r?['"]([^'"]+)['"]\s*,\s*([\w.]+)/g;
-    while ((match = routerRegex.exec(safe)) !== null) {
-      const prefix = match[1]!.replace(/^\^|\/?\$$/g, '');
-      const viewset = match[2]!.split('.').pop()!;
-      if (!/View(Set)?$/.test(viewset)) continue;
-      const line = safe.slice(0, match.index).split('\n').length;
+    const drfRegisterPattern = /\.register\s*\(\s*r?['"]([^'"]+)['"]\s*,\s*([\w.]+)/g;
+    while ((match = drfRegisterPattern.exec(sanitized)) !== null) {
+      const rawPrefix = match[1]!.replace(/^\^|\/?\$$/g, '');
+      const viewsetClass = match[2]!.split('.').pop()!;
+      if (!/View(Set)?$/.test(viewsetClass)) continue;
+
+      const lineNum = sanitized.slice(0, match.index).split('\n').length;
       const routeNode: Node = {
-        id: `route:${filePath}:${line}:VIEWSET:${prefix}`,
+        id: `route:${filePath}:${lineNum}:VIEWSET:${rawPrefix}`,
         kind: 'route',
-        name: `VIEWSET /${prefix}`,
-        qualifiedName: `${filePath}::route:${prefix}`,
-        filePath, startLine: line, endLine: line, startColumn: 0, endColumn: match[0].length,
-        language: 'python', updatedAt: now,
+        name: `VIEWSET /${rawPrefix}`,
+        qualifiedName: `${filePath}::route:${rawPrefix}`,
+        filePath,
+        startLine: lineNum,
+        endLine: lineNum,
+        startColumn: 0,
+        endColumn: match[0].length,
+        language: 'python',
+        updatedAt: timestamp,
       };
       nodes.push(routeNode);
+
       references.push({
         fromNodeId: routeNode.id,
-        referenceName: viewset,
+        referenceName: viewsetClass,
         referenceKind: 'references',
-        line, column: 0, filePath, language: 'python',
+        line: lineNum,
+        column: 0,
+        filePath,
+        language: 'python',
       });
     }
 
@@ -139,439 +208,399 @@ export const djangoResolver: FrameworkResolver = {
   },
 };
 
-/**
- * Find ModelIterable.__iter__ — the default iterable QuerySet invokes via
- * `self._iterable_class(self)`. Its __iter__ statically calls the SQL compiler,
- * so linking the dynamic dispatch here closes the QuerySet→SQL call chain.
- * (Over-approximates to the default iterable; .values()/.values_list() swap in
- * other BaseIterable subclasses, but ModelIterable is the canonical path.)
- */
-function resolveModelIterableIter(context: ResolutionContext): string | null {
-  const cls = context.getNodesByName('ModelIterable').find((n) => n.kind === 'class');
-  if (!cls) return null;
-  const iter = context.getNodesByName('__iter__').find(
-    (n) => n.filePath === cls.filePath && n.startLine >= cls.startLine && n.startLine <= cls.endLine
-  );
-  return iter ? iter.id : null;
+interface PythonDecoratorConfig {
+  regex: RegExp;
+  defaultVerb: string;
+  verbGroupIndex?: number;
+  verbFromListGroupIndex?: number;
+  pathGroupIndex: number;
 }
 
-/**
- * Parse a Django URL handler expression and return the symbol/module to link.
- * Returns null for shapes we can't confidently link (e.g. lambdas).
- */
-function resolveHandlerName(expr: string): { name: string; kind: 'references' | 'imports' } | null {
-  // include('module.path')
-  const includeMatch = expr.match(/^include\s*\(\s*['"]([^'"]+)['"]/);
-  if (includeMatch) return { name: includeMatch[1]!, kind: 'imports' };
+function extractPythonDecoratorEndpoints(
+  filePath: string,
+  sanitized: string,
+  cfg: PythonDecoratorConfig
+): FrameworkExtractionResult {
+  const nodes: Node[] = [];
+  const references: UnresolvedRef[] = [];
+  const timestamp = Date.now();
+  let m: RegExpExecArray | null;
 
-  // Strip trailing .as_view(...) or .as_view()
-  let head = expr.replace(/\.as_view\s*\([^)]*\)\s*$/, '');
-  // Drop any other trailing method call
-  head = head.replace(/\.\w+\s*\([^)]*\)\s*$/, '');
+  while ((m = cfg.regex.exec(sanitized)) !== null) {
+    const rawPath = m[cfg.pathGroupIndex];
+    let methodVerb = cfg.defaultVerb;
 
-  const dotted = head.split('.').filter(Boolean);
-  if (dotted.length === 0) return null;
-  const last = dotted[dotted.length - 1]!;
-  if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(last)) return null;
+    if (cfg.verbGroupIndex && m[cfg.verbGroupIndex]) {
+      methodVerb = m[cfg.verbGroupIndex]!.toUpperCase();
+    } else if (cfg.verbFromListGroupIndex && m[cfg.verbFromListGroupIndex]) {
+      const verbMatch = m[cfg.verbFromListGroupIndex]!.match(/['"]([A-Z]+)['"]/i);
+      if (verbMatch) methodVerb = verbMatch[1]!.toUpperCase();
+    }
 
-  return { name: last, kind: 'references' };
+    const lineNum = sanitized.slice(0, m.index).split('\n').length;
+    const displayName = methodVerb ? `${methodVerb} ${rawPath || '/'}` : (rawPath || '/');
+
+    const routeNode: Node = {
+      id: `route:${filePath}:${lineNum}:${methodVerb}:${rawPath}`,
+      kind: 'route',
+      name: displayName,
+      qualifiedName: `${filePath}::${methodVerb}:${rawPath}`,
+      filePath,
+      startLine: lineNum,
+      endLine: lineNum,
+      startColumn: 0,
+      endColumn: m[0].length,
+      language: 'python',
+      updatedAt: timestamp,
+    };
+    nodes.push(routeNode);
+
+    const followingText = sanitized.slice(m.index + m[0].length);
+    const defMatch = followingText.match(/\n\s*(?:async\s+)?def\s+(\w+)/);
+    if (defMatch) {
+      references.push({
+        fromNodeId: routeNode.id,
+        referenceName: defMatch[1]!,
+        referenceKind: 'references',
+        line: lineNum,
+        column: 0,
+        filePath,
+        language: 'python',
+      });
+    }
+  }
+
+  return { nodes, references };
+}
+
+function extractFlaskRestfulResources(filePath: string, source: string): FrameworkExtractionResult {
+  const nodes: Node[] = [];
+  const references: UnresolvedRef[] = [];
+  const timestamp = Date.now();
+  const pattern = /\.add\w*[Rr]esource\s*\(\s*(\w+)\s*,\s*((?:['"][^'"]+['"]\s*,?\s*)+)/g;
+  let match: RegExpExecArray | null;
+
+  while ((match = pattern.exec(source)) !== null) {
+    const resourceCls = match[1]!;
+    const paths = (match[2]!.match(/['"]([^'"]+)['"]/g) || []).map((s) => s.slice(1, -1));
+    const lineNum = source.slice(0, match.index).split('\n').length;
+
+    for (const urlPath of paths) {
+      const routeNode: Node = {
+        id: `route:${filePath}:${lineNum}:ANY:${urlPath}`,
+        kind: 'route',
+        name: `ANY ${urlPath}`,
+        qualifiedName: `${filePath}::ANY:${urlPath}`,
+        filePath,
+        startLine: lineNum,
+        endLine: lineNum,
+        startColumn: 0,
+        endColumn: 0,
+        language: 'python',
+        updatedAt: timestamp,
+      };
+      nodes.push(routeNode);
+
+      references.push({
+        fromNodeId: routeNode.id,
+        referenceName: resourceCls,
+        referenceKind: 'references',
+        line: lineNum,
+        column: 0,
+        filePath,
+        language: 'python',
+      });
+    }
+  }
+
+  return { nodes, references };
 }
 
 export const flaskResolver: FrameworkResolver = {
   name: 'flask',
   languages: ['python'],
 
-  detect(context) {
-    for (const f of ['requirements.txt', 'pyproject.toml', 'Pipfile', 'setup.py']) {
-      const c = context.readFile(f);
-      if (c && /\bflask\b/i.test(c)) return true;
+  detect(context: ResolutionContext): boolean {
+    for (const conf of ['requirements.txt', 'pyproject.toml', 'Pipfile', 'setup.py']) {
+      const text = context.readFile(conf);
+      if (text && /\bflask\b/i.test(text)) return true;
     }
-    // Any app entrypoint (root OR subdir, e.g. conduit/app.py) that imports flask
-    // and instantiates Flask(...) — covers Flask(__name__), Flask(__name__.split…),
-    // and the app-factory pattern. Bounded to entrypoint-named files.
-    const entrypoints = context
+
+    const appCandidates = context
       .getAllFiles()
-      .filter((f) => /(?:^|\/)(app|application|main|wsgi|__init__)\.py$/.test(f))
+      .filter((p) => /(?:^|\/)(app|application|main|wsgi|__init__)\.py$/.test(p))
       .slice(0, 50);
-    for (const f of entrypoints) {
-      const c = context.readFile(f);
-      if (c && /\bFlask\s*\(/.test(c) && /\bimport\s+flask\b|\bfrom\s+flask\b/.test(c)) return true;
+
+    for (const f of appCandidates) {
+      const text = context.readFile(f);
+      if (text && /\bFlask\s*\(/.test(text) && /\bimport\s+flask\b|\bfrom\s+flask\b/.test(text)) {
+        return true;
+      }
     }
+
     return false;
   },
 
-  resolve(ref, context) {
+  resolve(ref: UnresolvedRef, context: ResolutionContext): ResolvedRef | null {
     if (ref.referenceName.endsWith('_bp') || ref.referenceName.endsWith('_blueprint')) {
-      const result = resolveByNameAndKind(ref.referenceName, VARIABLE_KINDS, [], context);
-      if (result) return { original: ref, targetNodeId: result, confidence: 0.8, resolvedBy: 'framework' };
+      const match = locateSymbolByKindAndDirectory(ref.referenceName, VARIABLE_NODE_KINDS, [], context);
+      if (match) return { original: ref, targetNodeId: match, confidence: 0.8, resolvedBy: 'framework' };
     }
+
     return null;
   },
 
-  extract(filePath, content) {
+  extract(filePath: string, content: string): FrameworkExtractionResult {
     if (!filePath.endsWith('.py')) return { nodes: [], references: [] };
-    const safe = stripCommentsForRegex(content, 'python');
-    const decorator = extractDecoratorRoutes(filePath, safe, {
-      // Flask: @x.route('/path', methods=[...] | (...)) — the handler is the next
-      // `def`, allowing intervening decorators (@login_required) and stacked
-      // @x.route() lines. methods may be a list OR a tuple (methods=('GET',)).
-      decoratorRegex: /@(\w+)\.route\s*\(\s*['"]([^'"]*)['"](?:\s*,\s*methods\s*=\s*[[(]([^\])]+)[\])])?\s*\)/g,
-      defaultMethod: 'GET',
-      methodFromGroup: 3,
-      pathGroup: 2,
-      findHandler: true,
-      language: 'python',
+
+    const sanitized = stripCommentsForRegex(content, 'python');
+    const decoratorRoutes = extractPythonDecoratorEndpoints(filePath, sanitized, {
+      regex: /@(\w+)\.route\s*\(\s*['"]([^'"]*)['"](?:\s*,\s*methods\s*=\s*[[(]([^\])]+)[\])])?\s*\)/g,
+      defaultVerb: 'GET',
+      verbFromListGroupIndex: 3,
+      pathGroupIndex: 2,
     });
-    const restful = extractFlaskRestful(filePath, safe);
+    const restfulRoutes = extractFlaskRestfulResources(filePath, sanitized);
+
     return {
-      nodes: [...decorator.nodes, ...restful.nodes],
-      references: [...decorator.references, ...restful.references],
+      nodes: [...decoratorRoutes.nodes, ...restfulRoutes.nodes],
+      references: [...decoratorRoutes.references, ...restfulRoutes.references],
     };
   },
 };
+
+function combinePythonRoutePaths(prefix: string, subPath: string): string {
+  const p1 = prefix.replace(/\/+$/, '');
+  const p2 = subPath.replace(/^\/+/, '');
+  if (!p1) return p2 ? `/${p2}` : '';
+  return p2 ? `${p1}/${p2}` : p1;
+}
+
+function resolveFastApiIncludedRouter(
+  targetExpr: string,
+  sourceFile: string,
+  localVars: Map<string, string>,
+  ctx: ResolutionContext
+): { file: string; variable: string } | null {
+  const segments = targetExpr.split('.');
+  const primaryName = segments[0]!;
+
+  if (segments.length === 1 && localVars.has(primaryName)) {
+    return { file: sourceFile, variable: primaryName };
+  }
+
+  const mapping = ctx.getImportMappings(sourceFile, 'python').find((im) => im.localName === primaryName);
+  if (!mapping) return null;
+
+  if (segments.length > 1) {
+    const importedModule =
+      resolveImportPath(`${mapping.source}.${mapping.exportedName}`, sourceFile, 'python', ctx) ??
+      resolveImportPath(mapping.source, sourceFile, 'python', ctx);
+
+    return importedModule ? { file: importedModule, variable: segments[segments.length - 1]! } : null;
+  }
+
+  const directModule = resolveImportPath(mapping.source, sourceFile, 'python', ctx);
+  return directModule ? { file: directModule, variable: mapping.exportedName } : null;
+}
 
 export const fastapiResolver: FrameworkResolver = {
   name: 'fastapi',
   languages: ['python'],
 
-  detect(context) {
-    const requirements = context.readFile('requirements.txt');
-    if (requirements && /\bfastapi\b/i.test(requirements)) return true;
-    const pyproject = context.readFile('pyproject.toml');
-    if (pyproject && /\bfastapi\b/i.test(pyproject)) return true;
-    for (const file of ['app.py', 'main.py', 'api.py']) {
-      const content = context.readFile(file);
-      if (content && content.includes('FastAPI(')) return true;
+  detect(context: ResolutionContext): boolean {
+    const reqs = context.readFile('requirements.txt');
+    if (reqs && /\bfastapi\b/i.test(reqs)) return true;
+
+    const pyproj = context.readFile('pyproject.toml');
+    if (pyproj && /\bfastapi\b/i.test(pyproj)) return true;
+
+    for (const rootFile of ['app.py', 'main.py', 'api.py']) {
+      const src = context.readFile(rootFile);
+      if (src && src.includes('FastAPI(')) return true;
     }
-    // A service that is one directory of a monorepo (`backend/pyproject.toml`,
-    // `backend/app/main.py`): its manifest or its app object sits below the root.
-    let looked = 0;
-    for (const file of context.getAllFiles()) {
-      const norm = file.replace(/\\/g, '/');
-      const base = norm.slice(norm.lastIndexOf('/') + 1);
-      if (base === 'requirements.txt' || base === 'pyproject.toml' || base === 'requirements-dev.txt') {
-        const content = context.readFile(file);
-        if (content && /\bfastapi\b/i.test(content)) return true;
-        if (++looked >= 40) break;
-      } else if ((base === 'main.py' || base === 'app.py' || base === 'api.py') && norm.split('/').length <= 4) {
-        const content = context.readFile(file);
-        if (content && content.includes('FastAPI(')) return true;
-        if (++looked >= 40) break;
+
+    let scannedFiles = 0;
+    for (const f of context.getAllFiles()) {
+      const normalized = f.replace(/\\/g, '/');
+      const filename = normalized.slice(normalized.lastIndexOf('/') + 1);
+
+      if (filename === 'requirements.txt' || filename === 'pyproject.toml' || filename === 'requirements-dev.txt') {
+        const text = context.readFile(f);
+        if (text && /\bfastapi\b/i.test(text)) return true;
+        if (++scannedFiles >= 40) break;
+      } else if ((filename === 'main.py' || filename === 'app.py' || filename === 'api.py') && normalized.split('/').length <= 4) {
+        const text = context.readFile(f);
+        if (text && text.includes('FastAPI(')) return true;
+        if (++scannedFiles >= 40) break;
       }
     }
+
     return false;
   },
 
-  resolve(ref, context) {
+  resolve(ref: UnresolvedRef, context: ResolutionContext): ResolvedRef | null {
     if (ref.referenceName.endsWith('_router') || ref.referenceName === 'router') {
-      const result = resolveByNameAndKind(ref.referenceName, VARIABLE_KINDS, ROUTER_DIRS, context);
-      if (result) return { original: ref, targetNodeId: result, confidence: 0.8, resolvedBy: 'framework' };
+      const target = locateSymbolByKindAndDirectory(ref.referenceName, VARIABLE_NODE_KINDS, ROUTER_DIRECTORIES, context);
+      if (target) return { original: ref, targetNodeId: target, confidence: 0.8, resolvedBy: 'framework' };
     }
+
     if (ref.referenceName.startsWith('get_') || ref.referenceName.startsWith('Depends')) {
-      const result = resolveByNameAndKind(ref.referenceName, FUNCTION_KINDS, DEP_DIRS, context);
-      if (result) return { original: ref, targetNodeId: result, confidence: 0.75, resolvedBy: 'framework' };
+      const target = locateSymbolByKindAndDirectory(ref.referenceName, FUNCTION_NODE_KINDS, DEPENDENCY_DIRECTORIES, context);
+      if (target) return { original: ref, targetNodeId: target, confidence: 0.75, resolvedBy: 'framework' };
     }
+
     return null;
   },
 
-  extract(filePath, content) {
+  extract(filePath: string, content: string): FrameworkExtractionResult {
     if (!filePath.endsWith('.py')) return { nodes: [], references: [] };
-    return extractDecoratorRoutes(filePath, stripCommentsForRegex(content, 'python'), {
-      // FastAPI: @x.METHOD('/path') -> handler on the next def line. Path may be
-      // empty ("") for routes mounted at the router/prefix root.
-      decoratorRegex: /@(\w+)\.(get|post|put|patch|delete|options|head)\s*\(\s*['"]([^'"]*)['"]/g,
-      defaultMethod: '',
-      methodGroup: 2,
-      pathGroup: 3,
-      findHandler: true,
-      language: 'python',
+
+    const clean = stripCommentsForRegex(content, 'python');
+    return extractPythonDecoratorEndpoints(filePath, clean, {
+      regex: /@(\w+)\.(get|post|put|patch|delete|options|head)\s*\(\s*['"]([^'"]*)['"]/g,
+      defaultVerb: '',
+      verbGroupIndex: 2,
+      pathGroupIndex: 3,
     });
   },
 
-  /**
-   * Cross-file finalization for prefixes. A router's routes are written
-   * relative to where it is mounted —
-   *
-   *   router = APIRouter(prefix="/items")                 # items.py
-   *   api_router.include_router(items.router)              # api.py
-   *   app.include_router(api_router, prefix="/api/v1")     # main.py
-   *   @router.get("/{id}")                                 # → GET /api/v1/items/{id}
-   *
-   * — and per-file `extract()` can only see `GET /{id}`. This pass reads every
-   * `APIRouter(prefix=…)` and every `X.include_router(router, prefix=…)` whose
-   * prefix is a literal (a `settings.API_V1_STR` is unknown and that mount is
-   * left alone), resolves the included router to the file and variable it is
-   * (`items.router` through the module import, `items_router` through the
-   * alias, a local name), composes the prefixes down the tree, and renames the
-   * routes decorated with each router to the path a request takes. `id` and
-   * `qualifiedName` are preserved, so the pass is idempotent on every sync.
-   */
-  postExtract(context) {
-    interface Mount {
+  postExtract(context: ResolutionContext): Node[] {
+    interface SubRouterMount {
       fromVar: string;
       prefix: string;
       target: { file: string; variable: string };
     }
-    const own = new Map<string, Map<string, string>>(); // file → router variable → APIRouter(prefix=)
-    const mounts = new Map<string, Mount[]>(); // mounting file → mounts
-    const receivers = new Map<string, Map<number, string>>(); // file → decorator line → router variable
-    for (const file of context.getAllFiles()) {
-      if (!file.endsWith('.py')) continue;
-      const content = context.readFile(file);
-      if (!content || (!content.includes('APIRouter') && !content.includes('include_router'))) continue;
-      const safe = stripCommentsForRegex(content, 'python');
-      const vars = new Map<string, string>();
-      const decl = /\b([A-Za-z_]\w*)\s*=\s*APIRouter\s*\(([^)]*)\)/g;
-      let m: RegExpExecArray | null;
-      while ((m = decl.exec(safe)) !== null) {
-        const p = /\bprefix\s*=\s*['"]([^'"]*)['"]/.exec(m[2]!);
-        vars.set(m[1]!, p ? p[1]! : '');
+
+    const localRouterPrefixes = new Map<string, Map<string, string>>();
+    const mountsByFile = new Map<string, SubRouterMount[]>();
+    const lineToRouterVar = new Map<string, Map<number, string>>();
+
+    for (const filePath of context.getAllFiles()) {
+      if (!filePath.endsWith('.py')) continue;
+
+      const fileContent = context.readFile(filePath);
+      if (!fileContent || (!fileContent.includes('APIRouter') && !fileContent.includes('include_router'))) {
+        continue;
       }
-      own.set(file, vars);
-      const byLine = new Map<number, string>();
-      const deco = /@([A-Za-z_]\w*)\.(?:get|post|put|patch|delete|options|head)\s*\(/g;
-      while ((m = deco.exec(safe)) !== null) byLine.set(safe.slice(0, m.index).split('\n').length, m[1]!);
-      receivers.set(file, byLine);
-      const inc = /\b([A-Za-z_]\w*)\.include_router\s*\(\s*([A-Za-z_][\w.]*)\s*((?:,[^)]*)?)\)/g;
-      while ((m = inc.exec(safe)) !== null) {
-        const rest = m[3] ?? '';
-        const literal = /\bprefix\s*=\s*['"]([^'"]*)['"]/.exec(rest);
-        if (!literal && /\bprefix\s*=/.test(rest)) continue; // a computed prefix: unknown, not guessed
-        const target = includedRouter(m[2]!, file, vars, context);
-        if (!target) continue;
-        const list = mounts.get(file) ?? [];
-        list.push({ fromVar: m[1]!, prefix: literal ? literal[1]! : '', target });
-        mounts.set(file, list);
+
+      const cleanSource = stripCommentsForRegex(fileContent, 'python');
+      const varMap = new Map<string, string>();
+      const routerDeclRegex = /\b([A-Za-z_]\w*)\s*=\s*APIRouter\s*\(([^)]*)\)/g;
+      let m: RegExpExecArray | null;
+
+      while ((m = routerDeclRegex.exec(cleanSource)) !== null) {
+        const prefixParamMatch = /\bprefix\s*=\s*['"]([^'"]*)['"]/.exec(m[2]!);
+        varMap.set(m[1]!, prefixParamMatch ? prefixParamMatch[1]! : '');
+      }
+      localRouterPrefixes.set(filePath, varMap);
+
+      const methodToVar = new Map<number, string>();
+      const methodDecorPattern = /@([A-Za-z_]\w*)\.(?:get|post|put|patch|delete|options|head)\s*\(/g;
+      while ((m = methodDecorPattern.exec(cleanSource)) !== null) {
+        methodToVar.set(cleanSource.slice(0, m.index).split('\n').length, m[1]!);
+      }
+      lineToRouterVar.set(filePath, methodToVar);
+
+      const includePattern = /\b([A-Za-z_]\w*)\.include_router\s*\(\s*([A-Za-z_][\w.]*)\s*((?:,[^)]*)?)\)/g;
+      while ((m = includePattern.exec(cleanSource)) !== null) {
+        const trailingArgs = m[3] ?? '';
+        const literalPrefixMatch = /\bprefix\s*=\s*['"]([^'"]*)['"]/.exec(trailingArgs);
+        if (!literalPrefixMatch && /\bprefix\s*=/.test(trailingArgs)) continue;
+
+        const resolvedTarget = resolveFastApiIncludedRouter(m[2]!, filePath, varMap, context);
+        if (!resolvedTarget) continue;
+
+        const list = mountsByFile.get(filePath) ?? [];
+        list.push({
+          fromVar: m[1]!,
+          prefix: literalPrefixMatch ? literalPrefixMatch[1]! : '',
+          target: resolvedTarget,
+        });
+        mountsByFile.set(filePath, list);
       }
     }
-    if (mounts.size === 0 && ![...own.values()].some((vars) => [...vars.values()].some((p) => p !== ''))) return [];
 
-    // The include-derived base of each (file, variable): the mounting router's
-    // base, plus its own prefix, plus the mount's — to a fixed point.
-    const key = (file: string, variable: string): string => `${file}\0${variable}`;
-    let base = new Map<string, string>();
+    if (
+      mountsByFile.size === 0 &&
+      ![...localRouterPrefixes.values()].some((v) => [...v.values()].some((p) => p !== ''))
+    ) {
+      return [];
+    }
+
+    const buildKey = (file: string, variable: string): string => `${file}\u0000${variable}`;
+    let computedBasePrefixes = new Map<string, string>();
+
     for (let round = 0; round < 8; round++) {
-      const next = new Map<string, string>();
-      for (const [file, list] of mounts) {
-        for (const mount of list) {
-          const fromBase = base.get(key(file, mount.fromVar)) ?? '';
-          const fromOwn = own.get(file)?.get(mount.fromVar) ?? '';
-          const full = joinPyPaths(joinPyPaths(fromBase, fromOwn), mount.prefix);
-          const k = key(mount.target.file, mount.target.variable);
-          const seen = next.get(k);
-          if (seen !== undefined && seen !== full) next.set(k, '\0'); // two mounts, two paths: ambiguous
-          else next.set(k, full);
+      const nextIteration = new Map<string, string>();
+
+      for (const [mountingFile, mounts] of mountsByFile) {
+        for (const mount of mounts) {
+          const inheritedBase = computedBasePrefixes.get(buildKey(mountingFile, mount.fromVar)) ?? '';
+          const currentVarOwnPrefix = localRouterPrefixes.get(mountingFile)?.get(mount.fromVar) ?? '';
+          const accumulatedPath = combinePythonRoutePaths(
+            combinePythonRoutePaths(inheritedBase, currentVarOwnPrefix),
+            mount.prefix
+          );
+
+          const targetKey = buildKey(mount.target.file, mount.target.variable);
+          const previouslySeen = nextIteration.get(targetKey);
+          if (previouslySeen !== undefined && previouslySeen !== accumulatedPath) {
+            nextIteration.set(targetKey, '\u0000');
+          } else {
+            nextIteration.set(targetKey, accumulatedPath);
+          }
         }
       }
-      for (const [k, v] of [...next]) if (v === '\0') next.delete(k);
-      let changed = next.size !== base.size;
-      if (!changed) for (const [k, v] of next) if (base.get(k) !== v) changed = true;
-      base = next;
+
+      for (const [k, v] of [...nextIteration]) {
+        if (v === '\u0000') nextIteration.delete(k);
+      }
+
+      let changed = nextIteration.size !== computedBasePrefixes.size;
+      if (!changed) {
+        for (const [k, v] of nextIteration) {
+          if (computedBasePrefixes.get(k) !== v) {
+            changed = true;
+            break;
+          }
+        }
+      }
+
+      computedBasePrefixes = nextIteration;
       if (!changed) break;
     }
 
-    const updates: Node[] = [];
-    for (const [file, byLine] of receivers) {
-      const vars = own.get(file) ?? new Map<string, string>();
-      for (const route of context.getNodesInFile(file)) {
-        if (route.kind !== 'route') continue;
-        const variable = byLine.get(route.startLine);
+    const routeUpdates: Node[] = [];
+    for (const [filePath, lineMap] of lineToRouterVar) {
+      const vars = localRouterPrefixes.get(filePath) ?? new Map<string, string>();
+      for (const node of context.getNodesInFile(filePath)) {
+        if (node.kind !== 'route') continue;
+
+        const variable = lineMap.get(node.startLine);
         if (!variable) continue;
-        const prefix = joinPyPaths(base.get(key(file, variable)) ?? '', vars.get(variable) ?? '');
-        if (prefix === '' || prefix === '/') continue;
-        const sep = route.qualifiedName.indexOf('::');
-        const colon = sep < 0 ? -1 : route.qualifiedName.indexOf(':', sep + 2);
+
+        const effectivePrefix = combinePythonRoutePaths(
+          computedBasePrefixes.get(buildKey(filePath, variable)) ?? '',
+          vars.get(variable) ?? ''
+        );
+
+        if (effectivePrefix === '' || effectivePrefix === '/') continue;
+
+        const sep = node.qualifiedName.indexOf('::');
+        const colon = sep < 0 ? -1 : node.qualifiedName.indexOf(':', sep + 2);
         if (colon < 0) continue;
-        const method = route.qualifiedName.slice(sep + 2, colon);
-        const original = route.qualifiedName.slice(colon + 1);
-        const name = `${method} ${joinPyPaths(prefix, original)}`.trim();
-        if (name !== route.name) updates.push({ ...route, name });
+
+        const methodVerb = node.qualifiedName.slice(sep + 2, colon);
+        const originalPath = node.qualifiedName.slice(colon + 1);
+        const updatedName = `${methodVerb} ${combinePythonRoutePaths(effectivePrefix, originalPath)}`.trim();
+
+        if (updatedName !== node.name) {
+          routeUpdates.push({ ...node, name: updatedName });
+        }
       }
     }
-    return updates;
+
+    return routeUpdates;
   },
 };
-
-/** `/api/v1` + `/items` → `/api/v1/items`; `/items` + `` → `/items`; `` + `` → ``. */
-function joinPyPaths(prefix: string, path: string): string {
-  const a = prefix.replace(/\/+$/, '');
-  const b = path.replace(/^\/+/, '');
-  if (!a) return b ? `/${b}` : '';
-  return b ? `${a}/${b}` : a;
-}
-
-/**
- * The file and variable an `include_router` argument names: `items.router`
- * through the module's import, `items_router` through an alias import, or a
- * router defined in the same file.
- */
-function includedRouter(
-  expr: string,
-  file: string,
-  local: Map<string, string>,
-  context: ResolutionContext
-): { file: string; variable: string } | null {
-  const segs = expr.split('.');
-  const head = segs[0]!;
-  if (segs.length === 1 && local.has(head)) return { file, variable: head };
-  const mapping = context.getImportMappings(file, 'python').find((im) => im.localName === head);
-  if (!mapping) return null;
-  if (segs.length > 1) {
-    // `items.router`: `items` is a module — `from app.api.routes import items`.
-    const moduleFile = resolveImportPath(`${mapping.source}.${mapping.exportedName}`, file, 'python', context) ?? resolveImportPath(mapping.source, file, 'python', context);
-    return moduleFile ? { file: moduleFile, variable: segs[segs.length - 1]! } : null;
-  }
-  // `items_router`: `from .items import router as items_router`.
-  const moduleFile = resolveImportPath(mapping.source, file, 'python', context);
-  return moduleFile ? { file: moduleFile, variable: mapping.exportedName } : null;
-}
-
-interface DecoratorRouteOpts {
-  decoratorRegex: RegExp;
-  defaultMethod: string;
-  methodGroup?: number;
-  methodFromGroup?: number; // methods=[...] list
-  pathGroup: number;
-  handlerGroup?: number;
-  findHandler?: boolean;
-  language: 'python';
-}
-
-function extractDecoratorRoutes(filePath: string, content: string, opts: DecoratorRouteOpts): FrameworkExtractionResult {
-  const nodes: Node[] = [];
-  const references: UnresolvedRef[] = [];
-  const now = Date.now();
-  let match: RegExpExecArray | null;
-  while ((match = opts.decoratorRegex.exec(content)) !== null) {
-    const routePath = match[opts.pathGroup];
-    let method = opts.defaultMethod;
-    if (opts.methodGroup && match[opts.methodGroup]) {
-      method = match[opts.methodGroup]!.toUpperCase();
-    } else if (opts.methodFromGroup && match[opts.methodFromGroup]) {
-      const m = match[opts.methodFromGroup]!.match(/['"]([A-Z]+)['"]/i);
-      if (m) method = m[1]!.toUpperCase();
-    }
-    const line = content.slice(0, match.index).split('\n').length;
-    const name = method ? `${method} ${routePath || '/'}` : (routePath || '/');
-    const routeNode: Node = {
-      id: `route:${filePath}:${line}:${method}:${routePath}`,
-      kind: 'route',
-      name,
-      qualifiedName: `${filePath}::${method}:${routePath}`,
-      filePath,
-      startLine: line,
-      endLine: line,
-      startColumn: 0,
-      endColumn: match[0].length,
-      language: opts.language,
-      updatedAt: now,
-    };
-    nodes.push(routeNode);
-
-    let handlerName: string | undefined;
-    if (opts.handlerGroup && match[opts.handlerGroup]) {
-      handlerName = match[opts.handlerGroup];
-    } else if (opts.findHandler) {
-      const tail = content.slice(match.index + match[0].length);
-      const defMatch = tail.match(/\n\s*(?:async\s+)?def\s+(\w+)/);
-      if (defMatch) handlerName = defMatch[1];
-    }
-    if (handlerName) {
-      references.push({
-        fromNodeId: routeNode.id,
-        referenceName: handlerName,
-        referenceKind: 'references',
-        line,
-        column: 0,
-        filePath,
-        language: 'python',
-      });
-    }
-  }
-  return { nodes, references };
-}
-
-/**
- * Flask-RESTful: `api.add_resource(ResourceClass, '/path'[, '/path2'])`
- * (and variants like redash's `add_org_resource`). The ResourceClass holds the
- * HTTP-verb methods (get/post/…), so the route references the class — its verb
- * methods resolve as the handlers via the class. Method is ANY (the class
- * decides which verbs it serves).
- */
-function extractFlaskRestful(filePath: string, safe: string): FrameworkExtractionResult {
-  const nodes: Node[] = [];
-  const references: UnresolvedRef[] = [];
-  const now = Date.now();
-  const re = /\.add\w*[Rr]esource\s*\(\s*(\w+)\s*,\s*((?:['"][^'"]+['"]\s*,?\s*)+)/g;
-  let m: RegExpExecArray | null;
-  while ((m = re.exec(safe)) !== null) {
-    const className = m[1]!;
-    const paths = (m[2]!.match(/['"]([^'"]+)['"]/g) || []).map((s) => s.slice(1, -1));
-    const line = safe.slice(0, m.index).split('\n').length;
-    for (const routePath of paths) {
-      const routeNode: Node = {
-        id: `route:${filePath}:${line}:ANY:${routePath}`,
-        kind: 'route',
-        name: `ANY ${routePath}`,
-        qualifiedName: `${filePath}::ANY:${routePath}`,
-        filePath,
-        startLine: line,
-        endLine: line,
-        startColumn: 0,
-        endColumn: 0,
-        language: 'python',
-        updatedAt: now,
-      };
-      nodes.push(routeNode);
-      references.push({
-        fromNodeId: routeNode.id,
-        referenceName: className,
-        referenceKind: 'references',
-        line,
-        column: 0,
-        filePath,
-        language: 'python',
-      });
-    }
-  }
-  return { nodes, references };
-}
-
-// Directory patterns
-const MODEL_DIRS = ['models', 'app/models', 'src/models'];
-const VIEW_DIRS = ['views', 'app/views', 'src/views', 'api/views'];
-const FORM_DIRS = ['forms', 'app/forms', 'src/forms'];
-const ROUTER_DIRS = ['/routers/', '/api/', '/routes/', '/endpoints/'];
-const DEP_DIRS = ['/dependencies/', '/deps/', '/core/'];
-
-const CLASS_KINDS = new Set(['class']);
-const VIEW_KINDS = new Set(['class', 'function']);
-const VARIABLE_KINDS = new Set(['variable']);
-const FUNCTION_KINDS = new Set(['function']);
-
-/**
- * Resolve a symbol by name using indexed queries instead of scanning all files.
- */
-function resolveByNameAndKind(
-  name: string,
-  kinds: Set<string>,
-  preferredDirPatterns: string[],
-  context: ResolutionContext,
-): string | null {
-  const candidates = context.getNodesByName(name);
-  if (candidates.length === 0) return null;
-
-  const kindFiltered = candidates.filter((n) => kinds.has(n.kind));
-  if (kindFiltered.length === 0) return null;
-
-  // Prefer candidates in framework-conventional directories
-  if (preferredDirPatterns.length > 0) {
-    const preferred = kindFiltered.filter((n) =>
-      preferredDirPatterns.some((d) => n.filePath.includes(d))
-    );
-    if (preferred.length > 0) return preferred[0]!.id;
-  }
-
-  // Fall back to any match
-  return kindFiltered[0]!.id;
-}

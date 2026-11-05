@@ -130,6 +130,26 @@ export function resolveParsePoolSize(envVal: string | undefined, cpuCount: numbe
   return Math.max(1, Math.min(cpuCount - 1, DEFAULT_PARSE_POOL_CAP));
 }
 
+/**
+ * Avoid prewarming more isolates than a small indexing workload can use.
+ * Four files per worker amortises worker boot while preserving the existing
+ * CPU-derived cap for normal repositories. An explicit operator override keeps
+ * its exact meaning. AFYX-320 measured a 15-file fixture at 4 versus 8 workers:
+ * median wall time improved 3.2%, peak RSS fell 30.4%, and CPU time fell 37.5%.
+ */
+export function resolveParsePoolSizeForWorkload(
+  envVal: string | undefined,
+  cpuCount: number,
+  fileCount: number,
+): number {
+  const configured = resolveParsePoolSize(envVal, cpuCount);
+  if (envVal !== undefined && envVal !== '' && Number.isFinite(Number(envVal)) && Number(envVal) >= 0) {
+    return configured;
+  }
+  const usefulWorkers = Math.max(1, Math.ceil(Math.max(0, fileCount) / 4));
+  return Math.min(configured, usefulWorkers);
+}
+
 interface ParseJob {
   id: number;
   task: ParseTask;

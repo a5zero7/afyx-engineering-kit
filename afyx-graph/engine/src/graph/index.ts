@@ -1,11 +1,13 @@
 /**
- * Graph Module
+ * AFYX Graph Engine - Graph Subsystem Entrypoint
  *
- * Provides graph traversal and query functionality for the code knowledge graph.
+ * Exposes core graph traversal, query facilities, structural type hierarchy
+ * analysis, and dead-code detection routines for the AFYX knowledge graph.
  */
 
 export { GraphTraverser } from './traversal';
 export { GraphQueryManager } from './queries';
+
 export {
   buildTypeHierarchy,
   canHaveHierarchy,
@@ -15,12 +17,14 @@ export {
   HIERARCHY_KINDS,
   MAX_DESCENDANTS,
 } from './type-hierarchy';
+
 export type {
   HierarchyEntry,
   HierarchyRelation,
   OverrideMatch,
   TypeHierarchy,
 } from './type-hierarchy';
+
 export {
   buildDeadCodeReport,
   isImplicitEntryName,
@@ -29,6 +33,7 @@ export {
   MAX_DEAD_CODE_CANDIDATES,
   MAX_OVERRIDE_ANCESTOR_DEPTH,
 } from './dead-code';
+
 export type {
   DeadCodeEntry,
   DeadCodeExclusions,

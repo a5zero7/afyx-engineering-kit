@@ -1,0 +1,63 @@
+{
+  "schema": 1,
+  "baselineRevision": "9adf4271da76283ef3b63185c92de4b1238ab03f",
+  "scope": "AFYX-320 high-similarity source review",
+  "entries": [
+    {
+      "path": "afyx-graph/engine/src/graph/index.ts",
+      "classification": "PUBLIC_API_BARREL",
+      "reviewedSha256": "85264a58f5450f75cdcf07daa5b2879f6fd9e0a4ac58f948af4c1d3f0bf7848d",
+      "baselineSha256": "fdf949014b3f151c2b7cf412186043dd58b7df59d68c745aa8a39fcdfb725392",
+      "evidence": "Exports only; no executable algorithm. Names are the AFYX public compatibility surface."
+    },
+    {
+      "path": "afyx-graph/engine/src/resolution/types.ts",
+      "classification": "PUBLIC_CONTRACT",
+      "reviewedSha256": "9ff16f8e235290ab587c3507d499f3151d36d5ba0db1bb81ac3fa9cd51580169",
+      "baselineSha256": "642fe8007246e70e2529bdad877d5c747de624aba2381dc9187eaeca9a428dfe",
+      "evidence": "Type-only request/result vocabulary; no runtime algorithm."
+    },
+    {
+      "path": "afyx-graph/engine/src/ui-server/api/effects.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "fdf502bec6aced68c1dde16150587a697019c31366301776a224cb8a44fdbecb",
+      "baselineSha256": "a44ec2bd5b3c0dd657ea054723c1c0512e82076ce90f40916da34f1663a7cccc",
+      "evidence": "Independent token, receiver, and operation-set classifier documented in AFYX_GRAPH_EFFECT_CLASSIFICATION_SPEC.md; 16 regex occurrences/12 unique patterns versus 158/150 historical, with only four standard syntax patterns shared and a non-manifest architecture gate."
+    },
+    {
+      "path": "afyx-graph/engine/src/sync/index.ts",
+      "classification": "PUBLIC_API_BARREL",
+      "reviewedSha256": "df85350a940dfca4481718b39a7ad4388402ee4ffadef315edd34f5680d02954",
+      "baselineSha256": "afeb472b1b20e1ec78fce425440b23b71b00e27e6b56d9f95667045e86c6f506",
+      "evidence": "Exports only; no executable algorithm. Names preserve the AFYX sync API."
+    },
+    {
+      "path": "afyx-graph/engine/ui/src/lib/kinds.ts",
+      "classification": "PRODUCT_SCHEMA_DATA",
+      "reviewedSha256": "dee40d436339fc72f1c15278ff92f6a1329f5be06563c16d9fa4071de516b9b0",
+      "baselineSha256": "523579cb403bd0a7ca9586d8b35d16f924b9e569e3f00b4a174387ec55ac828f",
+      "evidence": "AFYX wire-kind display vocabulary; declarative product data, not an inherited algorithm."
+    },
+    {
+      "path": "afyx-graph/engine/src/resolution/js-builtins.ts",
+      "classification": "STANDARD_PLATFORM_DATA",
+      "reviewedSha256": "5f40e183f6c110b96bc981cb64d7ce6d47614e6d266a4b395611d38a9708c443",
+      "baselineSha256": "89ff01711d03e4a4244f235ceeb8c7d11c4bd558203f7dd4296a120b54a51456",
+      "evidence": "Declarative ECMAScript/Node built-in names needed for compatibility; no product algorithm."
+    },
+    {
+      "path": "afyx-graph/engine/ui/src/lib/deadcode-model.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "33e818227454bf518576abcf9e73debc6613e2781e645c13c83632c414cb28f1",
+      "baselineSha256": "9ecb2ae600728307f6e265d83a62c7b6bce7089521e8af2f3a929ec2ab1ddbdd",
+      "evidence": "Immutable AFYX summary model separates arithmetic from UI wording; focused tests preserve public text."
+    },
+    {
+      "path": "afyx-graph/engine/ui/src/lib/export-image.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "3e2b2bcad884ff04fc13d3024e9bbf56f816384545bacfff0a8e05bf29f90450",
+      "baselineSha256": "a336e3a4058daba1a7ad2e22e33bd4fbf50ceec5257b4c22c5f1d4089be86178",
+      "evidence": "Injectable AFYX raster adapter, DOM-based size parsing, and cleanup-safe download boundary."
+    }
+  ]
+}

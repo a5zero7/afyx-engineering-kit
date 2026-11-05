@@ -16,7 +16,7 @@ import {
   ExtractionError,
 } from '../types';
 import { QueryBuilder } from '../db/queries';
-import { ParseWorkerPool, resolveParsePoolSize, resolveParseTimeoutMs } from './parse-pool';
+import { ParseWorkerPool, resolveParsePoolSizeForWorkload, resolveParseTimeoutMs } from './parse-pool';
 import { StoreWriter } from './store-writer';
 import { isSourceFile, isLanguageSupported, isFileLevelOnlyLanguage } from './grammars';
 import { loadExtensionOverrides, loadIncludeIgnoredPatterns, loadExcludePatterns, loadIncludePatterns, PROJECT_CONFIG_FILENAME } from '../project-config';
@@ -2000,7 +2000,11 @@ export class ExtractionOrchestrator {
       // extraction is worker-side CPU, and 1 worker measured 34% slower than the
       // old oversubscribed pool on the kernel-scale 2-cpuset envelope
       // (493s vs 369s) — main + store-worker don't fill the second core.
-      const poolSize = resolveParsePoolSize(process.env.AFYX_GRAPH_PARSE_WORKERS, Math.max(3, os.availableParallelism()));
+      const poolSize = resolveParsePoolSizeForWorkload(
+        process.env.AFYX_GRAPH_PARSE_WORKERS,
+        Math.max(3, os.availableParallelism()),
+        total,
+      );
       pool = new ParseWorkerPool({
         size: poolSize,
         workerScriptPath: parseWorkerPath,

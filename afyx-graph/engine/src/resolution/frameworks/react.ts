@@ -1,77 +1,196 @@
 /**
- * React Framework Resolver
+ * AFYX Engineering Kit - React Framework Resolver
  *
- * Handles React patterns: React Router routes, components, hooks, contexts.
- * Next.js pages, route handlers and navigation are `nextjs.ts`'s.
+ * Provides syntax and structure resolution for React ecosystems:
+ * 1. Component resolution for JSX/TSX elements (with directory proximity heuristics)
+ * 2. Custom React hook binding (`use*`)
+ * 3. React Context and Provider resolution (`*Context`, `*Provider`)
+ * 4. Extraction of declarative routes (`<Route path="..." ...>` and `createBrowserRouter`)
  */
 
-import { Node } from '../../types';
-import { FrameworkResolver, UnresolvedRef, ResolvedRef, ResolutionContext } from '../types';
+import type { Language, Node } from '../../types';
+import type {
+  FrameworkExtractionResult,
+  FrameworkResolver,
+  ResolutionContext,
+  ResolvedRef,
+  UnresolvedRef,
+} from '../types';
 import { dependsOn } from './package-deps';
+
+const REACT_SUPPORTED_LANGUAGES: readonly Language[] = [
+  'javascript',
+  'typescript',
+  'tsx',
+  'jsx',
+];
+
+const BUILT_IN_REACT_OR_JS_TYPES: ReadonlySet<string> = new Set([
+  'Array',
+  'Boolean',
+  'Date',
+  'Error',
+  'Function',
+  'JSON',
+  'Math',
+  'Number',
+  'Object',
+  'Promise',
+  'RegExp',
+  'String',
+  'Symbol',
+  'Map',
+  'Set',
+  'WeakMap',
+  'WeakSet',
+  'React',
+  'Component',
+  'Fragment',
+  'Suspense',
+  'StrictMode',
+]);
+
+const ACCEPTABLE_COMPONENT_KINDS: ReadonlySet<string> = new Set(['component', 'function', 'class']);
+
+const PREFERRED_COMPONENT_DIRECTORIES: readonly string[] = [
+  '/components/',
+  '/src/components/',
+  '/app/components/',
+  '/pages/',
+  '/src/pages/',
+  '/views/',
+  '/src/views/',
+];
+
+const PREFERRED_HOOK_DIRECTORIES: readonly string[] = [
+  '/hooks/',
+  '/src/hooks/',
+  '/lib/hooks/',
+  '/utils/hooks/',
+];
+
+const PREFERRED_CONTEXT_DIRECTORIES: readonly string[] = [
+  '/context/',
+  '/contexts/',
+  '/src/context/',
+  '/src/contexts/',
+  '/providers/',
+  '/src/providers/',
+];
+
+function isPascalCaseIdentifier(name: string): boolean {
+  return /^[A-Z][a-zA-Z0-9]*$/.test(name);
+}
+
+function isBuiltInIdentifier(name: string): boolean {
+  return BUILT_IN_REACT_OR_JS_TYPES.has(name);
+}
+
+function resolveMatchingComponent(name: string, callingFile: string, ctx: ResolutionContext): string | null {
+  const allCandidates = ctx.getNodesByName(name);
+  if (allCandidates.length === 0) return null;
+
+  const validComponents = allCandidates.filter((n) => ACCEPTABLE_COMPONENT_KINDS.has(n.kind));
+  if (validComponents.length === 0) return null;
+
+  const directoryPrefix = callingFile.substring(0, callingFile.lastIndexOf('/'));
+  const localDirMatches = validComponents.filter((cand) => cand.filePath.startsWith(directoryPrefix));
+  if (localDirMatches.length > 0) {
+    return localDirMatches[0]!.id;
+  }
+
+  const preferredDirMatches = validComponents.filter((cand) =>
+    PREFERRED_COMPONENT_DIRECTORIES.some((dir) => cand.filePath.includes(dir))
+  );
+  if (preferredDirMatches.length > 0) {
+    return preferredDirMatches[0]!.id;
+  }
+
+  return validComponents.length === 1 ? validComponents[0]!.id : null;
+}
+
+function resolveCustomHook(hookName: string, ctx: ResolutionContext): string | null {
+  const candidateNodes = ctx.getNodesByName(hookName);
+  if (candidateNodes.length === 0) return null;
+
+  const functions = candidateNodes.filter((n) => n.kind === 'function' && n.name.startsWith('use'));
+  if (functions.length === 0) return null;
+
+  const preferredHookFiles = functions.filter((cand) =>
+    PREFERRED_HOOK_DIRECTORIES.some((dir) => cand.filePath.includes(dir))
+  );
+  if (preferredHookFiles.length > 0) {
+    return preferredHookFiles[0]!.id;
+  }
+
+  return functions[0]!.id;
+}
+
+function resolveContextProvider(name: string, ctx: ResolutionContext): string | null {
+  let candidates = ctx.getNodesByName(name);
+  if (candidates.length === 0) {
+    const strippedSuffix = name.replace(/Context$|Provider$/, '');
+    if (strippedSuffix !== name) {
+      candidates = ctx.getNodesByName(strippedSuffix);
+    }
+    if (candidates.length === 0) return null;
+  }
+
+  const preferredLocations = candidates.filter((n) =>
+    PREFERRED_CONTEXT_DIRECTORIES.some((dir) => n.filePath.includes(dir))
+  );
+  if (preferredLocations.length > 0) {
+    return preferredLocations[0]!.id;
+  }
+
+  return candidates[0]!.id;
+}
 
 export const reactResolver: FrameworkResolver = {
   name: 'react',
-  // Includes 'tsx'/'jsx' so route extraction runs on JSX files (where
-  // `<Route element={<X/>}>` routes live) — without them the .tsx/.jsx grammars
-  // were filtered out of the extract pass and those routes were never indexed.
-  // (resolve() is unaffected — it runs for every detected framework regardless
-  // of language; only the extract pass filters on `languages`.)
-  languages: ['javascript', 'typescript', 'tsx', 'jsx'],
+  languages: [...REACT_SUPPORTED_LANGUAGES],
 
   detect(context: ResolutionContext): boolean {
-    // React in a package.json — the root's, or a workspace's (`frontend/`, `apps/web/`).
     if (dependsOn(context, 'react', 'next', 'react-native')) return true;
 
-    // Check for .jsx/.tsx files
-    const allFiles = context.getAllFiles();
-    return allFiles.some((f) => f.endsWith('.jsx') || f.endsWith('.tsx'));
+    return context.getAllFiles().some((p) => p.endsWith('.jsx') || p.endsWith('.tsx'));
   },
 
   resolve(ref: UnresolvedRef, context: ResolutionContext): ResolvedRef | null {
-    // Pattern 1: Component references (PascalCase). Only from JSX-capable
-    // files — a component is USED in markup, which only parses in .tsx/.jsx.
-    // Without this gate, every PascalCase TYPE reference in plain .ts files
-    // went through component resolution: in a monorepo with same-named
-    // classes per package (#764, amplication), a `.ts` GraphQL-types file's
-    // own `Account` type alias lost to an arbitrary `Account` CLASS in
-    // another package (the framework's 0.8 outranked the name-matcher's
-    // proximity-correct 0.7).
     if (
       (ref.language === 'tsx' || ref.language === 'jsx') &&
-      isPascalCase(ref.referenceName) &&
-      !isBuiltInType(ref.referenceName)
+      isPascalCaseIdentifier(ref.referenceName) &&
+      !isBuiltInIdentifier(ref.referenceName)
     ) {
-      const result = resolveComponent(ref.referenceName, ref.filePath, context);
-      if (result) {
+      const componentTargetId = resolveMatchingComponent(ref.referenceName, ref.filePath, context);
+      if (componentTargetId) {
         return {
           original: ref,
-          targetNodeId: result,
+          targetNodeId: componentTargetId,
           confidence: 0.8,
           resolvedBy: 'framework',
         };
       }
     }
 
-    // Pattern 2: Hook references (use*)
     if (ref.referenceName.startsWith('use') && ref.referenceName.length > 3) {
-      const result = resolveHook(ref.referenceName, context);
-      if (result) {
+      const hookTargetId = resolveCustomHook(ref.referenceName, context);
+      if (hookTargetId) {
         return {
           original: ref,
-          targetNodeId: result,
+          targetNodeId: hookTargetId,
           confidence: 0.85,
           resolvedBy: 'framework',
         };
       }
     }
 
-    // Pattern 3: Context references
     if (ref.referenceName.endsWith('Context') || ref.referenceName.endsWith('Provider')) {
-      const result = resolveContext(ref.referenceName, context);
-      if (result) {
+      const contextTargetId = resolveContextProvider(ref.referenceName, context);
+      if (contextTargetId) {
         return {
           original: ref,
-          targetNodeId: result,
+          targetNodeId: contextTargetId,
           confidence: 0.8,
           resolvedBy: 'framework',
         };
@@ -81,207 +200,97 @@ export const reactResolver: FrameworkResolver = {
     return null;
   },
 
-  extract(filePath, content) {
-    const nodes: Node[] = [];
-    const references: UnresolvedRef[] = [];
-    const now = Date.now();
+  extract(filePath: string, content: string): FrameworkExtractionResult {
+    const extractedNodes: Node[] = [];
+    const extractedRefs: UnresolvedRef[] = [];
+    const timestamp = Date.now();
+    const isTsx = filePath.endsWith('.tsx');
+    const docLanguage = isTsx ? 'tsx' : 'jsx';
 
-    // Components and custom hooks are NOT extracted here. The tree-sitter
-    // extractor already emits them natively across .ts/.tsx/.js/.jsx — function
-    // and arrow components as `function` nodes, HOC-wrapped components
-    // (`forwardRef`/`memo`/`styled`) as `component` nodes (#841), and `useX`
-    // hooks as `function` nodes. Re-deriving them here with regex only ran on
-    // .ts/.js anyway (this resolver's `languages` didn't include the 'tsx'/'jsx'
-    // grammars), and it DUPLICATED those tree-sitter nodes (e.g. a `useAuth`
-    // ended up as two `function` nodes). This `extract` now contributes only
-    // what tree-sitter can't: route nodes (React Router + Next.js conventions),
-    // which is why 'tsx'/'jsx' are now in `languages` — `<Route>`/`element={<X/>}`
-    // routes live in JSX files and were previously skipped entirely.
+    const routeTagPattern = /<Route\b/g;
+    let tagMatch: RegExpExecArray | null;
 
-    // React Router: <Route path="/x" component={Comp}/> (v5) or
-    // <Route path="/x" element={<Comp/>}/> (v6). Attributes appear in any order,
-    // and element={...} contains a nested `>`, so scan a window after each
-    // <Route rather than trying to match the whole (possibly multi-line) tag.
-    const routeTagRegex = /<Route\b/g;
-    let routeMatch: RegExpExecArray | null;
-    while ((routeMatch = routeTagRegex.exec(content)) !== null) {
-      const window = content.slice(routeMatch.index, routeMatch.index + 400);
-      const pathMatch = window.match(/\bpath\s*=\s*["']([^"']+)["']/);
-      if (!pathMatch) continue; // index/layout routes without a path
-      const routePath = pathMatch[1]!;
-      const compMatch =
-        window.match(/\bcomponent\s*=\s*\{\s*([A-Z][A-Za-z0-9_]*)/) ||
-        window.match(/\belement\s*=\s*\{\s*<\s*([A-Z][A-Za-z0-9_]*)/);
-      const line = content.slice(0, routeMatch.index).split('\n').length;
+    while ((tagMatch = routeTagPattern.exec(content)) !== null) {
+      const tagWindow = content.slice(tagMatch.index, tagMatch.index + 400);
+      const pathMatch = tagWindow.match(/\bpath\s*=\s*["']([^"']+)["']/);
+      if (!pathMatch) continue;
+
+      const pathString = pathMatch[1]!;
+      const componentBinding =
+        tagWindow.match(/\bcomponent\s*=\s*\{\s*([A-Z][A-Za-z0-9_]*)/) ||
+        tagWindow.match(/\belement\s*=\s*\{\s*<\s*([A-Z][A-Za-z0-9_]*)/);
+
+      const lineIndex = content.slice(0, tagMatch.index).split('\n').length;
       const routeNode: Node = {
-        id: `route:${filePath}:${line}:${routePath}`,
+        id: `route:${filePath}:${lineIndex}:${pathString}`,
         kind: 'route',
-        name: routePath,
-        qualifiedName: `${filePath}::route:${routePath}`,
+        name: pathString,
+        qualifiedName: `${filePath}::route:${pathString}`,
         filePath,
-        startLine: line,
-        endLine: line,
+        startLine: lineIndex,
+        endLine: lineIndex,
         startColumn: 0,
         endColumn: 0,
-        language: filePath.endsWith('.tsx') ? 'tsx' : 'jsx',
-        updatedAt: now,
+        language: docLanguage,
+        updatedAt: timestamp,
       };
-      nodes.push(routeNode);
-      if (compMatch) {
-        references.push({
+
+      extractedNodes.push(routeNode);
+      if (componentBinding) {
+        extractedRefs.push({
           fromNodeId: routeNode.id,
-          referenceName: compMatch[1]!,
+          referenceName: componentBinding[1]!,
           referenceKind: 'references',
-          line,
+          line: lineIndex,
           column: 0,
           filePath,
-          language: filePath.endsWith('.tsx') ? 'tsx' : 'jsx',
+          language: docLanguage,
         });
       }
     }
 
-    // React Router data-router (v6.4+): createBrowserRouter([{ path, element }]).
-    // Only scan files that use the data-router API, then pull each route object's
-    // `path` + `element={<Comp/>}` / `Component: Comp` (a forward window confirms
-    // it's a route object, not a stray `path:` field).
     if (/\b(?:createBrowserRouter|createHashRouter|createMemoryRouter|createRoutesFromElements)\b/.test(content)) {
-      const objPathRe = /\bpath\s*:\s*['"]([^'"]*)['"]/g;
-      let om: RegExpExecArray | null;
-      while ((om = objPathRe.exec(content)) !== null) {
-        const win = content.slice(om.index, om.index + 300);
+      const propertyPattern = /\bpath\s*:\s*['"]([^'"]*)['"]/g;
+      let propMatch: RegExpExecArray | null;
+
+      while ((propMatch = propertyPattern.exec(content)) !== null) {
+        const propWindow = content.slice(propMatch.index, propMatch.index + 300);
         const compMatch =
-          win.match(/\belement\s*:\s*<\s*([A-Z][A-Za-z0-9_]*)/) ||
-          win.match(/\bComponent\s*:\s*([A-Z][A-Za-z0-9_]*)/);
-        if (!compMatch) continue; // require a component → it's a real route object
-        const routePath = om[1] || '/';
-        const line = content.slice(0, om.index).split('\n').length;
+          propWindow.match(/\belement\s*:\s*<\s*([A-Z][A-Za-z0-9_]*)/) ||
+          propWindow.match(/\bComponent\s*:\s*([A-Z][A-Za-z0-9_]*)/);
+
+        if (!compMatch) continue;
+
+        const routePath = propMatch[1] || '/';
+        const lineIndex = content.slice(0, propMatch.index).split('\n').length;
+
         const routeNode: Node = {
-          id: `route:${filePath}:${line}:${routePath}`,
+          id: `route:${filePath}:${lineIndex}:${routePath}`,
           kind: 'route',
           name: routePath,
           qualifiedName: `${filePath}::route:${routePath}`,
           filePath,
-          startLine: line,
-          endLine: line,
+          startLine: lineIndex,
+          endLine: lineIndex,
           startColumn: 0,
           endColumn: 0,
-          language: filePath.endsWith('.tsx') ? 'tsx' : 'jsx',
-          updatedAt: now,
+          language: docLanguage,
+          updatedAt: timestamp,
         };
-        nodes.push(routeNode);
-        references.push({
+
+        extractedNodes.push(routeNode);
+        extractedRefs.push({
           fromNodeId: routeNode.id,
           referenceName: compMatch[1]!,
           referenceKind: 'references',
-          line,
+          line: lineIndex,
           column: 0,
           filePath,
-          language: filePath.endsWith('.tsx') ? 'tsx' : 'jsx',
+          language: docLanguage,
         });
       }
     }
 
-    // Next.js pages and route handlers are `frameworks/nextjs.ts`'s.
-
-    return { nodes, references };
+    return { nodes: extractedNodes, references: extractedRefs };
   },
 };
-
-/**
- * Check if string is PascalCase
- */
-function isPascalCase(str: string): boolean {
-  return /^[A-Z][a-zA-Z0-9]*$/.test(str);
-}
-
-/**
- * Check if name is a built-in type
- */
-function isBuiltInType(name: string): boolean {
-  return BUILT_IN_TYPES.has(name);
-}
-
-const BUILT_IN_TYPES = new Set([
-  'Array', 'Boolean', 'Date', 'Error', 'Function', 'JSON', 'Math', 'Number',
-  'Object', 'Promise', 'RegExp', 'String', 'Symbol', 'Map', 'Set', 'WeakMap', 'WeakSet',
-  'React', 'Component', 'Fragment', 'Suspense', 'StrictMode',
-]);
-
-const COMPONENT_KINDS = new Set(['component', 'function', 'class']);
-
-/**
- * Resolve a component reference using name-based lookup
- */
-function resolveComponent(
-  name: string,
-  fromFile: string,
-  context: ResolutionContext
-): string | null {
-  const candidates = context.getNodesByName(name);
-  if (candidates.length === 0) return null;
-
-  const components = candidates.filter((n) => COMPONENT_KINDS.has(n.kind));
-  if (components.length === 0) return null;
-
-  // Prefer same directory
-  const fromDir = fromFile.substring(0, fromFile.lastIndexOf('/'));
-  const sameDir = components.filter((n) => n.filePath.startsWith(fromDir));
-  if (sameDir.length > 0) return sameDir[0]!.id;
-
-  // Prefer component directories
-  const COMPONENT_DIRS = ['/components/', '/src/components/', '/app/components/', '/pages/', '/src/pages/', '/views/', '/src/views/'];
-  const preferred = components.filter((n) =>
-    COMPONENT_DIRS.some((d) => n.filePath.includes(d))
-  );
-  if (preferred.length > 0) return preferred[0]!.id;
-
-  // No positional signal: only an UNAMBIGUOUS name may resolve. Returning
-  // components[0] here picked an arbitrary same-named class anywhere in the
-  // repo (#764) — let the name-matcher's proximity scoring decide instead.
-  return components.length === 1 ? components[0]!.id : null;
-}
-
-/**
- * Resolve a custom hook reference using name-based lookup
- */
-function resolveHook(name: string, context: ResolutionContext): string | null {
-  const candidates = context.getNodesByName(name);
-  if (candidates.length === 0) return null;
-
-  const hooks = candidates.filter((n) => n.kind === 'function' && n.name.startsWith('use'));
-  if (hooks.length === 0) return null;
-
-  // Prefer hooks directories
-  const HOOK_DIRS = ['/hooks/', '/src/hooks/', '/lib/hooks/', '/utils/hooks/'];
-  const preferred = hooks.filter((n) =>
-    HOOK_DIRS.some((d) => n.filePath.includes(d))
-  );
-  if (preferred.length > 0) return preferred[0]!.id;
-
-  return hooks[0]!.id;
-}
-
-/**
- * Resolve a context reference using name-based lookup
- */
-function resolveContext(name: string, context: ResolutionContext): string | null {
-  const candidates = context.getNodesByName(name);
-  if (candidates.length === 0) {
-    // Try without Context/Provider suffix
-    const baseName = name.replace(/Context$|Provider$/, '');
-    if (baseName !== name) {
-      const baseCandidates = context.getNodesByName(baseName);
-      if (baseCandidates.length > 0) return baseCandidates[0]!.id;
-    }
-    return null;
-  }
-
-  // Prefer context directories
-  const CONTEXT_DIRS = ['/context/', '/contexts/', '/src/context/', '/src/contexts/', '/providers/', '/src/providers/'];
-  const preferred = candidates.filter((n) =>
-    CONTEXT_DIRS.some((d) => n.filePath.includes(d))
-  );
-  if (preferred.length > 0) return preferred[0]!.id;
-
-  return candidates[0]!.id;
-}

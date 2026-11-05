@@ -1,0 +1,23 @@
+#!/bin/sh
+set -eu
+root=$(git rev-parse --show-toplevel)
+case "$(uname -s 2>/dev/null || true)" in
+  MINGW*|MSYS*|CYGWIN*)
+    hygiene_script="$(cd "$root/.." && pwd)/_afyx-admin/Test-AfyxWorkspaceHygiene.ps1"
+    if [ ! -f "$hygiene_script" ]; then
+      echo "[pre-push] FAIL: canonical Windows workspace hygiene verifier is missing: $hygiene_script" >&2
+      exit 1
+    fi
+    powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$hygiene_script" -RunSelfTests
+    ;;
+esac
+python "$root/scripts/validate-afyx-graph.py"
+python "$root/scripts/audit-legacy-identity.py"
+node "$root/scripts/verify-native-source-ownership.mjs"
+cd "$root/afyx-graph/engine"
+npm run build:clean
+node scripts/verify-release-ready.mjs
+npm test
+npm run test:semantic
+npm run test:smoke
+npm pack --dry-run --json >/dev/null

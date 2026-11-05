@@ -810,7 +810,8 @@ describe('Function-as-value capture (#756)', () => {
         'models.py',
       ]);
 
-      // callers() must now surface the view as a consumer of the serializer.
+      // The graph API preserves the reference for usages/compatibility; public
+      // source-grounded relationship presentation filters it separately.
       const serializer = cg
         .getNodesByName('OrgSerializerFull')
         .find((n) => n.kind === 'class')!;

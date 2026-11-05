@@ -54,6 +54,12 @@ describe('resolution candidate policy', () => {
     expect(selectBestCandidate(ref(), [first, second])?.id).toBe('first');
   });
 
+  it('declines an equal best score when an unqualified lookup requires unique evidence', () => {
+    const first = node('first', 'feature/a.ts', { isExported: true });
+    const second = node('second', 'feature/b.ts', { isExported: true });
+    expect(selectBestCandidate(ref(), [first, second], true)).toBeNull();
+  });
+
   it('prefers same-language candidates over cross-language candidates', () => {
     const crossLanguage = node('python', 'feature/a.py', { language: 'python', isExported: true });
     const sameLanguage = node('typescript', 'remote/b.ts');

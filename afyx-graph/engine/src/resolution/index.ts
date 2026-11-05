@@ -26,7 +26,7 @@ import { resolveAliasBinding } from './alias-binding';
 import { detectFrameworks } from './frameworks';
 import { synthesizeCallbackEdges } from './callback-synthesizer';
 import { createYielder, type MaybeYield } from './cooperative-yield';
-import { loadProjectAliases, type AliasMap } from './path-aliases';
+import { loadProjectAliases, loadFileAliases, clearFileAliasCache, type AliasMap } from './path-aliases';
 import { loadGoModule, type GoModule } from './go-module';
 import { loadWorkspacePackages, type WorkspacePackages } from './workspace-packages';
 import { logDebug } from '../errors';
@@ -420,6 +420,7 @@ export class ReferenceResolver {
       clearImportResolverMemos(this.context);
       clearNameMatcherMemos(this.context);
     }
+    clearFileAliasCache();
   }
 
   /** `readFile` through the LRU content cache (null = read failed, also cached). */
@@ -671,6 +672,10 @@ export class ReferenceResolver {
           this.projectAliases = loadProjectAliases(this.projectRoot);
         }
         return this.projectAliases;
+      },
+
+      getFileAliases: (filePath: string) => {
+        return loadFileAliases(filePath, this.projectRoot);
       },
 
       getGoModule: () => {

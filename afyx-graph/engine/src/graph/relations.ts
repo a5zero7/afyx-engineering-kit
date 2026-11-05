@@ -52,7 +52,9 @@ function followCalls(store: GraphReader, startId: string, maxDepth: number, side
     const edges =
       side === 'incoming' ? store.getIncomingEdges(id, CALLING_KINDS) : store.getOutgoingEdges(id, CALLING_KINDS);
     if (edges.length === 0) return null;
-    return { depth, edges, found: store.getNodesByIds(edges.map(endOf)), cursor: 0 };
+    const edgeTargets = new Set<string>();
+    for (const edge of edges) edgeTargets.add(endOf(edge));
+    return { depth, edges, found: store.getNodesByIds(Array.from(edgeTargets)), cursor: 0 };
   };
 
   const root = open(startId, 0);
@@ -137,7 +139,9 @@ export function typeViewOf(store: GraphReader, nodeId: string): Subgraph {
     opened.add(id);
     const upward = store.getOutgoingEdges(id, SUBTYPING_KINDS);
     if (upward.length === 0) return null;
-    return { edges: upward, found: store.getNodesByIds(upward.map((edge) => edge.target)), cursor: 0 };
+    const upwardTargets = new Set<string>();
+    for (const edge of upward) upwardTargets.add(edge.target);
+    return { edges: upward, found: store.getNodesByIds(Array.from(upwardTargets)), cursor: 0 };
   };
 
   const root = open(nodeId);
@@ -193,7 +197,9 @@ export function impactOf(store: GraphReader, nodeId: string, maxDepth: number): 
     if (MEMBER_HOLDING_KINDS.has(node.kind)) {
       const contained = store.getOutgoingEdges(node.id, ['contains']);
       if (contained.length > 0) {
-        const found = store.getNodesByIds(contained.map((edge) => edge.target));
+        const containedTargets = new Set<string>();
+        for (const edge of contained) containedTargets.add(edge.target);
+        const found = store.getNodesByIds(Array.from(containedTargets));
         members = contained.map((edge) => ({ edge, member: found.get(edge.target) }));
       }
     }
@@ -201,7 +207,9 @@ export function impactOf(store: GraphReader, nodeId: string, maxDepth: number): 
     let dependents: ReachFrame['dependents'] = [];
     const incoming = store.getIncomingEdges(node.id).filter((edge) => edge.kind !== 'contains');
     if (incoming.length > 0) {
-      const found = store.getNodesByIds(incoming.map((edge) => edge.source));
+      const incomingSources = new Set<string>();
+      for (const edge of incoming) incomingSources.add(edge.source);
+      const found = store.getNodesByIds(Array.from(incomingSources));
       dependents = incoming.map((edge) => ({ edge, dependent: found.get(edge.source) }));
     }
     return { depth, members, dependents, nextMember: 0, nextDependent: 0 };

@@ -1,5 +1,32 @@
 # Afyx Graph Independence Audit and Closure Plan
 
+> **AFYX-320 remediation candidate (2026-11-05):** The 62-file rewrite is
+> preserved. Eight files selected by the independent token-similarity audit
+> now have an explicit reviewed ownership classification: two substantive
+> hosts use new AFYX data-boundary/presentation architecture, while the mixed
+> `effects.ts` host remains blocked because its retained compatibility rule
+> table measures 0.928316 token similarity despite new routing control flow; two barrel files,
+> one type-only contract, and two declarative platform/product vocabularies are
+> retained as compatibility data rather than misrepresented as algorithms.
+> Deterministic hashes, clean-build promotion, package-composition checks, and
+> negative release tests are enforced by local and CI gates. These are
+> technical provenance controls, not a legal opinion. Final independence and
+> license clearance remain pending the recorded legal/product license decision
+> and exact-head cross-platform CI; no current document may infer those gates
+> from local Windows validation alone.
+
+> **Post-migration provenance correction (2026-11-04):** A Git-object
+> comparison between the clean repository baseline and historical comparison
+> commit `b7a1aa2718dc1f6940e483043733f67020d9a62f` found 62 byte-identical
+> production Graph/UI source files at matching relative paths. Runtime,
+> package, telemetry, and product identity remain Afyx-owned, but full source
+> independence is not established by the available evidence. The historical
+> CodeGraph MIT notice is therefore restored to source and release bundles.
+> Earlier Phase 5 measurements remain historical evidence; their broader
+> independence verdict is superseded by this correction. Current verdict:
+> `OPERATIONALLY_INDEPENDENT_WITH_RETAINED_MIT_SOURCE`, with source provenance
+> remediation/review still required before a stronger independence claim.
+
 > **Phase 5I closure (2026-10-10):** The 24 Linux assertions recorded below and
 > the final five-assertion continuation are closed on branch
 > `afyx/native-phase5f-parser-grammar`. The `AFYX_GRAPH_NATIVE_PARSER` leakage

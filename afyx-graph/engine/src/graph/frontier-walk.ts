@@ -49,8 +49,12 @@ export function breadthFirst(store: GraphReader, startId: string, options: Trave
     const adjacent = structuralFirst(edgesAround(store, node.id, request.direction, request.edgeKinds));
 
     // One lookup for every neighbour not yet scheduled; scheduled ones are already known.
-    const unseen = adjacent.map((edge) => farEnd(edge, node.id)).filter((id) => !scheduled.has(id));
-    const fetched = unseen.length > 0 ? store.getNodesByIds(unseen) : new Map<string, Node>();
+    const unseenIds = new Set<string>();
+    for (const edge of adjacent) {
+      const id = farEnd(edge, node.id);
+      if (!scheduled.has(id)) unseenIds.add(id);
+    }
+    const fetched = unseenIds.size > 0 ? store.getNodesByIds(Array.from(unseenIds)) : new Map<string, Node>();
 
     for (const edge of adjacent) {
       const neighbourId = farEnd(edge, node.id);

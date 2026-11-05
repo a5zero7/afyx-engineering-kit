@@ -28,6 +28,7 @@ import {
   servedRangesForFile,
   symbolsInSpans,
 } from './explore-dedup';
+import { isSourceGroundedRelationship } from '../graph/relationship-presentation';
 import { textToolResult, type ToolResult } from './tool-results';
 import { renderExactFileResolution, resolveExactUnindexedFiles } from './exact-file-retrieval';
 
@@ -1296,8 +1297,10 @@ class ExploreTool {
 
     const entries: string[] = [];
     for (const root of roots) {
-      let callers: Array<{ node: Node }> = [];
-      try { callers = cg.getCallers(root.id) as Array<{ node: Node }>; } catch { /* skip this root */ }
+      let callers: Array<{ node: Node; edge: Edge }> = [];
+      try {
+        callers = (cg.getCallers(root.id) as Array<{ node: Node; edge: Edge }>).filter(isSourceGroundedRelationship);
+      } catch { /* skip this root */ }
 
       const seen = new Set<string>();
       const uniq: Node[] = [];
@@ -1305,6 +1308,12 @@ class ExploreTool {
         if (c?.node && !seen.has(c.node.id)) { seen.add(c.node.id); uniq.push(c.node); }
       }
       if (uniq.length === 0) continue; // no blast radius → nothing to flag
+
+      const isCallable = root.kind === 'function' || root.kind === 'method';
+      const hasDirectCalls = callers.some((c) => c.edge?.kind === 'calls' || c.edge?.kind === 'instantiates');
+      const noun = isCallable && hasDirectCalls
+        ? (uniq.length === 1 ? 'caller' : 'callers')
+        : (uniq.length === 1 ? 'reference' : 'references');
 
       const callerFiles = [...new Set(uniq.map((n) => rel(n.filePath)))];
       const testFiles = callerFiles.filter((f) => isTestFile(f));
@@ -1315,10 +1324,10 @@ class ExploreTool {
       const where = nonTest.length > 0 ? ` in ${shown}${more}` : '';
       const tests = testFiles.length > 0
         ? `; tests: ${testFiles.slice(0, FILE_CAP).map((f) => `\`${f}\``).join(', ')}${testFiles.length > FILE_CAP ? ` +${testFiles.length - FILE_CAP}` : ''}`
-        : this.indirectTestNote(cg, uniq, rel);
+        : this.indirectTestNote(cg, uniq, rel, isCallable && hasDirectCalls);
 
       entries.push(
-        `- \`${root.name}\` (${rel(root.filePath)}:${root.startLine}) — ${uniq.length} caller${uniq.length === 1 ? '' : 's'}${where}${tests}`,
+        `- \`${root.name}\` (${rel(root.filePath)}:${root.startLine}) — ${uniq.length} ${noun}${where}${tests}`,
       );
     }
     if (entries.length === 0) return '';
@@ -1338,7 +1347,7 @@ class ExploreTool {
    * symbols had a test within 2-3 hops), so walk up to 2 more hops before
    * claiming anything — and even then claim only what was measured.
    */
-  private indirectTestNote(cg: AfyxGraph, directCallers: Node[], rel: (p: string) => string): string {
+  private indirectTestNote(cg: AfyxGraph, directCallers: Node[], rel: (p: string) => string, isCallable: boolean = true): string {
     const MAX_HOPS = 3; // direct callers are hop 1
     const BUDGET = 64;  // getCallers lookups per entry — bounds god-fan-in symbols
     const FILE_CAP = 2;
@@ -1350,8 +1359,10 @@ class ExploreTool {
       const found = new Set<string>();
       for (const node of frontier) {
         if (budget-- <= 0) break;
-        let callers: Array<{ node: Node }> = [];
-        try { callers = cg.getCallers(node.id) as Array<{ node: Node }>; } catch { continue; }
+        let callers: Array<{ node: Node; edge: Edge }> = [];
+        try {
+          callers = (cg.getCallers(node.id) as Array<{ node: Node; edge: Edge }>).filter(isSourceGroundedRelationship);
+        } catch { continue; }
         for (const c of callers) {
           const n = c?.node;
           if (!n || visited.has(n.id)) continue;
@@ -1365,15 +1376,17 @@ class ExploreTool {
         const files = [...found];
         const shown = files.slice(0, FILE_CAP).map((f) => `\`${f}\``).join(', ');
         const more = files.length > FILE_CAP ? ` +${files.length - FILE_CAP}` : '';
-        return `; tested via callers: ${shown}${more}`;
+        const noteNoun = isCallable ? 'callers' : 'references';
+        return `; tested via ${noteNoun}: ${shown}${more}`;
       }
       frontier = next;
     }
     // Budget exhaustion means hops 2-3 weren't fully searched — fall back to
     // the weaker claim that IS established by the direct-caller check.
+    const hopLabel = isCallable ? 'caller hops' : 'hops';
     return budget > 0
-      ? `; no tests found within ${MAX_HOPS} caller hops`
-      : '; no test calls this directly';
+      ? `; no tests found within ${MAX_HOPS} ${hopLabel}`
+      : (isCallable ? '; no test calls this directly' : '; no test references this directly');
   }
 
   /**

@@ -19,8 +19,17 @@ jobs:
         with:
           node-version: 24
       - run: python scripts/validate-afyx-graph.py
+      - run: python scripts/audit-legacy-identity.py
+      - run: node scripts/verify-native-source-ownership.mjs
       - working-directory: afyx-graph/engine
-        run: npm ci && npm run build:clean && npm test && npm run test:semantic && npm run test:smoke
+        run: |
+          npm ci
+          npm run build:clean
+          node scripts/verify-release-ready.mjs
+          npm pack --dry-run --json >/dev/null
+          npm test
+          npm run test:semantic
+          npm run test:smoke
       - working-directory: afyx-graph/engine
         run: |
           set -euo pipefail

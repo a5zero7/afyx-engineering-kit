@@ -17,10 +17,11 @@ development source.
 ## Canonical layout
 
 ```text
-D:\Project\workspace\afyx-codex-engineering-kit\
+D:\Project\workspace\afyx-engineering-kit\
 ├── .afyx-graph\                  # workspace-level native Afyx Graph state
 ├── afyx-graph.json               # root-anchored Afyx Graph exclusion contract
-├── afyx-codex-engineering-kit\   # canonical dev repository; dev owner (.git)
+├── afyx-engineering-kit\         # canonical clean repository; dev owner (.git)
+├── legacy-primary\               # preserved legacy common-dir and 29 linked worktrees
 ├── afyx-daily-source\            # independent daily-use source checkout
 ├── afyx-alpha\                   # explicit external-location record (EXTERNAL_LOCATION.txt)
 ├── _afyx-admin\
@@ -44,13 +45,16 @@ empty hierarchy speculatively.
 
 ## Ownership and identity
 
-- `afyx-codex-engineering-kit` owns canonical development and the `dev` worktree.
+- `afyx-engineering-kit` owns canonical development and its `dev` worktree.
+- `legacy-primary` preserves the prior repository common directory and its 29
+  linked worktrees (30 registered legacy worktrees total); it is evidence and
+  active-history preservation, not the clean repository's Git common directory.
 - `.afyx-graph` at the outer workspace root owns the native Afyx Graph SQLite
   index for the canonical workspace. Never initialize a duplicate `.afyx-graph`
-  inside the nested `afyx-codex-engineering-kit` checkout or inside `progres/*`.
+  inside the nested `afyx-engineering-kit` checkout or inside `progres/*`.
 - `afyx-graph.json` at the outer workspace root enforces root-anchored exclusions
   (`/afyx-daily-source/`, `/progres/`, `/_afyx-admin/`, `/testing/`, `/benchmark/`,
-  `/afyx-alpha/`) so that only canonical source under `afyx-codex-engineering-kit/`
+  `/afyx-alpha/`, `/legacy-primary/`) so that only canonical source under `afyx-engineering-kit/`
   is indexed without duplicating symbols.
 - `afyx-daily-source` is an independent Git checkout. Its commit must be recorded;
   its location does not prove the version installed into any provider.
@@ -69,25 +73,25 @@ empty hierarchy speculatively.
 ## Mandatory workspace hygiene & artifact placement policies
 
 1. **Development worktrees**: Every new development worktree must be created via
-   `git -C D:\Project\workspace\afyx-codex-engineering-kit\afyx-codex-engineering-kit worktree add`
-   inside `D:\Project\workspace\afyx-codex-engineering-kit\progres\<worktree-name>`.
+   `git -C D:\Project\workspace\afyx-engineering-kit\afyx-engineering-kit worktree add`
+   inside `D:\Project\workspace\afyx-engineering-kit\progres\<worktree-name>`.
 2. **Smoke test outputs**: All retained smoke test fixtures, logs, and outputs must
-   be placed under `D:\Project\workspace\afyx-codex-engineering-kit\testing\smoke\`.
+   be placed under `D:\Project\workspace\afyx-engineering-kit\testing\smoke\`.
 3. **Regression test outputs**: All retained regression test fixtures and outputs must
-   be placed under `D:\Project\workspace\afyx-codex-engineering-kit\testing\regression\`.
+   be placed under `D:\Project\workspace\afyx-engineering-kit\testing\regression\`.
 4. **Integration test outputs**: All retained integration and RC acceptance runs must
-   be placed under `D:\Project\workspace\afyx-codex-engineering-kit\testing\integration\`.
+   be placed under `D:\Project\workspace\afyx-engineering-kit\testing\integration\`.
 5. **Benchmark artifacts**:
-   - Datasets must go under `D:\Project\workspace\afyx-codex-engineering-kit\benchmark\datasets\`.
-   - Raw execution runs must go under `D:\Project\workspace\afyx-codex-engineering-kit\benchmark\runs\`.
-   - Sanitized reports and results must go under `D:\Project\workspace\afyx-codex-engineering-kit\benchmark\results\`.
+   - Datasets must go under `D:\Project\workspace\afyx-engineering-kit\benchmark\datasets\`.
+   - Raw execution runs must go under `D:\Project\workspace\afyx-engineering-kit\benchmark\runs\`.
+   - Sanitized reports and results must go under `D:\Project\workspace\afyx-engineering-kit\benchmark\results\`.
 6. **Temporary files**: Ephemeral build, test, or scratch files must use the OS
    temporary directory (`$env:TEMP` / `[System.IO.Path]::GetTempPath()`) and clean
    up in a `finally` block rather than writing to `D:\Project`, `D:\Project\workspace`,
    or the canonical workspace root.
 7. **Project-independent repositories**: Separate products and unrelated repositories
    (such as `afyx-codepilot`, `afyx-wa-plus`, `kasir-barber`, `rancangin`) must remain
-   outside `D:\Project\workspace\afyx-codex-engineering-kit`.
+   outside `D:\Project\workspace\afyx-engineering-kit`.
 8. **No unregistered worktrees or uncontrolled directories**: Do not create
    unregistered Git clones, ad-hoc backup folders, or loose files at `D:\Project`
    or `D:\Project\workspace`. Only the 22 allowlisted historical `PRESERVE_IN_PLACE`
@@ -109,6 +113,12 @@ empty hierarchy speculatively.
 3. On Windows, inspect and re-target any internal NTFS junctions (`ReparsePoint`)
    immediately after relocating a worktree so `node_modules` workspace links do
    not become dangling.
+   The 14 exact migration-era links recorded in
+   `_afyx-admin\protected-historical-junctions.json` are protected historical
+   evidence, not active runtime bindings. The hygiene verifier checks both link
+   path and original target without following or repairing them. Any missing
+   entry, target drift, or additional dangling link is a hard failure; active
+   development links must resolve normally.
 4. One checked-out branch may have only one owning worktree.
 5. Detached worktrees must retain an explicit evidence/testing classification.
 6. Before moving anything, record path, owner, branch, HEAD, dirty/untracked/
@@ -140,5 +150,5 @@ Run the zero-dependency workspace hygiene and path validator before and after
 workspace maintenance:
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File "D:\Project\workspace\afyx-codex-engineering-kit\_afyx-admin\Test-AfyxWorkspaceHygiene.ps1" -RunSelfTests
+powershell -NoProfile -ExecutionPolicy Bypass -File "D:\Project\workspace\afyx-engineering-kit\_afyx-admin\Test-AfyxWorkspaceHygiene.ps1" -RunSelfTests
 ```

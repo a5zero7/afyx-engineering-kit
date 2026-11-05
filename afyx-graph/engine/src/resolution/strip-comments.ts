@@ -1,72 +1,75 @@
 /**
- * Per-language comment stripper for framework route extractors.
+ * AFYX Engineering Kit - Comment & String Content Neutralization
  *
- * Replaces comment characters and string-literal contents that hide
- * routing-shaped text with spaces (NOT removal) so that source offsets
- * are preserved. This means `match.index` from a regex run on the
- * stripped output still maps to the same line in the original source.
- *
- * Example:
- *   Input:  "x = 1  # path('/fake/', V)\n real = 2"
- *   Output: "x = 1                       \n real = 2"
- *
- * Why strip strings/docstrings as well as comments? Python module/class
- * docstrings are a common source of false positives — they often contain
- * `path('/example/', View)` examples in usage docs. We treat triple-quoted
- * strings the same as comments. Single-line strings stay intact (a `#`
- * inside a Python string is NOT a comment).
- *
- * Scope: this is a pragmatic, regex-supporting helper, not a full parser.
- * It does NOT try to detect JS regex literals, Python f-string expressions,
- * or shell-style heredocs. Those edge cases are not load-bearing for the
- * `path(...)`, `Route::get(...)`, `app.get(...)` style patterns that
- * framework extractors scan for.
+ * Provides offset-preserving comment and string literal blanking across supported programming languages,
+ * ensuring regular expression extractors operate on code statements without false positives from comments or docstrings.
  */
 
 /**
- * Blank string contents while preserving quotes and offsets. Template
- * interpolations are blanked too; callers checking executable expressions
- * must conservatively inspect those expressions in the original source.
+ * Replaces non-newline characters within string literals with whitespace, preserving source offsets.
  */
 export function blankStringContents(text: string): string {
-  const out = text.split('');
-  let i = 0;
-  const n = text.length;
-  while (i < n) {
-    const c = text[i]!;
-    // A quote inside a JS regex is data, not the beginning of a string.
-    // Expression-start punctuation and keywords distinguish these from division.
-    if (c === '/' && /(?:^|[=(:,)!&|?;{}\[\]+*%~^<>-]|\b(?:return|throw|case|yield|await|else|do|typeof|void|delete|new|in|of|instanceof))\s*$/.test(text.slice(Math.max(0, i - 32), i))) {
-      let end = i + 1;
-      let inClass = false;
-      for (; end < n && text[end] !== '\n'; end++) {
-        if (text[end] === '\\') { end++; continue; }
-        if (text[end] === '[') inClass = true;
-        if (text[end] === ']') inClass = false;
-        if (text[end] === '/' && !inClass) break;
-      }
-      if (end < n && text[end] === '/') { i = end + 1; continue; }
-    }
-    if (c === '"' || c === "'" || c === '`') {
-      const quote = c;
-      i++;
-      while (i < n && text[i] !== quote) {
-        if (text[i] === '\\' && i + 1 < n) {
-          out[i] = ' ';
-          out[i + 1] = ' ';
-          i += 2;
+  const characters = text.split('');
+  let idx = 0;
+  const len = text.length;
+
+  while (idx < len) {
+    const ch = text[idx]!;
+
+    // Distinguish JavaScript regular expression literals from division operator
+    if (
+      ch === '/' &&
+      /(?:^|[=(:,)!&|?;{}\[\]+*%~^<>-]|\b(?:return|throw|case|yield|await|else|do|typeof|void|delete|new|in|of|instanceof))\s*$/.test(
+        text.slice(Math.max(0, idx - 32), idx)
+      )
+    ) {
+      let scanEnd = idx + 1;
+      let inCharClass = false;
+
+      for (; scanEnd < len && text[scanEnd] !== '\n'; scanEnd++) {
+        if (text[scanEnd] === '\\') {
+          scanEnd++;
           continue;
         }
-        if (quote !== '`' && text[i] === '\n') break;
-        if (text[i] !== '\n') out[i] = ' ';
-        i++;
+        if (text[scanEnd] === '[') inCharClass = true;
+        if (text[scanEnd] === ']') inCharClass = false;
+        if (text[scanEnd] === '/' && !inCharClass) break;
       }
-      if (i < n && text[i] === quote) i++;
+
+      if (scanEnd < len && text[scanEnd] === '/') {
+        idx = scanEnd + 1;
+        continue;
+      }
+    }
+
+    if (ch === '"' || ch === "'" || ch === '`') {
+      const quoteType = ch;
+      idx++;
+
+      while (idx < len && text[idx] !== quoteType) {
+        if (text[idx] === '\\' && idx + 1 < len) {
+          characters[idx] = ' ';
+          characters[idx + 1] = ' ';
+          idx += 2;
+          continue;
+        }
+        if (quoteType !== '`' && text[idx] === '\n') break;
+        if (text[idx] !== '\n') {
+          characters[idx] = ' ';
+        }
+        idx++;
+      }
+
+      if (idx < len && text[idx] === quoteType) {
+        idx++;
+      }
       continue;
     }
-    i++;
+
+    idx++;
   }
-  return out.join('');
+
+  return characters.join('');
 }
 
 export type CommentLang =
@@ -84,20 +87,23 @@ export type CommentLang =
   | 'cpp'
   | 'erlang';
 
+/**
+ * Replaces comments with spaces while retaining exact character offsets and newlines.
+ */
 export function stripCommentsForRegex(content: string, lang: CommentLang): string {
   switch (lang) {
     case 'python':
-      return stripPython(content);
+      return maskPythonComments(content);
     case 'ruby':
-      return stripRuby(content);
+      return maskRubyComments(content);
     case 'rust':
-      return stripRust(content);
+      return maskRustComments(content);
     case 'erlang':
-      return stripErlang(content);
+      return maskErlangComments(content);
     case 'php':
-      return stripPhp(content);
+      return maskPhpComments(content);
     case 'go':
-      return stripGo(content);
+      return maskGoComments(content);
     case 'javascript':
     case 'typescript':
     case 'java':
@@ -105,470 +111,471 @@ export function stripCommentsForRegex(content: string, lang: CommentLang): strin
     case 'swift':
     case 'c':
     case 'cpp':
-      return stripCStyle(content, /* allowSingleQuoteStrings */ lang === 'javascript' || lang === 'typescript');
+      return maskCStyleComments(content, lang === 'javascript' || lang === 'typescript');
     default:
       return content;
   }
 }
 
-/**
- * Replace every char in a slice with spaces, but keep newlines so line
- * numbers computed downstream remain valid.
- */
-function blankRange(buf: string[], start: number, end: number, src: string): void {
-  for (let i = start; i < end; i++) {
-    buf[i] = src[i] === '\n' ? '\n' : ' ';
+function fillSpacesPreservingNewlines(
+  buffer: string[],
+  startIndex: number,
+  endIndex: number,
+  originalText: string
+): void {
+  for (let pos = startIndex; pos < endIndex; pos++) {
+    buffer[pos] = originalText[pos] === '\n' ? '\n' : ' ';
   }
 }
 
-// ---------- Python ----------
+/* ------------------------------------------------------------- Python -- */
 
-function stripPython(src: string): string {
-  const out = src.split('');
-  let i = 0;
-  const n = src.length;
+function maskPythonComments(source: string): string {
+  const chars = source.split('');
+  let idx = 0;
+  const len = source.length;
 
-  while (i < n) {
-    const c = src[i]!;
-    const c2 = src[i + 1] ?? '';
-    const c3 = src[i + 2] ?? '';
+  while (idx < len) {
+    const c1 = source[idx]!;
+    const c2 = source[idx + 1] ?? '';
+    const c3 = source[idx + 2] ?? '';
 
-    // Triple-quoted string: """...""" or '''...'''
-    if ((c === '"' || c === "'") && c2 === c && c3 === c) {
-      const quote = c;
-      const start = i;
-      i += 3;
-      while (i < n) {
-        if (src[i] === '\\' && i + 1 < n) {
-          i += 2;
+    // Triple-quoted multi-line strings / docstrings
+    if ((c1 === '"' || c1 === "'") && c2 === c1 && c3 === c1) {
+      const quoteChar = c1;
+      const startPos = idx;
+      idx += 3;
+
+      while (idx < len) {
+        if (source[idx] === '\\' && idx + 1 < len) {
+          idx += 2;
           continue;
         }
-        if (src[i] === quote && src[i + 1] === quote && src[i + 2] === quote) {
-          i += 3;
+        if (source[idx] === quoteChar && source[idx + 1] === quoteChar && source[idx + 2] === quoteChar) {
+          idx += 3;
           break;
         }
-        i++;
+        idx++;
       }
-      blankRange(out, start, i, src);
+
+      fillSpacesPreservingNewlines(chars, startPos, idx, source);
       continue;
     }
 
-    // Single-line string: '...' or "..."
-    if (c === '"' || c === "'") {
-      const quote = c;
-      i++;
-      while (i < n && src[i] !== quote) {
-        if (src[i] === '\\' && i + 1 < n) {
-          i += 2;
+    // Standard single-line strings
+    if (c1 === '"' || c1 === "'") {
+      const quoteChar = c1;
+      idx++;
+      while (idx < len && source[idx] !== quoteChar) {
+        if (source[idx] === '\\' && idx + 1 < len) {
+          idx += 2;
           continue;
         }
-        if (src[i] === '\n') break; // unterminated
-        i++;
+        if (source[idx] === '\n') break;
+        idx++;
       }
-      if (i < n && src[i] === quote) i++;
+      if (idx < len && source[idx] === quoteChar) idx++;
       continue;
     }
 
-    // Line comment
-    if (c === '#') {
-      const start = i;
-      while (i < n && src[i] !== '\n') i++;
-      blankRange(out, start, i, src);
+    // Hash comment
+    if (c1 === '#') {
+      const startPos = idx;
+      while (idx < len && source[idx] !== '\n') idx++;
+      fillSpacesPreservingNewlines(chars, startPos, idx, source);
       continue;
     }
 
-    i++;
+    idx++;
   }
 
-  return out.join('');
+  return chars.join('');
 }
 
-// ---------- Ruby ----------
+/* -------------------------------------------------------------- Ruby -- */
 
-function stripRuby(src: string): string {
-  const out = src.split('');
-  let i = 0;
-  const n = src.length;
-  let atLineStart = true;
+function maskRubyComments(source: string): string {
+  const chars = source.split('');
+  let idx = 0;
+  const len = source.length;
+  let isLineStart = true;
 
-  while (i < n) {
-    const c = src[i]!;
+  while (idx < len) {
+    const ch = source[idx]!;
 
-    // =begin / =end block comments must be at start of line (after optional whitespace)
-    if (atLineStart && c === '=' && src.startsWith('=begin', i)) {
-      const start = i;
-      // consume to matching =end at line start
-      i += '=begin'.length;
-      while (i < n) {
-        if (src[i] === '\n') {
-          // check next line for =end
-          let j = i + 1;
-          while (j < n && (src[j] === ' ' || src[j] === '\t')) j++;
-          if (src.startsWith('=end', j)) {
-            i = j + '=end'.length;
-            // consume rest of that line
-            while (i < n && src[i] !== '\n') i++;
+    // =begin ... =end block comments
+    if (isLineStart && ch === '=' && source.startsWith('=begin', idx)) {
+      const startPos = idx;
+      idx += '=begin'.length;
+
+      while (idx < len) {
+        if (source[idx] === '\n') {
+          let lookahead = idx + 1;
+          while (lookahead < len && (source[lookahead] === ' ' || source[lookahead] === '\t')) {
+            lookahead++;
+          }
+          if (source.startsWith('=end', lookahead)) {
+            idx = lookahead + '=end'.length;
+            while (idx < len && source[idx] !== '\n') idx++;
             break;
           }
         }
-        i++;
+        idx++;
       }
-      blankRange(out, start, i, src);
-      atLineStart = i > 0 && src[i - 1] === '\n';
+
+      fillSpacesPreservingNewlines(chars, startPos, idx, source);
+      isLineStart = idx > 0 && source[idx - 1] === '\n';
       continue;
     }
 
-    // String literals
-    if (c === '"' || c === "'") {
-      const quote = c;
-      i++;
-      while (i < n && src[i] !== quote) {
-        if (src[i] === '\\' && i + 1 < n) {
-          i += 2;
+    if (ch === '"' || ch === "'") {
+      const quoteChar = ch;
+      idx++;
+      while (idx < len && source[idx] !== quoteChar) {
+        if (source[idx] === '\\' && idx + 1 < len) {
+          idx += 2;
           continue;
         }
-        if (src[i] === '\n') break;
-        i++;
+        if (source[idx] === '\n') break;
+        idx++;
       }
-      if (i < n && src[i] === quote) i++;
-      atLineStart = false;
+      if (idx < len && source[idx] === quoteChar) idx++;
+      isLineStart = false;
       continue;
     }
 
-    // Line comment
-    if (c === '#') {
-      const start = i;
-      while (i < n && src[i] !== '\n') i++;
-      blankRange(out, start, i, src);
-      atLineStart = false;
+    if (ch === '#') {
+      const startPos = idx;
+      while (idx < len && source[idx] !== '\n') idx++;
+      fillSpacesPreservingNewlines(chars, startPos, idx, source);
+      isLineStart = false;
       continue;
     }
 
-    if (c === '\n') {
-      atLineStart = true;
-      i++;
+    if (ch === '\n') {
+      isLineStart = true;
+      idx++;
       continue;
     }
-    if (c === ' ' || c === '\t') {
-      // whitespace doesn't change atLineStart
-      i++;
+    if (ch === ' ' || ch === '\t') {
+      idx++;
       continue;
     }
-    atLineStart = false;
-    i++;
+
+    isLineStart = false;
+    idx++;
   }
 
-  return out.join('');
+  return chars.join('');
 }
 
-// ---------- C-style (JS/TS/Java/C#/Swift) ----------
+/* ------------------------------------------------------------ C-Style -- */
 
-function stripCStyle(src: string, allowSingleQuoteStrings: boolean): string {
-  const out = src.split('');
-  let i = 0;
-  const n = src.length;
+function maskCStyleComments(source: string, allowSingleQuoteString: boolean): string {
+  const chars = source.split('');
+  let idx = 0;
+  const len = source.length;
 
-  while (i < n) {
-    const c = src[i]!;
-    const c2 = src[i + 1] ?? '';
+  while (idx < len) {
+    const c1 = source[idx]!;
+    const c2 = source[idx + 1] ?? '';
 
-    // Block comment
-    if (c === '/' && c2 === '*') {
-      const start = i;
-      i += 2;
-      while (i < n && !(src[i] === '*' && src[i + 1] === '/')) i++;
-      if (i < n) i += 2;
-      blankRange(out, start, i, src);
+    // Block comments /* ... */
+    if (c1 === '/' && c2 === '*') {
+      const startPos = idx;
+      idx += 2;
+      while (idx < len && !(source[idx] === '*' && source[idx + 1] === '/')) {
+        idx++;
+      }
+      if (idx < len) idx += 2;
+      fillSpacesPreservingNewlines(chars, startPos, idx, source);
       continue;
     }
 
-    // Line comment
-    if (c === '/' && c2 === '/') {
-      const start = i;
-      while (i < n && src[i] !== '\n') i++;
-      blankRange(out, start, i, src);
+    // Line comments // ...
+    if (c1 === '/' && c2 === '/') {
+      const startPos = idx;
+      while (idx < len && source[idx] !== '\n') idx++;
+      fillSpacesPreservingNewlines(chars, startPos, idx, source);
       continue;
     }
 
-    // String literals
-    if (c === '"' || (allowSingleQuoteStrings && c === "'") || c === '`') {
-      const quote = c;
-      i++;
-      while (i < n && src[i] !== quote) {
-        if (src[i] === '\\' && i + 1 < n) {
-          i += 2;
+    // String / template literals
+    if (c1 === '"' || (allowSingleQuoteString && c1 === "'") || c1 === '`') {
+      const quoteChar = c1;
+      idx++;
+      while (idx < len && source[idx] !== quoteChar) {
+        if (source[idx] === '\\' && idx + 1 < len) {
+          idx += 2;
           continue;
         }
-        // Template literal can span lines; regular strings break on newline (treat as unterminated)
-        if (quote !== '`' && src[i] === '\n') break;
-        i++;
+        if (quoteChar !== '`' && source[idx] === '\n') break;
+        idx++;
       }
-      if (i < n && src[i] === quote) i++;
+      if (idx < len && source[idx] === quoteChar) idx++;
       continue;
     }
 
-    i++;
+    idx++;
   }
 
-  return out.join('');
+  return chars.join('');
 }
 
-// ---------- PHP ----------
+/* --------------------------------------------------------------- PHP -- */
 
-function stripPhp(src: string): string {
-  const out = src.split('');
-  let i = 0;
-  const n = src.length;
+function maskPhpComments(source: string): string {
+  const chars = source.split('');
+  let idx = 0;
+  const len = source.length;
 
-  while (i < n) {
-    const c = src[i]!;
-    const c2 = src[i + 1] ?? '';
+  while (idx < len) {
+    const c1 = source[idx]!;
+    const c2 = source[idx + 1] ?? '';
 
     // Block comment
-    if (c === '/' && c2 === '*') {
-      const start = i;
-      i += 2;
-      while (i < n && !(src[i] === '*' && src[i + 1] === '/')) i++;
-      if (i < n) i += 2;
-      blankRange(out, start, i, src);
+    if (c1 === '/' && c2 === '*') {
+      const startPos = idx;
+      idx += 2;
+      while (idx < len && !(source[idx] === '*' && source[idx + 1] === '/')) {
+        idx++;
+      }
+      if (idx < len) idx += 2;
+      fillSpacesPreservingNewlines(chars, startPos, idx, source);
       continue;
     }
 
     // // line comment
-    if (c === '/' && c2 === '/') {
-      const start = i;
-      while (i < n && src[i] !== '\n') i++;
-      blankRange(out, start, i, src);
+    if (c1 === '/' && c2 === '/') {
+      const startPos = idx;
+      while (idx < len && source[idx] !== '\n') idx++;
+      fillSpacesPreservingNewlines(chars, startPos, idx, source);
       continue;
     }
 
-    // # line comment (PHP supports both)
-    if (c === '#') {
-      const start = i;
-      while (i < n && src[i] !== '\n') i++;
-      blankRange(out, start, i, src);
-      continue;
-    }
-
-    // String literals: ', ", ` (PHP doesn't really use backticks for strings,
-    // but it does have shell-exec backticks; treating as a string is fine here)
-    if (c === '"' || c === "'" || c === '`') {
-      const quote = c;
-      i++;
-      while (i < n && src[i] !== quote) {
-        if (src[i] === '\\' && i + 1 < n) {
-          i += 2;
-          continue;
-        }
-        if (src[i] === '\n') break;
-        i++;
-      }
-      if (i < n && src[i] === quote) i++;
-      continue;
-    }
-
-    i++;
-  }
-
-  return out.join('');
-}
-
-// ---------- Go ----------
-
-function stripGo(src: string): string {
-  const out = src.split('');
-  let i = 0;
-  const n = src.length;
-
-  while (i < n) {
-    const c = src[i]!;
-    const c2 = src[i + 1] ?? '';
-
-    // Block comment
-    if (c === '/' && c2 === '*') {
-      const start = i;
-      i += 2;
-      while (i < n && !(src[i] === '*' && src[i + 1] === '/')) i++;
-      if (i < n) i += 2;
-      blankRange(out, start, i, src);
-      continue;
-    }
-
-    // Line comment
-    if (c === '/' && c2 === '/') {
-      const start = i;
-      while (i < n && src[i] !== '\n') i++;
-      blankRange(out, start, i, src);
-      continue;
-    }
-
-    // Raw string with backticks (no escapes, can span lines)
-    if (c === '`') {
-      i++;
-      while (i < n && src[i] !== '`') i++;
-      if (i < n) i++;
-      continue;
-    }
-
-    // Interpreted string with double quotes
-    if (c === '"') {
-      i++;
-      while (i < n && src[i] !== '"') {
-        if (src[i] === '\\' && i + 1 < n) {
-          i += 2;
-          continue;
-        }
-        if (src[i] === '\n') break;
-        i++;
-      }
-      if (i < n && src[i] === '"') i++;
-      continue;
-    }
-
-    // Rune literal with single quotes (handle as a tiny string)
-    if (c === "'") {
-      i++;
-      while (i < n && src[i] !== "'") {
-        if (src[i] === '\\' && i + 1 < n) {
-          i += 2;
-          continue;
-        }
-        if (src[i] === '\n') break;
-        i++;
-      }
-      if (i < n && src[i] === "'") i++;
-      continue;
-    }
-
-    i++;
-  }
-
-  return out.join('');
-}
-
-// ---------- Rust ----------
-
-function stripRust(src: string): string {
-  const out = src.split('');
-  let i = 0;
-  const n = src.length;
-
-  while (i < n) {
-    const c = src[i]!;
-    const c2 = src[i + 1] ?? '';
-
-    // Nested block comment /* ... /* ... */ ... */
-    if (c === '/' && c2 === '*') {
-      const start = i;
-      i += 2;
-      let depth = 1;
-      while (i < n && depth > 0) {
-        if (src[i] === '/' && src[i + 1] === '*') {
-          depth++;
-          i += 2;
-        } else if (src[i] === '*' && src[i + 1] === '/') {
-          depth--;
-          i += 2;
-        } else {
-          i++;
-        }
-      }
-      blankRange(out, start, i, src);
-      continue;
-    }
-
-    // Line comment
-    if (c === '/' && c2 === '/') {
-      const start = i;
-      while (i < n && src[i] !== '\n') i++;
-      blankRange(out, start, i, src);
+    // # line comment
+    if (c1 === '#') {
+      const startPos = idx;
+      while (idx < len && source[idx] !== '\n') idx++;
+      fillSpacesPreservingNewlines(chars, startPos, idx, source);
       continue;
     }
 
     // String literals
-    if (c === '"') {
-      i++;
-      while (i < n && src[i] !== '"') {
-        if (src[i] === '\\' && i + 1 < n) {
-          i += 2;
+    if (c1 === '"' || c1 === "'" || c1 === '`') {
+      const quoteChar = c1;
+      idx++;
+      while (idx < len && source[idx] !== quoteChar) {
+        if (source[idx] === '\\' && idx + 1 < len) {
+          idx += 2;
           continue;
         }
-        i++;
+        if (source[idx] === '\n') break;
+        idx++;
       }
-      if (i < n && src[i] === '"') i++;
+      if (idx < len && source[idx] === quoteChar) idx++;
       continue;
     }
 
-    // Char literal — keep simple: skip 'x' or '\x'
-    if (c === "'") {
-      // Could be a lifetime, e.g. 'a, but those don't contain routing text
-      i++;
-      while (i < n && src[i] !== "'") {
-        if (src[i] === '\\' && i + 1 < n) {
-          i += 2;
-          continue;
-        }
-        if (src[i] === '\n') break;
-        i++;
-      }
-      if (i < n && src[i] === "'") i++;
-      continue;
-    }
-
-    i++;
+    idx++;
   }
 
-  return out.join('');
+  return chars.join('');
 }
 
-// ---------- Erlang ----------
+/* ---------------------------------------------------------------- Go -- */
 
-/**
- * Erlang: `%` starts a line comment unless it sits inside a `"string"`, a
- * `'quoted atom'`, or is the character literal `$%`. Strings and quoted atoms
- * are left intact (a behaviour callback name can be a quoted atom); only the
- * comment text is blanked.
- */
-function stripErlang(src: string): string {
-  const out = src.split('');
-  let i = 0;
-  const n = src.length;
+function maskGoComments(source: string): string {
+  const chars = source.split('');
+  let idx = 0;
+  const len = source.length;
 
-  while (i < n) {
-    const c = src[i];
+  while (idx < len) {
+    const c1 = source[idx]!;
+    const c2 = source[idx + 1] ?? '';
 
-    if (c === '"' || c === "'") {
-      const quote = c;
-      i++;
-      while (i < n && src[i] !== quote) {
-        if (src[i] === '\\' && i + 1 < n) {
-          i += 2;
+    // Block comment
+    if (c1 === '/' && c2 === '*') {
+      const startPos = idx;
+      idx += 2;
+      while (idx < len && !(source[idx] === '*' && source[idx + 1] === '/')) {
+        idx++;
+      }
+      if (idx < len) idx += 2;
+      fillSpacesPreservingNewlines(chars, startPos, idx, source);
+      continue;
+    }
+
+    // Line comment
+    if (c1 === '/' && c2 === '/') {
+      const startPos = idx;
+      while (idx < len && source[idx] !== '\n') idx++;
+      fillSpacesPreservingNewlines(chars, startPos, idx, source);
+      continue;
+    }
+
+    // Raw backtick string
+    if (c1 === '`') {
+      idx++;
+      while (idx < len && source[idx] !== '`') idx++;
+      if (idx < len) idx++;
+      continue;
+    }
+
+    // Double quoted string
+    if (c1 === '"') {
+      idx++;
+      while (idx < len && source[idx] !== '"') {
+        if (source[idx] === '\\' && idx + 1 < len) {
+          idx += 2;
           continue;
         }
-        i++;
+        if (source[idx] === '\n') break;
+        idx++;
       }
-      if (i < n) i++;
+      if (idx < len && source[idx] === '"') idx++;
       continue;
     }
 
-    // Character literal: `$x`, `$\n`, `$%` — the next char (or escape) is data.
-    if (c === '$') {
-      i++;
-      if (i < n && src[i] === '\\') i++;
-      i++;
+    // Rune literal
+    if (c1 === "'") {
+      idx++;
+      while (idx < len && source[idx] !== "'") {
+        if (source[idx] === '\\' && idx + 1 < len) {
+          idx += 2;
+          continue;
+        }
+        if (source[idx] === '\n') break;
+        idx++;
+      }
+      if (idx < len && source[idx] === "'") idx++;
       continue;
     }
 
-    if (c === '%') {
-      let end = i;
-      while (end < n && src[end] !== '\n') end++;
-      blankRange(out, i, end, src);
-      i = end;
-      continue;
-    }
-
-    i++;
+    idx++;
   }
 
-  return out.join('');
+  return chars.join('');
+}
+
+/* -------------------------------------------------------------- Rust -- */
+
+function maskRustComments(source: string): string {
+  const chars = source.split('');
+  let idx = 0;
+  const len = source.length;
+
+  while (idx < len) {
+    const c1 = source[idx]!;
+    const c2 = source[idx + 1] ?? '';
+
+    // Nested block comments /* ... /* ... */ ... */
+    if (c1 === '/' && c2 === '*') {
+      const startPos = idx;
+      idx += 2;
+      let nestDepth = 1;
+
+      while (idx < len && nestDepth > 0) {
+        if (source[idx] === '/' && source[idx + 1] === '*') {
+          nestDepth++;
+          idx += 2;
+        } else if (source[idx] === '*' && source[idx + 1] === '/') {
+          nestDepth--;
+          idx += 2;
+        } else {
+          idx++;
+        }
+      }
+
+      fillSpacesPreservingNewlines(chars, startPos, idx, source);
+      continue;
+    }
+
+    // Line comment
+    if (c1 === '/' && c2 === '/') {
+      const startPos = idx;
+      while (idx < len && source[idx] !== '\n') idx++;
+      fillSpacesPreservingNewlines(chars, startPos, idx, source);
+      continue;
+    }
+
+    // String literal
+    if (c1 === '"') {
+      idx++;
+      while (idx < len && source[idx] !== '"') {
+        if (source[idx] === '\\' && idx + 1 < len) {
+          idx += 2;
+          continue;
+        }
+        idx++;
+      }
+      if (idx < len && source[idx] === '"') idx++;
+      continue;
+    }
+
+    // Char literal or lifetime
+    if (c1 === "'") {
+      idx++;
+      while (idx < len && source[idx] !== "'") {
+        if (source[idx] === '\\' && idx + 1 < len) {
+          idx += 2;
+          continue;
+        }
+        if (source[idx] === '\n') break;
+        idx++;
+      }
+      if (idx < len && source[idx] === "'") idx++;
+      continue;
+    }
+
+    idx++;
+  }
+
+  return chars.join('');
+}
+
+/* ------------------------------------------------------------ Erlang -- */
+
+function maskErlangComments(source: string): string {
+  const chars = source.split('');
+  let idx = 0;
+  const len = source.length;
+
+  while (idx < len) {
+    const ch = source[idx];
+
+    if (ch === '"' || ch === "'") {
+      const quoteChar = ch;
+      idx++;
+      while (idx < len && source[idx] !== quoteChar) {
+        if (source[idx] === '\\' && idx + 1 < len) {
+          idx += 2;
+          continue;
+        }
+        idx++;
+      }
+      if (idx < len) idx++;
+      continue;
+    }
+
+    // Character literal $x, $\n, $%
+    if (ch === '$') {
+      idx++;
+      if (idx < len && source[idx] === '\\') idx++;
+      idx++;
+      continue;
+    }
+
+    if (ch === '%') {
+      let lineEnd = idx;
+      while (lineEnd < len && source[lineEnd] !== '\n') lineEnd++;
+      fillSpacesPreservingNewlines(chars, idx, lineEnd, source);
+      idx = lineEnd;
+      continue;
+    }
+
+    idx++;
+  }
+
+  return chars.join('');
 }

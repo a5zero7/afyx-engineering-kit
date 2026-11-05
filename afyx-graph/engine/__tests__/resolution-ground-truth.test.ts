@@ -5,6 +5,7 @@ import * as path from 'node:path';
 import { createHash } from 'node:crypto';
 import AfyxGraph from '../src/index';
 import { extractImportMappings } from '../src/resolution/import-resolver';
+import { isSourceGroundedRelationship } from '../src/graph/relationship-presentation';
 
 interface SemanticTarget {
   filePath: string;
@@ -113,10 +114,13 @@ describe('resolution ground truth', () => {
     ).toBe(true);
   });
 
-  it('preserves the deterministic first-candidate tie-break for equal ambiguous targets', () => {
-    expect(targetsFrom('ts/ambiguity-consumer.ts', 'ambiguousCaller', 'calls')).toEqual([
-      { filePath: 'ts/ambiguity-a.ts', name: 'ambiguousTarget', kind: 'function' },
-    ]);
+  it('keeps equal unqualified targets unresolved instead of trusting index order', () => {
+    expect(targetsFrom('ts/ambiguity-consumer.ts', 'ambiguousCaller', 'calls')).toEqual([]);
+    expect(
+      graph
+        .getUnresolvedReferencesInFile('ts/ambiguity-consumer.ts')
+        .some((ref) => ref.referenceName === 'ambiguousTarget' && ref.referenceKind === 'calls')
+    ).toBe(true);
   });
 
   it('resolves a Python imported symbol to its source module, not a same-name competitor', () => {
@@ -167,6 +171,26 @@ describe('resolution ground truth', () => {
   it('resolves a qualified Go package call to the imported package', () => {
     expect(targetsFrom('go/main/main.go', 'Run', 'calls')).toEqual([
       { filePath: 'go/helper/helper.go', name: 'Do', kind: 'function' },
+    ]);
+  });
+
+  it('reports executable callers only, excluding imports, file containers, and unresolved members', () => {
+    const callers = (filePath: string, name: string) =>
+      graph.getCallers(node(filePath, name).id).filter(isSourceGroundedRelationship).map(({ node: source }) => ({
+        filePath: source.filePath,
+        name: source.name,
+        kind: source.kind,
+      })).sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b)));
+
+    expect(callers('python/source.py', 'pay')).toEqual([
+      { filePath: 'python/consumer.py', name: 'invoke', kind: 'function' },
+    ]);
+    expect(callers('python/source.py', 'refund')).toEqual([
+      { filePath: 'python/consumer.py', name: 'invoke_alias', kind: 'function' },
+    ]);
+    expect(callers('ts/right.ts', 'shared')).toEqual([
+      { filePath: 'ts/consumer.ts', name: 'aliasCaller', kind: 'function' },
+      { filePath: 'ts/consumer.ts', name: 'qualifiedCaller', kind: 'function' },
     ]);
   });
 

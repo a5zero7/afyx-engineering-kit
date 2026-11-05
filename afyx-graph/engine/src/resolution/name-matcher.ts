@@ -813,7 +813,13 @@ export function matchByExactName(
   }
 
   // Multiple matches - try to narrow down
-  const bestMatch = selectBestCandidate(ref, candidates);
+  // Bare exact-name lookup has no import/receiver/type evidence. Equal best
+  // candidates therefore remain unresolved instead of inheriting index order.
+  const bestMatch = selectBestCandidate(
+    ref,
+    candidates,
+    ESM_FAMILY.has(ref.language) && ref.referenceKind === 'calls',
+  );
   if (bestMatch && isCrossFileReachable(bestMatch, ref, context)) {
     // Lower confidence when the match is from a distant/unrelated module
     const proximity = computePathProximity(ref.filePath, bestMatch.filePath);

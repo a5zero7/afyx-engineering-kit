@@ -1016,6 +1016,17 @@ export class AfyxGraph {
               `[phase-timing] sync-rebind: ${Date.now() - tRebind}ms (${result.definitionDelta.length} changed names, ${rebound} edges re-opened)`
             );
           }
+
+          // A reference that was already fail-closed as ambiguous has no edge
+          // for the rebind pass above to reopen. Definition removal can make
+          // that same reference uniquely resolvable, so retry failed rows whose
+          // terminal name is in the exact definition delta as well.
+          const retryableAmbiguities = this.queries.getRetryableFailedReferences(
+            result.definitionDelta,
+          );
+          if (retryableAmbiguities.length > 0) {
+            await this.resolver.resolveAndPersistListYielding(retryableAmbiguities);
+          }
         }
 
         // Orphan sweep (#1187). A resolution pass that dies mid-run — the #850

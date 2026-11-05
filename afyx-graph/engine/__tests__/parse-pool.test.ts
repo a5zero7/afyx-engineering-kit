@@ -11,7 +11,7 @@
  * parallelism safe.
  */
 import { describe, it, expect } from 'vitest';
-import { ParseWorkerPool, resolveParseBudgetMs, resolveParsePoolSize, resolveParseTimeoutMs, type ParsePoolWorker, type ParseTask } from '../src/extraction/parse-pool';
+import { ParseWorkerPool, resolveParseBudgetMs, resolveParsePoolSize, resolveParsePoolSizeForWorkload, resolveParseTimeoutMs, type ParsePoolWorker, type ParseTask } from '../src/extraction/parse-pool';
 import type { Language, ExtractionResult } from '../src/types';
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -118,6 +118,19 @@ describe('resolveParsePoolSize', () => {
     expect(resolveParsePoolSize(undefined, 1)).toBe(1);   // never zero
     expect(resolveParsePoolSize(undefined, 2)).toBe(1);   // leave a core
     expect(resolveParsePoolSize(undefined, 64)).toBe(8);  // never above the default cap
+  });
+});
+
+describe('resolveParsePoolSizeForWorkload', () => {
+  it('bounds default workers for small workloads without reducing the large-repository cap', () => {
+    expect(resolveParsePoolSizeForWorkload(undefined, 64, 15)).toBe(4);
+    expect(resolveParsePoolSizeForWorkload(undefined, 64, 32)).toBe(8);
+    expect(resolveParsePoolSizeForWorkload(undefined, 64, 0)).toBe(1);
+  });
+
+  it('preserves an explicit operator worker count', () => {
+    expect(resolveParsePoolSizeForWorkload('8', 64, 1)).toBe(8);
+    expect(resolveParsePoolSizeForWorkload('0', 64, 100)).toBe(1);
   });
 });
 

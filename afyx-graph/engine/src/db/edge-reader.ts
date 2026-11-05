@@ -90,7 +90,7 @@ export class EdgeReader {
   }
 
   private dynamic(query: string, values: readonly string[]): Edge[] {
-    return decodeEdges(this.session.db.prepare(query).all(...values) as EdgeRow[]);
+    return decodeEdges(this.session.statement(query).all(...values) as EdgeRow[]);
   }
 
   private many(direction: AdjacencyDirection, ids: readonly string[], kinds?: readonly EdgeKind[]): Edge[] {
@@ -114,7 +114,7 @@ export class EdgeReader {
       const query =
         `SELECT ${direction.endpoint} AS endpoint, COUNT(*) AS total FROM edges ` +
         `WHERE ${direction.endpoint} IN (${placeholders(group.length)}) GROUP BY ${direction.endpoint}`;
-      const rows = this.session.db.prepare(query).all(...group) as Array<{ endpoint: string; total: number }>;
+      const rows = this.session.listStatement(query, group.length).all(...group) as Array<{ endpoint: string; total: number }>;
       for (const row of rows) totals.set(row.endpoint, row.total);
     }
     return totals;

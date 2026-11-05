@@ -146,14 +146,14 @@ describe('Incremental sync converges to a full rebuild (CG-33)', () => {
     expect(describeDiff(synced, rebuilt)).toBe('missing from synced: 0, stale in synced: 0');
   });
 
-  it('keeps one edge when re-resolution selects the same target', async () => {
+  it('removes an exact-name edge when a new definition makes the target ambiguous', async () => {
     write('src/caller.ts', `export function run(): number {\n  return pct(1);\n}\n`);
     write('src/alpha.ts', `export function pct(n: number): number {\n  return n;\n}\n`);
     cg = AfyxGraph.initSync(testDir, { config: { include: ['**/*.ts'], exclude: [] } });
     await cg.indexAll();
 
-    // zeta.ts introduces a competing definition, so the existing edge is
-    // reopened, but alpha.ts remains the deterministic first candidate.
+    // zeta.ts introduces an equally supported definition, so index order is no
+    // longer treated as evidence and the existing edge is reopened as unresolved.
     write('src/zeta.ts', `export function pct(n: number): number {\n  return n * 2;\n}\n`);
     const result = await cg.sync();
     expect(result.definitionDelta).toContain('pct');
@@ -173,7 +173,7 @@ describe('Incremental sync converges to a full rebuild (CG-33)', () => {
           .all() as Array<{ file: string }>
       ).map((row) => row.file)
     );
-    expect(targets).toEqual(['src/alpha.ts']);
+    expect(targets).toEqual([]);
   });
 
   it('rolls back edge deletion when requeueing its reference is interrupted', async () => {
@@ -451,8 +451,9 @@ describe('Incremental sync converges to a full rebuild (CG-33)', () => {
     expect(pushTargets).toHaveLength(OVER_CEILING);
     expect(new Set(pushTargets)).toEqual(new Set(['src/zzz_defs.ts']));
 
-    // `tug` — the control — rebound.
-    expect(targetsOf('tug')).toEqual(['src/aaa.ts']);
+    // `tug` — the control — is now honestly unresolved rather than rebound by
+    // lexicographic/index order between two equally supported definitions.
+    expect(targetsOf('tug')).toEqual([]);
   });
 
   /**

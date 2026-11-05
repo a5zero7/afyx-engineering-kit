@@ -202,6 +202,14 @@ describe('classifyEffect', () => {
     expect(c('save', 'python')).toBeNull();
     expect(c('render', 'java')).toBeNull();
   });
+
+  it('routes only applicable family rules while retaining ungated compatibility', () => {
+    expect(c('open', 'typescript')).toBeNull();
+    expect(c('open', 'python')?.category).toBe('storage');
+    expect(c('client.post')?.category).toBe('network');
+    expect(c('fetch', 'unknown-language')).toBeNull();
+    expect(c('TelemetryClient', 'unknown-language', { receiverType: 'TelemetryClient' })?.category).toBe('telemetry');
+  });
 });
 
 describe('responseStatus', () => {

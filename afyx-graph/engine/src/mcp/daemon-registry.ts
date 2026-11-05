@@ -249,10 +249,27 @@ function cleanupDaemonArtifacts(
     // cleanup then rips out from under it.
     unlinkSocketCandidates(root);
     deregisterDaemon(root);
-    try { fs.unlinkSync(pidPath); } catch (err) {
-      if ((err as NodeJS.ErrnoException).code !== 'ENOENT') return false;
+    let unlinked = false;
+    for (let attempt = 0; attempt <= (process.platform === 'win32' ? 6 : 0); attempt++) {
+      try {
+        fs.unlinkSync(pidPath);
+        unlinked = true;
+        break;
+      } catch (err) {
+        const code = (err as NodeJS.ErrnoException).code;
+        if (code === 'ENOENT') {
+          unlinked = true;
+          break;
+        }
+        if (process.platform === 'win32' && (code === 'EPERM' || code === 'EBUSY') && attempt < 6) {
+          const deadline = Date.now() + 25;
+          while (Date.now() < deadline) { /* brief synchronous yield for Windows kernel handle release */ }
+          continue;
+        }
+        return false;
+      }
     }
-    return true;
+    return unlinked;
   } finally {
     releaseWriterLock(root);
   }

@@ -14,6 +14,8 @@ on:
       - 'scripts/install-afyx-graph.*'
       - 'scripts/validate-afyx-graph.py'
       - 'scripts/audit-legacy-identity.py'
+      - 'scripts/verify-native-source-ownership.mjs'
+      - 'scripts/native-source-ownership.json'
       - '.github/workflows/graph-build.yml'
   pull_request:
     branches: [main, dev, alpha]
@@ -22,6 +24,8 @@ on:
       - 'scripts/install-afyx-graph.*'
       - 'scripts/validate-afyx-graph.py'
       - 'scripts/audit-legacy-identity.py'
+      - 'scripts/verify-native-source-ownership.mjs'
+      - 'scripts/native-source-ownership.json'
       - '.github/workflows/graph-build.yml'
 
 permissions:
@@ -44,9 +48,16 @@ jobs:
       - name: Install locked dependencies
         working-directory: afyx-graph/engine
         run: npm ci
+      - name: Verify reviewed native source ownership
+        run: node scripts/verify-native-source-ownership.mjs
       - name: Clean build (no stale dist artifacts)
         working-directory: afyx-graph/engine
         run: npm run build:clean
+      - name: Verify release composition before packaging
+        working-directory: afyx-graph/engine
+        run: |
+          node scripts/verify-release-ready.mjs
+          npm pack --dry-run --json >/dev/null
       - name: Unit tests
         working-directory: afyx-graph/engine
         run: npm test
@@ -89,12 +100,22 @@ jobs:
           cache-dependency-path: afyx-graph/engine/package-lock.json
       - name: Validate identity, metadata and attribution
         run: python scripts/validate-afyx-graph.py
+      - name: Operational independence audit
+        run: python scripts/audit-legacy-identity.py
       - name: Install locked dependencies
         working-directory: afyx-graph/engine
         run: npm ci
+      - name: Verify reviewed native source ownership
+        run: node scripts/verify-native-source-ownership.mjs
       - name: Clean build (no stale dist artifacts)
         working-directory: afyx-graph/engine
         run: npm run build:clean
+      - name: Verify release composition before packaging
+        working-directory: afyx-graph/engine
+        shell: pwsh
+        run: |
+          node scripts/verify-release-ready.mjs
+          npm pack --dry-run --json | Out-Null
       - name: Unit tests
         working-directory: afyx-graph/engine
         run: npm test
@@ -133,9 +154,16 @@ jobs:
       - name: Install locked dependencies
         working-directory: afyx-graph/engine
         run: npm ci
+      - name: Verify reviewed native source ownership
+        run: node scripts/verify-native-source-ownership.mjs
       - name: Clean build (no stale dist artifacts)
         working-directory: afyx-graph/engine
         run: npm run build:clean
+      - name: Verify release composition before packaging
+        working-directory: afyx-graph/engine
+        run: |
+          node scripts/verify-release-ready.mjs
+          npm pack --dry-run --json >/dev/null
       - name: Unit tests
         working-directory: afyx-graph/engine
         run: npm test

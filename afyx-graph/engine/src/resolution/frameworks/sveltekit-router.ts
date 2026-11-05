@@ -1,34 +1,18 @@
 /**
- * SvelteKit — pages are directories, navigation is a string.
+ * AFYX Engineering Kit - SvelteKit Router Resolver
  *
- * `frameworks/svelte.ts` already reads the route table out of the file tree:
- * `src/routes/article/[slug]/+page.svelte` is `/article/:slug`,
- * `[[optional]]` is `:optional?` and `[...rest]` is `*rest`. This file is the
- * navigation half — without it a SvelteKit project's screens are drawn as
- * islands and the Screens tab stays hidden, because it is a picture of
- * `navigates` edges and there were none.
- *
- * Two calls carry a user from one page to another, and they do not agree on
- * where the path goes:
- *
- *   goto('/login')                     // $app/navigation, in the browser
- *   redirect(303, '/article/' + slug)  // @sveltejs/kit, from a load or an action
- *
- * `redirect` takes the status FIRST, so the destination is its second
- * argument — the one difference from every other framework here. Both are
- * read with the Expo Router readers (a string, a template with holes, a
- * conditional whose arms agree, a local `const href = …`) and matched against
- * this framework's own routes. `<a href="/login">` is markup rather than a
- * call, so a synthesizer reads it (`sveltekit-link-synthesizer.ts`).
- *
- * Only `+page.svelte` is a screen. `+layout.svelte` and `+error.svelte` sit at
- * the same path and would be a second screen for one URL; `+server.ts` is an
- * endpoint, not a page. A computed destination, a path no page serves, and an
- * external URL are left unresolved rather than guessed.
+ * Implements navigation edge resolution for SvelteKit applications.
+ * Resolves browser navigations (`goto`) and server-side action/load redirections (`redirect`),
+ * linking caller functions to their corresponding SvelteKit page route destinations.
  */
 
 import type { Language, Node } from '../../types';
-import type { FrameworkResolver, ResolutionContext, ResolvedRef, UnresolvedRef } from '../types';
+import type {
+  FrameworkResolver,
+  ResolutionContext,
+  ResolvedRef,
+  UnresolvedRef,
+} from '../types';
 import { dependsOn } from './package-deps';
 import {
   addRouteTo,
@@ -42,16 +26,15 @@ import {
 } from './expo-router';
 import { destinationsForHref } from './nextjs';
 
-const NAV_LANGUAGES: readonly Language[] = ['typescript', 'javascript', 'svelte'];
-
-// =============================================================================
-// Route table — the `+page.svelte` files `frameworks/svelte.ts` named
-// =============================================================================
+const SVELTEKIT_LANGUAGES: readonly Language[] = ['typescript', 'javascript', 'svelte'];
+const NAVIGATION_CALL_PATTERN = /^(?:goto|redirect)$/;
 
 export type SvelteKitTable = RootedRouteTable;
 
-/** True for a page route node `frameworks/svelte.ts` emitted, and no other. */
-function isSvelteKitPage(node: Node): boolean {
+/**
+ * Determines whether a given node represents a canonical SvelteKit page.
+ */
+function isCanonicalSvelteKitPage(node: Node): boolean {
   return (
     node.language === 'svelte' &&
     node.filePath.endsWith('/+page.svelte') &&
@@ -59,111 +42,139 @@ function isSvelteKitPage(node: Node): boolean {
   );
 }
 
-/** `:id?` — a parameter SvelteKit serves the route with or without. */
-function isOptionalParam(seg: string): boolean {
-  return seg.startsWith(':') && seg.endsWith('?');
+/**
+ * Checks if a route path segment denotes an optional parameter.
+ */
+function isOptionalRouteSegment(segment: string): boolean {
+  return segment.startsWith(':') && segment.endsWith('?');
 }
 
-const tables = new WeakMap<ResolutionContext, SvelteKitTable>();
+const tableCache = new WeakMap<ResolutionContext, SvelteKitTable>();
 
+/**
+ * Computes or retrieves cached SvelteKit route table from the resolution context.
+ */
 export function svelteKitTable(context: ResolutionContext): SvelteKitTable {
-  const all = context.getNodesByKind('route');
-  const cached = tables.get(context);
-  if (cached && cached.source === all) return cached;
-  const byRoot = new Map<string, RouteTable>();
-  const shortened: { root: string; path: string; node: Node }[] = [];
-  const tableAt = (root: string): RouteTable => {
-    let t = byRoot.get(root);
-    if (!t) byRoot.set(root, (t = { source: all, exact: new Map(), dynamic: [] }));
+  const existingRoutes = context.getNodesByKind('route');
+  const cachedInstance = tableCache.get(context);
+  if (cachedInstance && cachedInstance.source === existingRoutes) {
+    return cachedInstance;
+  }
+
+  const routesByAppRoot = new Map<string, RouteTable>();
+  const secondaryRoutes: Array<{ root: string; path: string; node: Node }> = [];
+
+  const getOrCreateTable = (root: string): RouteTable => {
+    let t = routesByAppRoot.get(root);
+    if (!t) {
+      t = { source: existingRoutes, exact: new Map(), dynamic: [] };
+      routesByAppRoot.set(root, t);
+    }
     return t;
   };
-  for (const node of all) {
-    if (!isSvelteKitPage(node)) continue;
-    // `[...rest]` becomes `*rest`, which matches anything — never an answer.
-    if (!node.name.startsWith('/') || node.name.includes('*')) continue;
-    const root = appRootFor(node.filePath);
-    addRouteTo(tableAt(root), node.name, node);
-    // `[[optional]]` is `:x?`: the route serves the path with and without it.
-    let segs = node.name.split('/').slice(1);
-    while (segs.length > 1 && isOptionalParam(segs[segs.length - 1]!)) {
-      segs = segs.slice(0, -1);
-      shortened.push({ root, path: '/' + segs.join('/'), node });
+
+  for (const routeNode of existingRoutes) {
+    if (!isCanonicalSvelteKitPage(routeNode)) continue;
+    if (!routeNode.name.startsWith('/') || routeNode.name.includes('*')) continue;
+
+    const rootDir = appRootFor(routeNode.filePath);
+    const primaryTable = getOrCreateTable(rootDir);
+    addRouteTo(primaryTable, routeNode.name, routeNode);
+
+    let parts = routeNode.name.split('/').slice(1);
+    while (parts.length > 1 && isOptionalRouteSegment(parts[parts.length - 1]!)) {
+      parts = parts.slice(0, -1);
+      secondaryRoutes.push({ root: rootDir, path: `/${parts.join('/')}`, node: routeNode });
     }
   }
-  for (const s of shortened) {
-    const t = byRoot.get(s.root);
-    if (t && !t.exact.has(s.path)) addRouteTo(t, s.path, s.node);
+
+  for (const sec of secondaryRoutes) {
+    const table = routesByAppRoot.get(sec.root);
+    if (table && !table.exact.has(sec.path)) {
+      addRouteTo(table, sec.path, sec.node);
+    }
   }
-  const table: SvelteKitTable = { source: all, byRoot };
-  tables.set(context, table);
-  return table;
+
+  const generatedTable: SvelteKitTable = {
+    source: existingRoutes,
+    byRoot: routesByAppRoot,
+  };
+  tableCache.set(context, generatedTable);
+  return generatedTable;
 }
 
-// =============================================================================
-// Navigation calls
-// =============================================================================
-
-/** `goto('/x')` in the browser; `redirect(303, '/x')` from a load or an action. */
-const NAV_CALL = /^(goto|redirect)$/;
-
-/** Which argument of a navigation call is the destination — `redirect` puts the status first. */
-export function svelteKitHrefArgument(name: string): 0 | 1 | null {
-  if (name === 'goto') return 0;
-  if (name === 'redirect') return 1;
+/**
+ * Identifies the parameter position representing the destination URL for navigation calls.
+ * `goto` takes href at index 0, whereas `redirect` takes status first and href at index 1.
+ */
+export function svelteKitHrefArgument(callName: string): 0 | 1 | null {
+  if (callName === 'goto') return 0;
+  if (callName === 'redirect') return 1;
   return null;
 }
 
-// =============================================================================
-// The resolver
-// =============================================================================
-
 export const svelteKitRouterResolver: FrameworkResolver = {
   name: 'sveltekit-router',
-  languages: [...NAV_LANGUAGES],
+  languages: [...SVELTEKIT_LANGUAGES],
 
   detect(context: ResolutionContext): boolean {
     return dependsOn(context, '@sveltejs/kit');
   },
 
   claimsReference(name: string): boolean {
-    return NAV_CALL.test(name);
+    return NAVIGATION_CALL_PATTERN.test(name);
   },
 
   resolve(ref: UnresolvedRef, context: ResolutionContext): ResolvedRef | null {
-    // `import { redirect } from '@sveltejs/kit'` is not a navigation.
     if (ref.referenceKind !== 'calls') return null;
-    const argIndex = svelteKitHrefArgument(ref.referenceName);
-    if (argIndex === null) return null;
-    if (!NAV_LANGUAGES.includes(ref.language)) return null;
-    const routes = routesForFile(svelteKitTable(context), ref.filePath);
-    if (!routes || routes.exact.size === 0) return null;
-    const lines = context.getFileLines?.(ref.filePath) ?? context.readFile(ref.filePath)?.split(/\r?\n/) ?? null;
-    if (!lines) return null;
 
-    const arg = nthArgumentText(lines, ref.line, ref.column, ref.referenceName, argIndex);
-    if (arg === null) return null;
-    let href = parseHrefExpression(arg);
-    if (!href && argIndex === 0) {
-      const enclosing = context.getNodeById?.(ref.fromNodeId);
-      const start = enclosing && enclosing.filePath === ref.filePath ? enclosing.startLine : Math.max(1, ref.line - 40);
-      href = readHrefViaLocal(lines, ref.line, ref.column, ref.referenceName, start);
+    const targetArgIndex = svelteKitHrefArgument(ref.referenceName);
+    if (targetArgIndex === null) return null;
+    if (!SVELTEKIT_LANGUAGES.includes(ref.language)) return null;
+
+    const scopedRoutes = routesForFile(svelteKitTable(context), ref.filePath);
+    if (!scopedRoutes || scopedRoutes.exact.size === 0) return null;
+
+    const sourceLines = context.getFileLines?.(ref.filePath) ?? context.readFile(ref.filePath)?.split(/\r?\n/) ?? null;
+    if (!sourceLines) return null;
+
+    const rawArgText = nthArgumentText(sourceLines, ref.line, ref.column, ref.referenceName, targetArgIndex);
+    if (rawArgText === null) return null;
+
+    let parsedHref = parseHrefExpression(rawArgText);
+    if (!parsedHref && targetArgIndex === 0) {
+      const parentNode = context.getNodeById?.(ref.fromNodeId);
+      const scanStartLine = parentNode && parentNode.filePath === ref.filePath ? parentNode.startLine : Math.max(1, ref.line - 40);
+      parsedHref = readHrefViaLocal(sourceLines, ref.line, ref.column, ref.referenceName, scanStartLine);
     }
-    if (!href) return null;
-    // Every arm of a conditional destination is somewhere this call goes; the
-    // first is this reference's resolution and the rest ride as `alsoTargets`.
-    const targets = destinationsForHref(href, routes);
-    const target = targets[0];
-    if (!target) return null;
+
+    if (!parsedHref) return null;
+
+    const destinationMatches = destinationsForHref(parsedHref, scopedRoutes);
+    const primaryDestination = destinationMatches[0];
+    if (!primaryDestination) return null;
+
     return {
       original: ref,
-      targetNodeId: target.node.id,
-      ...(targets.length > 1
-        ? { alsoTargets: targets.slice(1).map((t) => ({ targetNodeId: t.node.id, metadata: { href: t.href.display, navMethod: ref.referenceName } })) }
+      targetNodeId: primaryDestination.node.id,
+      ...(destinationMatches.length > 1
+        ? {
+            alsoTargets: destinationMatches.slice(1).map((dest) => ({
+              targetNodeId: dest.node.id,
+              metadata: {
+                href: dest.href.display,
+                navMethod: ref.referenceName,
+              },
+            })),
+          }
         : {}),
       confidence: 0.95,
       resolvedBy: 'framework',
       edgeKind: 'navigates',
-      metadata: { href: target.href.display, navMethod: ref.referenceName },
+      metadata: {
+        href: primaryDestination.href.display,
+        navMethod: ref.referenceName,
+      },
     };
   },
 };

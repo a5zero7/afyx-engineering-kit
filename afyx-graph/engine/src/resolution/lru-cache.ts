@@ -1,62 +1,53 @@
 /**
- * Simple LRU cache backed by JavaScript's insertion-ordered Map.
+ * AFYX Engineering Kit - Bound Least-Recently-Used (LRU) Cache
  *
- * Used by ReferenceResolver to bound the per-resolver caches that
- * previously grew without limit and OOM'd on large codebases (20k+
- * files). Each cache is sized independently — see `index.ts` for
- * the chosen limits per cache type.
- *
- * Eviction is plain LRU: on `set`, if the cache is full, the
- * least-recently-used entry (the first one in iteration order) is
- * evicted. Touching via `get` moves the entry to the most-recently-used
- * position so hot keys survive eviction passes.
+ * Provides a bounded memory cache leveraging Map insertion order semantics
+ * to evict stale entries under high node counts and protect against out-of-memory states.
  */
-export class LRUCache<K, V> {
-  private readonly max: number;
-  private readonly store = new Map<K, V>();
 
-  constructor(max: number) {
-    if (!Number.isFinite(max) || max <= 0) {
-      throw new Error(`LRUCache max must be a positive finite number, got ${max}`);
+export class LRUCache<K, V> {
+  private readonly capacity: number;
+  private readonly storage = new Map<K, V>();
+
+  constructor(maxEntries: number) {
+    if (!Number.isFinite(maxEntries) || maxEntries <= 0) {
+      throw new Error(`LRUCache capacity must be a positive integer, received: ${maxEntries}`);
     }
-    this.max = Math.floor(max);
+    this.capacity = Math.floor(maxEntries);
   }
 
   get size(): number {
-    return this.store.size;
+    return this.storage.size;
   }
 
   get(key: K): V | undefined {
-    const value = this.store.get(key);
-    if (value === undefined) {
-      // Distinguish "missing" from "stored undefined" by checking has().
-      // We don't store undefined in practice, but be defensive.
-      return this.store.has(key) ? value : undefined;
+    if (!this.storage.has(key)) {
+      return undefined;
     }
-    // Refresh recency by re-inserting.
-    this.store.delete(key);
-    this.store.set(key, value);
-    return value;
+    const val = this.storage.get(key) as V;
+    // Move key to the end of iteration order by re-inserting
+    this.storage.delete(key);
+    this.storage.set(key, val);
+    return val;
   }
 
   has(key: K): boolean {
-    return this.store.has(key);
+    return this.storage.has(key);
   }
 
   set(key: K, value: V): void {
-    if (this.store.has(key)) {
-      this.store.delete(key);
-    } else if (this.store.size >= this.max) {
-      // Evict the oldest entry — first key in iteration order.
-      const oldest = this.store.keys().next().value;
-      if (oldest !== undefined) {
-        this.store.delete(oldest);
+    if (this.storage.has(key)) {
+      this.storage.delete(key);
+    } else if (this.storage.size >= this.capacity) {
+      const oldestKey = this.storage.keys().next().value;
+      if (oldestKey !== undefined) {
+        this.storage.delete(oldestKey);
       }
     }
-    this.store.set(key, value);
+    this.storage.set(key, value);
   }
 
   clear(): void {
-    this.store.clear();
+    this.storage.clear();
   }
 }

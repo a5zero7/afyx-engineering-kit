@@ -20,6 +20,7 @@
   ],
   "engineSentinels": [
     "bin/afyx-graph.js",
+    "db/schema.sql",
     "index.js",
     "ui/shimmer-progress.js"
   ],

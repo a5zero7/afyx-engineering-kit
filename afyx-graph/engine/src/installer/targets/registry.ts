@@ -1,10 +1,8 @@
 /**
- * Registry of all known agent targets.
+ * AFYX Graph Engine - Installer Target Registry
  *
- * Adding a new target = create `targets/<id>.ts` exporting an
- * `AgentTarget`, then add it to the array below. Order here is the
- * order they appear in the multiselect prompt, in `--target=all`,
- * and in `--print-config`'s help listing — keep it stable.
+ * Maintains the canonical catalog of supported editor, IDE, and AI agent targets
+ * for configuration and tool installation across developer workspaces.
  */
 
 import { AgentTarget, Location, TargetId } from './types';
@@ -20,6 +18,9 @@ import { copilotVscodeTarget } from './copilot-vscode';
 import { copilotCliTarget } from './copilot-cli';
 import { copilotJetbrainsTarget } from './copilot-jetbrains';
 
+/**
+ * Static registry of supported installation targets in canonical selection order.
+ */
 export const ALL_TARGETS: readonly AgentTarget[] = Object.freeze([
   claudeTarget,
   cursorTarget,
@@ -34,19 +35,18 @@ export const ALL_TARGETS: readonly AgentTarget[] = Object.freeze([
   copilotJetbrainsTarget,
 ]);
 
+/** Lookup a single target definition by unique identifier. */
 export function getTarget(id: string): AgentTarget | undefined {
-  return ALL_TARGETS.find((t) => t.id === id);
+  return ALL_TARGETS.find((target) => target.id === id);
 }
 
+/** Retrieve all registered target identifiers in catalog order. */
 export function listTargetIds(): TargetId[] {
-  return ALL_TARGETS.map((t) => t.id);
+  return ALL_TARGETS.map((target) => target.id);
 }
 
 /**
- * Run `detect()` for every target at the given location. Returns the
- * full registry zipped with detection results — orchestrator uses
- * this to seed the multiselect prompt with installed agents
- * pre-checked.
+ * Execute environment detection across all registered targets for a workspace location.
  */
 export function detectAll(loc: Location): Array<{
   target: AgentTarget;
@@ -59,39 +59,56 @@ export function detectAll(loc: Location): Array<{
 }
 
 /**
- * Resolve a `--target=` flag value to a list of `AgentTarget`
- * instances. Accepts:
- *
- *   - `auto` — return all targets whose `detect().installed` is true,
- *     or `['claude']` as a fallback if none detected (least-surprise
- *     for existing users).
- *   - `all` — every target in the registry.
- *   - `none` — empty list (caller skips agent writes entirely).
- *   - csv list — `'claude,cursor'` etc. Unknown ids throw.
+ * Parse and resolve `--target` CLI parameter strings into validated AgentTarget instances.
+ * Supports special directives ('none', 'all', 'auto') or comma-separated target IDs.
  */
 export function resolveTargetFlag(value: string, loc: Location): AgentTarget[] {
-  if (value === 'none') return [];
-  if (value === 'all') return [...ALL_TARGETS];
-  if (value === 'auto') {
-    const detected = detectAll(loc).filter(({ detection }) => detection.installed);
-    if (detected.length > 0) return detected.map(({ target }) => target);
-    const fallback = getTarget('claude');
-    return fallback ? [fallback] : [];
+  const normalized = value.trim();
+
+  if (normalized === 'none') {
+    return [];
   }
 
-  const ids = value.split(',').map((s) => s.trim()).filter(Boolean);
-  const resolved: AgentTarget[] = [];
-  const unknown: string[] = [];
-  for (const id of ids) {
-    const t = getTarget(id);
-    if (t) resolved.push(t);
-    else unknown.push(id);
+  if (normalized === 'all') {
+    return [...ALL_TARGETS];
   }
-  if (unknown.length > 0) {
-    const known = listTargetIds().join(', ');
+
+  if (normalized === 'auto') {
+    const installed = detectAll(loc)
+      .filter(({ detection }) => detection.installed)
+      .map(({ target }) => target);
+
+    if (installed.length > 0) {
+      return installed;
+    }
+
+    const defaultFallback = getTarget('claude');
+    return defaultFallback ? [defaultFallback] : [];
+  }
+
+  const requestedIds = normalized
+    .split(',')
+    .map((item) => item.trim())
+    .filter(Boolean);
+
+  const matchedTargets: AgentTarget[] = [];
+  const unrecognizedIds: string[] = [];
+
+  for (const id of requestedIds) {
+    const target = getTarget(id);
+    if (target) {
+      matchedTargets.push(target);
+    } else {
+      unrecognizedIds.push(id);
+    }
+  }
+
+  if (unrecognizedIds.length > 0) {
+    const validCatalog = listTargetIds().join(', ');
     throw new Error(
-      `Unknown --target id(s): ${unknown.join(', ')}. Known: ${known}, plus 'auto' / 'all' / 'none'.`,
+      `Unknown --target id(s): ${unrecognizedIds.join(', ')}. Known: ${validCatalog}, plus 'auto' / 'all' / 'none'.`,
     );
   }
-  return resolved;
+
+  return matchedTargets;
 }

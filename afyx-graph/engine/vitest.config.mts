@@ -1,5 +1,6 @@
 import { defineConfig } from 'vitest/config';
 
+const isCI = Boolean(process.env.CI);
 // Fresh Windows runners on Node 24+ are more reliable with a bounded fork pool.
 // Linux and macOS retain Vitest's default worker policy.
 const capWindowsNodeWorkers =
@@ -15,12 +16,12 @@ export default defineConfig({
   test: {
     globals: true,
     environment: 'node',
-    testTimeout: 10_000,
+    testTimeout: isCI ? 30_000 : 10_000,
     // Node 26 on Windows oversubscribes the Git/SQLite-heavy integration suite
     // at Vitest's CPU-derived default. The resulting timeouts and stale daemon
     // observations disappear with bounded concurrency; product behavior and
     // per-test assertions remain unchanged.
-    ...(capWindowsNodeWorkers ? { maxWorkers: 4 } : {}),
+    ...(capWindowsNodeWorkers ? { maxWorkers: isCI ? 2 : 4 } : {}),
     include: ['__tests__/**/*.test.ts'],
     /**
      * Several MCP integration tests (mcp-daemon, mcp-initialize, mcp-ppid-watchdog,

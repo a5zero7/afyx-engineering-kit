@@ -214,9 +214,8 @@ describe('MCP Relationship adapter', () => {
     expect(byId('callers-exact-single').result).toEqual({
       content: [{
         type: 'text',
-        text: '**Callers of focus (2 found)**\n\n'
-          + '- first (function) - src/first.ts\n'
-          + '- shared (function) - src/shared.ts:4 — via callback registration',
+        text: '**Callers of focus (1 found)**\n\n'
+          + '- first (function) - src/first.ts',
       }],
     });
     expect((byId('callees-multiple-definitions').result as { content: Array<{ text: string }> }).content[0]!.text)
@@ -230,13 +229,13 @@ describe('MCP Relationship adapter', () => {
     const labels = (byId('callers-labels-dedup-first-edge').result as { content: Array<{ text: string }> })
       .content[0]!.text;
     expect(labels).toContain('instance (function) - src/instance.ts:1 — via instantiation');
-    expect(labels).toContain('imported (function) - src/imported.ts:1 — via import');
+    expect(labels).not.toContain('imported (function) - src/imported.ts:1');
     expect(labels).toContain('referenced (function) - src/referenced.ts:1 — via reference');
     expect(labels).toContain('custom (function) - src/custom.ts:1 — via custom-edge');
     expect((byId('callers-limit-one').result as { content: Array<{ text: string }> }).content[0]!.text)
       .toContain('Showing 1 of 105 callers; pass `limit` (up to 100) to widen.');
     expect((byId('callees-per-group-limit').result as { content: Array<{ text: string }> }).content[0]!.text)
-      .toContain('… +2 more (pass `limit` to widen)');
+      .toContain('… +1 more (pass `limit` to widen)');
     expect((byId('callers-zero-relations').result as { content: Array<{ text: string }> }).content[0]!.text)
       .toContain('No callers found for "focus"');
     expect((byId('callees-zero-relations').result as { content: Array<{ text: string }> }).content[0]!.text)

@@ -23,7 +23,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
-import { loadProjectAliases, applyAliases } from '../src/resolution/path-aliases';
+import { loadProjectAliases, loadFileAliases, clearFileAliasCache, applyAliases } from '../src/resolution/path-aliases';
 
 function write(file: string, content: unknown): void {
   fs.mkdirSync(path.dirname(file), { recursive: true });
@@ -178,5 +178,39 @@ describe('tsconfig `extends` chains (#1534)', () => {
     write(path.join(root, 'tsconfig.json'), { extends: './tsconfig.base.json' });
 
     expect(loadProjectAliases(root)).toBeNull();
+  });
+
+  it('resolves aliases from nested package tsconfig via loadFileAliases', () => {
+    write(path.join(root, 'package.json'), { workspaces: ['packages/*'] });
+    write(path.join(root, 'packages/core/tsconfig.json'), {
+      compilerOptions: {
+        baseUrl: '.',
+        paths: { '@core/*': ['src/*'] },
+      },
+    });
+
+    clearFileAliasCache();
+    const aliases = loadFileAliases('packages/core/src/index.ts', root);
+    expect(aliases).not.toBeNull();
+    expect(applyAliases('@core/util', aliases!, root)).toEqual(['packages/core/src/util']);
+  });
+
+  it('aggregates project references from root tsconfig', () => {
+    write(path.join(root, 'tsconfig.json'), {
+      files: [],
+      references: [{ path: './packages/core' }, { path: './packages/ui' }],
+    });
+    write(path.join(root, 'packages/core/tsconfig.json'), {
+      compilerOptions: { baseUrl: '.', paths: { '@core/*': ['src/*'] } },
+    });
+    write(path.join(root, 'packages/ui/tsconfig.json'), {
+      compilerOptions: { baseUrl: '.', paths: { '@ui/*': ['components/*'] } },
+    });
+
+    clearFileAliasCache();
+    const rootAliases = loadProjectAliases(root);
+    expect(rootAliases).not.toBeNull();
+    expect(applyAliases('@core/logger', rootAliases!, root)).toEqual(['packages/core/src/logger']);
+    expect(applyAliases('@ui/button', rootAliases!, root)).toEqual(['packages/ui/components/button']);
   });
 });

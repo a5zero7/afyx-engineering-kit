@@ -387,7 +387,20 @@ export class Daemon {
       }
       const tempPath = `${this.pidPath}.${process.pid}.bound`;
       fs.writeFileSync(tempPath, encodeLockInfo(lock), { mode: 0o600 });
-      fs.renameSync(tempPath, this.pidPath);
+      for (let attempt = 0; attempt < 5; attempt++) {
+        try {
+          if (process.platform === 'win32') {
+            try { fs.unlinkSync(this.pidPath); } catch { /* best-effort */ }
+          }
+          fs.renameSync(tempPath, this.pidPath);
+          break;
+        } catch (renameErr) {
+          if (attempt === 4) throw renameErr;
+          const waitMs = 25 * (attempt + 1);
+          const end = Date.now() + waitMs;
+          while (Date.now() < end) { /* busy-wait backoff */ }
+        }
+      }
       return lock;
     } catch (err) {
       try { server.close(); } catch { /* best-effort */ }
@@ -684,7 +697,23 @@ export class Daemon {
       // Only remove the lockfile if it still names us — a rare race where
       // another daemon already took over mid-shutdown must not lose its record.
       const info = decodeLockInfo(fs.readFileSync(this.pidPath, 'utf8'));
-      if (info && info.pid === process.pid) fs.unlinkSync(this.pidPath);
+      if (info && info.pid === process.pid) {
+        for (let attempt = 0; attempt <= (process.platform === 'win32' ? 6 : 0); attempt++) {
+          try {
+            fs.unlinkSync(this.pidPath);
+            break;
+          } catch (err) {
+            const code = (err as NodeJS.ErrnoException).code;
+            if (code === 'ENOENT') break;
+            if (process.platform === 'win32' && (code === 'EPERM' || code === 'EBUSY') && attempt < 6) {
+              const deadline = Date.now() + 25;
+              while (Date.now() < deadline) { /* Windows handle release grace */ }
+              continue;
+            }
+            break;
+          }
+        }
+      }
     } catch { /* best-effort; the process is exiting regardless */ }
   }
 }

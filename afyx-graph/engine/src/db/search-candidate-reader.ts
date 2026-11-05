@@ -71,20 +71,20 @@ export class SearchCandidateReader {
   all(filters: CandidateFilters, limit: number): SearchResult[] {
     const filter = filterClause(filters);
     const sql = `SELECT ${selectNodes()} FROM nodes WHERE 1=1${filter.sql} ORDER BY name LIMIT ?`;
-    const rows = this.session.db.prepare(sql).all(...filter.params, limit) as NodeRow[];
+    const rows = this.session.statement(sql).all(...filter.params, limit) as NodeRow[];
     return decodeNodes(rows).map((node) => ({ node, score: 1 }));
   }
 
   exactTerm(term: string, filters: CandidateFilters, limit: number): Node[] {
     const filter = filterClause(filters);
     const sql = `SELECT ${selectNodes()} FROM nodes WHERE lower(name) = lower(?)${filter.sql} LIMIT ?`;
-    return decodeNodes(this.session.db.prepare(sql).all(term, ...filter.params, limit) as NodeRow[]);
+    return decodeNodes(this.session.statement(sql).all(term, ...filter.params, limit) as NodeRow[]);
   }
 
   exactSpelling(name: string, filters: CandidateFilters, limit: number): Node[] {
     const filter = filterClause(filters);
     const sql = `SELECT ${selectNodes()} FROM nodes WHERE name = ?${filter.sql} LIMIT ?`;
-    return decodeNodes(this.session.db.prepare(sql).all(name, ...filter.params, limit) as NodeRow[]);
+    return decodeNodes(this.session.statement(sql).all(name, ...filter.params, limit) as NodeRow[]);
   }
 
   prefixText(query: string, filters: CandidateFilters, limit: number, offset: number): SearchResult[] {
@@ -107,7 +107,7 @@ export class SearchCandidateReader {
     ORDER BY score
        LIMIT ? OFFSET ?`;
     try {
-      const rows = this.session.db.prepare(sql).all(expression, ...filter.params, limit, offset) as ScoredNodeRow[];
+      const rows = this.session.statement(sql).all(expression, ...filter.params, limit, offset) as ScoredNodeRow[];
       return decodeScored(rows, (row) => Math.abs(row.score));
     } catch {
       return [];
@@ -132,14 +132,14 @@ export class SearchCandidateReader {
     ORDER BY score DESC, length(name) ASC
        LIMIT ? OFFSET ?`;
     const params = [query, startsWith, contains, contains, contains, contains, startsWith, ...filter.params, limit, offset];
-    const rows = this.session.db.prepare(sql).all(...params) as ScoredNodeRow[];
+    const rows = this.session.statement(sql).all(...params) as ScoredNodeRow[];
     return decodeScored(rows, (row) => row.score);
   }
 
   filesForExactName(name: string, kinds: readonly NodeKind[] | undefined, limit: number): string[] {
     const filter = filterClause({ kinds });
     const sql = `SELECT DISTINCT file_path FROM nodes WHERE lower(name) = lower(?)${filter.sql} LIMIT ?`;
-    const rows = this.session.db.prepare(sql).all(name, ...filter.params, limit) as Array<{ file_path: string }>;
+    const rows = this.session.statement(sql).all(name, ...filter.params, limit) as Array<{ file_path: string }>;
     return rows.map((row) => row.file_path);
   }
 
@@ -158,7 +158,7 @@ export class SearchCandidateReader {
     const params: Array<string | number> = [`%${substring}%`];
     if (filters.excludePrefix) params.push(`${substring}%`);
     params.push(...filter.params, limit);
-    const rows = this.session.db.prepare(sql).all(...params) as ScoredNodeRow[];
+    const rows = this.session.statement(sql).all(...params) as ScoredNodeRow[];
     return decodeScored(rows, (row) => row.score);
   }
 }
