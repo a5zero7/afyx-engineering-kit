@@ -17,6 +17,7 @@ export default defineConfig({
     globals: true,
     environment: 'node',
     testTimeout: isCI ? 30_000 : 10_000,
+    hookTimeout: isCI ? 30_000 : 10_000,
     // Node 26 on Windows oversubscribes the Git/SQLite-heavy integration suite
     // at Vitest's CPU-derived default. The resulting timeouts and stale daemon
     // observations disappear with bounded concurrency; product behavior and
