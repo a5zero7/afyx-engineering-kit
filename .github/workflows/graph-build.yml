@@ -45,11 +45,11 @@ jobs:
         run: python scripts/validate-afyx-graph.py
       - name: Operational independence audit
         run: python scripts/audit-legacy-identity.py
-      - name: Verify reviewed native source ownership
-        run: node scripts/verify-native-source-ownership.mjs
       - name: Install locked dependencies
         working-directory: afyx-graph/engine
         run: npm ci
+      - name: Verify reviewed native source ownership
+        run: node scripts/verify-native-source-ownership.mjs
       - name: Clean build (no stale dist artifacts)
         working-directory: afyx-graph/engine
         run: npm run build:clean
@@ -102,11 +102,11 @@ jobs:
         run: python scripts/validate-afyx-graph.py
       - name: Operational independence audit
         run: python scripts/audit-legacy-identity.py
-      - name: Verify reviewed native source ownership
-        run: node scripts/verify-native-source-ownership.mjs
       - name: Install locked dependencies
         working-directory: afyx-graph/engine
         run: npm ci
+      - name: Verify reviewed native source ownership
+        run: node scripts/verify-native-source-ownership.mjs
       - name: Clean build (no stale dist artifacts)
         working-directory: afyx-graph/engine
         run: npm run build:clean
@@ -151,11 +151,11 @@ jobs:
         run: python3 scripts/validate-afyx-graph.py
       - name: Operational independence audit
         run: python3 scripts/audit-legacy-identity.py
-      - name: Verify reviewed native source ownership
-        run: node scripts/verify-native-source-ownership.mjs
       - name: Install locked dependencies
         working-directory: afyx-graph/engine
         run: npm ci
+      - name: Verify reviewed native source ownership
+        run: node scripts/verify-native-source-ownership.mjs
       - name: Clean build (no stale dist artifacts)
         working-directory: afyx-graph/engine
         run: npm run build:clean

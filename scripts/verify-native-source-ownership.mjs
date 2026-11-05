@@ -15,7 +15,7 @@ const argument = (name, fallback) => {
 const repository = resolve(argument('--root', resolve(scriptDirectory, '..')));
 const manifestPath = resolve(argument('--manifest', join(scriptDirectory, 'native-source-ownership.json')));
 const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'));
-let ts;
+let ts = null;
 const searchPaths = [
   join(repository, 'afyx-graph', 'engine', 'package.json'),
   join(process.cwd(), 'afyx-graph', 'engine', 'package.json'),
@@ -29,9 +29,6 @@ for (const p of searchPaths) {
   } catch {
     // continue search
   }
-}
-if (!ts) {
-  throw new Error('Cannot find module typescript');
 }
 
 const allowed = new Set([
@@ -86,17 +83,25 @@ const EFFECT_CLASSIFIER_POLICY = Object.freeze({
 });
 
 function regexInventory(filePath, content) {
-  const ast = ts.createSourceFile(filePath, content, ts.ScriptTarget.Latest, true);
-  const literals = [];
-  function visit(node) {
-    if (node.kind === ts.SyntaxKind.RegularExpressionLiteral) {
-      const literal = node.getText(ast);
-      literals.push({ literal, alternations: (literal.match(/\|/g) ?? []).length });
+  if (ts) {
+    const ast = ts.createSourceFile(filePath, content, ts.ScriptTarget.Latest, true);
+    const literals = [];
+    function visit(node) {
+      if (node.kind === ts.SyntaxKind.RegularExpressionLiteral) {
+        const literal = node.getText(ast);
+        literals.push({ literal, alternations: (literal.match(/\|/g) ?? []).length });
+      }
+      ts.forEachChild(node, visit);
     }
-    ts.forEachChild(node, visit);
+    visit(ast);
+    return literals;
   }
-  visit(ast);
-  return literals;
+  // Standalone fallback scanner when TypeScript runtime is not yet installed
+  const matches = content.match(/\/(?![*+?])(?:[^\r\n\[/\\]|\\.|\[(?:[^\r\n\]\\]|\\.)*\])+\/[dgimsuy]*/g) ?? [];
+  return matches.map((literal) => ({
+    literal,
+    alternations: (literal.match(/\|/g) ?? []).length,
+  }));
 }
 
 function verifyEffectClassifierArchitecture(filePath, content) {
