@@ -143,7 +143,7 @@ healthy_runtime() {
   local root="$1" metadata="$1/metadata.json" manifest="$1/integrity.sha256" identity="$1/current/identity.json"
   local expected relative actual field line
   owned_runtime "$root" || return 1
-  [[ -f "$root/current/bin/afyx-forge.js" && -f "$root/current/bin/afyx-forge" ]] || return 1
+  [[ -f "$root/current/bin/afyx-forge.js" && -f "$root/current/bin/afyx-forge" && -f "$root/current/LICENSE" ]] || return 1
   [[ -f "$root/bin/afyx-forge" && -f "$identity" && -f "$manifest" ]] || return 1
   for field in product_name product_version source_revision ownership_class build_provenance release_channel runtime_mode governance_state; do
     [[ "$(json_value "$metadata" "$field")" == "$(json_value "$identity" "$field")" ]] || return 1

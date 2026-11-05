@@ -102,7 +102,8 @@ function Test-HealthyRuntime([string]$Root) {
         $launcherJs = Join-Path $Root 'current\bin\afyx-forge.js'
         $publicLauncherCmd = Join-Path $Root 'bin\afyx-forge.cmd'
         $packageJson = Join-Path $Root 'current\package.json'
-        foreach ($required in @($metadataPath, $identityPath, $integrityPath, $launcherCmd, $launcherJs, $publicLauncherCmd, $packageJson)) {
+        $licenseFile = Join-Path $Root 'current\LICENSE'
+        foreach ($required in @($metadataPath, $identityPath, $integrityPath, $launcherCmd, $launcherJs, $publicLauncherCmd, $packageJson, $licenseFile)) {
             if (-not (Test-Path -LiteralPath $required -PathType Leaf)) { return $false }
         }
         $metadata = Get-Content -Raw -LiteralPath $metadataPath -Encoding utf8 | ConvertFrom-Json -ErrorAction Stop
