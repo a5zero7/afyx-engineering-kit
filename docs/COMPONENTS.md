@@ -7,18 +7,27 @@ or the current implementation.
 
 **Contract and implementation boundary:** the owner-approved [AfyxUniversalInterop/v1](AFYX_UNIVERSAL_COMPONENT_INTEROPERABILITY.md) defines **default-enabled discovery/integration for all installed Afyx-owned registry components**, including future components and passive, permission-gated Usage Tracking; tasks invoke only relevant capabilities. The six primary products remain the initial functional baseline, not a fixed allow-list. The AFYX-307/308/309 runtime implements deterministic discovery, selection, bounded adapter execution, real host adapters, and request/result contracts in `scripts/afyx-capability-orchestrator.mjs` and `scripts/afyx-host-adapters.mjs`. The installed component must still work alone; simple source edits invoke no unnecessary Afyx runtime.
 
-## At a glance
+## Six independent Afyx products
 
-| Component | Form | Standalone | Kit preset / selection | Primary dependency |
-|---|---|---:|---|---|
-| Afyx Graph | Local runtime, CLI, MCP | Yes | Full; or explicit component | Node.js 22.5+ |
-| Afyx Engineering Expert | Agent Skill | Yes | Recommended and Full | Compatible skill host |
-| Afyx Forge | Evaluation foundation | Yes, for prepared validators/fixtures | Not installed by Kit | Python; approved runtime only for gated campaigns |
-| Afyx Context Engine | Local runtime, CLI/API | Yes | Explicit Custom/component only | Node.js 22.5+ |
-| Efficient Coding | Agent Skill | Yes | Minimal, Recommended, Full | Compatible skill host |
-| Odoo Engineering | Agent Skill | Yes | Minimal, Recommended, Full | Exact target-version evidence |
-| Kit lifecycle | PowerShell/Bash scripts | N/A | Repository entrypoint | Git and host shell |
-| Usage Tracking | Windows toolset | Yes | Full on Windows; explicit option | Codex hook/event files |
+All six products are first-class parts of Afyx Engineering Kit. "Core" and
+"optional" in the [component registry](../scripts/components.json) describe
+**installation presets**, not a hierarchy of product importance.
+
+| Product | Standalone interface | Kit selection | Current boundary |
+|---|---|---|---|
+| [**Afyx Graph**](../afyx-graph/engine/README.md) | Node.js CLI, optional MCP and local viewer | `full` or explicit component | Technical Alpha; static code intelligence |
+| [**Afyx Forge**](../afyx-forge/README.md) | Node.js CLI/API with bounded policy and plans | Explicit component on Windows; dedicated standalone installer | Forge Core v0.1.0, Technical Alpha; A8 campaign pending |
+| [**Afyx Efficient Coding**](tool-guides/AFYX_EFFICIENT_CODING.md) | Agent instruction skill | `minimal`, `recommended`, `full` | v1.2.1; source-backed implementation workflow |
+| [**Afyx Odoo Engineering**](tool-guides/AFYX_ODOO_ENGINEERING.md) | Version-aware agent skill | `minimal`, `recommended`, `full` | v1.2.0; references for Odoo 10–20 |
+| [**Afyx Context Engine (ACE)**](../afyx-context/README.md) | Node.js CLI/API | Explicit component only | v0.1.0, Technical Alpha; original-content recovery |
+| [**Afyx Engineering Expert**](../skills/afyx-engineering-expert/README.md) | Cross-disciplinary agent skill | `recommended`, `full` | v0.1.1; final D.6 acceptance pending |
+
+### Shared infrastructure and optional tooling
+
+| Capability | Role | Availability |
+|---|---|---|
+| Kit lifecycle and capability router | Install, update, verify, doctor, discovery, and task-scoped routing; **not a seventh engineering product** | Cross-platform entrypoints; host support varies |
+| [Afyx Codex Usage Tracking](CODEX_USAGE_TRACKER.md) | Optional observability utility; **not a seventh primary engineering product** | Windows; selected by `full` or explicit option |
 
 ## Afyx Graph
 
@@ -145,43 +154,47 @@ Troubleshooting: remove duplicate same-named skill copies across user/project
 scope, reopen the host session, and verify the installed `SKILL.md` metadata.
 See the [Expert README](../skills/afyx-engineering-expert/README.md).
 
-## Afyx Forge
+## Afyx Forge Core
 
-### Current implemented scope
+### Implemented Technical Alpha runtime
 
-Forge is the evaluation and assurance foundation under `evals/forge/`. The source
-tree includes:
-
-- versioned manifests and candidate composition;
-- public deterministic engineering fixtures;
-- pristine-fixture and campaign-readiness validation;
-- a controller library with evidence binding/finalization contracts;
-- Windows/WSL/container isolation prototypes and regression tests;
-- synthetic-image preparation with pinned policy and dependency evidence.
-
-Safe source-level validation that does not run a model:
+Afyx Forge Core `0.1.0` is an independent, **assistive guidance** runtime in
+`afyx-forge/` (`@afyx/forge-core`). The `afyx-forge` CLI and Node.js API
+classify engineering tasks, select proportional policies, recommend source/Graph/
+domain guidance, and produce investigation, validation, and completion plans.
+It does **not** autonomously edit code, dispatch arbitrary agents, run a
+benchmark model, or certify that a proposed task has been executed.
 
 ```bash
-python evals/forge/validate.py --check-fixtures
-python evals/forge/validate.py --print-order-digest
-python evals/forge/validate.py --campaign-ready
+afyx-forge --version
+afyx-forge doctor
+afyx-forge plan --task "Investigate cross-module authorization failure" --format markdown
 ```
 
-The last command is expected to fail closed while mandatory campaign blockers
-remain. Do not interpret fixture validation as an authorized evaluator campaign.
+`skills/afyx-forge/SKILL.md` is an optional, on-demand provider companion.
+When ACE is installed and healthy, Forge planning may mark it available by
+default; explicit `AFYX_CONTEXT_OPT_IN=0` disables this. Availability or
+routing is **not** evidence that ACE ran or that Graph MCP output was intercepted.
+Graph remains an optional source of structural evidence.
 
-### Maturity and limitations
+Forge Core is registered as `afyx-forge` in `scripts/components.json` but
+is **not included in implicit presets**. On Windows it can be selected with
+`-Preset custom -CustomComponent afyx-forge`; standalone installers exist for
+Windows and Unix. Do not assume the current Kit-level Unix preset orchestration
+installs Forge automatically.
 
-Forge is **not** an installed Kit runtime and is not part of normal onboarding.
-Its candidate matrix/public contract are prepared, while owner-approved runtime,
-isolation, provider/model, budget, and private/evaluator boundaries remain gated.
-The canonical manifest reports the campaign as blocked and prepared executable
-paths as not run. Native production acceptance and a fully executed comparative
-campaign are therefore not claimed.
+### Formal Forge evaluation remains gated
 
-Start with the [Forge A0–A3 contract](AFYX_FORGE_A0_A3_CONTRACT.md) and
-[T09 readiness](AFYX_FORGE_T09_P0_READINESS.md). Campaign execution requires a
-separate explicit authorization and exact environment identity.
+Separate from the Alpha guidance runtime, `evals/forge/` maintains B0–B5
+candidates, deterministic fixtures, validation tools, controller and isolated
+evaluation preparations. The authorized **36-cell** campaign is still
+`0/36 NOT_RUN`; A8 has **no GO**. Do not equate native CLI availability,
+synthetic validation, or healthy CI with final Forge A8/A12 acceptance.
+
+See [Forge Core README](../afyx-forge/README.md),
+[Alpha product guide](AFYX_FORGE_CORE_ALPHA.md),
+[A0–A3 contract](AFYX_FORGE_A0_A3_CONTRACT.md), and
+[T09 readiness](AFYX_FORGE_T09_P0_READINESS.md).
 
 ## Afyx Context Engine
 
@@ -216,7 +229,10 @@ Full and must be selected explicitly:
 
 The `ace.integration/v1` optional-consumer contract and
 `graph.ace.consumer/v1` bridge retain the complete Graph result as authoritative
-fallback. Graph integration is default OFF and is not enabled by installation.
+fallback. Automatic Graph MCP interception remains default OFF and is not enabled by installation.
+On-demand ACE discovery/guidance for a healthy, selected component may be enabled
+without automatically reducing any output; explicit user/provider OFF settings
+always override availability.
 
 ### Limitations and troubleshooting
 
@@ -239,7 +255,8 @@ expands validation according to risk.
 It is a core skill in every implicit preset and has no runtime dependency. Invoke
 it for coding, debugging, refactoring, or code investigation—not general chat or
 prompt-writing tasks. Validation still depends on the target repository's actual
-toolchain. See [`skills/efficient-coding/SKILL.md`](../skills/efficient-coding/SKILL.md).
+toolchain. See the [Efficient Coding Guide](tool-guides/AFYX_EFFICIENT_CODING.md) and
+its authoritative [`SKILL.md`](../skills/efficient-coding/SKILL.md).
 
 ## Odoo Engineering
 
@@ -251,7 +268,8 @@ loads only that reference (or source plus target for migration work).
 It is a core skill in every implicit preset. “Stable references” does not mean
 every project customization is known: inspect inheritance, enterprise/community
 edition, installed modules, ACL/rules, runtime registry, and database behavior
-when material. See [`skills/odoo-engineering/SKILL.md`](../skills/odoo-engineering/SKILL.md).
+when material. See the [Odoo Engineering Guide](tool-guides/AFYX_ODOO_ENGINEERING.md) and
+its authoritative [`SKILL.md`](../skills/odoo-engineering/SKILL.md).
 
 ## Kit installer, updater, verifier, and doctor
 

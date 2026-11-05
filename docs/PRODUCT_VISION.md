@@ -9,6 +9,7 @@ engineer build a defensible path from repository evidence to a scoped change and
 then to an acceptance result. It is not defined by one model, provider, editor,
 prompt format, or optimization technique.
 
+
 The product philosophy is:
 
 > **Individually Reliable. Collectively Solid.**
@@ -28,6 +29,21 @@ clear.
 Component coupling is explicit, versioned, optional where promised, and tested
 at the boundary. Failure returns an authoritative fallback or fails closed; it
 does not silently invent success.
+
+## Six first-class products
+
+The independently usable products are [Afyx Graph](../afyx-graph/engine/README.md),
+[Afyx Forge](../afyx-forge/README.md),
+[Afyx Efficient Coding](tool-guides/AFYX_EFFICIENT_CODING.md),
+[Afyx Odoo Engineering](tool-guides/AFYX_ODOO_ENGINEERING.md),
+[Afyx Context Engine](../afyx-context/README.md), and
+[Afyx Engineering Expert](../skills/afyx-engineering-expert/README.md).
+Their roles differ, but none is demoted from product status by its installer
+preset or its implementation as an agent skill.
+
+The Kit installer, verifier, doctor, and capability router are shared platform
+infrastructure. Optional Windows Codex Usage Tracking is an additional
+observability utility. Neither changes the six-product portfolio.
 
 ## Problems Afyx addresses
 
@@ -52,8 +68,11 @@ transactional lifecycle.
 |---|---|---|
 | Find the right code with fewer unrelated reads | Graph query, explore, node, files, inventory, callers/callees | Static index coverage and freshness; direct source remains authoritative |
 | Understand likely blast radius | Graph impact and affected-test traversal | Structural relationships only; runtime/dynamic paths still require tests |
-| Coordinate a complete engineering decision | Engineering Expert routing across 13 disciplines and six workflows | Instruction quality and task evidence; final D.6 acceptance is not claimed |
-| Compare engineering candidates consistently | Forge manifests, public fixtures, validators, controller and isolation work | Preparation exists; full authorized campaign/native acceptance remains incomplete |
+| Coordinate a complete engineering decision | Afyx Engineering Expert routing across 13 disciplines and six workflows | Instruction quality and task evidence; final D.6 acceptance is not claimed |
+| Guide focused, evidence-based code changes | Afyx Efficient Coding: ground, locate, reproduce, change, validate, report | Instruction workflow; tests and edits must actually run to count as evidence |
+| Apply verified Odoo-version conventions | Afyx Odoo Engineering with version-specific references for Odoo 10–20 | Actual source, runtime, edition, and database behavior take precedence |
+| Plan engineering work proportionally | Forge Core v0.1.0 CLI/API, task classification, adaptive policy and bounded guidance | Technical Alpha assistive planning; no autonomous execution or acceptance implied |
+| Compare engineering candidates consistently | Separate Forge B0–B5 manifests, fixtures, validators, controller and isolation work | Formal 36-cell campaign remains `NOT_RUN`; A8 has no GO |
 | Reduce repeated context without losing originals | ACE conservative reduction and digest-verified retrieval | Local state, explicit ownership/session, measured workload; savings are not universal |
 | Install and recover without taking over user assets | Shared component contract, ownership markers, staging, backup, rollback | Supported lifecycle paths and platform CI; external/user configuration is preserved |
 
@@ -100,8 +119,9 @@ billing savings. Negative-net findings are retained rather than hidden.
 | Graph → MCP clients | MCP server `afyx_graph`, tools named `afyx_graph_*` |
 | Graph → ACE | `graph.ace.consumer/v1`, explicit enablement, default OFF |
 | ACE → optional consumers | `ace.integration/v1`, original-content fallback |
-| Expert → supporting skills | Composition guidance; Graph remains optional and Odoo Engineering owns release-specific Odoo facts |
-| Forge → candidate/evidence | Versioned manifests, immutable identities, fail-closed readiness and evidence receipts |
+| Engineering Expert → Efficient Coding and Odoo Engineering | Optional skill composition; Graph remains optional and Odoo Engineering owns release-specific Odoo facts |
+| Forge Core → engineering task | `afyx-forge-plan/v1`, assistive policy/plan; `doctor` inspects environment without changing source |
+| Forge evaluation → candidate/evidence | Versioned B0–B5 manifests, immutable identities, fail-closed readiness and evidence receipts |
 
 ## Current maturity and claim boundaries
 
@@ -109,10 +129,11 @@ billing savings. Negative-net findings are retained rather than hidden.
 |---|---|---|
 | Kit lifecycle | Implemented and regression-tested across supported scripts | No guarantee for an unverified foreign target or every host customization |
 | Afyx Graph 1.0.0 | Technical Alpha runtime | Not Stable v1; publisher authenticity is not implied by checksum alone |
-| Engineering Expert 0.1.1 | Usable instruction skill | No framework certification, SME sign-off, or final D.6 acceptance claim |
-| Forge | Engineering/evaluation foundation | Not a fully accepted native production evaluator; campaign remains gated |
+| Afyx Engineering Expert 0.1.1 | Usable instruction skill | No framework certification, SME sign-off, or final D.6 acceptance claim |
+| Forge Core 0.1.0 / formal Forge campaign | Standalone assistive planning runtime is available; formal B0–B5 campaign remains gated | No autonomous engineering execution, A8 GO, 36-cell benchmark PASS, or A12 acceptance |
 | ACE 0.1.0 | Standalone and Kit-managed explicit option | No universal token/context saving; no distributed coordination or production authentication |
-| Odoo Engineering 1.2.0 | Stable reference coverage for Odoo 10–20 | No substitute for exact repository/runtime version evidence |
+| Afyx Efficient Coding 1.2.1 | Independent coding-process instruction skill | No autonomous tool execution or assumed test PASS |
+| Afyx Odoo Engineering 1.2.0 | Version-scoped reference coverage for Odoo 10–20 | No substitute for exact repository/runtime version evidence |
 | Usage Tracking | Optional Windows toolset | API-equivalent estimates are not invoices or provider-authoritative billing |
 
 No formal Alpha promotion, Stable v1 release, or universal provider support is
@@ -131,6 +152,14 @@ A maintained Afyx change should answer:
 
 The desired result is not the largest validation campaign. It is the smallest
 set of evidence that makes the product decision safe and honest.
+
+## Verified CI boundary (2026-11-05)
+
+At `dev` commit `e332230a2c0ba162b447af1359cf591057ce26b6`, the
+Windows Vitest setup/teardown timeout fix was merged and post-merge Graph,
+Kit CI, Windows installer and representative Phase 8 dogfood workflows passed.
+This verifies the declared automated CI boundary; it does not substitute for
+formal Forge evaluation, independent installed-product acceptance, or Stable v1.
 
 ## Direction
 

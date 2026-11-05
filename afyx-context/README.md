@@ -1,5 +1,7 @@
 # Afyx Context Engine
 
+**Standalone local context optimization — Technical Alpha v0.1.0.**
+
 Afyx Context Engine (ACE) is an Afyx-owned, standalone Node.js component for
 conservative context reduction with byte-exact original recovery. It does not
 require Afyx Graph, Forge, Engineering Expert, an external proxy, or the Kit installer.
@@ -73,6 +75,20 @@ npm run build:clean
 npm test
 npm run test:benchmark
 ```
+
+## Installation and activation status
+
+ACE is an explicit, optional Kit component (`afyx-context`), absent from
+`minimal`, `recommended` and `full`. The runtime can operate completely alone,
+and a supported provider may discover its on-demand companion skill after an
+explicit installation. A healthy installed component being eligible for a task
+is **not** the same as ACE executing or reducing output.
+
+Explicit `AFYX_CONTEXT_OPT_IN=0` and user/provider OFF settings must be honored.
+Automatic Graph MCP interception is still a separate, default-OFF path; no
+universal net-token or cost savings are claimed. See the
+[Kit Component Guide](../docs/COMPONENTS.md#afyx-context-engine) and
+[installation guide](../docs/INSTALLATION.md#ace-standalone-versus-kit-managed).
 
 ## Optional integration
 
