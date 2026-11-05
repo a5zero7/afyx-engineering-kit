@@ -7,7 +7,7 @@ import { AfyxGraph } from '../src';
 let root: string;
 let cg: AfyxGraph | undefined;
 beforeEach(() => { root = fs.mkdtempSync(path.join(os.tmpdir(), 'cg-awaited-')); });
-afterEach(() => { cg?.close(); cg = undefined; fs.rmSync(root, { recursive: true, force: true }); });
+afterEach(() => { cg?.close(); cg = undefined; fs.rmSync(root, { recursive: true, force: true, maxRetries: 10, retryDelay: 50 }); });
 async function index(files: Record<string, string>) {
   for (const [name, text] of Object.entries(files)) fs.writeFileSync(path.join(root, name), text);
   cg = await AfyxGraph.init(root, { index: true });

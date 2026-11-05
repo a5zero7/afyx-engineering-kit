@@ -113,7 +113,7 @@ describe('MCP initialize handshake (issue #172)', () => {
       await closed;
     }
     child = null;
-    fs.rmSync(tempDir, { recursive: true, force: true });
+    fs.rmSync(tempDir, { recursive: true, force: true, maxRetries: 10, retryDelay: 50 });
   });
 
   it('responds to initialize quickly when no .afyx-graph exists in cwd', async () => {

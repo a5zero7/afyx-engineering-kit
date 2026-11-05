@@ -197,7 +197,7 @@ describe('Shared MCP daemon (issue #411)', () => {
     }
     await new Promise((r) => setTimeout(r, 50));
     servers.length = 0;
-    fs.rmSync(tempDir, { recursive: true, force: true });
+    fs.rmSync(tempDir, { recursive: true, force: true, maxRetries: 10, retryDelay: 50 });
   });
 
   it('takes over after SIGKILL even when the stale PID has been reused (#1553)', async () => {
