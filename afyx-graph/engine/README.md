@@ -1,7 +1,16 @@
-# Afyx Graph engine
+# Afyx Graph Engine
 
-This directory contains the Afyx Graph engine. Build and test it from this
-directory with `npm ci`, `npm run build:clean`, and `npm test`.
+**Local repository intelligence — Technical Alpha source.**
+
+This directory contains the standalone Afyx Graph engine. It indexes supported
+source structures and relationships, provides symbol discovery, exploration,
+impact/affected-test analysis, freshness and coverage reporting, CLI/MCP
+interfaces, and a bundled local viewer. Its evidence remains structural and
+bounded by indexed content, language routes and index freshness.
+
+Build and test from this directory with `npm ci`, `npm run build:clean`, and
+`npm test`. The package metadata version `1.0.0` is **not** a Stable v1 release
+claim; rely on the repository release gate and artifact identity instead.
 
 For public capability, lifecycle, command, limitation, and troubleshooting
 guidance, see the repository [Component Guide](../../docs/COMPONENTS.md#afyx-graph)
@@ -51,6 +60,19 @@ archives do not bundle Node or a `node_modules` dependency tree.
 `INVALID`, `UNKNOWN`) from `freshness.json` in the effective state, which the engine
 rewrites after every successful index or sync. Afyx Graph makes no outbound network
 requests and collects no telemetry.
+
+## Latest verified CI checkpoint
+
+The 2026-11-05 `dev` merge
+[`e332230`](https://github.com/a5zero7/afyx-engineering-kit/commit/e332230a2c0ba162b447af1359cf591057ce26b6)
+resolved a Windows Vitest `beforeEach` hook timeout in the Git/SQLite-heavy
+`sync.test.ts` fixture. The hook now has an explicit 30-second budget and
+Windows temporary-directory removal retries; the global CI `hookTimeout`
+permits 30 seconds while local default remains 10 seconds. This preserves the
+tests rather than skipping them. The [post-merge Graph Build](https://github.com/a5zero7/afyx-engineering-kit/actions/runs/41988333699)
+passed Windows, Linux, and macOS; its report includes 5,836 unit tests and
+21/21 CLI/MCP smoke checks. This is CI evidence for this commit, **not**
+representative installed-host acceptance or a Stable v1 certification.
 
 ## File catalog coverage
 
