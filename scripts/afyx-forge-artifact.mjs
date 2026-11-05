@@ -83,13 +83,26 @@ if (!args["source-root"] || !args["stage-dir"]) {
 
 const manifestPath = path.join(sourceRoot, "afyx-forge.json");
 const packagePath = path.join(sourceRoot, "package.json");
-if (!fs.existsSync(manifestPath) || !fs.existsSync(packagePath)) {
-  console.error(`Missing Afyx Forge source manifests in ${sourceRoot}`);
+const licensePath = path.join(sourceRoot, "LICENSE");
+if (!fs.existsSync(manifestPath) || !fs.existsSync(packagePath) || !fs.existsSync(licensePath)) {
+  console.error(`Missing Afyx Forge source manifests or LICENSE in ${sourceRoot}`);
   process.exit(2);
 }
 
 const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
 const pkg = JSON.parse(fs.readFileSync(packagePath, "utf8"));
+
+const licenseText = fs.readFileSync(licensePath, "utf8");
+if (
+  pkg.license !== "Apache-2.0" ||
+  sha256File(licensePath) !== "2b6d9feeccd4b2fe06c3530972b136d0448b3be163b62fc7bf22355419fdd881" ||
+  !licenseText.includes("Apache License") ||
+  !licenseText.includes("Version 2.0, January 2004") ||
+  !licenseText.includes("END OF TERMS AND CONDITIONS")
+) {
+  console.error("Afyx Forge package must include the complete Apache-2.0 license.");
+  process.exit(2);
+}
 
 if (manifest.product_name !== "Afyx Forge Core" || manifest.product_version !== pkg.version) {
   console.error("Afyx Forge manifest and package.json version/identity mismatch.");
@@ -112,6 +125,7 @@ fs.mkdirSync(binDir, { recursive: true });
 
 fs.copyFileSync(packagePath, path.join(currentDir, "package.json"));
 fs.copyFileSync(manifestPath, path.join(currentDir, "afyx-forge.json"));
+fs.copyFileSync(licensePath, path.join(currentDir, "LICENSE"));
 copyTree(path.join(sourceRoot, "contracts"), path.join(currentDir, "contracts"));
 copyTree(path.join(sourceRoot, "src"), path.join(currentDir, "src"));
 copyTree(path.join(sourceRoot, "bin"), path.join(currentDir, "bin"));
