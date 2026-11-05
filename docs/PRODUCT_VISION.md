@@ -10,22 +10,6 @@ then to an acceptance result. It is not defined by one model, provider, editor,
 prompt format, or optimization technique.
 
 
-### Six first-class products
-
-The independently usable products are [Afyx Graph](../afyx-graph/engine/README.md),
-[Afyx Forge](../afyx-forge/README.md),
-[Afyx Efficient Coding](tool-guides/AFYX_EFFICIENT_CODING.md),
-[Afyx Odoo Engineering](tool-guides/AFYX_ODOO_ENGINEERING.md),
-[Afyx Context Engine](../afyx-context/README.md), and
-[Afyx Engineering Expert](../skills/afyx-engineering-expert/README.md).
-Their roles differ, but none is demoted from product status by its installer
-preset or its implementation as an agent skill.
-
-The Kit installer, verifier, doctor, and capability router are shared platform
-infrastructure. Optional Windows Codex Usage Tracking is an additional
-observability utility. Neither changes the six-product portfolio.
-
-
 The product philosophy is:
 
 > **Individually Reliable. Collectively Solid.**
@@ -45,6 +29,21 @@ clear.
 Component coupling is explicit, versioned, optional where promised, and tested
 at the boundary. Failure returns an authoritative fallback or fails closed; it
 does not silently invent success.
+
+## Six first-class products
+
+The independently usable products are [Afyx Graph](../afyx-graph/engine/README.md),
+[Afyx Forge](../afyx-forge/README.md),
+[Afyx Efficient Coding](tool-guides/AFYX_EFFICIENT_CODING.md),
+[Afyx Odoo Engineering](tool-guides/AFYX_ODOO_ENGINEERING.md),
+[Afyx Context Engine](../afyx-context/README.md), and
+[Afyx Engineering Expert](../skills/afyx-engineering-expert/README.md).
+Their roles differ, but none is demoted from product status by its installer
+preset or its implementation as an agent skill.
+
+The Kit installer, verifier, doctor, and capability router are shared platform
+infrastructure. Optional Windows Codex Usage Tracking is an additional
+observability utility. Neither changes the six-product portfolio.
 
 ## Problems Afyx addresses
 
