@@ -2,6 +2,13 @@
 
 This directory contains the deterministic Phase 3 benchmark foundation. Phase 3A validates isolation, fixture reset, capture, and serialization only; it does not provide product conclusions.
 
+**Scope:** this README preserves historical evaluator contract/evidence. It is
+not the current product readiness summary. See
+[Development Status](../docs/DEVELOPMENT_STATUS.md),
+[Forge Core](../afyx-forge/README.md), and
+[Forge component guidance](../docs/COMPONENTS.md#afyx-forge) for the live
+source components and explicit non-accepted campaign boundary.
+
 ## Frozen environment
 
 `environment.json` preserves the historical Phase 3A fingerprint, and

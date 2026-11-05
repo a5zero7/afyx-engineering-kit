@@ -3,6 +3,23 @@
 This directory contains the Afyx Graph engine. Build and test it from this
 directory with `npm ci`, `npm run build:clean`, and `npm test`.
 
+## Verified `dev` engineering baseline (5 November 2026)
+
+The source on `dev` includes native file/symbol indexing, source-grounded
+relations, nested `tsconfig.json`/`jsconfig.json` path-alias resolution,
+project references, namespace/cross-package imports, and corrected
+`calls` versus `references` presentation. These capabilities were integrated
+in [PR #1](https://github.com/a5zero7/afyx-engineering-kit/pull/1).
+[PR #2](https://github.com/a5zero7/afyx-engineering-kit/pull/2)
+closed a Windows Vitest fixture hook timeout; the exact post-merge Graph Build
+completed successfully on Windows, Linux, and macOS.
+
+The engine distinguishes confirmed static relationships from unresolved or
+ambiguous references. Parser registration does **not** prove perfect semantic
+coverage for every extension: individual constructs, generated code, and dynamic
+runtime behavior require separate evidence. See the
+[development checkpoint](../../docs/DEVELOPMENT_STATUS.md).
+
 For public capability, lifecycle, command, limitation, and troubleshooting
 guidance, see the repository [Component Guide](../../docs/COMPONENTS.md#afyx-graph)
 and [Installation Guide](../../docs/INSTALLATION.md#graph-installation-and-project-initialization).
@@ -51,6 +68,20 @@ archives do not bundle Node or a `node_modules` dependency tree.
 `INVALID`, `UNKNOWN`) from `freshness.json` in the effective state, which the engine
 rewrites after every successful index or sync. Afyx Graph makes no outbound network
 requests and collects no telemetry.
+
+## Useful verification commands
+
+```bash
+npm ci
+npm run build:clean
+npm test
+npm run test:semantic
+npm run test:smoke
+```
+
+The smoke checks exercise CLI/MCP contracts. The semantic baseline and
+small polyglot fixtures test specific supported constructions; neither is
+a universal code-understanding accuracy certification.
 
 ## File catalog coverage
 

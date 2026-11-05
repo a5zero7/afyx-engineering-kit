@@ -149,8 +149,12 @@ See the [Expert README](../skills/afyx-engineering-expert/README.md).
 
 ### Current implemented scope
 
-Forge is the evaluation and assurance foundation under `evals/forge/`. The source
-tree includes:
+Two separately usable surfaces exist: the standalone
+[Forge Core](../afyx-forge/README.md) package (v0.1.0) with
+`plan`, `doctor`, `version`, and `help` commands and programmatic planning;
+and the evaluation/assurance foundation under `evals/forge/`. The Core CLI
+is not an automatically enabled formal evaluator and is not installed by any
+implicit Kit preset. The evaluation source tree includes:
 
 - versioned manifests and candidate composition;
 - public deterministic engineering fixtures;
