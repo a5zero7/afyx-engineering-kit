@@ -52,8 +52,8 @@ unqualified automation claims.
 | [Afyx Forge Core](afyx-forge/README.md) | Standalone Node.js v0.1.0 CLI for task classification, adaptive execution policy, bounded engineering plans, and `doctor`; separate formal evaluator fixtures and controller | **Technical Alpha assistive guidance**; available by explicit component selection on supported surfaces; A8 formal 36-cell campaign remains `0/36 NOT_RUN` |
 | [Afyx Context Engine (ACE)](afyx-context/README.md) | Conservative context reduction, local crash-safe storage, and byte-exact original recovery | Standalone Node.js v0.1.0; managed explicit Kit opt-in; Graph integration default **OFF** |
 
-Supporting products are [Afyx Efficient Coding](skills/efficient-coding/README.md)
-and [Afyx Odoo Engineering](skills/odoo-engineering/README.md). The cross-platform
+Supporting products are [Afyx Efficient Coding](docs/tool-guides/AFYX_EFFICIENT_CODING.md)
+and [Afyx Odoo Engineering](docs/tool-guides/AFYX_ODOO_ENGINEERING.md). The cross-platform
 Kit lifecycle and optional Windows [Afyx Codex Usage Tracking](docs/CODEX_USAGE_TRACKER.md)
 complete the current registry. The component registry—not this README—is the
 source of truth for ownership, presets, host selection, and installable IDs.
