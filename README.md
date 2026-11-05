@@ -111,8 +111,9 @@ This repository is a **Technical Alpha prerelease**. It is not Stable v1, no
 formal public Alpha approval is implied, and publisher authenticity remains
 unverified unless an artifact has an independently verified attestation.
 
-- Graph, the Kit lifecycle, ACE standalone operation, and the supporting skills
-  have executable implementations and regression evidence.
+- Graph, the Kit lifecycle, ACE, Efficient Coding, Odoo Engineering, and
+  Engineering Expert have implemented runtime or skill contracts with regression
+  evidence appropriate to their respective interfaces.
 - ACE and Forge are absent from Minimal, Recommended, and Full presets and must
   be selected explicitly. Healthy installed ACE can be discovered for eligible
   on-demand work, respecting explicit disable, without running on every task.
