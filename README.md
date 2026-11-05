@@ -1,6 +1,6 @@
 # AFYX Engineering Kit
 
-**Engineering intelligence and assurance for evidence-driven software work.**
+**Local-first engineering intelligence, adaptive guidance, and evidence-driven validation for AI coding agents.**
 
 > **Individually Reliable. Collectively Solid.**
 >
@@ -8,17 +8,18 @@
 >
 > **Standalone by Design. Integrated by Contract. Activated by Need.**
 
-AFYX Engineering Kit is a local-first ecosystem for understanding code,
-orchestrating engineering decisions, validating changes, and managing supporting
-tools safely. It is not a prompt collection, a replacement for tests, or a
-promise of universal token savings.
+AFYX Engineering Kit unites six independent engineering products in a
+modular ecosystem for AI-assisted software development. Use each product
+on its own or combine eligible capabilities through shared installation and
+routing contracts. The design prioritizes source evidence, permission boundaries,
+focused validation, and failure isolation over unqualified automation claims.
 
-The Kit provides six functional Afyx products (Graph, Engineering Expert, Forge,
-Context Engine, Efficient Coding, and Odoo Engineering), an optional Windows
-Codex Usage Tracking tool, and a shared lifecycle/control plane. Its four
-engineering pillars are Graph, Expert, Forge, and Context Engine. Products remain
-usable independently; cross-product collaboration is contract-driven, selected
-by task relevance, and bounded by permissions and failure isolation.
+**Status:** Technical Alpha · **Platforms:** Windows, Linux, macOS (component
+availability varies) · **Integration:** Optional and task-driven.
+
+Graph, Forge, Context Engine, and Engineering Expert provide four foundational
+engineering pillars. Efficient Coding and Odoo Engineering are **equally
+recognized standalone products**, not merely auxiliary documentation.
 
 ## Why Afyx
 
@@ -43,49 +44,66 @@ Afyx is aimed at engineers and technical owners who value source evidence,
 bounded change, explicit limitations, and reproducible acceptance more than
 unqualified automation claims.
 
-## Primary components
+## Six standalone Afyx products
 
-| Component | What it does today | Independence and maturity |
+The ecosystem consists of **six independently usable products**. Each provides
+a distinct engineering capability; no product requires the whole Kit. An installed
+capability is selected only when relevant, healthy, and authorized.
+
+| Product | Core capability | Implementation and maturity |
 |---|---|---|
-| [Afyx Graph](afyx-graph/engine/README.md) | Local structural indexing; CLI and optional MCP discovery, navigation, query, inventory, impact, affected-test, freshness, and daemon capabilities | Standalone Node.js runtime; **Technical Alpha** |
-| [Afyx Engineering Expert](skills/afyx-engineering-expert/README.md) | Adaptive engineering skill spanning 13 disciplines and six optional workflows | Standalone instruction skill; v0.1.1; final D.6 substantive acceptance is not claimed |
-| [Afyx Forge Core](afyx-forge/README.md) | Standalone Node.js v0.1.0 CLI for task classification, adaptive execution policy, bounded engineering plans, and `doctor`; separate formal evaluator fixtures and controller | **Technical Alpha assistive guidance**; available by explicit component selection on supported surfaces; A8 formal 36-cell campaign remains `0/36 NOT_RUN` |
-| [Afyx Context Engine (ACE)](afyx-context/README.md) | Conservative context reduction, local crash-safe storage, and byte-exact original recovery | Standalone Node.js v0.1.0; managed explicit Kit opt-in; Graph integration default **OFF** |
+| [**Afyx Graph**](afyx-graph/engine/README.md) | Local indexing, structural code intelligence, symbol/dependency navigation, impact and affected-test analysis, CLI and optional MCP. | **Standalone Node.js runtime · Technical Alpha**; static evidence requires runtime/test verification. |
+| [**Afyx Forge**](afyx-forge/README.md) | Deterministic task classification, engineering policies, bounded plans, and diagnostics through Forge Core; distinct evaluation infrastructure. | **Standalone Node.js CLI/API v0.1.0 · Technical Alpha**; planning only, not autonomous code changes; A8 evaluation pending. |
+| [**Afyx Efficient Coding**](docs/tool-guides/AFYX_EFFICIENT_CODING.md) | Evidence-led coding, debugging, refactoring, focused validation, and engineering reporting. | **Standalone agent skill v1.2.1 · Implemented**; guidance, not an execution engine. |
+| [**Afyx Odoo Engineering**](docs/tool-guides/AFYX_ODOO_ENGINEERING.md) | Odoo-specific ORM, views, security, module development, migration, and troubleshooting. | **Standalone agent skill v1.2.0 · Implemented**; reference coverage Odoo 10–20, with target-version verification required. |
+| [**Afyx Context Engine (ACE)**](afyx-context/README.md) | Conservative context reduction, local storage, integrity checks, and exact-original recovery. | **Standalone Node.js runtime v0.1.0 · Technical Alpha**; explicit Kit selection, no universal savings guarantee. |
+| [**Afyx Engineering Expert**](skills/afyx-engineering-expert/README.md) | Adaptive engineering guidance across 13 disciplines and six optional workflows. | **Standalone agent skill v0.1.1 · Implemented**; final D.6 substantive acceptance remains pending. |
 
-Supporting products are [Afyx Efficient Coding](docs/tool-guides/AFYX_EFFICIENT_CODING.md)
-and [Afyx Odoo Engineering](docs/tool-guides/AFYX_ODOO_ENGINEERING.md). The cross-platform
-Kit lifecycle and optional Windows [Afyx Codex Usage Tracking](docs/CODEX_USAGE_TRACKER.md)
-complete the current registry. The component registry—not this README—is the
-source of truth for ownership, presets, host selection, and installable IDs.
+### Platform services and supporting utilities
 
-## How the pieces fit
+The cross-platform **installer, updater, verifier, doctor, and capability router**
+are shared Kit infrastructure, **not separate products**. Optional Windows
+[Afyx Codex Usage Tracking](docs/CODEX_USAGE_TRACKER.md) is a seventh registered
+observability utility, not one of the six primary engineering products.
+
+The [component registry](scripts/components.json) is authoritative for
+installable IDs, presets, supported platforms, and ownership. Consult the
+[Component Guide](docs/COMPONENTS.md) for detailed functionality and limitations.
+
+## How the products fit together
 
 ```mermaid
-flowchart LR
-    U[Engineer / Codex host]
-    K[Kit lifecycle<br/>install · update · verify · doctor]
-    E[Engineering Expert]
-    G[Afyx Graph]
-    F[Afyx Forge]
-    A[ACE]
-    S[Supporting skills<br/>Efficient Coding · Odoo Engineering]
+flowchart TB
+    H["Engineer or AI coding host"]
+    K["Afyx Kit lifecycle and capability router"]
+    G["Afyx Graph"]
+    F["Afyx Forge"]
+    EC["Afyx Efficient Coding"]
+    O["Afyx Odoo Engineering"]
+    ACE["Afyx Context Engine"]
+    E["Afyx Engineering Expert"]
 
-    K -->|managed components| E
-    K -->|managed runtime| G
-    K -->|explicit opt-in only| A
-    K -->|managed skills| S
-    U --> E
-    U --> G
-    U --> S
-    E -. optional repository evidence .-> G
-    G -. graph.ace.consumer/v1<br/>default OFF .-> A
-    F -. optional assistive plan;<br/>not autonomous execution .-> E
+    H --> K
+    K -.-> G
+    K -.-> F
+    K -.-> EC
+    K -.-> O
+    K -.-> ACE
+    K -.-> E
 ```
 
-Solid lines are regular, implemented paths. Dashed lines represent optional
-collaboration or an independent evaluation boundary; they do not mean every
-component runs on every task. The installed-component discovery/router contract
-is not permission to bypass user OFF settings, provider scope, or Forge A8.
+**Diagram legend:** The solid arrow shows the Kit entry point; dashed arrows
+mean **optional, task-scoped selection**, not automatic activation or a claim
+that every provider integration has passed acceptance. Every Afyx product can
+also run independently through its advertised interface. Installation alone
+does not imply execution; user-disabled capabilities remain disabled.
+
+Registry-based routing and interaction contracts have source-level
+implementations. Full installed-host interoperability is not claimed as
+accepted. Graph-to-ACE automatic MCP interception remains default **OFF**;
+Forge Core offers assistive plans and has no autonomous execution authority.
+The [interoperability contract](docs/AFYX_UNIVERSAL_COMPONENT_INTEROPERABILITY.md)
+distinguishes approved target behavior from proven current behavior.
 
 ## Current product status
 
