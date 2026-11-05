@@ -246,7 +246,7 @@ expands validation according to risk.
 It is a core skill in every implicit preset and has no runtime dependency. Invoke
 it for coding, debugging, refactoring, or code investigation—not general chat or
 prompt-writing tasks. Validation still depends on the target repository's actual
-toolchain. See the [Efficient Coding README](../skills/efficient-coding/README.md) and
+toolchain. See the [Efficient Coding Guide](tool-guides/AFYX_EFFICIENT_CODING.md) and
 its authoritative [`SKILL.md`](../skills/efficient-coding/SKILL.md).
 
 ## Odoo Engineering
@@ -259,7 +259,7 @@ loads only that reference (or source plus target for migration work).
 It is a core skill in every implicit preset. “Stable references” does not mean
 every project customization is known: inspect inheritance, enterprise/community
 edition, installed modules, ACL/rules, runtime registry, and database behavior
-when material. See the [Odoo Engineering README](../skills/odoo-engineering/README.md) and
+when material. See the [Odoo Engineering Guide](tool-guides/AFYX_ODOO_ENGINEERING.md) and
 its authoritative [`SKILL.md`](../skills/odoo-engineering/SKILL.md).
 
 ## Kit installer, updater, verifier, and doctor
