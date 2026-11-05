@@ -1,3 +1,9 @@
+* text=auto eol=lf
+*.sh text eol=lf
+*.ts text eol=lf
+*.js text eol=lf
+*.mjs text eol=lf
+*.json text eol=lf
 afyx-graph/engine/tests/semantic-baseline.json text eol=lf
 afyx-graph/engine/scripts/*.mjs text eol=lf
 afyx-graph/engine/__tests__/fixtures/** text eol=lf

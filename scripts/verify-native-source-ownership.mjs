@@ -153,8 +153,9 @@ if (manifest.schema !== 1 || !Array.isArray(manifest.entries) || manifest.entrie
       }
     }
 
-    // 2. Verify SHA-256 integrity against reviewed baseline
-    const actual = createHash('sha256').update(bytes).digest('hex');
+    // 2. Verify SHA-256 integrity against reviewed baseline (LF-normalized for cross-platform Git checkout)
+    const normalized = content.replace(/\r\n/g, '\n');
+    const actual = createHash('sha256').update(Buffer.from(normalized, 'utf8')).digest('hex');
     if (actual !== entry.reviewedSha256) fail(`reviewed source drift: ${entry.path}`);
     if (actual === entry.baselineSha256) fail(`source reverted to the pre-remediation baseline: ${entry.path}`);
   }
