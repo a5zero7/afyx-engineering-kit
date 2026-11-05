@@ -29,7 +29,7 @@ Forge Core menjembatani kebutuhan antara instruksi tingkat tinggi dan eksekusi k
 4. **Graph-Aware Routing & Context Cooperation:**
    - Merekomendasikan Afyx Graph **hanya** jika relasi modul/inheritance terbukti diperlukan.
    - Melakukan *graceful fallback* ke direct-source inspection jika Graph tidak terpasang.
-   - Mempertahankan kebijakan Context Engine `DEFAULT_OFF` (hanya aktif jika user memberikan opt-in eksplisit `AFYX_CONTEXT_OPT_IN=1`).
+   - Context Engine yang telah dipasang dan sehat dapat dipertimbangkan sebagai capability on-demand tanpa perlu `AFYX_CONTEXT_OPT_IN=1`; `AFYX_CONTEXT_OPT_IN=0` tetap menonaktifkannya. Status routing bukan bukti eksekusi ACE ataupun intersepsi Graph MCP.
 5. **Bounded Execution & Safety Guardrails:**
    - Penolakan tegas (*fail-closed*) terhadap permintaan tidak aman seperti bypass keamanan, force-push tanpa izin, eksfiltrasi rahasia/token, dan operasi destruktif (`REFUSED_UNSAFE`).
    - Tidak melakukan eksekusi kode otonom tanpa izin (*zero unapproved autonomous mutation*).
@@ -74,7 +74,7 @@ afyx-forge plan --task-file ./task.md --format markdown --output ./plan.md
 | **Status Tata Kelola** | **DELIVERED & OPERATIONAL (Alpha)** | **EVALUATION_GATED (0/36 NOT_RUN)** |
 | **Eksekusi Kode Otonom** | **DILARANG (Assistive guidance only)** | Memerlukan lingkungan isolasi formal |
 | **Ketergantungan Graph** | Opsional (fallback direct-source) | Opsional per kandidat |
-| **Ketergantungan Context** | Default OFF (Opt-in eksplisit) | Evaluated baseline |
+| **Ketergantungan Context** | Opsional, discoverable on-demand bila sehat; explicit OFF dihormati, Graph MCP interception tetap terpisah | Evaluated baseline |
 | **Target Pengguna** | Developer & Pair-Programming Agents | Evaluator & QA Independen |
 
 ---
