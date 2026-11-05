@@ -32,9 +32,19 @@ Where the **Skills** feature and upload permission are enabled for your account/
 - `Tinjau workflow purchase-to-pay pada ERP versi yang ada, termasuk hak akses dan dampak akuntansi.`
 - `Rancang evaluasi fitur AI berbasis dokumen dan jelaskan risiko kebocoran data.`
 
-## Design notes
+## Implementation status and acceptance boundary
 
-This is an original, instruction-only draft. It does not claim real production testing, framework-specific certification, or real-world SME signoff. Review installation and validate activation/output within each platform before broad rollout.
+This is an implemented, original, instruction-only skill v0.1.1, with its
+routing, specialist references, optional workflows, and development regression
+checks in the current Technical Alpha source. It is **not** a framework
+certification, an autonomous engineer, or independent runtime evidence. Final
+D.6 substantive review and controlled comparative acceptance are not yet
+claimed. Verify installed host activation and task outputs before broad use.
+
+The skill remains independently usable without Graph, Forge or ACE. It may
+compose with [Afyx Odoo Engineering](../odoo-engineering/README.md) when a
+version-specific ERP task actually requires it. The target repository and
+runtime evidence remain authoritative.
 
 Official references consulted for the packaging model:
 - https://developers.openai.com/api/docs/guides/tools-skills
