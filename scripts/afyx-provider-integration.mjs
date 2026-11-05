@@ -14,6 +14,7 @@ import {
 import { basename, dirname, isAbsolute, relative, resolve } from 'node:path';
 import { homedir } from 'node:os';
 import { fileURLToPath } from 'node:url';
+import { isDeepStrictEqual } from 'node:util';
 import { integrate as integrateCodex, probeMcp } from './afyx-mcp-integration.mjs';
 import { inspectClaude, integrateClaude } from './afyx-claude-integration.mjs';
 import {
@@ -37,7 +38,14 @@ function argument(name, fallback = '') {
 }
 
 function same(left, right) {
-  return JSON.stringify(left) === JSON.stringify(right);
+  return isDeepStrictEqual(left, right);
+}
+
+function claimedEntryEquivalent(actual, claimed) {
+  if (!actual || typeof actual !== 'object' || Array.isArray(actual)) return false;
+  if (actual.disabled !== undefined && typeof actual.disabled !== 'boolean') return false;
+  const { disabled: _disabled, ...nativeEntry } = actual;
+  return same(claimed, nativeEntry);
 }
 
 function normalizedPath(value) {
@@ -164,10 +172,14 @@ function inspectAntigravity(options) {
   let state = 'MCP_NOT_CONFIGURED';
   let owned = false;
   if (actual) {
-    if (entryEquivalent(actual, expected)) {
-      state = claimValid && same(claim.entry, actual) ? 'MCP_CONFIGURED' : 'MCP_CONFIGURED_UNOWNED';
+    const claimed = claimValid && claimedEntryEquivalent(actual, claim.entry);
+    if (actual.disabled === true) {
+      state = claimed ? 'MCP_DISABLED_OWNED' : 'MCP_DISABLED_UNOWNED';
+      owned = claimed;
+    } else if (entryEquivalent(actual, expected)) {
+      state = claimed ? 'MCP_CONFIGURED' : 'MCP_CONFIGURED_UNOWNED';
       owned = state === 'MCP_CONFIGURED';
-    } else if (claimValid && same(claim.entry, actual)) {
+    } else if (claimed) {
       state = 'MCP_STALE_OWNED';
       owned = true;
     } else {
@@ -203,6 +215,14 @@ export async function integrateAntigravity(options) {
   if (inspection.state === 'MCP_BLOCKED' || inspection.state === 'MCP_BLOCKED_LEGACY_DUPLICATE') {
     const legacy = inspection.state === 'MCP_BLOCKED_LEGACY_DUPLICATE';
     return { ...result, status: 'BLOCKED', reason: legacy ? 'LEGACY_DUPLICATE' : 'FOREIGN_ENTRY', detail: legacy ? `Legacy afyx_graph entry at ${inspection.legacy} was preserved; resolve it explicitly before unified registration.` : 'Existing unowned afyx_graph entry was preserved.' };
+  }
+  if (!options.uninstall && inspection.state.startsWith('MCP_DISABLED_')) {
+    return {
+      ...result,
+      status: 'BLOCKED',
+      reason: 'EXPLICITLY_DISABLED',
+      detail: 'The native provider entry is explicitly disabled and was preserved unchanged.',
+    };
   }
   if (options.uninstall) {
     if (inspection.state === 'MCP_NOT_CONFIGURED') return { ...result, status: 'UNAVAILABLE', detail: 'No provider entry is configured.' };
