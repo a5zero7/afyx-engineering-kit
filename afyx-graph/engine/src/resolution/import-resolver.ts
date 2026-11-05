@@ -192,7 +192,7 @@ function resolveImportPathUncached(
   // bare-specifier heuristic can consult the project's tsconfig
   // alias map first (custom prefixes like `@components/*` would
   // otherwise be misclassified as npm).
-  if (isExternalImport(importPath, language, context)) {
+  if (isExternalImport(importPath, language, context, fromFile)) {
     return null;
   }
 
@@ -205,7 +205,7 @@ function resolveImportPathUncached(
   }
 
   // Handle absolute/aliased imports (like @/ or src/)
-  const aliased = resolveAliasedImport(importPath, projectRoot, language, context);
+  const aliased = resolveAliasedImport(importPath, projectRoot, language, context, fromFile);
   if (aliased) return aliased;
 
   // C/C++ include directory search: when neither relative nor aliased
@@ -358,7 +358,8 @@ const RUST_STDLIB_ROOTS = new Set(['std', 'core', 'alloc', 'proc_macro']);
 function isExternalImport(
   importPath: string,
   language: Language,
-  context?: ResolutionContext
+  context?: ResolutionContext,
+  fromFile?: string
 ): boolean {
   // Relative imports are not external
   if (importPath.startsWith('.')) {
@@ -380,9 +381,15 @@ function isExternalImport(
     if (['fs', 'path', 'os', 'crypto', 'http', 'https', 'url', 'util', 'events', 'stream', 'child_process', 'buffer'].includes(importPath)) {
       return true;
     }
-    // Project-defined alias prefix? Treat as local.
+    // Check file/package-level tsconfig aliases first, then root project aliases.
+    const fileAliases = fromFile && context?.getFileAliases?.(fromFile);
+    if (fileAliases) {
+      for (const pat of fileAliases.patterns) {
+        if (importPath.startsWith(pat.prefix)) return false;
+      }
+    }
     const aliases = context?.getProjectAliases?.();
-    if (aliases) {
+    if (aliases && aliases !== fileAliases) {
       for (const pat of aliases.patterns) {
         if (importPath.startsWith(pat.prefix)) return false;
       }
@@ -541,7 +548,8 @@ function resolveAliasedImport(
   importPath: string,
   projectRoot: string,
   language: Language,
-  context: ResolutionContext
+  context: ResolutionContext,
+  fromFile?: string
 ): string | null {
   const extensions = EXTENSION_RESOLUTION[language] || [];
   const tryWithExt = (basePath: string): string | null => {
@@ -553,9 +561,19 @@ function resolveAliasedImport(
     return findSourceForEmittedSpecifier(basePath, language, context);
   };
 
-  // 1. Project tsconfig/jsconfig paths.
+  // 1. File/package-level tsconfig/jsconfig paths.
+  const fileAliases = fromFile && context.getFileAliases?.(fromFile);
+  if (fileAliases) {
+    const candidates = applyAliases(importPath, fileAliases, projectRoot);
+    for (const c of candidates) {
+      const hit = tryWithExt(c);
+      if (hit) return hit;
+    }
+  }
+
+  // 1b. Project root tsconfig/jsconfig paths.
   const aliasMap = context.getProjectAliases?.();
-  if (aliasMap) {
+  if (aliasMap && aliasMap !== fileAliases) {
     const candidates = applyAliases(importPath, aliasMap, projectRoot);
     for (const c of candidates) {
       const hit = tryWithExt(c);
@@ -1994,10 +2012,12 @@ function resolveModuleImportToFile(
   if (ref.referenceName.includes('.')) return null;
 
   for (const imp of imports) {
-    if (imp.localName !== ref.referenceName) continue;
-
     let modulePath: string;
-    if (imp.isNamespace || imp.isDefault) {
+    if (ref.language !== 'python' && imp.source === ref.referenceName && (imp.isNamespace || imp.isDefault || !imp.exportedName || imp.exportedName === '*')) {
+      modulePath = imp.source;
+    } else if (imp.localName !== ref.referenceName) {
+      continue;
+    } else if (imp.isNamespace || imp.isDefault) {
       // `import * as ns from './x'` (namespace) or `import x from './x'`
       // (default) — the dependency is on the MODULE FILE. A default import binds
       // a (possibly renamed) local to whatever the module's default export is
@@ -2683,7 +2703,7 @@ export function isBoundToOutOfRepoImport(
   if (!ESM_IMPORT_LANGUAGES.has(ref.language)) return false;
   for (const imp of context.getImportMappings(ref.filePath, ref.language)) {
     if (imp.localName !== name) continue;
-    return isExternalImport(imp.source, ref.language, context);
+    return isExternalImport(imp.source, ref.language, context, ref.filePath);
   }
   return false;
 }

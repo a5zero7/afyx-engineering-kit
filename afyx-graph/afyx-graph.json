@@ -2,7 +2,7 @@
   "product_name": "Afyx Graph",
   "product_version": "1.0.0",
   "package": "@a5zero7/afyx-graph",
-  "repository": "https://github.com/a5zero7/afyx-codex-engineering-kit",
+  "repository": "https://github.com/a5zero7/afyx-engineering-kit",
   "cli": "afyx-graph",
   "runtime_path": "~/.afyx/graph",
   "state_directory": ".afyx-graph",

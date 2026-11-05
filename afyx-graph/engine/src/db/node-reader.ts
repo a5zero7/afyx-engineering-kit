@@ -7,7 +7,7 @@ import type { Language, Node, NodeKind } from '../types';
 import { chunked, placeholders, QuerySession } from './query-session';
 import { rowToNode, type NodeRow } from './row-mappers';
 
-const NODE_CACHE_CAPACITY = 1000;
+const NODE_CACHE_CAPACITY = 4096;
 
 const NODE_QUERY = Object.freeze({
   byId: 'SELECT * FROM nodes WHERE id = ?',
@@ -52,9 +52,11 @@ class NodeIdentityCache {
   }
 
   remember(node: Node): void {
-    if (this.entries.size >= NODE_CACHE_CAPACITY) {
+    if (this.entries.has(node.id)) {
+      this.entries.delete(node.id);
+    } else if (this.entries.size >= NODE_CACHE_CAPACITY) {
       const oldest = this.entries.keys().next().value as string | undefined;
-      if (oldest) this.entries.delete(oldest);
+      if (oldest !== undefined) this.entries.delete(oldest);
     }
     this.entries.set(node.id, node);
   }
@@ -116,20 +118,23 @@ export class NodeReader {
   /** Missing IDs are absent from the returned map; consumers retain their own order. */
   getNodesByIds(ids: readonly string[]): Map<string, Node> {
     const result = new Map<string, Node>();
-    const pending: string[] = [];
+    const pending = new Set<string>();
 
     for (const id of ids) {
       const cached = this.identities.read(id);
-      if (cached === undefined) pending.push(id);
+      if (cached === undefined) pending.add(id);
       else result.set(id, cached);
     }
 
-    for (const idsChunk of chunked(pending)) {
-      const sql = nodesByIdsQuery(idsChunk.length);
-      const rows = this.session.listStatement(sql, idsChunk.length).all(...idsChunk) as NodeRow[];
-      for (const node of nodesFrom(rows)) {
-        result.set(node.id, node);
-        this.identities.remember(node);
+    if (pending.size > 0) {
+      const pendingList = Array.from(pending);
+      for (const idsChunk of chunked(pendingList)) {
+        const sql = nodesByIdsQuery(idsChunk.length);
+        const rows = this.session.listStatement(sql, idsChunk.length).all(...idsChunk) as NodeRow[];
+        for (const node of nodesFrom(rows)) {
+          result.set(node.id, node);
+          this.identities.remember(node);
+        }
       }
     }
     return result;

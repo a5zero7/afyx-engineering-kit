@@ -145,8 +145,8 @@ preserved; it is not treated as a failure or silently removed.
 ### Clone and inspect
 
 ```powershell
-git clone https://github.com/a5zero7/afyx-codex-engineering-kit.git
-Set-Location afyx-codex-engineering-kit
+git clone https://github.com/a5zero7/afyx-engineering-kit.git
+Set-Location afyx-engineering-kit
 git status --short
 .\install.ps1 -ValidateOnly
 .\install.ps1 -WhatIf -Preset recommended
@@ -196,8 +196,8 @@ or force replacement.
 ## Linux / Bash
 
 ```bash
-git clone https://github.com/a5zero7/afyx-codex-engineering-kit.git
-cd afyx-codex-engineering-kit
+git clone https://github.com/a5zero7/afyx-engineering-kit.git
+cd afyx-engineering-kit
 ./install.sh --validate-only
 ./install.sh --dry-run --preset recommended
 ./install.sh --preset recommended
@@ -225,8 +225,8 @@ Use the same Bash entrypoints as Linux:
 
 ```bash
 xcode-select -p >/dev/null 2>&1 || echo "Install Apple Command Line Tools first"
-git clone https://github.com/a5zero7/afyx-codex-engineering-kit.git
-cd afyx-codex-engineering-kit
+git clone https://github.com/a5zero7/afyx-engineering-kit.git
+cd afyx-engineering-kit
 ./install.sh --validate-only
 ./install.sh --dry-run --preset recommended
 ./install.sh --preset recommended

@@ -66,5 +66,5 @@ export function passesKindFilter(request: WalkRequest, node: Node): boolean {
 
 /** Two edges are the same edge when endpoint, kind and call-site position all agree. */
 export function edgeIdentity(edge: Edge): string {
-  return [edge.source, edge.target, edge.kind, edge.line ?? -1, edge.column ?? -1].join('|');
+  return `${edge.source}|${edge.target}|${edge.kind}|${edge.line ?? -1}|${edge.column ?? -1}`;
 }

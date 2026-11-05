@@ -26,6 +26,7 @@ function bundle(): string {
   file(root, 'lib/dist/viewer/index.html', `${'<html>'.padEnd(210, ' ')}<div id="app"></div><script src="./assets/app.js"></script>`);
   file(root, 'lib/dist/viewer/assets/app.js');
   file(root, 'lib/dist/bin/afyx-graph.js');
+  file(root, 'lib/dist/db/schema.sql');
   file(root, 'lib/dist/index.js');
   file(root, 'lib/dist/index.js.map');
   file(root, 'lib/dist/ui/shimmer-progress.js');

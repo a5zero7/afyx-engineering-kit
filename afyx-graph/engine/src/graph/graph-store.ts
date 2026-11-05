@@ -28,6 +28,8 @@ export interface GraphCatalog extends GraphReader {
   getDependencyFilePaths(filePath: string): string[];
   /** Files whose symbols reach into the given file through resolved cross-file edges. */
   getDependentFilePaths(filePath: string): string[];
+  /** All resolved cross-file dependency pairs in one query. */
+  getCrossFileDependencyPairs?(minConfidence: number): Array<{ source: string; target: string }>;
 }
 
 /** A node reached through an edge. */

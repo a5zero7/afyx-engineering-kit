@@ -1,101 +1,166 @@
 /**
- * Swift Framework Resolver
+ * AFYX Engineering Kit - Resolution Engine
+ * Subsystem: Framework Resolvers (Apple Swift - SwiftUI, UIKit, and Vapor Server)
  *
- * Handles SwiftUI, UIKit, and Vapor (server-side Swift) patterns.
+ * Implements architectural symbol extraction and pattern-based resolution for
+ * Apple ecosystem client applications (SwiftUI, UIKit) and server-side Swift (Vapor).
  */
 
-import { Node } from '../../types';
-import { FrameworkResolver, UnresolvedRef, ResolvedRef, ResolutionContext } from '../types';
+import type { Node } from '../../types';
+import type {
+  FrameworkResolver,
+  ResolutionContext,
+  ResolvedRef,
+  UnresolvedRef,
+} from '../types';
 import { stripCommentsForRegex } from '../strip-comments';
+
+/** Architectural directory patterns for SwiftUI */
+const SWIFTUI_VIEW_DIRS = ['/Views/', '/View/', '/Screens/', '/Components/', '/UI/'];
+const SWIFTUI_VIEWMODEL_DIRS = ['/ViewModels/', '/ViewModel/', '/Stores/', '/Managers/', '/Services/'];
+const SWIFT_MODEL_DIRS = ['/Models/', '/Model/', '/Entities/', '/Domain/'];
+
+/** Architectural directory patterns for UIKit */
+const UIKIT_VC_DIRS = ['/ViewControllers/', '/ViewController/', '/Controllers/', '/Screens/'];
+const UIKIT_VIEW_DIRS = ['/Views/', '/View/', '/UI/', '/Components/'];
+const UIKIT_CELL_DIRS = ['/Cells/', '/Cell/', '/Views/', '/TableViewCells/', '/CollectionViewCells/'];
+
+/** Architectural directory patterns for Vapor */
+const VAPOR_CONTROLLER_DIRS = ['/Controllers/', '/Controller/', '/Routes/'];
+const VAPOR_FLUENT_DIRS = ['/Models/', '/Model/', '/Entities/', '/Database/'];
+const VAPOR_MIDDLEWARE_DIRS = ['/Middleware/', '/Middlewares/'];
+
+/** Node kind classifications */
+const COMPONENT_KINDS = new Set<string>(['struct', 'component']);
+const CLASS_KINDS = new Set<string>(['class']);
+const STRUCT_OR_CLASS_KINDS = new Set<string>(['struct', 'class']);
+const PROTOCOL_KINDS = new Set<string>(['protocol']);
+
+/**
+ * Searches candidates by symbol name and matches kind restrictions, prioritizing
+ * candidates residing within conventional architectural folders.
+ */
+function findSymbolByKindAndDirectory(
+  symbolName: string,
+  acceptedKinds: Set<string>,
+  preferredPathFragments: string[],
+  context: ResolutionContext
+): string | null {
+  const matches = context.getNodesByName(symbolName);
+  if (matches.length === 0) {
+    return null;
+  }
+
+  const kindMatches = matches.filter((node) => acceptedKinds.has(node.kind));
+  if (kindMatches.length === 0) {
+    return null;
+  }
+
+  if (preferredPathFragments.length > 0) {
+    const conventionMatch = kindMatches.find((node) =>
+      preferredPathFragments.some((fragment) => node.filePath.includes(fragment))
+    );
+    if (conventionMatch) {
+      return conventionMatch.id;
+    }
+  }
+
+  return kindMatches[0]!.id;
+}
+
+// ============================================================================
+// 1. SwiftUI Resolver
+// ============================================================================
 
 export const swiftUIResolver: FrameworkResolver = {
   name: 'swiftui',
   languages: ['swift'],
 
   detect(context: ResolutionContext): boolean {
-    // Check for SwiftUI imports in Swift files
-    const allFiles = context.getAllFiles();
-    for (const file of allFiles) {
+    const files = context.getAllFiles();
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i]!;
       if (file.endsWith('.swift')) {
-        const content = context.readFile(file);
-        if (content && content.includes('import SwiftUI')) {
+        const source = context.readFile(file);
+        if (source && source.includes('import SwiftUI')) {
           return true;
         }
-      }
-    }
-
-    // Check for Xcode project with SwiftUI
-    for (const file of allFiles) {
-      if (file.endsWith('.xcodeproj') || file.endsWith('.xcworkspace')) {
+      } else if (file.endsWith('.xcodeproj') || file.endsWith('.xcworkspace')) {
         return true;
       }
     }
-
     return false;
   },
 
   resolve(ref: UnresolvedRef, context: ResolutionContext): ResolvedRef | null {
-    // Pattern 1: View references (SwiftUI views are PascalCase ending in View)
-    if (ref.referenceName.endsWith('View') && /^[A-Z]/.test(ref.referenceName)) {
-      const result = resolveByNameAndKind(ref.referenceName, VIEW_KINDS, VIEW_DIRS, context);
-      if (result) {
-        return {
-          original: ref,
-          targetNodeId: result,
-          confidence: 0.85,
-          resolvedBy: 'framework',
-        };
+    const { referenceName } = ref;
+
+    // View component conventions: PascalCase ending in View
+    if (referenceName.endsWith('View') && /^[A-Z]/.test(referenceName)) {
+      const targetId = findSymbolByKindAndDirectory(
+        referenceName,
+        COMPONENT_KINDS,
+        SWIFTUI_VIEW_DIRS,
+        context
+      );
+      if (targetId) {
+        return { original: ref, targetNodeId: targetId, confidence: 0.85, resolvedBy: 'framework' };
       }
     }
 
-    // Pattern 2: ViewModel/ObservableObject references
-    if (ref.referenceName.endsWith('ViewModel') || ref.referenceName.endsWith('Store') || ref.referenceName.endsWith('Manager')) {
-      const result = resolveByNameAndKind(ref.referenceName, CLASS_KINDS, VIEWMODEL_DIRS, context);
-      if (result) {
-        return {
-          original: ref,
-          targetNodeId: result,
-          confidence: 0.85,
-          resolvedBy: 'framework',
-        };
+    // State container / ViewModel conventions
+    if (
+      referenceName.endsWith('ViewModel') ||
+      referenceName.endsWith('Store') ||
+      referenceName.endsWith('Manager')
+    ) {
+      const targetId = findSymbolByKindAndDirectory(
+        referenceName,
+        CLASS_KINDS,
+        SWIFTUI_VIEWMODEL_DIRS,
+        context
+      );
+      if (targetId) {
+        return { original: ref, targetNodeId: targetId, confidence: 0.85, resolvedBy: 'framework' };
       }
     }
 
-    // Pattern 3: Model references
-    if (/^[A-Z][a-zA-Z]+$/.test(ref.referenceName)) {
-      const result = resolveByNameAndKind(ref.referenceName, MODEL_KINDS, MODEL_DIRS, context);
-      if (result) {
-        return {
-          original: ref,
-          targetNodeId: result,
-          confidence: 0.7,
-          resolvedBy: 'framework',
-        };
+    // Domain Model entities
+    if (/^[A-Z][a-zA-Z]+$/.test(referenceName)) {
+      const targetId = findSymbolByKindAndDirectory(
+        referenceName,
+        STRUCT_OR_CLASS_KINDS,
+        SWIFT_MODEL_DIRS,
+        context
+      );
+      if (targetId) {
+        return { original: ref, targetNodeId: targetId, confidence: 0.7, resolvedBy: 'framework' };
       }
     }
 
     return null;
   },
 
-  extract(filePath, content) {
-    if (!filePath.endsWith('.swift')) return { nodes: [], references: [] };
+  extract(filePath: string, content: string) {
+    if (!filePath.endsWith('.swift')) {
+      return { nodes: [], references: [] };
+    }
+
     const nodes: Node[] = [];
-    const now = Date.now();
-    const safe = stripCommentsForRegex(content, 'swift');
+    const timestamp = Date.now();
+    const cleanSource = stripCommentsForRegex(content, 'swift');
 
-    // Extract SwiftUI View structs
-    // struct ContentView: View { ... }
-    const viewPattern = /struct\s+(\w+)\s*:\s*(?:\w+\s*,\s*)*View/g;
-
+    // Detect struct definitions conforming to View: `struct MyView: View`
+    const viewStructPattern = /struct\s+(\w+)\s*:\s*(?:\w+\s*,\s*)*View/g;
     let match: RegExpExecArray | null;
-    while ((match = viewPattern.exec(safe)) !== null) {
-      const [, viewName] = match;
-      const line = safe.slice(0, match.index).split('\n').length;
+    while ((match = viewStructPattern.exec(cleanSource)) !== null) {
+      const viewName = match[1]!;
+      const line = cleanSource.slice(0, match.index).split('\n').length;
 
       nodes.push({
         id: `view:${filePath}:${viewName}:${line}`,
         kind: 'component',
-        name: viewName!,
+        name: viewName,
         qualifiedName: `${filePath}::${viewName}`,
         filePath,
         startLine: line,
@@ -103,21 +168,20 @@ export const swiftUIResolver: FrameworkResolver = {
         startColumn: 0,
         endColumn: match[0].length,
         language: 'swift',
-        updatedAt: now,
+        updatedAt: timestamp,
       });
     }
 
-    // Extract @main App entry point
-    const appPattern = /@main\s+struct\s+(\w+)\s*:\s*App/g;
-
-    while ((match = appPattern.exec(safe)) !== null) {
-      const [, appName] = match;
-      const line = safe.slice(0, match.index).split('\n').length;
+    // Detect SwiftUI App entry point: `@main struct MyApp: App`
+    const appEntryPattern = /@main\s+struct\s+(\w+)\s*:\s*App/g;
+    while ((match = appEntryPattern.exec(cleanSource)) !== null) {
+      const appName = match[1]!;
+      const line = cleanSource.slice(0, match.index).split('\n').length;
 
       nodes.push({
         id: `app:${filePath}:${appName}:${line}`,
         kind: 'class',
-        name: appName!,
+        name: appName,
         qualifiedName: `${filePath}::${appName}`,
         filePath,
         startLine: line,
@@ -125,7 +189,7 @@ export const swiftUIResolver: FrameworkResolver = {
         startColumn: 0,
         endColumn: match[0].length,
         language: 'swift',
-        updatedAt: now,
+        updatedAt: timestamp,
       });
     }
 
@@ -133,102 +197,107 @@ export const swiftUIResolver: FrameworkResolver = {
   },
 };
 
+// ============================================================================
+// 2. UIKit Resolver
+// ============================================================================
+
 export const uikitResolver: FrameworkResolver = {
   name: 'uikit',
   languages: ['swift'],
 
   detect(context: ResolutionContext): boolean {
-    const allFiles = context.getAllFiles();
-    for (const file of allFiles) {
+    const files = context.getAllFiles();
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i]!;
       if (file.endsWith('.swift')) {
-        const content = context.readFile(file);
-        if (content && (
-          content.includes('import UIKit') ||
-          content.includes('UIViewController') ||
-          content.includes('UIView')
-        )) {
+        const source = context.readFile(file);
+        if (
+          source &&
+          (source.includes('import UIKit') ||
+            source.includes('UIViewController') ||
+            source.includes('UIView'))
+        ) {
           return true;
         }
       }
     }
-
     return false;
   },
 
   resolve(ref: UnresolvedRef, context: ResolutionContext): ResolvedRef | null {
-    // Pattern 1: ViewController references
-    if (ref.referenceName.endsWith('ViewController')) {
-      const result = resolveByNameAndKind(ref.referenceName, CLASS_KINDS, VC_DIRS, context);
-      if (result) {
-        return {
-          original: ref,
-          targetNodeId: result,
-          confidence: 0.85,
-          resolvedBy: 'framework',
-        };
+    const { referenceName } = ref;
+
+    if (referenceName.endsWith('ViewController')) {
+      const targetId = findSymbolByKindAndDirectory(
+        referenceName,
+        CLASS_KINDS,
+        UIKIT_VC_DIRS,
+        context
+      );
+      if (targetId) {
+        return { original: ref, targetNodeId: targetId, confidence: 0.85, resolvedBy: 'framework' };
       }
     }
 
-    // Pattern 2: UIView subclass references
-    if (ref.referenceName.endsWith('View') && !ref.referenceName.endsWith('ViewController')) {
-      const result = resolveByNameAndKind(ref.referenceName, CLASS_KINDS, UIVIEW_DIRS, context);
-      if (result) {
-        return {
-          original: ref,
-          targetNodeId: result,
-          confidence: 0.8,
-          resolvedBy: 'framework',
-        };
+    if (referenceName.endsWith('View') && !referenceName.endsWith('ViewController')) {
+      const targetId = findSymbolByKindAndDirectory(
+        referenceName,
+        CLASS_KINDS,
+        UIKIT_VIEW_DIRS,
+        context
+      );
+      if (targetId) {
+        return { original: ref, targetNodeId: targetId, confidence: 0.8, resolvedBy: 'framework' };
       }
     }
 
-    // Pattern 3: Cell references
-    if (ref.referenceName.endsWith('Cell')) {
-      const result = resolveByNameAndKind(ref.referenceName, CLASS_KINDS, CELL_DIRS, context);
-      if (result) {
-        return {
-          original: ref,
-          targetNodeId: result,
-          confidence: 0.85,
-          resolvedBy: 'framework',
-        };
+    if (referenceName.endsWith('Cell')) {
+      const targetId = findSymbolByKindAndDirectory(
+        referenceName,
+        CLASS_KINDS,
+        UIKIT_CELL_DIRS,
+        context
+      );
+      if (targetId) {
+        return { original: ref, targetNodeId: targetId, confidence: 0.85, resolvedBy: 'framework' };
       }
     }
 
-    // Pattern 4: Delegate/DataSource references
-    if (ref.referenceName.endsWith('Delegate') || ref.referenceName.endsWith('DataSource')) {
-      const result = resolveByNameAndKind(ref.referenceName, PROTOCOL_KINDS, [], context);
-      if (result) {
-        return {
-          original: ref,
-          targetNodeId: result,
-          confidence: 0.8,
-          resolvedBy: 'framework',
-        };
+    if (referenceName.endsWith('Delegate') || referenceName.endsWith('DataSource')) {
+      const targetId = findSymbolByKindAndDirectory(
+        referenceName,
+        PROTOCOL_KINDS,
+        [],
+        context
+      );
+      if (targetId) {
+        return { original: ref, targetNodeId: targetId, confidence: 0.8, resolvedBy: 'framework' };
       }
     }
 
     return null;
   },
 
-  extract(filePath, content) {
-    if (!filePath.endsWith('.swift')) return { nodes: [], references: [] };
+  extract(filePath: string, content: string) {
+    if (!filePath.endsWith('.swift')) {
+      return { nodes: [], references: [] };
+    }
+
     const nodes: Node[] = [];
-    const now = Date.now();
-    const safe = stripCommentsForRegex(content, 'swift');
+    const timestamp = Date.now();
+    const cleanSource = stripCommentsForRegex(content, 'swift');
 
-    // Extract UIViewController subclasses
+    // UIViewController inheritance
     const vcPattern = /class\s+(\w+)\s*:\s*(?:\w+\s*,\s*)*UIViewController/g;
-
     let match: RegExpExecArray | null;
-    while ((match = vcPattern.exec(safe)) !== null) {
-      const [, vcName] = match;
-      const line = safe.slice(0, match.index).split('\n').length;
+    while ((match = vcPattern.exec(cleanSource)) !== null) {
+      const vcName = match[1]!;
+      const line = cleanSource.slice(0, match.index).split('\n').length;
 
       nodes.push({
         id: `viewcontroller:${filePath}:${vcName}:${line}`,
         kind: 'class',
-        name: vcName!,
+        name: vcName,
         qualifiedName: `${filePath}::${vcName}`,
         filePath,
         startLine: line,
@@ -236,21 +305,20 @@ export const uikitResolver: FrameworkResolver = {
         startColumn: 0,
         endColumn: match[0].length,
         language: 'swift',
-        updatedAt: now,
+        updatedAt: timestamp,
       });
     }
 
-    // Extract UIView subclasses
+    // UIView inheritance (excluding UIViewController)
     const viewPattern = /class\s+(\w+)\s*:\s*(?:\w+\s*,\s*)*UIView[^C]/g;
-
-    while ((match = viewPattern.exec(safe)) !== null) {
-      const [, viewName] = match;
-      const line = safe.slice(0, match.index).split('\n').length;
+    while ((match = viewPattern.exec(cleanSource)) !== null) {
+      const viewName = match[1]!;
+      const line = cleanSource.slice(0, match.index).split('\n').length;
 
       nodes.push({
         id: `uiview:${filePath}:${viewName}:${line}`,
         kind: 'class',
-        name: viewName!,
+        name: viewName,
         qualifiedName: `${filePath}::${viewName}`,
         filePath,
         startLine: line,
@@ -258,7 +326,7 @@ export const uikitResolver: FrameworkResolver = {
         startColumn: 0,
         endColumn: match[0].length,
         language: 'swift',
-        updatedAt: now,
+        updatedAt: timestamp,
       });
     }
 
@@ -266,146 +334,149 @@ export const uikitResolver: FrameworkResolver = {
   },
 };
 
+// ============================================================================
+// 3. Vapor Server Resolver
+// ============================================================================
+
 export const vaporResolver: FrameworkResolver = {
   name: 'vapor',
   languages: ['swift'],
 
   detect(context: ResolutionContext): boolean {
-    // Check for Package.swift with Vapor dependency
-    const packageSwift = context.readFile('Package.swift');
-    if (packageSwift && packageSwift.includes('vapor')) {
+    const packageManifest = context.readFile('Package.swift');
+    if (packageManifest && packageManifest.includes('vapor')) {
       return true;
     }
 
-    // Check for Vapor imports
-    const allFiles = context.getAllFiles();
-    for (const file of allFiles) {
+    const files = context.getAllFiles();
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i]!;
       if (file.endsWith('.swift')) {
-        const content = context.readFile(file);
-        if (content && content.includes('import Vapor')) {
+        const source = context.readFile(file);
+        if (source && source.includes('import Vapor')) {
           return true;
         }
       }
     }
-
     return false;
   },
 
   resolve(ref: UnresolvedRef, context: ResolutionContext): ResolvedRef | null {
-    // Pattern 1: Controller references
-    if (ref.referenceName.endsWith('Controller')) {
-      const result = resolveByNameAndKind(ref.referenceName, VAPOR_CONTROLLER_KINDS, VAPOR_CONTROLLER_DIRS, context);
-      if (result) {
-        return {
-          original: ref,
-          targetNodeId: result,
-          confidence: 0.85,
-          resolvedBy: 'framework',
-        };
+    const { referenceName } = ref;
+
+    if (referenceName.endsWith('Controller')) {
+      const targetId = findSymbolByKindAndDirectory(
+        referenceName,
+        STRUCT_OR_CLASS_KINDS,
+        VAPOR_CONTROLLER_DIRS,
+        context
+      );
+      if (targetId) {
+        return { original: ref, targetNodeId: targetId, confidence: 0.85, resolvedBy: 'framework' };
       }
     }
 
-    // Pattern 2: Model references (Fluent)
-    if (/^[A-Z][a-zA-Z]+$/.test(ref.referenceName)) {
-      const result = resolveByNameAndKind(ref.referenceName, CLASS_KINDS, FLUENT_MODEL_DIRS, context);
-      if (result) {
-        return {
-          original: ref,
-          targetNodeId: result,
-          confidence: 0.75,
-          resolvedBy: 'framework',
-        };
+    if (/^[A-Z][a-zA-Z]+$/.test(referenceName)) {
+      const targetId = findSymbolByKindAndDirectory(
+        referenceName,
+        CLASS_KINDS,
+        VAPOR_FLUENT_DIRS,
+        context
+      );
+      if (targetId) {
+        return { original: ref, targetNodeId: targetId, confidence: 0.75, resolvedBy: 'framework' };
       }
     }
 
-    // Pattern 3: Middleware references
-    if (ref.referenceName.endsWith('Middleware')) {
-      const result = resolveByNameAndKind(ref.referenceName, VAPOR_CONTROLLER_KINDS, VAPOR_MIDDLEWARE_DIRS, context);
-      if (result) {
-        return {
-          original: ref,
-          targetNodeId: result,
-          confidence: 0.8,
-          resolvedBy: 'framework',
-        };
+    if (referenceName.endsWith('Middleware')) {
+      const targetId = findSymbolByKindAndDirectory(
+        referenceName,
+        STRUCT_OR_CLASS_KINDS,
+        VAPOR_MIDDLEWARE_DIRS,
+        context
+      );
+      if (targetId) {
+        return { original: ref, targetNodeId: targetId, confidence: 0.8, resolvedBy: 'framework' };
       }
     }
 
     return null;
   },
 
-  extract(filePath, content) {
-    if (!filePath.endsWith('.swift')) return { nodes: [], references: [] };
+  extract(filePath: string, content: string) {
+    if (!filePath.endsWith('.swift')) {
+      return { nodes: [], references: [] };
+    }
+
     const nodes: Node[] = [];
     const references: UnresolvedRef[] = [];
-    const now = Date.now();
-    const safe = stripCommentsForRegex(content, 'swift');
+    const timestamp = Date.now();
+    const cleanSource = stripCommentsForRegex(content, 'swift');
 
-    // Build a group-var → path-prefix map first. Modern Vapor routes live on a
-    // grouped builder (`let todos = routes.grouped("todos"); todos.get(use: index)`
-    // or `routes.group("todos") { todos in todos.get(use: index) }`), so the path
-    // comes from the group, not the call. Roots (app/routes/router) have no prefix.
-    const groupPrefix = new Map<string, string>();
-    const segJoin = (existing: string, segsStr: string): string => {
-      const segs = (segsStr.match(/"([^"]*)"/g) || []).map((s) => s.slice(1, -1));
-      return existing + segs.map((s) => '/' + s).join('');
+    // Helper to concatenate path segments from string literals
+    const appendSegments = (prefix: string, segmentArgs: string): string => {
+      const literalMatches = segmentArgs.match(/"([^"]*)"/g);
+      if (!literalMatches) {
+        return prefix;
+      }
+      const rawSegments = literalMatches.map((token) => token.slice(1, -1));
+      return prefix + rawSegments.map((segment) => '/' + segment).join('');
     };
-    let gm: RegExpExecArray | null;
-    // let X = Y.grouped("a", "b")
-    const groupedRegex = /\blet\s+(\w+)\s*=\s*(\w+)\.grouped\s*\(([^)]*)\)/g;
-    while ((gm = groupedRegex.exec(safe)) !== null) {
-      groupPrefix.set(gm[1]!, segJoin(groupPrefix.get(gm[2]!) ?? '', gm[3]!));
-    }
-    // Y.group("a") { X in ... }
-    const groupClosureRegex = /\b(\w+)\.group\s*\(([^)]*)\)\s*\{\s*(\w+)\s+in/g;
-    while ((gm = groupClosureRegex.exec(safe)) !== null) {
-      groupPrefix.set(gm[3]!, segJoin(groupPrefix.get(gm[1]!) ?? '', gm[2]!));
+
+    // Track route builder prefixes: variable name -> mounted URL prefix
+    const routeGroupPrefixMap = new Map<string, string>();
+
+    // 1. `let todos = routes.grouped("todos")`
+    const groupedAssignmentPattern = /\blet\s+(\w+)\s*=\s*(\w+)\.grouped\s*\(([^)]*)\)/g;
+    let groupMatch: RegExpExecArray | null;
+    while ((groupMatch = groupedAssignmentPattern.exec(cleanSource)) !== null) {
+      const [, targetVar, parentVar, args] = groupMatch;
+      const parentPrefix = routeGroupPrefixMap.get(parentVar!) ?? '';
+      routeGroupPrefixMap.set(targetVar!, appendSegments(parentPrefix, args!));
     }
 
-    // Vapor: <builder>.METHOD([path segs,] use: handler). Any receiver (app,
-    // routes, or a grouped var); path segments optional and may be non-string
-    // (`BlogUser.parameter`, `:id`, a path constant) so accept any comma-separated
-    // args before `use:` — the label keeps only the string parts. `use:`
-    // discriminates a real route from Environment.get("X")/req.parameters.get("X").
-    // Each arg repetition must end at a comma, and `,` is outside the char class,
-    // so the split is unique and matching stays linear. The earlier
-    // `(?:[^,()]+,\s*)*` was ambiguous — the trailing `\s*` and the next
-    // iteration's `[^,()]+` could both claim the same spaces — which backtracked
-    // exponentially on a long arg list that never reaches `use:`.
-    // The tail is `\s*` rather than a lazy `[^,()]*?` on purpose: both are
-    // linear, but the lazy form drops the "`use:` is preceded by a comma"
-    // requirement and widens the match set — `req.get(foo.use: bar)` would then
-    // be indexed as a route (groups `["req","get","foo.","bar"]`) where both
-    // this pattern and the original match nothing.
-    const routeRegex = /\b(\w+)\.(get|post|put|patch|delete|head|options)\s*\(\s*((?:[^,()]+,)*\s*)use:\s*([A-Za-z_][\w.]*)/g;
-    let match: RegExpExecArray | null;
-    while ((match = routeRegex.exec(safe)) !== null) {
-      const [, receiver, method, segsStr, handlerExpr] = match;
-      const line = safe.slice(0, match.index).split('\n').length;
-      const upper = method!.toUpperCase();
-      const routePath = (groupPrefix.get(receiver!) ?? '') + segJoin('', segsStr!) || '/';
+    // 2. `routes.group("todos") { todo in ... }`
+    const groupClosurePattern = /\b(\w+)\.group\s*\(([^)]*)\)\s*\{\s*(\w+)\s+in/g;
+    while ((groupMatch = groupClosurePattern.exec(cleanSource)) !== null) {
+      const [, parentVar, args, scopedVar] = groupMatch;
+      const parentPrefix = routeGroupPrefixMap.get(parentVar!) ?? '';
+      routeGroupPrefixMap.set(scopedVar!, appendSegments(parentPrefix, args!));
+    }
+
+    // 3. Endpoint registration: `routes.get("path", use: handler)`
+    // Strict linear regex avoiding exponential backtracking on long parameter lists
+    const routeDefinitionPattern = /\b(\w+)\.(get|post|put|patch|delete|head|options)\s*\(\s*((?:[^,()]+,)*\s*)use:\s*([A-Za-z_][\w.]*)/g;
+    let routeMatch: RegExpExecArray | null;
+
+    while ((routeMatch = routeDefinitionPattern.exec(cleanSource)) !== null) {
+      const [, builderVar, httpMethod, segmentArguments, handlerExpr] = routeMatch;
+      const line = cleanSource.slice(0, routeMatch.index).split('\n').length;
+      const methodUpper = httpMethod!.toUpperCase();
+
+      const basePrefix = routeGroupPrefixMap.get(builderVar!) ?? '';
+      const constructedPath = appendSegments(basePrefix, segmentArguments!) || '/';
 
       const routeNode: Node = {
-        id: `route:${filePath}:${line}:${upper}:${routePath}`,
+        id: `route:${filePath}:${line}:${methodUpper}:${constructedPath}`,
         kind: 'route',
-        name: `${upper} ${routePath}`,
-        qualifiedName: `${filePath}::route:${routePath}`,
+        name: `${methodUpper} ${constructedPath}`,
+        qualifiedName: `${filePath}::route:${constructedPath}`,
         filePath,
         startLine: line,
         endLine: line,
         startColumn: 0,
-        endColumn: match[0].length,
+        endColumn: routeMatch[0].length,
         language: 'swift',
-        updatedAt: now,
+        updatedAt: timestamp,
       };
       nodes.push(routeNode);
 
-      // Last segment of a dotted handler (self.list / UserController.list -> list)
-      const handlerName = handlerExpr!.split('.').pop();
-      if (handlerName) {
+      // Extract terminal method/function name from handler expression (e.g., self.edit -> edit)
+      const targetHandlerName = handlerExpr!.split('.').pop();
+      if (targetHandlerName) {
         references.push({
           fromNodeId: routeNode.id,
-          referenceName: handlerName,
+          referenceName: targetHandlerName,
           referenceKind: 'references',
           line,
           column: 0,
@@ -418,47 +489,3 @@ export const vaporResolver: FrameworkResolver = {
     return { nodes, references };
   },
 };
-
-// Directory patterns
-const VIEW_DIRS = ['/Views/', '/View/', '/Screens/', '/Components/', '/UI/'];
-const VIEWMODEL_DIRS = ['/ViewModels/', '/ViewModel/', '/Stores/', '/Managers/', '/Services/'];
-const MODEL_DIRS = ['/Models/', '/Model/', '/Entities/', '/Domain/'];
-const VC_DIRS = ['/ViewControllers/', '/ViewController/', '/Controllers/', '/Screens/'];
-const UIVIEW_DIRS = ['/Views/', '/View/', '/UI/', '/Components/'];
-const CELL_DIRS = ['/Cells/', '/Cell/', '/Views/', '/TableViewCells/', '/CollectionViewCells/'];
-const VAPOR_CONTROLLER_DIRS = ['/Controllers/', '/Controller/', '/Routes/'];
-const FLUENT_MODEL_DIRS = ['/Models/', '/Model/', '/Entities/', '/Database/'];
-const VAPOR_MIDDLEWARE_DIRS = ['/Middleware/', '/Middlewares/'];
-
-const VIEW_KINDS = new Set(['struct', 'component']);
-const CLASS_KINDS = new Set(['class']);
-const MODEL_KINDS = new Set(['struct', 'class']);
-const PROTOCOL_KINDS = new Set(['protocol']);
-const VAPOR_CONTROLLER_KINDS = new Set(['class', 'struct']);
-
-/**
- * Resolve a symbol by name using indexed queries instead of scanning all files.
- */
-function resolveByNameAndKind(
-  name: string,
-  kinds: Set<string>,
-  preferredDirPatterns: string[],
-  context: ResolutionContext,
-): string | null {
-  const candidates = context.getNodesByName(name);
-  if (candidates.length === 0) return null;
-
-  const kindFiltered = candidates.filter((n) => kinds.has(n.kind));
-  if (kindFiltered.length === 0) return null;
-
-  // Prefer candidates in framework-conventional directories
-  if (preferredDirPatterns.length > 0) {
-    const preferred = kindFiltered.filter((n) =>
-      preferredDirPatterns.some((d) => n.filePath.includes(d))
-    );
-    if (preferred.length > 0) return preferred[0]!.id;
-  }
-
-  // Fall back to any match
-  return kindFiltered[0]!.id;
-}

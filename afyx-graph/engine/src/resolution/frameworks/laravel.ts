@@ -1,17 +1,23 @@
 /**
- * Laravel Framework Resolver
+ * AFYX Engineering Kit - Laravel Framework Resolver
  *
- * Handles Laravel-specific patterns for reference resolution.
+ * Implements route extraction and symbol resolution for PHP Laravel applications:
+ * 1. Declarative HTTP routing: `Route::get`, `Route::post`, `Route::resource`, `Route::apiResource`
+ * 2. Controller method binding: `[Controller::class, 'method']` and `'Controller@method'`
+ * 3. Eloquent Model static calls: `Model::find()`, `Model::where()`
+ * 4. Facade and core helper recognition
  */
 
-import { Node } from '../../types';
-import { FrameworkResolver, UnresolvedRef, ResolvedRef, ResolutionContext } from '../types';
+import type { Node } from '../../types';
+import type {
+  FrameworkExtractionResult,
+  FrameworkResolver,
+  ResolutionContext,
+  ResolvedRef,
+  UnresolvedRef,
+} from '../types';
 import { stripCommentsForRegex } from '../strip-comments';
 
-/**
- * Laravel facade mappings to underlying classes
- * Exported for potential use in facade resolution
- */
 export const FACADE_MAPPINGS: Record<string, string> = {
   Auth: 'Illuminate\\Auth\\AuthManager',
   Cache: 'Illuminate\\Cache\\CacheManager',
@@ -35,61 +41,113 @@ export const FACADE_MAPPINGS: Record<string, string> = {
   View: 'Illuminate\\View\\Factory',
 };
 
+const LARAVEL_GLOBAL_HELPERS: ReadonlySet<string> = new Set([
+  'route', 'view', 'config', 'env', 'app', 'abort', 'redirect',
+  'response', 'request', 'session', 'url', 'asset', 'mix',
+]);
+
+const CONTROLLER_METHOD_REF_PATTERN = /^[A-Za-z_][A-Za-z0-9_]*Controller@\w+$/;
+
+function parseLaravelRouteHandlerExpression(expr: string): string | null {
+  const trimmed = expr.trim();
+  const getShortName = (s: string) => s.split('\\').pop()!;
+
+  const tupleMatch = trimmed.match(/^\[\s*([A-Za-z_\\][\w\\]*)::class\s*,\s*['"]([^'"]+)['"]\s*\]/);
+  if (tupleMatch) {
+    return `${getShortName(tupleMatch[1]!)}@${tupleMatch[2]!}`;
+  }
+
+  const atMatch = trimmed.match(/^['"]([^'"@]+)@([^'"]+)['"]$/);
+  if (atMatch) {
+    return `${getShortName(atMatch[1]!)}@${atMatch[2]!}`;
+  }
+
+  const classMatch = trimmed.match(/^([A-Za-z_\\][\w\\]*)::class/);
+  if (classMatch) {
+    return getShortName(classMatch[1]!);
+  }
+
+  return null;
+}
+
+function resolveEloquentModelMethod(className: string, methodName: string, ctx: ResolutionContext): string | null {
+  const modelPaths = [`app/Models/${className}.php`, `app/${className}.php`];
+
+  for (const path of modelPaths) {
+    if (ctx.fileExists(path)) {
+      const nodes = ctx.getNodesInFile(path);
+      const methodNode = nodes.find((n) => n.kind === 'method' && n.name === methodName);
+      if (methodNode) return methodNode.id;
+
+      const classNode = nodes.find((n) => n.kind === 'class' && n.name === className);
+      if (classNode) return classNode.id;
+    }
+  }
+
+  return null;
+}
+
+function resolveLaravelControllerAction(controllerName: string, actionName: string, ctx: ResolutionContext): string | null {
+  const standardPath = `app/Http/Controllers/${controllerName}.php`;
+  if (ctx.fileExists(standardPath)) {
+    const nodes = ctx.getNodesInFile(standardPath);
+    const methodNode = nodes.find((n) => n.kind === 'method' && n.name === actionName);
+    if (methodNode) return methodNode.id;
+  }
+
+  const candidateClasses = ctx.getNodesByName(controllerName);
+  for (const cls of candidateClasses) {
+    if (cls.kind === 'class' && cls.filePath.includes('Controllers')) {
+      const nodes = ctx.getNodesInFile(cls.filePath);
+      const method = nodes.find((n) => n.kind === 'method' && n.name === actionName);
+      if (method) return method.id;
+    }
+  }
+
+  return null;
+}
+
 export const laravelResolver: FrameworkResolver = {
   name: 'laravel',
   languages: ['php'],
 
   detect(context: ResolutionContext): boolean {
-    // Check for artisan file (Laravel signature)
     return context.fileExists('artisan') || context.fileExists('app/Http/Kernel.php');
   },
 
-  // `Controller@method` route refs name no declared symbol, so resolveOne's
-  // pre-filter would drop them before resolve() runs (Pattern 4). Claim them —
-  // same hook the django ORM / Rails routing work needed.
   claimsReference(name: string): boolean {
-    return /^[A-Za-z_][A-Za-z0-9_]*Controller@\w+$/.test(name);
+    return CONTROLLER_METHOD_REF_PATTERN.test(name);
   },
 
   resolve(ref: UnresolvedRef, context: ResolutionContext): ResolvedRef | null {
-    // Pattern 1: Model::method() - Eloquent static calls
-    const modelMatch = ref.referenceName.match(/^([A-Z][a-zA-Z]+)::(\w+)$/);
-    if (modelMatch) {
-      const [, className, methodName] = modelMatch;
-      const result = resolveModelCall(className!, methodName!, context);
-      if (result) {
+    const modelCallMatch = ref.referenceName.match(/^([A-Z][a-zA-Z]+)::(\w+)$/);
+    if (modelCallMatch) {
+      const targetId = resolveEloquentModelMethod(modelCallMatch[1]!, modelCallMatch[2]!, context);
+      if (targetId) {
         return {
           original: ref,
-          targetNodeId: result,
+          targetNodeId: targetId,
           confidence: 0.85,
           resolvedBy: 'framework',
         };
       }
     }
 
-    // Pattern 2: Facade calls - Auth::user(), Cache::get()
-    const facadeMatch = ref.referenceName.match(/^(Auth|Cache|DB|Log|Mail|Queue|Session|Storage|Validator|Route|Request|Response)::(\w+)$/);
-    if (facadeMatch) {
-      // Facades typically resolve to external Laravel code
-      // Mark as external but note the facade
-      return null; // External, can't resolve to local node
-    }
-
-    // Pattern 3: Helper function calls - route(), view(), config()
-    if (['route', 'view', 'config', 'env', 'app', 'abort', 'redirect', 'response', 'request', 'session', 'url', 'asset', 'mix'].includes(ref.referenceName)) {
-      // These are Laravel helpers - external
+    if (ref.referenceName.match(/^(?:Auth|Cache|DB|Log|Mail|Queue|Session|Storage|Validator|Route|Request|Response)::\w+$/)) {
       return null;
     }
 
-    // Pattern 4: Controller method references
-    const controllerMatch = ref.referenceName.match(/^([A-Z][a-zA-Z]+Controller)@(\w+)$/);
-    if (controllerMatch) {
-      const [, controller, method] = controllerMatch;
-      const result = resolveControllerMethod(controller!, method!, context);
-      if (result) {
+    if (LARAVEL_GLOBAL_HELPERS.has(ref.referenceName)) {
+      return null;
+    }
+
+    const controllerActionMatch = ref.referenceName.match(/^([A-Z][a-zA-Z]+Controller)@(\w+)$/);
+    if (controllerActionMatch) {
+      const targetId = resolveLaravelControllerAction(controllerActionMatch[1]!, controllerActionMatch[2]!, context);
+      if (targetId) {
         return {
           original: ref,
-          targetNodeId: result,
+          targetNodeId: targetId,
           confidence: 0.9,
           resolvedBy: 'framework',
         };
@@ -99,43 +157,45 @@ export const laravelResolver: FrameworkResolver = {
     return null;
   },
 
-  extract(filePath, content) {
+  extract(filePath: string, content: string): FrameworkExtractionResult {
     if (!filePath.endsWith('.php')) return { nodes: [], references: [] };
+
     const nodes: Node[] = [];
     const references: UnresolvedRef[] = [];
-    const now = Date.now();
-    const safe = stripCommentsForRegex(content, 'php');
+    const timestamp = Date.now();
+    const cleanSource = stripCommentsForRegex(content, 'php');
 
-    // Route::METHOD('/path', handler-expr)
-    // handler-expr can be: [Class::class, 'method'] | 'Controller@method' | Closure | Class::class
-    const routeRegex = /Route::(get|post|put|patch|delete|options|any)\s*\(\s*['"]([^'"]+)['"]\s*,\s*([^)]+)\)/g;
+    const routeCallRegex = /Route::(get|post|put|patch|delete|options|any)\s*\(\s*['"]([^'"]+)['"]\s*,\s*([^)]+)\)/g;
     let match: RegExpExecArray | null;
-    while ((match = routeRegex.exec(safe)) !== null) {
-      const [, method, routePath, handlerExpr] = match;
-      const line = safe.slice(0, match.index).split('\n').length;
-      const upper = method!.toUpperCase();
+
+    while ((match = routeCallRegex.exec(cleanSource)) !== null) {
+      const verb = match[1]!.toUpperCase();
+      const endpoint = match[2]!;
+      const handlerExpression = match[3]!;
+      const lineNum = cleanSource.slice(0, match.index).split('\n').length;
+
       const routeNode: Node = {
-        id: `route:${filePath}:${line}:${upper}:${routePath}`,
+        id: `route:${filePath}:${lineNum}:${verb}:${endpoint}`,
         kind: 'route',
-        name: `${upper} ${routePath}`,
-        qualifiedName: `${filePath}::route:${routePath}`,
+        name: `${verb} ${endpoint}`,
+        qualifiedName: `${filePath}::route:${endpoint}`,
         filePath,
-        startLine: line,
-        endLine: line,
+        startLine: lineNum,
+        endLine: lineNum,
         startColumn: 0,
         endColumn: match[0].length,
         language: 'php',
-        updatedAt: now,
+        updatedAt: timestamp,
       };
       nodes.push(routeNode);
 
-      const handlerName = extractLaravelHandler(handlerExpr!);
-      if (handlerName) {
+      const targetIdentifier = parseLaravelRouteHandlerExpression(handlerExpression);
+      if (targetIdentifier) {
         references.push({
           fromNodeId: routeNode.id,
-          referenceName: handlerName,
+          referenceName: targetIdentifier,
           referenceKind: 'references',
-          line,
+          line: lineNum,
           column: 0,
           filePath,
           language: 'php',
@@ -143,34 +203,35 @@ export const laravelResolver: FrameworkResolver = {
       }
     }
 
-    // Route::resource('name', Controller::class) / Route::apiResource('name', Controller::class)
     const resourceRegex = /Route::(resource|apiResource)\s*\(\s*['"]([^'"]+)['"]\s*(?:,\s*([^)]+))?\)/g;
-    while ((match = resourceRegex.exec(safe)) !== null) {
-      const [, _fn, resourceName, handlerExpr] = match;
-      const line = safe.slice(0, match.index).split('\n').length;
+    while ((match = resourceRegex.exec(cleanSource)) !== null) {
+      const resourceName = match[2]!;
+      const handlerExpr = match[3];
+      const lineNum = cleanSource.slice(0, match.index).split('\n').length;
+
       const routeNode: Node = {
-        id: `route:${filePath}:${line}:RESOURCE:${resourceName}`,
+        id: `route:${filePath}:${lineNum}:RESOURCE:${resourceName}`,
         kind: 'route',
         name: `resource:${resourceName}`,
         qualifiedName: `${filePath}::route:${resourceName}`,
         filePath,
-        startLine: line,
-        endLine: line,
+        startLine: lineNum,
+        endLine: lineNum,
         startColumn: 0,
         endColumn: match[0].length,
         language: 'php',
-        updatedAt: now,
+        updatedAt: timestamp,
       };
       nodes.push(routeNode);
 
       if (handlerExpr) {
-        const controllerName = extractLaravelHandler(handlerExpr);
-        if (controllerName) {
+        const handlerName = parseLaravelRouteHandlerExpression(handlerExpr);
+        if (handlerName) {
           references.push({
             fromNodeId: routeNode.id,
-            referenceName: controllerName,
+            referenceName: handlerName,
             referenceKind: 'imports',
-            line,
+            line: lineNum,
             column: 0,
             filePath,
             language: 'php',
@@ -182,117 +243,3 @@ export const laravelResolver: FrameworkResolver = {
     return { nodes, references };
   },
 };
-
-/**
- * Parse a Laravel route handler expression and return the symbol to link.
- *  - `[Class::class, 'method']`  -> `method`
- *  - `'Controller@method'`       -> `method`
- *  - `Class::class`              -> `Class`
- *  - anything else (closure etc) -> null
- */
-function extractLaravelHandler(expr: string): string | null {
-  const trimmed = expr.trim();
-  const short = (s: string) => s.split('\\').pop()!; // strip namespace
-
-  // [Class::class, 'method'] → `Class@method` (PRECISE — keep the controller, so
-  // common action names like `index`/`show` resolve to the RIGHT controller, not
-  // whichever one name-matching happens to pick first).
-  const tupleMatch = trimmed.match(/^\[\s*([A-Za-z_\\][\w\\]*)::class\s*,\s*['"]([^'"]+)['"]\s*\]/);
-  if (tupleMatch) return `${short(tupleMatch[1]!)}@${tupleMatch[2]!}`;
-
-  // 'Controller@method' (possibly namespaced) → `Controller@method`
-  const atMatch = trimmed.match(/^['"]([^'"@]+)@([^'"]+)['"]$/);
-  if (atMatch) return `${short(atMatch[1]!)}@${atMatch[2]!}`;
-
-  // Class::class (Route::resource controller) → `Class`
-  const classMatch = trimmed.match(/^([A-Za-z_\\][\w\\]*)::class/);
-  if (classMatch) return short(classMatch[1]!);
-
-  return null;
-}
-
-/**
- * Resolve a Model::method() call
- */
-function resolveModelCall(
-  className: string,
-  methodName: string,
-  context: ResolutionContext
-): string | null {
-  // Try app/Models/ first (Laravel 8+)
-  let modelPath = `app/Models/${className}.php`;
-  if (context.fileExists(modelPath)) {
-    const nodes = context.getNodesInFile(modelPath);
-    // Look for the method in this class
-    const methodNode = nodes.find(
-      (n) => n.kind === 'method' && n.name === methodName
-    );
-    if (methodNode) {
-      return methodNode.id;
-    }
-    // Return the class itself if method not found
-    const classNode = nodes.find(
-      (n) => n.kind === 'class' && n.name === className
-    );
-    if (classNode) {
-      return classNode.id;
-    }
-  }
-
-  // Try app/ (Laravel 7 and below)
-  modelPath = `app/${className}.php`;
-  if (context.fileExists(modelPath)) {
-    const nodes = context.getNodesInFile(modelPath);
-    const methodNode = nodes.find(
-      (n) => n.kind === 'method' && n.name === methodName
-    );
-    if (methodNode) {
-      return methodNode.id;
-    }
-    const classNode = nodes.find(
-      (n) => n.kind === 'class' && n.name === className
-    );
-    if (classNode) {
-      return classNode.id;
-    }
-  }
-
-  return null;
-}
-
-/**
- * Resolve a Controller@method reference
- */
-function resolveControllerMethod(
-  controller: string,
-  method: string,
-  context: ResolutionContext
-): string | null {
-  // Try app/Http/Controllers/
-  const controllerPath = `app/Http/Controllers/${controller}.php`;
-  if (context.fileExists(controllerPath)) {
-    const nodes = context.getNodesInFile(controllerPath);
-    const methodNode = nodes.find(
-      (n) => n.kind === 'method' && n.name === method
-    );
-    if (methodNode) {
-      return methodNode.id;
-    }
-  }
-
-  // Try name-based lookup for namespaced controllers
-  const controllerCandidates = context.getNodesByName(controller);
-  for (const ctrl of controllerCandidates) {
-    if (ctrl.kind === 'class' && ctrl.filePath.includes('Controllers')) {
-      const nodesInFile = context.getNodesInFile(ctrl.filePath);
-      const methodNode = nodesInFile.find(
-        (n) => n.kind === 'method' && n.name === method
-      );
-      if (methodNode) {
-        return methodNode.id;
-      }
-    }
-  }
-
-  return null;
-}

@@ -1,11 +1,11 @@
 /**
- * Kind glyphs — design spec §2.3.
+ * AFYX Graph Engine - UI Symbol Kind Representation
  *
- * A 16x16 hollow square with a mono letter. Container/type kinds get a
- * --press fill so a class reads as a box and a function as an outline.
+ * Provides visual kind badge representations, glyph abbreviations, container/type
+ * classification rules, and human-readable kind labels for the UI viewer.
  */
 
-/** NodeKind values the engine emits (src/types.ts). */
+/** Canonical symbol glyph abbreviations by node kind. */
 export const KIND_LETTER: Record<string, string> = {
   function: 'ƒ',
   method: 'm',
@@ -27,24 +27,35 @@ export const KIND_LETTER: Record<string, string> = {
   trait: 'Tr',
   union: 'U',
   protocol: 'P',
-  // Beyond the spec's list, but the engine emits them and a rail row must
-  // never render a blank box. Two lowercase letters, like `Tr`.
   parameter: 'pm',
   import: 'im',
   export: 'ex',
 };
 
-/** Kinds drawn with a --press fill (they contain other symbols, or are types). */
-export const FILLED_KINDS = new Set(['class', 'interface', 'struct', 'type_alias', 'trait', 'protocol', 'union', 'enum']);
+/** Kinds rendered with background fill styling (types and structural containers). */
+export const FILLED_KINDS: ReadonlySet<string> = new Set([
+  'class',
+  'interface',
+  'struct',
+  'type_alias',
+  'trait',
+  'protocol',
+  'union',
+  'enum',
+]);
 
-/** Empty string for an unknown kind — the glyph is then a plain hollow box. */
+/** Returns badge glyph representation for a given symbol kind. */
 export function kindLetter(kind: string | null | undefined): string {
-  if (!kind) return '';
+  if (!kind) {
+    return '';
+  }
   return KIND_LETTER[kind] ?? kind.slice(0, 1).toUpperCase();
 }
 
-/** Human wording for the kind, as shown next to a symbol's name. */
+/** Returns formatted descriptive text for a given symbol kind. */
 export function kindWord(kind: string | null | undefined): string {
-  if (!kind) return 'symbol';
+  if (!kind) {
+    return 'symbol';
+  }
   return kind.replace(/_/g, ' ');
 }

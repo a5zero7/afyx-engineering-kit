@@ -1,104 +1,114 @@
-/**
- * Getting an SVG string out of the browser: as a PNG on the clipboard, or as a
- * file on disk.
- *
- * `export-svg.ts` does the drawing and has no browser in it at all; everything
- * that needs a `document` is here, and it is deliberately thin — a canvas, an
- * `<img>`, and two ways of handing the result over.
- *
- * ## Why an `<img>` and not `foreignObject`
- *
- * A canvas rasterises an SVG by loading it as an image, which is a strictly
- * sandboxed context: no scripts, no network, and **no webfonts**. That is why
- * the export draws real `<text>` in a font *stack* rather than embedding
- * anything — the raster falls back to the platform's own monospace, which
- * advances at the same ~0.6em, so the code grid survives. It is also why the
- * canvas is never tainted and `toBlob` works: nothing external is referenced.
- *
- * The scale trick matters. The SVG is asked for at `scale`, which multiplies
- * only the root `width`/`height` while the `viewBox` stays in CSS pixels — so
- * the image's *intrinsic* size is already 2x and `drawImage` copies it 1:1
- * instead of upscaling a 1x bitmap. Text comes out rasterised at 2x, not blurry.
- */
+/** Browser boundary for deterministic AFYX graph image export. */
 
-/** Device-pixel multiplier for the PNG (design spec §3.9). */
 export const PNG_SCALE = 2;
+
+export interface RasterEnvironment {
+  createCanvas(): HTMLCanvasElement;
+  createImage(): HTMLImageElement;
+}
+
+const browserRasterEnvironment: RasterEnvironment = {
+  createCanvas: () => document.createElement('canvas'),
+  createImage: () => new Image(),
+};
 
 export function svgDataUrl(svg: string): string {
   return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
 }
 
-/** The SVG's own root width/height, which the raster canvas has to match. */
+function positivePixels(value: string | null): number | null {
+  if (value === null || !/^\d+(?:\.\d+)?(?:px)?$/i.test(value.trim())) return null;
+  const pixels = Number.parseFloat(value);
+  return Number.isFinite(pixels) && pixels > 0 ? Math.max(1, Math.round(pixels)) : null;
+}
+
 export function svgPixelSize(svg: string): { width: number; height: number } {
-  const width = Number(/\bwidth="(\d+(?:\.\d+)?)"/.exec(svg)?.[1] ?? 0);
-  const height = Number(/\bheight="(\d+(?:\.\d+)?)"/.exec(svg)?.[1] ?? 0);
-  return { width: Math.max(1, Math.round(width)), height: Math.max(1, Math.round(height)) };
+  const documentNode = new DOMParser().parseFromString(svg, 'image/svg+xml');
+  const root = documentNode.documentElement.tagName.toLowerCase() === 'svg'
+    ? documentNode.documentElement
+    : null;
+  const viewBox = root?.getAttribute('viewBox')
+    ?.trim()
+    .split(/[\s,]+/)
+    .map(Number);
+  const width = positivePixels(root?.getAttribute('width') ?? null)
+    ?? (viewBox?.length === 4 && Number.isFinite(viewBox[2]) && viewBox[2]! > 0
+      ? Math.max(1, Math.round(viewBox[2]!))
+      : 1);
+  const height = positivePixels(root?.getAttribute('height') ?? null)
+    ?? (viewBox?.length === 4 && Number.isFinite(viewBox[3]) && viewBox[3]! > 0
+      ? Math.max(1, Math.round(viewBox[3]!))
+      : 1);
+  return { width, height };
 }
 
-function loadImage(url: string): Promise<HTMLImageElement> {
+function loadImage(source: string, environment: RasterEnvironment): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
-    const img = new Image();
-    img.onload = () => resolve(img);
-    img.onerror = () => reject(new Error('The image could not be rendered.'));
-    img.src = url;
+    const image = environment.createImage();
+    image.addEventListener('load', () => resolve(image), { once: true });
+    image.addEventListener('error', () => reject(new Error('The image could not be rendered.')), { once: true });
+    image.src = source;
   });
 }
 
-/** Rasterise an already-scaled SVG string to a PNG blob. */
-export async function svgToPng(svg: string): Promise<Blob> {
-  const { width, height } = svgPixelSize(svg);
-  const img = await loadImage(svgDataUrl(svg));
-  const canvas = document.createElement('canvas');
-  canvas.width = width;
-  canvas.height = height;
-  const ctx = canvas.getContext('2d');
-  if (ctx === null) throw new Error('This browser would not give up a 2D canvas.');
-  ctx.drawImage(img, 0, 0, width, height);
-  return await new Promise<Blob>((resolve, reject) => {
-    canvas.toBlob(
-      (blob) => (blob ? resolve(blob) : reject(new Error('The image could not be encoded.'))),
-      'image/png'
-    );
+function encodePng(canvas: HTMLCanvasElement): Promise<Blob> {
+  return new Promise((resolve, reject) => {
+    canvas.toBlob((blob) => {
+      if (blob === null) reject(new Error('The image could not be encoded.'));
+      else resolve(blob);
+    }, 'image/png');
   });
+}
+
+export async function rasterizeSvg(
+  svg: string,
+  environment: RasterEnvironment,
+): Promise<Blob> {
+  const size = svgPixelSize(svg);
+  const [image, canvas] = await Promise.all([
+    loadImage(svgDataUrl(svg), environment),
+    Promise.resolve(environment.createCanvas()),
+  ]);
+  canvas.width = size.width;
+  canvas.height = size.height;
+  const context = canvas.getContext('2d');
+  if (context === null) throw new Error('This browser would not give up a 2D canvas.');
+  context.drawImage(image, 0, 0, size.width, size.height);
+  return encodePng(canvas);
+}
+
+export function svgToPng(svg: string): Promise<Blob> {
+  return rasterizeSvg(svg, browserRasterEnvironment);
 }
 
 export function downloadBlob(blob: Blob, filename: string): void {
-  const url = URL.createObjectURL(blob);
+  const objectUrl = URL.createObjectURL(blob);
   const anchor = document.createElement('a');
-  anchor.href = url;
+  anchor.href = objectUrl;
   anchor.download = filename;
-  document.body.appendChild(anchor);
-  anchor.click();
-  anchor.remove();
-  // Revoked on the next tick: Safari has not finished with the URL when click()
-  // returns, and a revoked object URL downloads a zero-byte file.
-  setTimeout(() => URL.revokeObjectURL(url), 10_000);
+  document.body.append(anchor);
+  try {
+    anchor.click();
+  } finally {
+    anchor.remove();
+    setTimeout(() => URL.revokeObjectURL(objectUrl), 10_000);
+  }
 }
 
 export function downloadSvg(svg: string, filename: string): void {
   downloadBlob(new Blob([svg], { type: 'image/svg+xml;charset=utf-8' }), filename);
 }
 
-/**
- * Put a PNG on the clipboard, falling back to a download.
- *
- * `ClipboardItem` is constructed with the *promise*, not the awaited blob:
- * Safari discards the user gesture across an `await`, and a copy that silently
- * does nothing is the worst outcome of the three. Returns what actually
- * happened so the caller can say so rather than claim a copy it did not make.
- */
 export async function copyPngToClipboard(
   render: () => Promise<Blob>,
-  filename: string
+  filename: string,
 ): Promise<'copied' | 'downloaded'> {
-  const write = navigator.clipboard?.write;
-  if (typeof write === 'function' && typeof ClipboardItem === 'function') {
+  if (typeof navigator.clipboard?.write === 'function' && typeof ClipboardItem === 'function') {
     try {
       await navigator.clipboard.write([new ClipboardItem({ 'image/png': render() })]);
       return 'copied';
     } catch {
-      // Denied permission, an unfocused document, or a browser that will not
-      // take a promise. Fall through — the reader still gets their image.
+      // Permission, focus, and user-gesture policies are browser controlled.
     }
   }
   downloadBlob(await render(), filename);

@@ -1,4 +1,5 @@
 import type { Edge, Node } from '../types';
+import { isSourceGroundedRelationship } from '../graph/relationship-presentation';
 import { clamp } from '../utils';
 import { boundToolOutput } from './tool-output';
 import { textToolResult, type ToolResult } from './tool-results';
@@ -51,9 +52,9 @@ export function executeRelationshipTool(
     const labels = new Map<string, string>();
 
     for (const definition of definitionNodes) {
-      const relationships = direction === 'callers'
+      const relationships = (direction === 'callers'
         ? source.getCallers(definition.id)
-        : source.getCallees(definition.id);
+        : source.getCallees(definition.id)).filter(isSourceGroundedRelationship);
       for (const relationship of relationships) {
         if (!seen.has(relationship.node.id)) {
           seen.add(relationship.node.id);

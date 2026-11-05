@@ -7,6 +7,7 @@ import * as path from 'path';
 import { AfyxGraph } from '../src';
 import { ToolHandler } from '../src/mcp/tools';
 import { lookupSymbolNodes } from '../src/graph/symbol-lookup';
+import { isSourceGroundedRelationship } from '../src/graph/relationship-presentation';
 
 const BIN = path.resolve(__dirname, '../dist/bin/afyx-graph.js');
 const COMMANDS = ['callers', 'callees', 'impact'] as const;
@@ -100,7 +101,8 @@ describe.each(COMMANDS)('%s definition grouping (#1512)', (command) => {
       const actual = cg.getNodesByName('handle').find(n => n.filePath === `${dir}/svc.js`)!;
       const expectedNodes = command === 'impact'
         ? [...cg.getImpactRadius(actual.id, 2).nodes.values()]
-        : cg[command === 'callers' ? 'getCallers' : 'getCallees'](actual.id).map(c => c.node);
+        : cg[command === 'callers' ? 'getCallers' : 'getCallees'](actual.id)
+          .filter(isSourceGroundedRelationship).map(c => c.node);
       expect(new Set(group[key].map((n: any) => n.id))).toEqual(new Set(expectedNodes.map(n => n.id)));
       const ids = new Set([...group.roots, ...group[key].map((n: any) => n.id)]);
       expect(group.edges.length).toBeGreaterThan(0);
@@ -213,9 +215,9 @@ describe('CLI definition boundaries and limits', () => {
   });
 
   it.each(['callers', 'callees'] as const)('%s preserves union metadata and limits each definition independently', (command) => {
-    // Callers include the importing file nodes as well as the calling functions.
-    const total = command === 'callers' ? 6 : 3;
-    const perDefinition = command === 'callers' ? 4 : 2;
+    // Source-grounded CLI results omit importing file containers.
+    const total = 3;
+    const perDefinition = 2;
     const out = json(command, 'work', ['--limit', '1']);
     expect(out).toMatchObject({ total, limit: 1, truncated: true });
     expect(out[command]).toHaveLength(1);

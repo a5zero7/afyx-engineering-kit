@@ -1,17 +1,24 @@
 /**
- * Vue / Nuxt Framework Resolver
+ * AFYX Engineering Kit - Vue / Nuxt Framework Resolver
  *
- * Handles Vue component references, compiler macros (defineProps, etc.),
- * Nuxt auto-imports, and Nuxt file-based routing patterns.
+ * Provides syntax and structure resolution for Vue 3 and Nuxt applications:
+ * 1. Vue compiler macros (`defineProps`, `defineEmits`, `defineModel`, etc.)
+ * 2. Nuxt auto-imported composables (`useRoute`, `useRouter`, `useFetch`, `useState`, etc.)
+ * 3. Nuxt virtual modules (`#imports`, `#components`, `#app`, etc.)
+ * 4. Component imports and path aliases (`@/*`, `~/*`)
+ * 5. Nuxt file-based route and middleware extraction (`pages/`, `server/api/`, `middleware/`)
  */
 
-import { Node } from '../../types';
-import { FrameworkResolver, UnresolvedRef, ResolvedRef, ResolutionContext } from '../types';
+import type { Node } from '../../types';
+import type {
+  FrameworkExtractionResult,
+  FrameworkResolver,
+  ResolutionContext,
+  ResolvedRef,
+  UnresolvedRef,
+} from '../types';
 
-/**
- * Vue 3 compiler macros — compiler-provided, not user code
- */
-const VUE_COMPILER_MACROS = new Set([
+const BUILTIN_VUE_COMPILER_MACROS: ReadonlySet<string> = new Set([
   'defineProps',
   'defineEmits',
   'defineExpose',
@@ -21,55 +28,40 @@ const VUE_COMPILER_MACROS = new Set([
   'withDefaults',
 ]);
 
-/**
- * Nuxt auto-imported composables and utilities
- */
-const NUXT_AUTO_IMPORTS = new Set([
-  // Routing
+const BUILTIN_NUXT_COMPOSABLES: ReadonlySet<string> = new Set([
   'useRoute',
   'useRouter',
   'navigateTo',
   'abortNavigation',
-  // Data fetching
   'useFetch',
   'useAsyncData',
   'useLazyFetch',
   'useLazyAsyncData',
   'refreshNuxtData',
-  // State
   'useState',
   'clearNuxtState',
-  // Head
   'useHead',
   'useSeoMeta',
   'useServerSeoMeta',
-  // Runtime
   'useRuntimeConfig',
   'useAppConfig',
   'useNuxtApp',
-  // Cookies
   'useCookie',
-  // Error
   'useError',
   'createError',
   'showError',
   'clearError',
-  // Page/layout
   'definePageMeta',
   'defineNuxtConfig',
   'defineNuxtPlugin',
   'defineNuxtRouteMiddleware',
-  // Request
   'useRequestHeaders',
   'useRequestEvent',
   'useRequestFetch',
   'useRequestURL',
 ]);
 
-/**
- * Nuxt virtual module prefixes (auto-import namespaces)
- */
-const NUXT_VIRTUAL_MODULES = [
+const NUXT_VIRTUAL_NAMESPACES: readonly string[] = [
   '#imports',
   '#components',
   '#app',
@@ -77,32 +69,105 @@ const NUXT_VIRTUAL_MODULES = [
   '#head',
 ];
 
+const ALIAS_SEARCH_EXTENSIONS: readonly string[] = [
+  '',
+  '.ts',
+  '.js',
+  '.vue',
+  '/index.ts',
+  '/index.js',
+  '/index.vue',
+];
+
+function isPascalCaseIdentifier(text: string): boolean {
+  return /^[A-Z][a-zA-Z0-9]*$/.test(text);
+}
+
+function resolveAliasedModule(
+  importSpecifier: string,
+  prefix: string,
+  replacement: string,
+  context: ResolutionContext
+): string | null {
+  const mappedSubPath = importSpecifier.replace(prefix, replacement);
+  for (const ext of ALIAS_SEARCH_EXTENSIONS) {
+    const candidatePath = mappedSubPath + ext;
+    if (context.fileExists(candidatePath)) {
+      const nodesInFile = context.getNodesInFile(candidatePath);
+      if (nodesInFile.length > 0) {
+        return nodesInFile[0]!.id;
+      }
+    }
+  }
+  return null;
+}
+
+function locateVueComponentTarget(name: string, fromFile: string, ctx: ResolutionContext): string | null {
+  const matchingVueFiles: string[] = [];
+  for (const filePath of ctx.getAllFiles()) {
+    if (!filePath.endsWith('.vue')) continue;
+    const baseName = filePath.split(/[/\\]/).pop() || '';
+    if (baseName.replace(/\.vue$/, '') === name) {
+      matchingVueFiles.push(filePath);
+    }
+  }
+
+  if (matchingVueFiles.length === 0) return null;
+
+  const findComponentIdInFile = (file: string): string | null => {
+    const fileNodes = ctx.getNodesInFile(file);
+    const componentNode = fileNodes.find((n) => n.kind === 'component' && n.name === name);
+    return componentNode ? componentNode.id : null;
+  };
+
+  const callingDir = fromFile.substring(0, fromFile.lastIndexOf('/'));
+  const sameDirFiles = matchingVueFiles.filter((f) => f.startsWith(callingDir));
+  if (sameDirFiles.length > 0) {
+    return findComponentIdInFile(sameDirFiles[0]!);
+  }
+
+  return matchingVueFiles.length === 1 ? findComponentIdInFile(matchingVueFiles[0]!) : null;
+}
+
+function mapFilePathToNuxtRoute(normalized: string, offset: number): string | null {
+  const subPath = normalized.substring(offset);
+  const strippedExt = subPath.replace(/\.vue$/, '');
+  const strippedIndex = strippedExt.replace(/\/index$/, '');
+
+  const parameterized = '/' + strippedIndex
+    .replace(/\[\.\.\.([^\]]+)\]/g, '*$1')
+    .replace(/\[{2}([^\]]+)\]{2}/g, ':$1?')
+    .replace(/\[([^\]]+)\]/g, ':$1');
+
+  if (parameterized === '/') return '/';
+  return parameterized.replace(/\/$/, '');
+}
+
 export const vueResolver: FrameworkResolver = {
   name: 'vue',
 
   detect(context: ResolutionContext): boolean {
-    // Check for vue or nuxt in package.json
-    const packageJson = context.readFile('package.json');
-    if (packageJson) {
+    const manifestJson = context.readFile('package.json');
+    if (manifestJson) {
       try {
-        const pkg = JSON.parse(packageJson);
-        const deps = { ...pkg.dependencies, ...pkg.devDependencies };
-        if (deps.vue || deps.nuxt || deps['@nuxt/kit']) {
+        const pkg = JSON.parse(manifestJson) as {
+          dependencies?: Record<string, string>;
+          devDependencies?: Record<string, string>;
+        };
+        const allDeps = { ...pkg.dependencies, ...pkg.devDependencies };
+        if (allDeps.vue || allDeps.nuxt || allDeps['@nuxt/kit']) {
           return true;
         }
       } catch {
-        // Invalid JSON
+        // Ignore JSON parse errors
       }
     }
 
-    // Check for .vue files in project
-    const allFiles = context.getAllFiles();
-    return allFiles.some((f) => f.endsWith('.vue'));
+    return context.getAllFiles().some((p) => p.endsWith('.vue'));
   },
 
   resolve(ref: UnresolvedRef, context: ResolutionContext): ResolvedRef | null {
-    // Pattern 1: Vue compiler macros (defineProps, defineEmits, etc.)
-    if (VUE_COMPILER_MACROS.has(ref.referenceName)) {
+    if (BUILTIN_VUE_COMPILER_MACROS.has(ref.referenceName)) {
       return {
         original: ref,
         targetNodeId: ref.fromNodeId,
@@ -111,8 +176,7 @@ export const vueResolver: FrameworkResolver = {
       };
     }
 
-    // Pattern 2: Nuxt auto-imported composables
-    if (NUXT_AUTO_IMPORTS.has(ref.referenceName)) {
+    if (BUILTIN_NUXT_COMPOSABLES.has(ref.referenceName)) {
       return {
         original: ref,
         targetNodeId: ref.fromNodeId,
@@ -121,9 +185,8 @@ export const vueResolver: FrameworkResolver = {
       };
     }
 
-    // Pattern 3: Nuxt virtual module imports (#imports, #components, etc.)
     if (ref.referenceKind === 'imports' && ref.referenceName.startsWith('#')) {
-      if (NUXT_VIRTUAL_MODULES.some((prefix) => ref.referenceName.startsWith(prefix))) {
+      if (NUXT_VIRTUAL_NAMESPACES.some((prefix) => ref.referenceName.startsWith(prefix))) {
         return {
           original: ref,
           targetNodeId: ref.fromNodeId,
@@ -133,51 +196,36 @@ export const vueResolver: FrameworkResolver = {
       }
     }
 
-    // Pattern 4: @ alias imports (@/components/Foo -> src/components/Foo)
     if (ref.referenceKind === 'imports' && ref.referenceName.startsWith('@/')) {
-      const aliasPath = ref.referenceName.replace('@/', 'src/');
-      for (const ext of ['', '.ts', '.js', '.vue', '/index.ts', '/index.js', '/index.vue']) {
-        const fullPath = aliasPath + ext;
-        if (context.fileExists(fullPath)) {
-          const nodes = context.getNodesInFile(fullPath);
-          if (nodes.length > 0) {
-            return {
-              original: ref,
-              targetNodeId: nodes[0]!.id,
-              confidence: 0.9,
-              resolvedBy: 'framework',
-            };
-          }
-        }
-      }
-    }
-
-    // Pattern 5: ~ alias imports (~/components/Foo -> src/components/Foo, Nuxt convention)
-    if (ref.referenceKind === 'imports' && ref.referenceName.startsWith('~/')) {
-      const aliasPath = ref.referenceName.replace('~/', 'src/');
-      for (const ext of ['', '.ts', '.js', '.vue', '/index.ts', '/index.js', '/index.vue']) {
-        const fullPath = aliasPath + ext;
-        if (context.fileExists(fullPath)) {
-          const nodes = context.getNodesInFile(fullPath);
-          if (nodes.length > 0) {
-            return {
-              original: ref,
-              targetNodeId: nodes[0]!.id,
-              confidence: 0.9,
-              resolvedBy: 'framework',
-            };
-          }
-        }
-      }
-    }
-
-    // Pattern 6: Component references (PascalCase) — resolve to .vue files
-    if (isPascalCase(ref.referenceName) && ref.referenceKind === 'calls') {
-      const result = resolveComponent(ref.referenceName, ref.filePath, context);
-      if (result) {
+      const targetId = resolveAliasedModule(ref.referenceName, '@/', 'src/', context);
+      if (targetId) {
         return {
           original: ref,
-          targetNodeId: result,
+          targetNodeId: targetId,
+          confidence: 0.9,
+          resolvedBy: 'framework',
+        };
+      }
+    }
+
+    if (ref.referenceKind === 'imports' && ref.referenceName.startsWith('~/')) {
+      const targetId = resolveAliasedModule(ref.referenceName, '~/', 'src/', context);
+      if (targetId) {
+        return {
+          original: ref,
+          targetNodeId: targetId,
+          confidence: 0.9,
+          resolvedBy: 'framework',
+        };
+      }
+    }
+
+    if (isPascalCaseIdentifier(ref.referenceName) && ref.referenceKind === 'calls') {
+      const componentNodeId = locateVueComponentTarget(ref.referenceName, ref.filePath, context);
+      if (componentNodeId) {
+        return {
+          original: ref,
+          targetNodeId: componentNodeId,
           confidence: 0.8,
           resolvedBy: 'framework',
         };
@@ -187,145 +235,72 @@ export const vueResolver: FrameworkResolver = {
     return null;
   },
 
-  extract(filePath: string, _content: string) {
-    const nodes: Node[] = [];
-    const now = Date.now();
-
-    // Normalize to forward slashes
+  extract(filePath: string, _content: string): FrameworkExtractionResult {
+    const createdNodes: Node[] = [];
+    const timestamp = Date.now();
     const normalized = filePath.replace(/\\/g, '/');
 
-    // Detect Nuxt page routes (pages/ directory)
     const pagesIndex = normalized.indexOf('/pages/');
     if (pagesIndex !== -1 && normalized.endsWith('.vue')) {
-      const routePath = filePathToNuxtRoute(normalized, pagesIndex + '/pages/'.length);
-      if (routePath !== null) {
-        nodes.push({
-          id: `route:${filePath}:${routePath}:1`,
+      const routeUri = mapFilePathToNuxtRoute(normalized, pagesIndex + '/pages/'.length);
+      if (routeUri !== null) {
+        createdNodes.push({
+          id: `route:${filePath}:${routeUri}:1`,
           kind: 'route',
-          name: routePath,
-          qualifiedName: `${filePath}::route:${routePath}`,
+          name: routeUri,
+          qualifiedName: `${filePath}::route:${routeUri}`,
           filePath,
           startLine: 1,
           endLine: 1,
           startColumn: 0,
           endColumn: 0,
           language: 'vue',
-          updatedAt: now,
+          updatedAt: timestamp,
         });
       }
     }
 
-    // Detect Nuxt API routes (server/api/ directory)
     const apiIndex = normalized.indexOf('/server/api/');
     if (apiIndex !== -1) {
-      const afterApi = normalized.substring(apiIndex + '/server/api/'.length);
-      const routeName = afterApi
-        .replace(/\.[^/.]+$/, '') // Remove extension
-        .replace(/\/index$/, ''); // index -> parent path
-      const apiRoute = '/api/' + routeName;
+      const rawApiSubpath = normalized.substring(apiIndex + '/server/api/'.length);
+      const cleanSubpath = rawApiSubpath.replace(/\.[^/.]+$/, '').replace(/\/index$/, '');
+      const apiRouteName = `/api/${cleanSubpath}`;
 
-      nodes.push({
-        id: `route:${filePath}:${apiRoute}:1`,
+      createdNodes.push({
+        id: `route:${filePath}:${apiRouteName}:1`,
         kind: 'route',
-        name: apiRoute,
-        qualifiedName: `${filePath}::route:${apiRoute}`,
+        name: apiRouteName,
+        qualifiedName: `${filePath}::route:${apiRouteName}`,
         filePath,
         startLine: 1,
         endLine: 1,
         startColumn: 0,
         endColumn: 0,
         language: normalized.endsWith('.vue') ? 'vue' : 'typescript',
-        updatedAt: now,
+        updatedAt: timestamp,
       });
     }
 
-    // Detect Nuxt middleware (middleware/ directory)
     const middlewareIndex = normalized.indexOf('/middleware/');
     if (middlewareIndex !== -1) {
-      const afterMiddleware = normalized.substring(middlewareIndex + '/middleware/'.length);
-      const middlewareName = afterMiddleware.replace(/\.[^/.]+$/, '');
+      const rawMiddlewareSubpath = normalized.substring(middlewareIndex + '/middleware/'.length);
+      const middlewareIdent = rawMiddlewareSubpath.replace(/\.[^/.]+$/, '');
 
-      nodes.push({
-        id: `middleware:${filePath}:${middlewareName}:1`,
+      createdNodes.push({
+        id: `middleware:${filePath}:${middlewareIdent}:1`,
         kind: 'function',
-        name: middlewareName,
-        qualifiedName: `${filePath}::middleware:${middlewareName}`,
+        name: middlewareIdent,
+        qualifiedName: `${filePath}::middleware:${middlewareIdent}`,
         filePath,
         startLine: 1,
         endLine: 1,
         startColumn: 0,
         endColumn: 0,
         language: normalized.endsWith('.vue') ? 'vue' : 'typescript',
-        updatedAt: now,
+        updatedAt: timestamp,
       });
     }
 
-    return { nodes, references: [] };
+    return { nodes: createdNodes, references: [] };
   },
 };
-
-/**
- * Check if string is PascalCase
- */
-function isPascalCase(str: string): boolean {
-  return /^[A-Z][a-zA-Z0-9]*$/.test(str);
-}
-
-/**
- * Resolve a Vue component reference to its .vue file
- */
-function resolveComponent(
-  name: string,
-  fromFile: string,
-  context: ResolutionContext
-): string | null {
-  // Collect ALL basename matches first. The previous version returned the
-  // FIRST `Button.vue` found anywhere in the tree (its same-directory pass
-  // below was unreachable), so a multi-app monorepo with one `Button.vue`
-  // per app resolved to an arbitrary one (#764).
-  const matches: string[] = [];
-  for (const file of context.getAllFiles()) {
-    if (!file.endsWith('.vue')) continue;
-    const fileName = file.split(/[/\\]/).pop() || '';
-    if (fileName.replace(/\.vue$/, '') === name) matches.push(file);
-  }
-  if (matches.length === 0) return null;
-
-  const componentIn = (file: string): string | null => {
-    const nodes = context.getNodesInFile(file);
-    const component = nodes.find((n) => n.kind === 'component' && n.name === name);
-    return component ? component.id : null;
-  };
-
-  // Same directory first for specificity
-  const fromDir = fromFile.substring(0, fromFile.lastIndexOf('/'));
-  const sameDir = matches.filter((f) => f.startsWith(fromDir));
-  if (sameDir.length > 0) return componentIn(sameDir[0]!);
-
-  // No positional signal: only an UNAMBIGUOUS basename may resolve;
-  // ambiguity falls through to the name-matcher's proximity scoring.
-  return matches.length === 1 ? componentIn(matches[0]!) : null;
-}
-
-/**
- * Convert a file path to a Nuxt route path
- */
-function filePathToNuxtRoute(normalized: string, afterPagesStart: number): string | null {
-  const afterPages = normalized.substring(afterPagesStart);
-
-  // Remove the .vue extension
-  const withoutExt = afterPages.replace(/\.vue$/, '');
-
-  // Remove /index suffix (index.vue -> parent route)
-  const withoutIndex = withoutExt.replace(/\/index$/, '');
-
-  // Convert Nuxt param syntax [param] to :param
-  let route = '/' + withoutIndex
-    .replace(/\[\.\.\.([^\]]+)\]/g, '*$1')  // [...slug] -> *slug (catch-all)
-    .replace(/\[{2}([^\]]+)\]{2}/g, ':$1?') // [[optional]] -> :optional?
-    .replace(/\[([^\]]+)\]/g, ':$1');        // [param] -> :param
-
-  if (route === '/') return '/';
-  // Remove trailing slash
-  return route.replace(/\/$/, '');
-}

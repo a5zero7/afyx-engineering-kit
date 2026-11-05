@@ -1,334 +1,362 @@
 /**
- * Project-level import-path alias loading.
+ * AFYX Engineering Kit - Project Import Path Aliases
  *
- * Reads `compilerOptions.paths` from `tsconfig.json` / `jsconfig.json`
- * at the project root and converts the patterns into a form the
- * import-resolver can consult.
- *
- * This is the single biggest blocker to accurate resolution on modern
- * JS/TS codebases: aliases like `@/components/Foo` (Next, Nuxt, Nest,
- * Vite scaffolds) point into a `paths` map the resolver previously
- * ignored — every import through an alias was treated as unresolvable
- * unless it happened to match the small hard-coded fallback list.
- *
- * Scope:
- *   - reads tsconfig.json, then jsconfig.json, then tsconfig.base.json
- *   - honours `compilerOptions.baseUrl` and `compilerOptions.paths`
- *   - follows `extends` chains, nearest config wins (#1534) — Nx-style
- *     monorepos keep every alias in a `tsconfig.base.json` the root
- *     config merely inherits, so without this they resolved nothing
- *   - supports `*` wildcard (the only TS-supported wildcard)
- *   - does NOT read Vite/webpack/Rollup configs (separate follow-up)
- *
- * The file is parsed as JSON-with-comments-tolerant — tsconfigs in the
- * wild routinely contain `//` and `/* *\/` comments and trailing
- * commas, which JSON.parse rejects. We strip those before parsing.
+ * Parses tsconfig.json / jsconfig.json configurations, supports multi-hop `extends`
+ * hierarchies, extracts compilerOptions.paths patterns, and maps alias specifiers to concrete filesystem paths.
  */
 
 import * as fs from 'fs';
 import * as path from 'path';
 import { logDebug } from '../errors';
 
-/** A single alias pattern from `compilerOptions.paths`. */
+/** A parsed alias mapping pattern. */
 export interface AliasPattern {
-  /** The literal prefix before `*` (or the whole pattern if no `*`). */
   prefix: string;
-  /** The literal suffix after `*` (almost always empty). */
   suffix: string;
-  /** Whether the pattern contains a `*` wildcard. */
   hasWildcard: boolean;
-  /**
-   * Replacement templates. When `hasWildcard` is true, `*` in the
-   * replacement is filled with the captured wildcard portion of the
-   * import path. Stored relative to {@link AliasMap.baseUrl}.
-   * tsconfig allows multiple targets per alias (priority order).
-   */
   replacements: string[];
+  baseDir?: string;
 }
 
+/** Complete path aliases mapping associated with a project baseUrl. */
 export interface AliasMap {
-  /** Absolute path. The directory `compilerOptions.paths` is rooted at. */
   baseUrl: string;
-  /**
-   * Patterns ordered by specificity: longer prefix first, then literal-
-   * before-wildcard, so the resolver tries the most-specific match.
-   */
   patterns: AliasPattern[];
 }
 
 /**
- * Strip JSONC comments + trailing commas so a tsconfig with the usual
- * VS Code-style annotations parses cleanly. Walks the source as a
- * tiny state machine that tracks string context — the previous
- * regex-only version corrupted any URL inside a string value
- * (`"baseUrl": "https://cdn.example.com"` had everything after `//`
- * truncated).
+ * Removes JSON with Comments (JSONC) line and block comments while preserving string literals,
+ * and strips trailing object/array commas.
  */
-function stripJsonc(src: string): string {
-  let out = '';
-  let i = 0;
-  let inString = false;
-  while (i < src.length) {
-    const ch = src[i]!;
-    if (inString) {
-      out += ch;
-      if (ch === '\\' && i + 1 < src.length) {
-        out += src[i + 1]!;
-        i += 2;
+function stripJsoncComments(content: string): string {
+  let cleaned = '';
+  let cursor = 0;
+  let insideString = false;
+
+  while (cursor < content.length) {
+    const ch = content[cursor]!;
+
+    if (insideString) {
+      cleaned += ch;
+      if (ch === '\\' && cursor + 1 < content.length) {
+        cleaned += content[cursor + 1]!;
+        cursor += 2;
         continue;
       }
-      if (ch === '"') inString = false;
-      i++;
+      if (ch === '"') {
+        insideString = false;
+      }
+      cursor++;
       continue;
     }
+
     if (ch === '"') {
-      inString = true;
-      out += ch;
-      i++;
+      insideString = true;
+      cleaned += ch;
+      cursor++;
       continue;
     }
-    if (ch === '/' && src[i + 1] === '/') {
-      while (i < src.length && src[i] !== '\n') i++;
+
+    if (ch === '/' && content[cursor + 1] === '/') {
+      while (cursor < content.length && content[cursor] !== '\n') {
+        cursor++;
+      }
       continue;
     }
-    if (ch === '/' && src[i + 1] === '*') {
-      i += 2;
-      while (i < src.length && !(src[i] === '*' && src[i + 1] === '/')) i++;
-      i += 2;
+
+    if (ch === '/' && content[cursor + 1] === '*') {
+      cursor += 2;
+      while (cursor < content.length && !(content[cursor] === '*' && content[cursor + 1] === '/')) {
+        cursor++;
+      }
+      cursor += 2;
       continue;
     }
-    out += ch;
-    i++;
+
+    cleaned += ch;
+    cursor++;
   }
-  // Trailing commas before } or ] — outside strings, so safe to
-  // run on the comment-stripped output.
-  return out.replace(/,(\s*[}\]])/g, '$1');
+
+  return cleaned.replace(/,(\s*[}\]])/g, '$1');
 }
 
-interface RawTsconfig {
+interface RawTsconfigFormat {
   extends?: string | string[];
+  references?: Array<{ path?: string }>;
   compilerOptions?: {
     baseUrl?: string;
     paths?: Record<string, string[]>;
   };
 }
 
-/**
- * The `baseUrl`/`paths` a config ends up with once its `extends` chain has
- * been folded in. `pathsDir` is the directory of the config that actually
- * declared `paths` — with no `baseUrl` anywhere, tsc anchors the targets
- * there, not at the project root.
- */
-interface EffectiveOptions {
+interface MergedConfigOptions {
   baseUrl?: string;
   paths?: Record<string, string[]>;
   pathsDir?: string;
 }
 
-/** Guards against a pathological chain; real ones are 1-3 deep. */
-const MAX_EXTENDS_DEPTH = 32;
+const MAX_CONFIG_EXTENDS_DEPTH = 32;
 
-/**
- * Locate an `extends` target the way tsc does: `./x`-style values are
- * relative to the referencing config, anything else is a node_modules
- * package specifier resolved by walking up from that config. A missing
- * `.json` extension is implied, and a bare package name means its
- * `tsconfig.json`.
- */
-function resolveExtendsTarget(spec: string, fromDir: string): string | null {
-  const isFile = (p: string): boolean => {
+function locateExtendsFile(specifier: string, originDirectory: string): string | null {
+  const checkRegularFile = (targetPath: string): boolean => {
     try {
-      return fs.statSync(p).isFile();
+      return fs.statSync(targetPath).isFile();
     } catch {
       return false;
     }
   };
 
-  if (spec.startsWith('./') || spec.startsWith('../') || path.isAbsolute(spec)) {
-    const base = path.resolve(fromDir, spec);
-    for (const cand of [base, `${base}.json`, path.join(base, 'tsconfig.json')]) {
-      if (isFile(cand)) return cand;
+  if (specifier.startsWith('./') || specifier.startsWith('../') || path.isAbsolute(specifier)) {
+    const resolvedPath = path.resolve(originDirectory, specifier);
+    const candidateVariants = [resolvedPath, `${resolvedPath}.json`, path.join(resolvedPath, 'tsconfig.json')];
+    for (const cand of candidateVariants) {
+      if (checkRegularFile(cand)) return cand;
     }
     return null;
   }
 
-  let dir = fromDir;
-  for (;;) {
-    const base = path.join(dir, 'node_modules', spec);
-    for (const cand of [base, `${base}.json`, path.join(base, 'tsconfig.json')]) {
-      if (isFile(cand)) return cand;
+  let currentDir = originDirectory;
+  while (true) {
+    const nodeModulesCandidate = path.join(currentDir, 'node_modules', specifier);
+    const candidateVariants = [
+      nodeModulesCandidate,
+      `${nodeModulesCandidate}.json`,
+      path.join(nodeModulesCandidate, 'tsconfig.json'),
+    ];
+    for (const cand of candidateVariants) {
+      if (checkRegularFile(cand)) return cand;
     }
-    const parent = path.dirname(dir);
-    if (parent === dir) return null;
-    dir = parent;
+
+    const parentDir = path.dirname(currentDir);
+    if (parentDir === currentDir) return null;
+    currentDir = parentDir;
   }
 }
 
-/**
- * Read `filePath` and fold its `extends` chain into a single set of
- * effective options. Parents are applied first and the nearest config
- * wins — tsc replaces `paths` wholesale rather than merging it.
- *
- * `stack` holds the configs currently being resolved, so a cycle
- * (`a extends b extends a`) stops instead of recursing forever.
- */
-function loadEffectiveOptions(
+function resolveEffectiveOptions(
   filePath: string,
-  stack: Set<string>,
+  ancestorStack: Set<string>,
   depth: number
-): EffectiveOptions | null {
-  const abs = path.resolve(filePath);
-  if (stack.has(abs) || depth > MAX_EXTENDS_DEPTH) {
-    logDebug('path-aliases: extends chain cycle or too deep', { filePath: abs, depth });
+): MergedConfigOptions | null {
+  const absolutePath = path.resolve(filePath);
+  if (ancestorStack.has(absolutePath) || depth > MAX_CONFIG_EXTENDS_DEPTH) {
+    logDebug('path-aliases: circular extends or max depth exceeded', { filePath: absolutePath, depth });
     return null;
   }
-  const raw = readTsconfigLike(abs);
-  if (!raw) return null;
 
-  stack.add(abs);
-  const dir = path.dirname(abs);
-  const effective: EffectiveOptions = {};
+  const rawConfig = parseConfigFile(absolutePath);
+  if (!rawConfig) return null;
 
-  const parents = typeof raw.extends === 'string' ? [raw.extends] : (raw.extends ?? []);
-  for (const spec of parents) {
-    if (typeof spec !== 'string') continue;
-    const target = resolveExtendsTarget(spec, dir);
-    if (!target) {
-      logDebug('path-aliases: unresolved extends', { from: abs, spec });
+  ancestorStack.add(absolutePath);
+  const configDir = path.dirname(absolutePath);
+  const effective: MergedConfigOptions = {};
+
+  const extendsDirectives =
+    typeof rawConfig.extends === 'string' ? [rawConfig.extends] : rawConfig.extends ?? [];
+
+  for (const item of extendsDirectives) {
+    if (typeof item !== 'string') continue;
+    const resolvedTarget = locateExtendsFile(item, configDir);
+    if (!resolvedTarget) {
+      logDebug('path-aliases: cannot resolve extends target', { from: absolutePath, specifier: item });
       continue;
     }
-    const inherited = loadEffectiveOptions(target, stack, depth + 1);
-    if (!inherited) continue;
-    if (inherited.baseUrl !== undefined) effective.baseUrl = inherited.baseUrl;
-    if (inherited.paths !== undefined) {
-      effective.paths = inherited.paths;
-      effective.pathsDir = inherited.pathsDir;
+
+    const parentConfig = resolveEffectiveOptions(resolvedTarget, ancestorStack, depth + 1);
+    if (!parentConfig) continue;
+
+    if (parentConfig.baseUrl !== undefined) {
+      effective.baseUrl = parentConfig.baseUrl;
+    }
+    if (parentConfig.paths !== undefined) {
+      effective.paths = parentConfig.paths;
+      effective.pathsDir = parentConfig.pathsDir;
     }
   }
-  stack.delete(abs);
 
-  const co = raw.compilerOptions ?? {};
-  // Both are relative to the file that declared them, not to whichever
-  // config started the chain.
-  if (typeof co.baseUrl === 'string') effective.baseUrl = path.resolve(dir, co.baseUrl);
-  if (co.paths && typeof co.paths === 'object') {
-    effective.paths = co.paths;
-    effective.pathsDir = dir;
+  ancestorStack.delete(absolutePath);
+
+  const compilerOpts = rawConfig.compilerOptions ?? {};
+  if (typeof compilerOpts.baseUrl === 'string') {
+    effective.baseUrl = path.resolve(configDir, compilerOpts.baseUrl);
   }
+  if (compilerOpts.paths && typeof compilerOpts.paths === 'object') {
+    effective.paths = compilerOpts.paths;
+    effective.pathsDir = configDir;
+  }
+
   return effective;
 }
 
-function readTsconfigLike(filePath: string): RawTsconfig | null {
+function parseConfigFile(filePath: string): RawTsconfigFormat | null {
   try {
-    const raw = fs.readFileSync(filePath, 'utf-8');
-    const parsed = JSON.parse(stripJsonc(raw)) as RawTsconfig;
+    const rawContent = fs.readFileSync(filePath, 'utf-8');
+    const parsed = JSON.parse(stripJsoncComments(rawContent)) as RawTsconfigFormat;
     return parsed && typeof parsed === 'object' ? parsed : null;
   } catch (err) {
-    logDebug('path-aliases: failed to parse', { filePath, err: String(err) });
+    logDebug('path-aliases: parsing failure', { filePath, err: String(err) });
     return null;
   }
 }
 
-function splitWildcard(pattern: string): {
-  prefix: string;
-  suffix: string;
-  hasWildcard: boolean;
-} {
-  const star = pattern.indexOf('*');
-  if (star === -1) return { prefix: pattern, suffix: '', hasWildcard: false };
+function parseWildcardPattern(pattern: string): { prefix: string; suffix: string; hasWildcard: boolean } {
+  const wildcardIndex = pattern.indexOf('*');
+  if (wildcardIndex === -1) {
+    return { prefix: pattern, suffix: '', hasWildcard: false };
+  }
   return {
-    prefix: pattern.slice(0, star),
-    suffix: pattern.slice(star + 1),
+    prefix: pattern.slice(0, wildcardIndex),
+    suffix: pattern.slice(wildcardIndex + 1),
     hasWildcard: true,
   };
 }
 
 /**
- * Load aliases for `projectRoot`. Returns `null` when no tsconfig /
- * jsconfig is present or when the file has no usable `paths`.
- *
- * Cheap to call repeatedly — caching is the caller's job (the
- * resolver does it via {@link aliasCache}).
+ * Loads project-level TypeScript / JavaScript import path aliases from root configuration.
  */
 export function loadProjectAliases(projectRoot: string): AliasMap | null {
-  // `tsconfig.base.json` comes last on purpose: when a root `tsconfig.json`
-  // exists it stays authoritative and reaches the base through `extends`.
-  // The fallback is for the Nx layouts where that never happens — a
-  // solution-style root config (`references`, no `extends`, no `paths`), or
-  // no root `tsconfig.json` at all.
-  const candidates = ['tsconfig.json', 'jsconfig.json', 'tsconfig.base.json'];
-  let effective: EffectiveOptions | null = null;
-  let usedFile: string | null = null;
-  for (const name of candidates) {
-    const p = path.join(projectRoot, name);
-    if (!fs.existsSync(p)) continue;
-    const opts = loadEffectiveOptions(p, new Set(), 0);
-    if (!opts) continue;
-    // Remember the first readable config so a `paths`-less project still
-    // logs the file it was judged on, but keep looking: a config that
-    // contributes no aliases must not shadow one that does.
-    if (!effective) {
-      effective = opts;
-      usedFile = name;
+  const configCandidates = ['tsconfig.json', 'jsconfig.json', 'tsconfig.base.json'];
+  let effectiveOptions: MergedConfigOptions | null = null;
+  let matchedConfigName: string | null = null;
+
+  for (const filename of configCandidates) {
+    const fullPath = path.join(projectRoot, filename);
+    if (!fs.existsSync(fullPath)) continue;
+
+    const resolved = resolveEffectiveOptions(fullPath, new Set(), 0);
+    if (!resolved) continue;
+
+    if (!effectiveOptions) {
+      effectiveOptions = resolved;
+      matchedConfigName = filename;
     }
-    if (opts.paths) {
-      effective = opts;
-      usedFile = name;
+    if (resolved.paths) {
+      effectiveOptions = resolved;
+      matchedConfigName = filename;
       break;
     }
   }
-  if (!effective) return null;
 
-  // With no explicit baseUrl, `paths` targets are relative to the config that
-  // declared them — which is the project root only when that config is the
-  // root one (the pre-`extends` assumption).
-  const baseUrl = effective.baseUrl ?? effective.pathsDir ?? projectRoot;
+  if (!effectiveOptions) return null;
 
-  const paths = effective.paths;
-  if (!paths || typeof paths !== 'object') {
-    // baseUrl alone isn't an "alias" per se; with no paths we'd just
-    // be redirecting the whole tree. Skip — the existing resolver
-    // already handles relative imports.
-    return null;
+  const resolvedBaseUrl = effectiveOptions.baseUrl ?? effectiveOptions.pathsDir ?? projectRoot;
+  const pathsObject = effectiveOptions.paths;
+
+  const parsedPatterns: AliasPattern[] = [];
+  if (pathsObject && typeof pathsObject === 'object') {
+    for (const [patternKey, targetPaths] of Object.entries(pathsObject)) {
+      if (!Array.isArray(targetPaths) || targetPaths.length === 0) continue;
+      const validTargets = targetPaths.filter((t): t is string => typeof t === 'string');
+      if (validTargets.length === 0) continue;
+
+      const { prefix, suffix, hasWildcard } = parseWildcardPattern(patternKey);
+      parsedPatterns.push({
+        prefix,
+        suffix,
+        hasWildcard,
+        replacements: validTargets,
+        baseDir: resolvedBaseUrl,
+      });
+    }
   }
 
-  const patterns: AliasPattern[] = [];
-  for (const [pattern, targets] of Object.entries(paths)) {
-    if (!Array.isArray(targets) || targets.length === 0) continue;
-    const filtered = targets.filter((t): t is string => typeof t === 'string');
-    if (filtered.length === 0) continue;
-    const { prefix, suffix, hasWildcard } = splitWildcard(pattern);
-    patterns.push({ prefix, suffix, hasWildcard, replacements: filtered });
+  // Also collect paths from referenced project tsconfigs (TypeScript Project References)
+  for (const filename of configCandidates) {
+    const fullPath = path.join(projectRoot, filename);
+    if (!fs.existsSync(fullPath)) continue;
+    const rawConfig = parseConfigFile(fullPath);
+    if (Array.isArray(rawConfig?.references)) {
+      const configDir = path.dirname(fullPath);
+      for (const ref of rawConfig.references) {
+        if (!ref || typeof ref.path !== 'string') continue;
+        const refPath = locateExtendsFile(ref.path, configDir);
+        if (!refPath) continue;
+        const refDir = path.dirname(refPath);
+        const refOptions = resolveEffectiveOptions(refPath, new Set([fullPath]), 0);
+        if (refOptions?.paths && typeof refOptions.paths === 'object') {
+          const refBase = refOptions.baseUrl ?? refOptions.pathsDir ?? refDir;
+          for (const [patternKey, targetPaths] of Object.entries(refOptions.paths)) {
+            if (!Array.isArray(targetPaths) || targetPaths.length === 0) continue;
+            const validTargets = targetPaths.filter((t): t is string => typeof t === 'string');
+            if (validTargets.length === 0) continue;
+            const { prefix, suffix, hasWildcard } = parseWildcardPattern(patternKey);
+            if (!parsedPatterns.some((p) => p.prefix === prefix && p.suffix === suffix)) {
+              parsedPatterns.push({
+                prefix,
+                suffix,
+                hasWildcard,
+                replacements: validTargets,
+                baseDir: refBase,
+              });
+            }
+          }
+        }
+      }
+    }
   }
 
-  if (patterns.length === 0) return null;
+  if (parsedPatterns.length === 0) return null;
 
-  // Specificity sort: longer prefix first; literal patterns before
-  // wildcard patterns of the same prefix length. TypeScript itself
-  // uses a similar "most specific match wins" rule.
-  patterns.sort((a, b) => {
-    if (a.prefix.length !== b.prefix.length) return b.prefix.length - a.prefix.length;
-    if (a.hasWildcard !== b.hasWildcard) return a.hasWildcard ? 1 : -1;
+  // Specificity sort: longest prefix first, literal before wildcard
+  parsedPatterns.sort((a, b) => {
+    if (a.prefix.length !== b.prefix.length) {
+      return b.prefix.length - a.prefix.length;
+    }
+    if (a.hasWildcard !== b.hasWildcard) {
+      return a.hasWildcard ? 1 : -1;
+    }
     return 0;
   });
 
   logDebug('path-aliases loaded', {
-    file: usedFile,
-    baseUrl,
-    patternCount: patterns.length,
+    file: matchedConfigName,
+    baseUrl: resolvedBaseUrl,
+    patternCount: parsedPatterns.length,
   });
 
-  return { baseUrl, patterns };
+  return { baseUrl: resolvedBaseUrl, patterns: parsedPatterns };
+}
+
+/** Directory-level cache for enclosing tsconfig aliases. */
+const dirAliasCache = new Map<string, AliasMap | null>();
+
+/**
+ * Reset directory-level alias cache.
+ */
+export function clearFileAliasCache(): void {
+  dirAliasCache.clear();
 }
 
 /**
- * Resolve an import path through an {@link AliasMap}. Returns the list
- * of candidate filesystem paths (relative to `projectRoot`), in the
- * priority order defined by tsconfig (multiple replacements per alias
- * are tried in order). Returns `[]` when no alias matches.
- *
- * Callers still need to try each candidate with the language's
- * extension list — this function only does the alias rewrite.
+ * Loads import path aliases for a specific file by searching for the nearest
+ * enclosing tsconfig/jsconfig between the file's directory and the project root.
+ */
+export function loadFileAliases(filePath: string, projectRoot: string): AliasMap | null {
+  const normFile = path.resolve(projectRoot, filePath);
+  let currentDir = path.dirname(normFile);
+  const resolvedRoot = path.resolve(projectRoot);
+
+  while (currentDir.startsWith(resolvedRoot)) {
+    let aliases: AliasMap | null | undefined = dirAliasCache.get(currentDir);
+    if (aliases === undefined) {
+      aliases = loadProjectAliases(currentDir);
+      dirAliasCache.set(currentDir, aliases);
+    }
+    if (aliases !== null) {
+      return aliases;
+    }
+
+    if (currentDir === resolvedRoot) break;
+    const parentDir = path.dirname(currentDir);
+    if (parentDir === currentDir) break;
+    currentDir = parentDir;
+  }
+
+  return loadProjectAliases(resolvedRoot);
+}
+
+/**
+ * Maps an import path specifier to candidate filesystem paths according to configured aliases.
  */
 export function applyAliases(
   importPath: string,
@@ -339,26 +367,29 @@ export function applyAliases(
     if (!importPath.startsWith(pat.prefix)) continue;
     if (pat.suffix && !importPath.endsWith(pat.suffix)) continue;
 
-    let captured = '';
+    let wildcardCapture = '';
     if (pat.hasWildcard) {
-      captured = importPath.slice(pat.prefix.length, importPath.length - pat.suffix.length);
+      wildcardCapture = importPath.slice(pat.prefix.length, importPath.length - pat.suffix.length);
     } else if (importPath !== pat.prefix) {
-      // Literal pattern must match exactly.
       continue;
     }
 
-    const out: string[] = [];
-    for (const target of pat.replacements) {
-      const filled = pat.hasWildcard ? target.replace('*', captured) : target;
-      // baseUrl is absolute; produce a path relative to projectRoot
-      const absolute = path.resolve(aliases.baseUrl, filled);
-      const relative = path.relative(projectRoot, absolute);
-      // Skip if the rewrite escapes the project root (unsafe + can't
-      // be looked up via the file index anyway).
-      if (relative.startsWith('..')) continue;
-      out.push(relative.replace(/\\/g, '/'));
+    const candidateResults: string[] = [];
+    const baseDir = pat.baseDir ?? aliases.baseUrl;
+    for (const replacementTemplate of pat.replacements) {
+      const substituted = pat.hasWildcard
+        ? replacementTemplate.replace('*', wildcardCapture)
+        : replacementTemplate;
+
+      const absoluteTarget = path.resolve(baseDir, substituted);
+      const relativeToRoot = path.relative(projectRoot, absoluteTarget);
+
+      if (relativeToRoot.startsWith('..')) continue;
+      candidateResults.push(relativeToRoot.replace(/\\/g, '/'));
     }
-    return out;
+
+    return candidateResults;
   }
+
   return [];
 }

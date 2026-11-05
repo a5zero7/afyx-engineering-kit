@@ -1,17 +1,22 @@
 /**
- * Astro Framework Resolver
+ * AFYX Engineering Kit - Astro Framework Resolver
  *
- * Handles Astro component references, the `Astro` global, `astro:*` virtual
- * module imports, and Astro's `src/pages/` file-based routing.
+ * Provides syntax and structure resolution for Astro applications, handling:
+ * 1. Global Astro runtime objects (`Astro.props`, `Astro.params`, etc.)
+ * 2. Virtual module imports (`astro:content`, `astro:assets`, etc.)
+ * 3. Component tags and invocations (PascalCase identifier resolution)
+ * 4. File-system based page routing under `src/pages/`
  */
 
-import { Node } from '../../types';
-import { FrameworkResolver, UnresolvedRef, ResolvedRef, ResolutionContext } from '../types';
+import type { Node } from '../../types';
+import type {
+  FrameworkResolver,
+  ResolutionContext,
+  ResolvedRef,
+  UnresolvedRef,
+} from '../types';
 
-/**
- * Astro virtual module prefixes — framework-provided, not user code
- */
-const ASTRO_VIRTUAL_MODULES = [
+const KNOWN_ASTRO_VIRTUAL_NAMESPACES: readonly string[] = [
   'astro:content',
   'astro:assets',
   'astro:actions',
@@ -23,34 +28,87 @@ const ASTRO_VIRTUAL_MODULES = [
   'astro:schema',
 ];
 
+const ROUTE_SOURCE_EXTENSIONS_PATTERN = /\.(?:astro|ts|js|mjs)$/;
+const CONFIG_FILE_PATTERN = /\.config\.[a-z]+$/;
+const PASCAL_CASE_PATTERN = /^[A-Z][a-zA-Z0-9]*$/;
+
+/**
+ * Checks if a reference points to the built-in Astro global context.
+ */
+function isAstroRuntimeGlobal(refName: string): boolean {
+  return refName === 'Astro' || refName.startsWith('Astro.');
+}
+
+/**
+ * Checks if an import specifier corresponds to an Astro virtual module.
+ */
+function isAstroVirtualModuleSpecifier(refName: string): boolean {
+  return KNOWN_ASTRO_VIRTUAL_NAMESPACES.some((ns) => refName === ns || refName.startsWith(`${ns}/`));
+}
+
+/**
+ * Maps a file path relative to src/pages/ to a standard URL route representation.
+ */
+export function buildAstroRouteFromPath(subPath: string): string {
+  const strippedExtension = subPath.replace(ROUTE_SOURCE_EXTENSIONS_PATTERN, '');
+  const withoutTrailingIndex = strippedExtension.replace(/(?:^|\/)index$/, '').replace(/\/$/, '');
+
+  const parameterized = withoutTrailingIndex
+    .replace(/\[\.\.\.([^\]]+)\]/g, '*$1')
+    .replace(/\[([^\]]+)\]/g, ':$1');
+
+  const normalized = `/${parameterized}`.replace(/\/+/g, '/');
+  return normalized === '/' ? '/' : normalized.replace(/\/$/, '');
+}
+
+/**
+ * Resolves component references by locating matching component nodes in the graph.
+ */
+function locateComponentTarget(
+  componentName: string,
+  callingFilePath: string,
+  ctx: ResolutionContext
+): string | null {
+  const candidateComponents = ctx
+    .getNodesByName(componentName)
+    .filter((candidate) => candidate.kind === 'component');
+
+  if (candidateComponents.length === 0) return null;
+
+  const callingDir = callingFilePath.substring(0, callingFilePath.lastIndexOf('/'));
+  const localDirMatches = candidateComponents.filter((cand) => cand.filePath.startsWith(callingDir));
+
+  if (localDirMatches.length > 0) {
+    return localDirMatches[0]!.id;
+  }
+
+  return candidateComponents.length === 1 ? candidateComponents[0]!.id : null;
+}
+
 export const astroResolver: FrameworkResolver = {
   name: 'astro',
 
   detect(context: ResolutionContext): boolean {
-    // Check for astro in package.json
-    const packageJson = context.readFile('package.json');
-    if (packageJson) {
+    const rawManifest = context.readFile('package.json');
+    if (rawManifest) {
       try {
-        const pkg = JSON.parse(packageJson);
-        const deps = { ...pkg.dependencies, ...pkg.devDependencies };
-        if (deps.astro) {
+        const manifest = JSON.parse(rawManifest) as {
+          dependencies?: Record<string, string>;
+          devDependencies?: Record<string, string>;
+        };
+        if (manifest.dependencies?.astro || manifest.devDependencies?.astro) {
           return true;
         }
       } catch {
-        // Invalid JSON
+        // Ignore unparseable package.json
       }
     }
 
-    // Check for .astro files in project
-    const allFiles = context.getAllFiles();
-    return allFiles.some((f) => f.endsWith('.astro'));
+    return context.getAllFiles().some((filePath) => filePath.endsWith('.astro'));
   },
 
   resolve(ref: UnresolvedRef, context: ResolutionContext): ResolvedRef | null {
-    // Pattern 1: the `Astro` global (Astro.props, Astro.url, Astro.params, …)
-    // — runtime-provided in every component's frontmatter. Resolving it as
-    // framework-provided keeps it from name-matching a user symbol named Astro.
-    if (ref.referenceName === 'Astro' || ref.referenceName.startsWith('Astro.')) {
+    if (isAstroRuntimeGlobal(ref.referenceName)) {
       return {
         original: ref,
         targetNodeId: ref.fromNodeId,
@@ -59,9 +117,8 @@ export const astroResolver: FrameworkResolver = {
       };
     }
 
-    // Pattern 2: astro:* virtual module imports (astro:content, astro:assets, …)
     if (ref.referenceKind === 'imports' && ref.referenceName.startsWith('astro:')) {
-      if (ASTRO_VIRTUAL_MODULES.some((prefix) => ref.referenceName.startsWith(prefix))) {
+      if (isAstroVirtualModuleSpecifier(ref.referenceName)) {
         return {
           original: ref,
           targetNodeId: ref.fromNodeId,
@@ -71,18 +128,15 @@ export const astroResolver: FrameworkResolver = {
       }
     }
 
-    // Pattern 3: Component references (PascalCase) — resolve to component
-    // nodes. Template tags arrive as `references`, frontmatter expression
-    // usages as `calls`.
     if (
-      isPascalCase(ref.referenceName) &&
+      PASCAL_CASE_PATTERN.test(ref.referenceName) &&
       (ref.referenceKind === 'references' || ref.referenceKind === 'calls')
     ) {
-      const result = resolveComponent(ref.referenceName, ref.filePath, context);
-      if (result) {
+      const targetComponentId = locateComponentTarget(ref.referenceName, ref.filePath, context);
+      if (targetComponentId) {
         return {
           original: ref,
-          targetNodeId: result,
+          targetNodeId: targetComponentId,
           confidence: 0.8,
           resolvedBy: 'framework',
         };
@@ -93,103 +147,36 @@ export const astroResolver: FrameworkResolver = {
   },
 
   extract(filePath: string, _content: string) {
-    const nodes: Node[] = [];
-    const now = Date.now();
+    const extractedNodes: Node[] = [];
+    const normalizedFilePath = filePath.replace(/\\/g, '/');
 
-    // Normalize to forward slashes
-    const normalized = filePath.replace(/\\/g, '/');
+    const pagesMarkerMatch = /(?:^|\/)src\/pages\//.exec(normalizedFilePath);
+    if (pagesMarkerMatch && ROUTE_SOURCE_EXTENSIONS_PATTERN.test(normalizedFilePath)) {
+      const relativePagePath = normalizedFilePath.substring(pagesMarkerMatch.index + pagesMarkerMatch[0].length);
+      const fileName = relativePagePath.split('/').pop() || '';
 
-    // Astro file-based routing lives under src/pages/ — .astro files are
-    // pages, .ts/.js files are API endpoints. (.md/.mdx pages exist too but
-    // aren't indexed as source.) Underscore-prefixed segments are excluded
-    // from routing by Astro.
-    const pagesMatch = /(?:^|\/)src\/pages\//.exec(normalized);
-    if (pagesMatch && /\.(astro|ts|js|mjs)$/.test(normalized)) {
-      const afterPages = normalized.substring(pagesMatch.index + pagesMatch[0].length);
-      const base = afterPages.split('/').pop() || '';
+      const segments = relativePagePath.split('/');
+      const hasPrivateSegments = segments.some((seg) => seg.startsWith('_'));
+      const isConfigFile = CONFIG_FILE_PATTERN.test(fileName);
 
-      // Underscore-prefixed segments are excluded from routing by Astro;
-      // a stray `*.config.*` in a pages dir is never a route.
-      if (
-        !afterPages.split('/').some((segment) => segment.startsWith('_')) &&
-        !/\.config\.[a-z]+$/.test(base)
-      ) {
-        const routePath = filePathToAstroRoute(afterPages);
-
-        nodes.push({
-          id: `route:${filePath}:${routePath}:1`,
+      if (!hasPrivateSegments && !isConfigFile) {
+        const routeUri = buildAstroRouteFromPath(relativePagePath);
+        extractedNodes.push({
+          id: `route:${filePath}:${routeUri}:1`,
           kind: 'route',
-          name: routePath,
-          qualifiedName: `${filePath}::route:${routePath}`,
+          name: routeUri,
+          qualifiedName: `${filePath}::route:${routeUri}`,
           filePath,
           startLine: 1,
           endLine: 1,
           startColumn: 0,
           endColumn: 0,
-          language: normalized.endsWith('.astro') ? 'astro' : 'typescript',
-          updatedAt: now,
+          language: normalizedFilePath.endsWith('.astro') ? 'astro' : 'typescript',
+          updatedAt: Date.now(),
         });
       }
     }
 
-    return { nodes, references: [] };
+    return { nodes: extractedNodes, references: [] };
   },
 };
-
-/**
- * Check if string is PascalCase
- */
-function isPascalCase(str: string): boolean {
-  return /^[A-Z][a-zA-Z0-9]*$/.test(str);
-}
-
-/**
- * Resolve an Astro component reference using name-based lookup
- */
-function resolveComponent(
-  name: string,
-  fromFile: string,
-  context: ResolutionContext
-): string | null {
-  // Look for component nodes by name
-  const candidates = context.getNodesByName(name);
-  const components = candidates.filter((n) => n.kind === 'component');
-
-  if (components.length === 0) return null;
-
-  // Prefer same directory
-  const fromDir = fromFile.substring(0, fromFile.lastIndexOf('/'));
-  const sameDir = components.filter((n) => n.filePath.startsWith(fromDir));
-  if (sameDir.length > 0) return sameDir[0]!.id;
-
-  // No positional signal: only an UNAMBIGUOUS name may resolve — picking
-  // components[0] would choose an arbitrary same-named component in a
-  // multi-app monorepo (#764). Ambiguity falls through to the name-matcher,
-  // whose proximity scoring decides.
-  return components.length === 1 ? components[0]!.id : null;
-}
-
-/**
- * Convert a path under src/pages/ to an Astro route path.
- *
- * blog/[slug].astro        -> /blog/:slug
- * blog/[...path].astro     -> /blog/*path
- * api/posts.ts             -> /api/posts
- * index.astro              -> /
- */
-function filePathToAstroRoute(afterPages: string): string {
-  // Remove the extension
-  const withoutExt = afterPages.replace(/\.(astro|ts|js|mjs)$/, '');
-
-  // index files map to their parent path (index -> /, blog/index -> /blog)
-  const withoutIndex = withoutExt.replace(/(^|\/)index$/, '$1').replace(/\/$/, '');
-
-  // Convert Astro param syntax
-  const route = '/' + withoutIndex
-    .replace(/\[\.\.\.([^\]]+)\]/g, '*$1') // [...rest] -> *rest (catch-all)
-    .replace(/\[([^\]]+)\]/g, ':$1'); // [param] -> :param
-
-  if (route === '/') return '/';
-  // Remove trailing slash
-  return route.replace(/\/$/, '');
-}

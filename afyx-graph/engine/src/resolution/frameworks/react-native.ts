@@ -1,357 +1,206 @@
 /**
- * React Native cross-language bridge resolver.
+ * AFYX Engineering Kit - React Native Cross-Language Bridge Resolver
  *
- * Closes the JS ↔ native flow gap in React Native projects. Covers:
- *
- * **Legacy bridge** (older / still-prevalent in mid-tier RN libs):
- *   - ObjC: `RCT_EXPORT_MODULE([opt_name])` declares a module; the module
- *     name defaults to the class name minus an `RCT` prefix when no
- *     argument is given. `RCT_EXPORT_METHOD(selector:(args))` declares a
- *     JS-callable method whose JS name is the selector's first keyword.
- *     `RCT_REMAP_METHOD(jsName, nativeSelector:(args))` overrides the JS
- *     name explicitly.
- *   - Java/Kotlin: `@ReactMethod` annotated methods on a
- *     `ReactContextBaseJavaModule` subclass; the module name comes from
- *     `getName()` returning a literal string.
- *
- * **TurboModules** (modern, used by react-native-svg, screens, FBSDK
- * Next-gen libraries):
- *   - TS spec interface declared in a `Native<X>.ts` file exporting
- *     `TurboModuleRegistry.getEnforcing<Spec>('<ModuleName>')` (or
- *     `.get<Spec>('<ModuleName>')`). The Spec interface methods are the
- *     JS-callable surface; the matching native implementation is a class
- *     whose method names match (selector first-keyword on ObjC,
- *     identifier on Kotlin/Java).
- *
- * The two mechanisms share an end shape: a map from `(moduleName,
- * jsMethodName)` to a native method node, plus a smaller map from
- * `jsMethodName` alone for cases where the JS callsite doesn't carry
- * the module qualifier (the most common JS pattern is
- * `import Geo from './NativeGeolocation'; Geo.getPosition()` — the
- * receiver is the default export, not literally `NativeModules.<Mod>`,
- * so name-by-method-only is what actually resolves in practice).
- *
- * **Swift modules via `RCT_EXTERN_MODULE`** — the shape an app's OWN native
- * code usually takes: a Swift class exposed through a thin `.m` shim.
- *   - `@interface RCT_EXTERN_MODULE(ClassName, RCTSuperclass)` names the
- *     Swift class, which is also the JS module (`NativeModules.ClassName`);
- *     `RCT_EXTERN_REMAP_MODULE(jsName, ClassName, Super)` renames it.
- *   - `RCT_EXTERN_METHOD(selector:(args)…)` exposes the Swift method named
- *     by the selector's first keyword; `RCT_EXTERN_REMAP_METHOD(jsName,
- *     selector…)` under another JS name. The implementation is the Swift
- *     `@objc func` of that name on the class or one of its extensions — a
- *     real node from the Swift extractor, so no synthetic node is minted.
- *
- * **Receiver evidence.** `captureView.finalizeCaptureSession()` where
- * `const captureView = NativeModules.CaptureView` names the module as surely
- * as `NativeModules.CaptureView.finalizeCaptureSession()` does: both resolve
- * at 0.95 to that module's method — ahead of the import resolver, which
- * would otherwise land the call on the `captureView` constant and the flow
- * would stop one hop short of native. A bare `.method()` with no module
- * evidence keeps the by-name match at 0.6.
- *
- * **Not covered** (deferred to a follow-up phase, per design doc §6):
- *   - Fabric view components (`RCT_EXPORT_VIEW_PROPERTY` / Codegen view
- *     specs) — these connect JSX props to native renderers, a different
- *     flow shape that composes with the existing JSX synthesizer.
- *   - Native → JS events (`RCTEventEmitter` / `NativeEventEmitter`) —
- *     belongs in the callback synthesizer's cross-language channel.
+ * Bridges JavaScript callsites to native implementations across iOS and Android:
+ * 1. Legacy Objective-C Bridge (`RCT_EXPORT_MODULE`, `RCT_EXPORT_METHOD`, `RCT_REMAP_METHOD`)
+ * 2. Swift modules exposed through Objective-C shims (`RCT_EXTERN_MODULE`, `RCT_EXTERN_METHOD`)
+ * 3. Java/Kotlin Modules (`@ReactMethod` annotated methods, `getName()`)
+ * 4. Modern TurboModules (`TurboModuleRegistry.getEnforcing<Spec>`)
+ * 5. Correlates JS `NativeModules.<Module>.<method>` and local destructuring aliases with native nodes.
  */
+
 import type { Node } from '../../types';
-import {
+import type {
+  FrameworkExtractionResult,
   FrameworkResolver,
   ResolutionContext,
+  ResolvedRef,
+  UnresolvedRef,
 } from '../types';
 
-/**
- * One native RN method known to the resolver. Indexed by JS-visible name.
- */
-interface NativeMethod {
-  /** Module name as seen from JS (`Geolocation`, `RNSVGRenderableModule`, …). */
+interface NativeBridgeMethod {
   moduleName: string;
-  /** JS-visible method name. */
   jsName: string;
-  /** Native implementation node (ObjC method / Java method / Kotlin function). */
   node: Node;
 }
 
-/** Per-context lazy map cache. */
-const nativeMethodMaps: WeakMap<
-  ResolutionContext,
-  { byJsName: Map<string, NativeMethod[]>; aliases: Map<string, string> }
-> = new WeakMap();
+interface BridgeIndex {
+  byJsName: Map<string, NativeBridgeMethod[]>;
+  aliases: Map<string, string>;
+}
 
-// ─── Native-side extraction ─────────────────────────────────────────────────
+const contextBridgeCache: WeakMap<ResolutionContext, BridgeIndex> = new WeakMap();
 
-/**
- * Default ObjC module name when `RCT_EXPORT_MODULE()` has no argument:
- * strip a leading `RCT` prefix from the class name (Apple's convention)
- * and treat the rest as the JS-visible module name. `RCTGeolocation` →
- * `Geolocation`. Class names without an `RCT` prefix are returned
- * unchanged.
- */
-function defaultObjcModuleName(className: string): string {
+function deriveDefaultObjcModuleName(className: string): string {
   return className.startsWith('RCT') && className.length > 3
     ? className.slice(3)
     : className;
 }
 
-/**
- * Parse an ObjC `.m`/`.mm` file's source for `RCT_EXPORT_MODULE` and
- * `RCT_EXPORT_METHOD` / `RCT_REMAP_METHOD` declarations, returning the
- * inferred (moduleName, jsMethodName) pairs.
- *
- * The macro forms (a single `RCT_EXPORT_MODULE` per file conventionally
- * matched to a single `@implementation`):
- *   - `RCT_EXPORT_MODULE()` — module name = class name with `RCT` prefix
- *     stripped
- *   - `RCT_EXPORT_MODULE(jsName)` — explicit name
- *   - `RCT_EXPORT_METHOD(selector:(arg1)label1:(arg2)label2)` — JS name =
- *     `selector` (the first keyword)
- *   - `RCT_REMAP_METHOD(jsName, selector:(arg1)label1:(arg2)label2)` —
- *     JS name = literal `jsName`
- *
- * Regex-based scan is sufficient — these macros are highly stylized and
- * appear at top level. Pulling them out of the full AST would require a
- * macro-aware ObjC parse the tree-sitter grammar doesn't provide.
- */
-function parseObjcRNExports(
+function parseObjcBridgeExports(
   source: string,
   className: string | null
 ): Array<{ moduleName: string; jsName: string; nativeSelectorFirstKw: string; line: number }> {
-  const results: Array<{ moduleName: string; jsName: string; nativeSelectorFirstKw: string; line: number }> = [];
+  const records: Array<{ moduleName: string; jsName: string; nativeSelectorFirstKw: string; line: number }> = [];
 
-  // RCT_EXPORT_MODULE — one per file by convention. Capture the optional arg.
   const moduleMatch = source.match(/RCT_EXPORT_MODULE\s*\(\s*([A-Za-z_][A-Za-z0-9_]*)?\s*\)/);
-  // Need a module name to attribute methods. Prefer the explicit macro arg,
-  // then the class name, then bail (no module = nothing useful to register).
-  const moduleName =
-    moduleMatch?.[1] ??
-    (className ? defaultObjcModuleName(className) : null);
-  if (!moduleName) return results;
+  const moduleName = moduleMatch?.[1] ?? (className ? deriveDefaultObjcModuleName(className) : null);
+  if (!moduleName) return records;
 
-  const lineOf = (idx: number): number => {
+  const getLine = (idx: number): number => {
     let line = 1;
-    for (let i = 0; i < idx && i < source.length; i++) if (source.charCodeAt(i) === 10) line++;
+    for (let i = 0; i < idx && i < source.length; i++) {
+      if (source.charCodeAt(i) === 10) line++;
+    }
     return line;
   };
 
-  // RCT_EXPORT_METHOD(selectorFirstKw:(args)…)
-  // The first keyword (everything up to the first `:` or open paren) is the
-  // JS-visible name. We don't try to parse full multi-keyword selectors —
-  // RN's JS view of the method uses only the first keyword.
   const exportRegex = /RCT_EXPORT_METHOD\s*\(\s*([A-Za-z_][A-Za-z0-9_]*)/g;
-  let m: RegExpExecArray | null;
-  while ((m = exportRegex.exec(source)) !== null) {
-    const kw = m[1];
-    if (kw) results.push({ moduleName, jsName: kw, nativeSelectorFirstKw: kw, line: lineOf(m.index) });
+  let match: RegExpExecArray | null;
+  while ((match = exportRegex.exec(source)) !== null) {
+    const kw = match[1];
+    if (kw) records.push({ moduleName, jsName: kw, nativeSelectorFirstKw: kw, line: getLine(match.index) });
   }
 
-  // RCT_REMAP_METHOD(jsName, nativeSelectorFirstKw:(args)…)
-  const remapRegex =
-    /RCT_REMAP_METHOD\s*\(\s*([A-Za-z_][A-Za-z0-9_]*)\s*,\s*([A-Za-z_][A-Za-z0-9_]*)/g;
-  while ((m = remapRegex.exec(source)) !== null) {
-    const jsName = m[1];
-    const nativeKw = m[2];
+  const remapRegex = /RCT_REMAP_METHOD\s*\(\s*([A-Za-z_][A-Za-z0-9_]*)\s*,\s*([A-Za-z_][A-Za-z0-9_]*)/g;
+  while ((match = remapRegex.exec(source)) !== null) {
+    const jsName = match[1];
+    const nativeKw = match[2];
     if (jsName && nativeKw) {
-      results.push({ moduleName, jsName, nativeSelectorFirstKw: nativeKw, line: lineOf(m.index) });
+      records.push({ moduleName, jsName, nativeSelectorFirstKw: nativeKw, line: getLine(match.index) });
     }
   }
 
-  return results;
+  return records;
 }
 
-/**
- * Find the `@implementation` class name in an ObjC file — used as the
- * fallback module name when `RCT_EXPORT_MODULE()` has no argument.
- * (Categories of the form `@implementation Foo (Bar)` are correctly
- * captured here as `Foo`, but a category file probably isn't where a
- * fresh `RCT_EXPORT_MODULE` lives anyway.)
- */
-function findObjcClassName(source: string): string | null {
-  const m = source.match(/@implementation\s+([A-Za-z_][A-Za-z0-9_]*)/);
-  return m?.[1] ?? null;
+function extractObjcImplementationClassName(source: string): string | null {
+  const match = source.match(/@implementation\s+([A-Za-z_][A-Za-z0-9_]*)/);
+  return match?.[1] ?? null;
 }
 
-/**
- * `RCT_EXTERN_MODULE` / `RCT_EXTERN_METHOD` — the `.m` shim that exposes a
- * Swift class. One entry per exposed method, each naming the Swift class the
- * implementation lives on (the module name is the class name unless
- * `RCT_EXTERN_REMAP_MODULE` says otherwise).
- */
 export function parseObjcRNExterns(
   source: string
 ): Array<{ moduleName: string; className: string; jsName: string; nativeSelectorFirstKw: string; line: number }> {
-  const results: Array<{ moduleName: string; className: string; jsName: string; nativeSelectorFirstKw: string; line: number }> = [];
+  const entries: Array<{ moduleName: string; className: string; jsName: string; nativeSelectorFirstKw: string; line: number }> = [];
   const remap = source.match(
     /RCT_EXTERN_REMAP_MODULE\s*\(\s*([A-Za-z_][A-Za-z0-9_]*)\s*,\s*([A-Za-z_][A-Za-z0-9_]*)/
   );
   const plain = source.match(/RCT_EXTERN_MODULE\s*\(\s*([A-Za-z_][A-Za-z0-9_]*)/);
   const moduleName = remap?.[1] ?? plain?.[1] ?? null;
   const className = remap?.[2] ?? plain?.[1] ?? null;
-  if (!moduleName || !className) return results;
+  if (!moduleName || !className) return entries;
 
-  const lineOf = (idx: number): number => {
-    let line = 1;
-    for (let i = 0; i < idx && i < source.length; i++) if (source.charCodeAt(i) === 10) line++;
-    return line;
+  const computeLine = (idx: number): number => {
+    let count = 1;
+    for (let i = 0; i < idx && i < source.length; i++) {
+      if (source.charCodeAt(i) === 10) count++;
+    }
+    return count;
   };
 
   const methodRegex = /RCT_EXTERN_METHOD\s*\(\s*([A-Za-z_][A-Za-z0-9_]*)/g;
   let m: RegExpExecArray | null;
   while ((m = methodRegex.exec(source)) !== null) {
     const kw = m[1];
-    if (kw) results.push({ moduleName, className, jsName: kw, nativeSelectorFirstKw: kw, line: lineOf(m.index) });
+    if (kw) entries.push({ moduleName, className, jsName: kw, nativeSelectorFirstKw: kw, line: computeLine(m.index) });
   }
-  const remapRegex =
-    /RCT_EXTERN_REMAP_METHOD\s*\(\s*([A-Za-z_][A-Za-z0-9_]*)\s*,\s*([A-Za-z_][A-Za-z0-9_]*)/g;
+
+  const remapRegex = /RCT_EXTERN_REMAP_METHOD\s*\(\s*([A-Za-z_][A-Za-z0-9_]*)\s*,\s*([A-Za-z_][A-Za-z0-9_]*)/g;
   while ((m = remapRegex.exec(source)) !== null) {
     const jsName = m[1];
     const nativeKw = m[2];
     if (jsName && nativeKw) {
-      results.push({ moduleName, className, jsName, nativeSelectorFirstKw: nativeKw, line: lineOf(m.index) });
+      entries.push({ moduleName, className, jsName, nativeSelectorFirstKw: nativeKw, line: computeLine(m.index) });
     }
   }
-  return results;
+
+  return entries;
 }
 
-/**
- * Local names bound to a native module on the JS side — the receiver evidence
- * `resolve()` trusts:
- *
- *   const captureView = NativeModules.CaptureView
- *   export const { CaptureEvents } = NativeModules
- *   const { Geo: geolocation } = NativeModules
- *
- * Collected across the project by name: an alias is nearly always an exported
- * constant imported elsewhere under the same name. A name bound to two
- * different modules is dropped as ambiguous rather than guessed.
- */
 export function collectNativeModuleAliases(
   source: string,
   aliases: Map<string, string>,
   ambiguous: Set<string>
 ): void {
-  const bind = (alias: string, moduleName: string): void => {
+  const registerAlias = (alias: string, mod: string): void => {
     if (ambiguous.has(alias)) return;
-    const prior = aliases.get(alias);
-    if (prior !== undefined && prior !== moduleName) {
+    const existing = aliases.get(alias);
+    if (existing !== undefined && existing !== mod) {
       aliases.delete(alias);
       ambiguous.add(alias);
       return;
     }
-    aliases.set(alias, moduleName);
+    aliases.set(alias, mod);
   };
-  const direct = /\b(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*(?::[^=;]+)?=\s*NativeModules\.([A-Z][\w$]*)/g;
-  let m: RegExpExecArray | null;
-  while ((m = direct.exec(source)) !== null) bind(m[1]!, m[2]!);
-  const destructured = /\b(?:const|let|var)\s*\{([^}]+)\}\s*=\s*NativeModules\b/g;
-  while ((m = destructured.exec(source)) !== null) {
-    for (const part of m[1]!.split(',')) {
-      const entry = part.trim().match(/^([A-Za-z_$][\w$]*)(?:\s*:\s*([A-Za-z_$][\w$]*))?$/);
-      if (entry) bind(entry[2] ?? entry[1]!, entry[1]!);
+
+  const directRegex = /\b(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*(?::[^=;]+)?=\s*NativeModules\.([A-Z][\w$]*)/g;
+  let match: RegExpExecArray | null;
+  while ((match = directRegex.exec(source)) !== null) {
+    registerAlias(match[1]!, match[2]!);
+  }
+
+  const destructuredRegex = /\b(?:const|let|var)\s*\{([^}]+)\}\s*=\s*NativeModules\b/g;
+  while ((match = destructuredRegex.exec(source)) !== null) {
+    for (const token of match[1]!.split(',')) {
+      const binding = token.trim().match(/^([A-Za-z_$][\w$]*)(?:\s*:\s*([A-Za-z_$][\w$]*))?$/);
+      if (binding) {
+        registerAlias(binding[2] ?? binding[1]!, binding[1]!);
+      }
     }
   }
 }
 
-/**
- * Parse a Java/Kotlin source file for `@ReactMethod` annotated methods
- * and the surrounding class's `getName()` return value (the JS-visible
- * module name).
- *
- * Java: `@ReactMethod public void getCurrentPosition(Callback cb) { … }`
- * Kotlin: `@ReactMethod fun getCurrentPosition(cb: Callback) { … }`
- *
- * Class name comes from `class XxxModule extends ReactContextBaseJavaModule`
- * (Java) or `class XxxModule : ReactContextBaseJavaModule(...)` (Kotlin).
- * The JS-visible module name comes from `getName()` returning a literal
- * string — fall back to the class name with a `Module` suffix stripped
- * when the literal isn't present.
- */
-function parseJvmRNExports(
-  source: string
-): Array<{ moduleName: string; jsName: string }> {
+function parseJvmBridgeExports(source: string): Array<{ moduleName: string; jsName: string }> {
   const results: Array<{ moduleName: string; jsName: string }> = [];
 
-  // getName() literal — Java + Kotlin both look something like:
-  //   public String getName() { return "Geolocation"; }
-  //   fun getName(): String = "Geolocation"
-  //   fun getName() = "Geolocation"
-  const getName = source.match(
+  const getNameMatch = source.match(
     /\bgetName\s*\([^)]*\)\s*(?::\s*String)?\s*(?:=\s*|\{[^}]*return\s*)"([^"]+)"/
   );
-  // Class name fallback.
-  const classMatch =
+  const classInheritMatch =
     source.match(/\bclass\s+([A-Za-z_][A-Za-z0-9_]*)\b[^{]*ReactContextBaseJavaModule/) ??
     source.match(/\bclass\s+([A-Za-z_][A-Za-z0-9_]*)\b[^{]*ReactPackage/);
-  const moduleName =
-    getName?.[1] ?? (classMatch?.[1] ? classMatch[1].replace(/Module$/, '') : null);
+
+  const moduleName = getNameMatch?.[1] ?? (classInheritMatch?.[1] ? classInheritMatch[1].replace(/Module$/, '') : null);
   if (!moduleName) return results;
 
-  // @ReactMethod annotations — followed (after optional modifiers / args /
-  // newlines) by either `void <name>(` (Java) or `fun <name>(` (Kotlin).
-  const methodRegex =
+  const reactMethodRegex =
     /@ReactMethod\b[^{]*?(?:\bfun\s+|\bvoid\s+|\bpublic\s+\w[\w<>\[\]]*\s+)([A-Za-z_][A-Za-z0-9_]*)\s*\(/g;
-  let m: RegExpExecArray | null;
-  while ((m = methodRegex.exec(source)) !== null) {
-    const jsName = m[1];
-    if (jsName) results.push({ moduleName, jsName });
+  let match: RegExpExecArray | null;
+  while ((match = reactMethodRegex.exec(source)) !== null) {
+    const methodName = match[1];
+    if (methodName) {
+      results.push({ moduleName, jsName: methodName });
+    }
   }
 
   return results;
 }
 
-/**
- * Parse a TS file for a TurboModule spec declaration. The spec file is
- * the JS↔native source-of-truth in the new architecture — its interface
- * lists every JS-visible method, and a `TurboModuleRegistry.get*<Spec>(...)`
- * default export pins the module name.
- *
- * Returns `null` when the file isn't a TurboModule spec.
- */
-function parseTurboModuleSpec(
+function parseTurboModuleSpecDefinition(
   source: string
 ): { moduleName: string; methods: string[] } | null {
-  // `TurboModuleRegistry.getEnforcing<Spec>('ModuleName')` or
-  // `TurboModuleRegistry.get<Spec>('ModuleName')`. The literal must be a
-  // single-or-double-quoted string.
   const regMatch = source.match(
     /TurboModuleRegistry\.(?:getEnforcing|get)\s*<[^>]*>\s*\(\s*['"]([^'"]+)['"]\s*\)/
   );
   if (!regMatch || !regMatch[1]) return null;
   const moduleName = regMatch[1];
 
-  // Find `export interface Spec extends TurboModule { … }` and pull each
-  // method declaration's name. We don't need types — just names.
-  const ifaceMatch = source.match(
-    /export\s+interface\s+Spec\b[^{]*\{([\s\S]*?)\n\}/
-  );
+  const ifaceMatch = source.match(/export\s+interface\s+Spec\b[^{]*\{([\s\S]*?)\n\}/);
   if (!ifaceMatch || !ifaceMatch[1]) return null;
-  const body = ifaceMatch[1];
 
-  const methods: string[] = [];
-  // Method shape: `name(args): ReturnType;` or `name(): void;`. Skip
-  // properties (no parens before colon).
+  const declaredMethods: string[] = [];
   const methodRegex = /^\s*([A-Za-z_][A-Za-z0-9_]*)\s*\(/gm;
-  let m: RegExpExecArray | null;
-  while ((m = methodRegex.exec(body)) !== null) {
-    const name = m[1];
-    if (name) methods.push(name);
+  let match: RegExpExecArray | null;
+  while ((match = methodRegex.exec(ifaceMatch[1])) !== null) {
+    const fn = match[1];
+    if (fn) declaredMethods.push(fn);
   }
-  return { moduleName, methods };
+
+  return { moduleName, methods: declaredMethods };
 }
 
-// ─── Map building ───────────────────────────────────────────────────────────
-
-/**
- * RCTEventEmitter built-ins that every emitter subclass inherits. JS code
- * doesn't directly call these — they're internal plumbing for the
- * `NativeEventEmitter` abstraction. If we leave them in the bridge map,
- * every JS `addListener` / `remove` call (Firestore subscribers, RxJS
- * pipelines, plain Array.remove, etc.) gets mis-bridged to whichever
- * emitter happens to define them. Skip during map building.
- */
-const RN_EMITTER_BUILTINS = new Set([
+const RN_EMITTER_BUILTIN_FUNCTIONS: ReadonlySet<string> = new Set([
   'addListener',
   'removeListeners',
   'remove',
@@ -360,26 +209,26 @@ const RN_EMITTER_BUILTINS = new Set([
   'stopObserving',
 ]);
 
-function buildRNMaps(context: ResolutionContext): { byJsName: Map<string, NativeMethod[]>; aliases: Map<string, string> } {
-  const cached = nativeMethodMaps.get(context);
+function buildReactNativeBridgeIndex(context: ResolutionContext): BridgeIndex {
+  const cached = contextBridgeCache.get(context);
   if (cached) return cached;
 
-  const byJsName = new Map<string, NativeMethod[]>();
+  const byJsName = new Map<string, NativeBridgeMethod[]>();
   const aliases = new Map<string, string>();
   const ambiguousAliases = new Set<string>();
-  const allFiles = context.getAllFiles();
-  // Pre-index native methods by name for fast lookup when matching to
-  // their bridge exports.
-  const objcMethodsByFirstKw = new Map<string, Node[]>();
+  const allRepoFiles = context.getAllFiles();
+
+  const objcMethodsByKw = new Map<string, Node[]>();
   const jvmMethodsByName = new Map<string, Node[]>();
   const swiftMethodsByName = new Map<string, Node[]>();
+
   for (const node of context.getNodesByKind('method')) {
     if (node.language === 'objc') {
-      const firstKw = node.name.includes(':') ? node.name.split(':')[0] : node.name;
-      if (firstKw) {
-        const arr = objcMethodsByFirstKw.get(firstKw);
+      const kw = node.name.includes(':') ? node.name.split(':')[0] : node.name;
+      if (kw) {
+        const arr = objcMethodsByKw.get(kw);
         if (arr) arr.push(node);
-        else objcMethodsByFirstKw.set(firstKw, [node]);
+        else objcMethodsByKw.set(kw, [node]);
       }
     } else if (node.language === 'java' || node.language === 'kotlin') {
       const arr = jvmMethodsByName.get(node.name);
@@ -392,167 +241,138 @@ function buildRNMaps(context: ResolutionContext): { byJsName: Map<string, Native
     }
   }
 
-  for (const file of allFiles) {
-    // Legacy bridge — ObjC side.
-    if (file.endsWith('.m') || file.endsWith('.mm')) {
-      const source = context.readFile(file);
-      if (!source) continue;
-      const className = findObjcClassName(source);
-      const exports = parseObjcRNExports(source, className);
-      for (const exp of exports) {
-        if (RN_EMITTER_BUILTINS.has(exp.jsName)) continue;
-        // Resolve to the native node by selector first-keyword. Multiple
-        // ObjC methods may share a first keyword across modules; filter by
-        // file path to attribute the export to this module's
-        // implementation file.
-        const candidates = objcMethodsByFirstKw.get(exp.nativeSelectorFirstKw) ?? [];
-        const node = candidates.find((c) => c.filePath === file) ?? candidates[0];
-        if (!node) continue;
-        const entry: NativeMethod = { moduleName: exp.moduleName, jsName: exp.jsName, node };
-        const arr = byJsName.get(exp.jsName);
-        if (arr) arr.push(entry);
-        else byJsName.set(exp.jsName, [entry]);
+  for (const filePath of allRepoFiles) {
+    if (filePath.endsWith('.m') || filePath.endsWith('.mm')) {
+      const fileSource = context.readFile(filePath);
+      if (!fileSource) continue;
+
+      const clsName = extractObjcImplementationClassName(fileSource);
+      const objcExports = parseObjcBridgeExports(fileSource, clsName);
+      for (const item of objcExports) {
+        if (RN_EMITTER_BUILTIN_FUNCTIONS.has(item.jsName)) continue;
+        const candidateNodes = objcMethodsByKw.get(item.nativeSelectorFirstKw) ?? [];
+        const matchingNode = candidateNodes.find((c) => c.filePath === filePath) ?? candidateNodes[0];
+        if (!matchingNode) continue;
+
+        const entry: NativeBridgeMethod = { moduleName: item.moduleName, jsName: item.jsName, node: matchingNode };
+        const list = byJsName.get(item.jsName);
+        if (list) list.push(entry);
+        else byJsName.set(item.jsName, [entry]);
       }
-      // Swift-backed module: the shim names the class; the implementation is
-      // the Swift method of that name on the class or one of its extensions.
-      // Class-scoped, so a same-named method on another Swift type (a
-      // `syncSettings` on `CaptureSettings` beside the one on `CaptureView`)
-      // is never the answer.
-      if (/RCT_EXTERN_(?:REMAP_)?MODULE\b/.test(source)) {
-        for (const ext of parseObjcRNExterns(source)) {
-          if (RN_EMITTER_BUILTINS.has(ext.jsName)) continue;
+
+      if (/RCT_EXTERN_(?:REMAP_)?MODULE\b/.test(fileSource)) {
+        for (const ext of parseObjcRNExterns(fileSource)) {
+          if (RN_EMITTER_BUILTIN_FUNCTIONS.has(ext.jsName)) continue;
           const candidates = (swiftMethodsByName.get(ext.nativeSelectorFirstKw) ?? [])
             .filter((c) => c.qualifiedName.split('::').includes(ext.className))
             .sort((a, b) => a.filePath.localeCompare(b.filePath) || a.startLine - b.startLine);
-          const node = candidates[0];
-          if (!node) continue;
-          const entry: NativeMethod = { moduleName: ext.moduleName, jsName: ext.jsName, node };
-          const arr = byJsName.get(ext.jsName);
-          if (arr) arr.push(entry);
+
+          const matchingNode = candidates[0];
+          if (!matchingNode) continue;
+
+          const entry: NativeBridgeMethod = { moduleName: ext.moduleName, jsName: ext.jsName, node: matchingNode };
+          const list = byJsName.get(ext.jsName);
+          if (list) list.push(entry);
           else byJsName.set(ext.jsName, [entry]);
         }
       }
     }
 
-    // JS side: the local names bound to `NativeModules.<Module>`.
-    if (/\.(?:[cm]?[jt]sx?)$/.test(file)) {
-      const source = context.readFile(file);
+    if (/\.(?:[cm]?[jt]sx?)$/.test(filePath)) {
+      const source = context.readFile(filePath);
       if (source && source.includes('NativeModules')) {
         collectNativeModuleAliases(source, aliases, ambiguousAliases);
       }
     }
 
-    // Legacy bridge — Java/Kotlin side.
-    if (file.endsWith('.java') || file.endsWith('.kt')) {
-      const source = context.readFile(file);
+    if (filePath.endsWith('.java') || filePath.endsWith('.kt')) {
+      const source = context.readFile(filePath);
       if (!source) continue;
-      const exports = parseJvmRNExports(source);
-      for (const exp of exports) {
-        if (RN_EMITTER_BUILTINS.has(exp.jsName)) continue;
-        const candidates = jvmMethodsByName.get(exp.jsName) ?? [];
-        const node = candidates.find((c) => c.filePath === file) ?? candidates[0];
-        if (!node) continue;
-        const entry: NativeMethod = { moduleName: exp.moduleName, jsName: exp.jsName, node };
-        const arr = byJsName.get(exp.jsName);
-        if (arr) arr.push(entry);
-        else byJsName.set(exp.jsName, [entry]);
+      const jvmExports = parseJvmBridgeExports(source);
+      for (const item of jvmExports) {
+        if (RN_EMITTER_BUILTIN_FUNCTIONS.has(item.jsName)) continue;
+        const candidateNodes = jvmMethodsByName.get(item.jsName) ?? [];
+        const matchingNode = candidateNodes.find((c) => c.filePath === filePath) ?? candidateNodes[0];
+        if (!matchingNode) continue;
+
+        const entry: NativeBridgeMethod = { moduleName: item.moduleName, jsName: item.jsName, node: matchingNode };
+        const list = byJsName.get(item.jsName);
+        if (list) list.push(entry);
+        else byJsName.set(item.jsName, [entry]);
       }
     }
 
-    // TurboModule spec — TS side.
-    if (file.endsWith('.ts') || file.endsWith('.tsx')) {
-      const source = context.readFile(file);
+    if (filePath.endsWith('.ts') || filePath.endsWith('.tsx')) {
+      const source = context.readFile(filePath);
       if (!source) continue;
-      const spec = parseTurboModuleSpec(source);
+      const spec = parseTurboModuleSpecDefinition(source);
       if (!spec) continue;
-      // For each spec method, find a matching native implementation by
-      // name. The spec's module name doesn't determine the native file
-      // path (Codegen wires it via name convention), so we match across
-      // all native methods of the right name.
+
       for (const methodName of spec.methods) {
-        if (RN_EMITTER_BUILTINS.has(methodName)) continue;
-        // ObjC first-keyword match, then JVM bare-name match. Don't
-        // require module-name match for ObjC because the native side may
-        // have stripped a prefix.
-        const objcCands = objcMethodsByFirstKw.get(methodName) ?? [];
+        if (RN_EMITTER_BUILTIN_FUNCTIONS.has(methodName)) continue;
+        const objcCands = objcMethodsByKw.get(methodName) ?? [];
         const jvmCands = jvmMethodsByName.get(methodName) ?? [];
-        for (const node of [...objcCands, ...jvmCands]) {
-          const entry: NativeMethod = { moduleName: spec.moduleName, jsName: methodName, node };
-          const arr = byJsName.get(methodName);
-          if (arr) arr.push(entry);
+        for (const candidateNode of [...objcCands, ...jvmCands]) {
+          const entry: NativeBridgeMethod = { moduleName: spec.moduleName, jsName: methodName, node: candidateNode };
+          const list = byJsName.get(methodName);
+          if (list) list.push(entry);
           else byJsName.set(methodName, [entry]);
         }
       }
     }
   }
 
-  const result = { byJsName, aliases };
-  nativeMethodMaps.set(context, result);
-  return result;
+  const generatedIndex: BridgeIndex = { byJsName, aliases };
+  contextBridgeCache.set(context, generatedIndex);
+  return generatedIndex;
 }
-
-// ─── Resolver ───────────────────────────────────────────────────────────────
 
 export const reactNativeBridgeResolver: FrameworkResolver = {
   name: 'react-native-bridge',
-  // objc/mm included so `extract()` sees the native files — `resolve()` still
-  // only redirects JS callers (it returns null for native languages).
   languages: ['javascript', 'typescript', 'tsx', 'jsx', 'objc'],
 
-  /**
-   * Extract `RCT_EXPORT_METHOD` / `RCT_REMAP_METHOD` declarations as method
-   * nodes. These macros parse as a macro-expression (an ERROR node), NOT a
-   * `method_definition`, so the ObjC extractor never made a node for them — the
-   * iOS half of a native module was invisible, so a JS call couldn't resolve to
-   * it and the cross-platform pairing had nothing to pair. The node is named by
-   * the JS-visible name (the selector's first keyword, or the explicit
-   * `RCT_REMAP_METHOD` JS name) so it matches the Android `@ReactMethod` method.
-   */
-  extract(filePath, source) {
+  extract(filePath: string, source: string): FrameworkExtractionResult {
     if (!filePath.endsWith('.m') && !filePath.endsWith('.mm')) return { nodes: [], references: [] };
     if (!/RCT_EXPORT_MODULE\b/.test(source)) return { nodes: [], references: [] };
-    const exports = parseObjcRNExports(source, findObjcClassName(source));
-    const now = Date.now();
-    const nodes: Node[] = [];
-    const seen = new Set<string>();
-    for (const e of exports) {
-      if (seen.has(e.jsName)) continue;
-      seen.add(e.jsName);
-      nodes.push({
-        id: `rn-export:${filePath}:${e.moduleName}.${e.jsName}`,
+
+    const exports = parseObjcBridgeExports(source, extractObjcImplementationClassName(source));
+    const timestamp = Date.now();
+    const createdNodes: Node[] = [];
+    const registeredNames = new Set<string>();
+
+    for (const exp of exports) {
+      if (registeredNames.has(exp.jsName)) continue;
+      registeredNames.add(exp.jsName);
+
+      createdNodes.push({
+        id: `rn-export:${filePath}:${exp.moduleName}.${exp.jsName}`,
         kind: 'method',
-        name: e.jsName,
-        qualifiedName: `${filePath}::${e.moduleName}.${e.jsName}`,
+        name: exp.jsName,
+        qualifiedName: `${filePath}::${exp.moduleName}.${exp.jsName}`,
         filePath,
         language: 'objc',
-        startLine: e.line,
-        endLine: e.line,
+        startLine: exp.line,
+        endLine: exp.line,
         startColumn: 0,
         endColumn: 0,
         isExported: true,
-        docstring: `RCT_EXPORT_METHOD ${e.nativeSelectorFirstKw} (module ${e.moduleName})`,
-        signature: `RCT_EXPORT_METHOD(${e.nativeSelectorFirstKw}:…)`,
-        updatedAt: now,
+        docstring: `RCT_EXPORT_METHOD ${exp.nativeSelectorFirstKw} (module ${exp.moduleName})`,
+        signature: `RCT_EXPORT_METHOD(${exp.nativeSelectorFirstKw}:…)`,
+        updatedAt: timestamp,
       });
     }
-    return { nodes, references: [] };
+
+    return { nodes: createdNodes, references: [] };
   },
 
-  /**
-   * Detect: package.json depends on `react-native`, OR any source file
-   * uses the `RCT_EXPORT_MODULE` / `RCT_EXTERN_MODULE` /
-   * `TurboModuleRegistry` markers. Either signal is enough — different
-   * libraries split the JS package from the native code (`react-native-svg`'s
-   * apple/ + android/ directories vs its src/), so we don't require both.
-   */
-  detect(context) {
+  detect(context: ResolutionContext): boolean {
     const pkg = context.readFile('package.json');
     if (pkg && /["']react-native["']\s*:/.test(pkg)) return true;
-    // Fallback: scan a small number of files for the macro markers — only
-    // looking at the first ones returned by getAllFiles to keep detect()
-    // fast on huge repos.
+
     const files = context.getAllFiles();
-    for (let i = 0; i < Math.min(files.length, 200); i++) {
+    const limit = Math.min(files.length, 200);
+
+    for (let i = 0; i < limit; i++) {
       const f = files[i];
       if (!f) continue;
       if (f.endsWith('.mm') || f.endsWith('.m')) {
@@ -564,20 +384,15 @@ export const reactNativeBridgeResolver: FrameworkResolver = {
         if (src && /TurboModuleRegistry\.(?:get|getEnforcing)\s*</.test(src)) return true;
       }
     }
+
     return false;
   },
 
-  claimsReference(_name) {
-    // JS-visible method names are ordinary identifiers and are typically
-    // already in `knownNames` (every TurboModule spec method, every
-    // RCT_EXPORT_METHOD, has a node somewhere). So we don't need to
-    // claim through the pre-filter — the ref reaches us via the normal
-    // hasAnyPossibleMatch path.
+  claimsReference(_name: string): boolean {
     return false;
   },
 
-  resolve(ref, context) {
-    // We only redirect JS callers — native callers don't need this resolver.
+  resolve(ref: UnresolvedRef, context: ResolutionContext): ResolvedRef | null {
     if (
       ref.language !== 'javascript' &&
       ref.language !== 'typescript' &&
@@ -587,53 +402,49 @@ export const reactNativeBridgeResolver: FrameworkResolver = {
       return null;
     }
 
-    // JS callsites of `obj.method()` reach the resolver as either
-    // `obj.method` (qualified) or `method` (bare). Strip the receiver to
-    // get the JS-visible method name — and keep it, as evidence.
-    const raw = ref.referenceName;
-    const lastDot = raw.lastIndexOf('.');
-    const name = lastDot >= 0 ? raw.slice(lastDot + 1) : raw;
+    const rawRefName = ref.referenceName;
+    const lastDotIndex = rawRefName.lastIndexOf('.');
+    const cleanMethodName = lastDotIndex >= 0 ? rawRefName.slice(lastDotIndex + 1) : rawRefName;
 
-    const maps = buildRNMaps(context);
-    const entries = maps.byJsName.get(name);
-    if (!entries || entries.length === 0) return null;
+    const bridgeMaps = buildReactNativeBridgeIndex(context);
+    const candidateEntries = bridgeMaps.byJsName.get(cleanMethodName);
+    if (!candidateEntries || candidateEntries.length === 0) return null;
 
-    // iOS first — the conventional first-class platform for RN library docs
-    // and most graph queries; one edge is recorded either way.
-    const pick = (list: NativeMethod[]): NativeMethod | undefined =>
-      list.find((e) => e.node.language === 'objc') ??
-      list.find((e) => e.node.language === 'swift') ??
-      list[0];
+    const selectPlatformPriority = (methods: NativeBridgeMethod[]): NativeBridgeMethod | undefined =>
+      methods.find((m) => m.node.language === 'objc') ??
+      methods.find((m) => m.node.language === 'swift') ??
+      methods[0];
 
-    // Receiver evidence: `NativeModules.Mod.method`, or an alias the project
-    // bound to `NativeModules.Mod`. The module is named, so the match is to
-    // THAT module's method at a confidence the import resolver cannot beat
-    // — and a module that has no such method is not ours to guess at.
-    if (lastDot >= 0) {
-      const receiver = raw.slice(0, lastDot);
-      const direct = receiver.match(/^NativeModules\.([A-Z][\w$]*)$/);
-      const moduleName = direct ? direct[1]! : maps.aliases.get(receiver) ?? null;
-      if (moduleName !== null) {
-        const exact = pick(entries.filter((e) => e.moduleName === moduleName));
-        if (!exact) return null;
+    if (lastDotIndex >= 0) {
+      const receiverQualifier = rawRefName.slice(0, lastDotIndex);
+      const directMatch = receiverQualifier.match(/^NativeModules\.([A-Z][\w$]*)$/);
+      const targetModuleName = directMatch ? directMatch[1]! : bridgeMaps.aliases.get(receiverQualifier) ?? null;
+
+      if (targetModuleName !== null) {
+        const exactModuleMethod = selectPlatformPriority(
+          candidateEntries.filter((m) => m.moduleName === targetModuleName)
+        );
+        if (!exactModuleMethod) return null;
+
         return {
           original: ref,
-          targetNodeId: exact.node.id,
+          targetNodeId: exactModuleMethod.node.id,
           confidence: 0.95,
           resolvedBy: 'framework',
-          metadata: { bridge: 'react-native', module: moduleName },
+          metadata: { bridge: 'react-native', module: targetModuleName },
         };
       }
     }
 
-    const target = pick(entries);
-    if (!target) return null;
+    const fallbackCandidate = selectPlatformPriority(candidateEntries);
+    if (!fallbackCandidate) return null;
+
     return {
       original: ref,
-      targetNodeId: target.node.id,
+      targetNodeId: fallbackCandidate.node.id,
       confidence: 0.6,
       resolvedBy: 'framework',
-      metadata: { bridge: 'react-native', module: target.moduleName },
+      metadata: { bridge: 'react-native', module: fallbackCandidate.moduleName },
     };
   },
 };

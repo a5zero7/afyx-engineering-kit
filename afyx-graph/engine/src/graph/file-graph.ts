@@ -114,11 +114,30 @@ export function dependencyCycles(catalog: GraphCatalog): string[][] {
   const onTrail = new Set<string>();
   const stack: DependencyFrame[] = [];
 
+  let adjacency: Map<string, string[]> | null = null;
+  if (typeof catalog.getCrossFileDependencyPairs === 'function') {
+    adjacency = new Map<string, string[]>();
+    const pairs = catalog.getCrossFileDependencyPairs(0);
+    for (const { source, target } of pairs) {
+      let targets = adjacency.get(source);
+      if (!targets) {
+        targets = [];
+        adjacency.set(source, targets);
+      }
+      targets.push(target);
+    }
+  }
+
+  const getDependencies = (file: string): string[] => {
+    if (adjacency !== null) return adjacency.get(file) ?? [];
+    return catalog.getDependencyFilePaths(file);
+  };
+
   const enter = (file: string): void => {
     explored.add(file);
     trail.push(file);
     onTrail.add(file);
-    stack.push({ file, dependencies: catalog.getDependencyFilePaths(file), cursor: 0 });
+    stack.push({ file, dependencies: getDependencies(file), cursor: 0 });
   };
 
   for (const { path: root } of catalog.getAllFiles()) {

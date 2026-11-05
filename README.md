@@ -115,8 +115,8 @@ and [Component Guide](docs/COMPONENTS.md) for capability and limitation details.
 Windows:
 
 ```powershell
-git clone https://github.com/a5zero7/afyx-codex-engineering-kit.git
-Set-Location afyx-codex-engineering-kit
+git clone https://github.com/a5zero7/afyx-engineering-kit.git
+Set-Location afyx-engineering-kit
 .\install.ps1 -ValidateOnly
 .\install.ps1 -WhatIf -Preset recommended
 ```
@@ -124,8 +124,8 @@ Set-Location afyx-codex-engineering-kit
 Linux or macOS:
 
 ```bash
-git clone https://github.com/a5zero7/afyx-codex-engineering-kit.git
-cd afyx-codex-engineering-kit
+git clone https://github.com/a5zero7/afyx-engineering-kit.git
+cd afyx-engineering-kit
 ./install.sh --validate-only
 ./install.sh --dry-run --preset recommended
 ```
@@ -252,7 +252,11 @@ providers, models, unrelated MCP entries, and external tools are preserved.
 ## License and third-party boundaries
 
 The repository's Afyx-owned code and documentation are distributed under the
-[MIT License](LICENSE). Graph and ACE include their own MIT license files in
-their package roots. External software remains governed by its own terms and is
-outside the Kit's ownership boundary. Historical independence, attribution, and
-license evidence remains preserved in Phase 5 documentation and Git history.
+[MIT License](LICENSE), except where package metadata explicitly states a
+different license. Graph and ACE include their own MIT license files in their
+package roots. Following the full native reimplementation of historical Graph and
+UI subsystems (AFYX-320), active production deliverables carry zero inherited
+third-party source files or retained upstream attribution obligations.
+External software remains governed by its own terms and is outside the Kit's
+ownership boundary. Historical independence, attribution, and license evidence
+remains preserved in Phase 5 documentation and Git history.

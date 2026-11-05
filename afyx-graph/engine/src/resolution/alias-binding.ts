@@ -1,125 +1,100 @@
 /**
- * Alias bindings: a name bound to nothing but another symbol.
+ * AFYX Engineering Kit - Alias Binding Resolution
  *
- *   export const alias = realImpl;      // p1 — cross-file through an import
- *   const local = realImpl;             // p6 — same file
- *   export const api = { run: impl };   // p5 — property holding a function ref
- *   export { realImpl as alias };       // p2 — a local export clause
- *
- * Extraction records the binding itself as a `constant`/`variable` node and
- * stores its initializer in `signature` (`"= realImpl"`), so a call through the
- * alias resolves to the BINDING, not the function. `callers realImpl` then
- * omits every caller that went through the alias and reports a confident zero,
- * while `callers alias` finds them — the edge exists, it just terminates one
- * hop short. A local `export { X as Y }` clause is worse: the exported name
- * matches no declaration at all, so resolution fails outright.
- *
- * A call through an alias IS a call to the aliased function, so these hops are
- * only ever applied to `calls` refs. A `references` edge to the binding is
- * correct as-is — reading the alias as a value is a genuine use of the alias.
+ * Resolves indirect symbol bindings (aliased constants, local re-exports, object literal delegates)
+ * to their concrete callable implementations, ensuring accurate call edge attribution across renames.
  */
 
 import type { Node } from '../types';
 import type { ResolutionContext } from './types';
 
-/** Kinds that can be a pure alias for another symbol. */
-const ALIAS_BINDING_KINDS = new Set<string>(['constant', 'variable', 'property']);
+const ALIAS_SOURCE_KINDS: ReadonlySet<string> = new Set<string>(['constant', 'variable', 'property']);
+const CALLABLE_TARGET_KINDS: ReadonlySet<string> = new Set<string>(['function', 'method', 'class', 'component']);
 
-/** Kinds an alias may usefully forward a CALL to. */
-const CALLABLE_KINDS = new Set<string>(['function', 'method', 'class', 'component']);
+const SIMPLE_ASSIGNMENT_REGEX = /^=\s*([A-Za-z_$][\w$]*)\s*(?:as\s+[\w.<>[\]]+\s*)?;?$/;
 
-/** `= identifier`, optionally with a cast or trailing semicolon, and nothing else. */
-const BARE_ALIAS_RE = /^=\s*([A-Za-z_$][\w$]*)\s*(?:as\s+[\w.<>[\]]+\s*)?;?$/;
-
-function escapeRegExp(s: string): string {
-  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+function sanitizeRegexString(str: string): string {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
 /**
- * The symbol name an alias binding forwards to, or null when the initializer is
- * anything else (a call, a literal, an expression — all genuine definitions).
- *
- * `memberName` targets a property of an object-literal initializer
- * (`= { run: impl }` for `api.run()`), including ES shorthand (`= { impl }`).
+ * Parses node signatures to detect targeted identifier names for alias forwarding.
  */
 export function aliasTargetName(
   signature: string | undefined | null,
   memberName: string | null
 ): string | null {
   if (!signature) return null;
-  const initializer = signature.trim();
+  const trimmedSignature = signature.trim();
 
   if (memberName) {
-    const key = escapeRegExp(memberName);
-    const explicit = new RegExp(`[{,]\\s*${key}\\s*:\\s*([A-Za-z_$][\\w$]*)\\s*[,}]`).exec(initializer);
-    if (explicit) return explicit[1]!;
-    // `{ impl }` — shorthand binds the property to the same-named symbol.
-    const shorthand = new RegExp(`[{,]\\s*(${key})\\s*[,}]`).exec(initializer);
-    if (shorthand) return shorthand[1]!;
+    const escapedPropName = sanitizeRegexString(memberName);
+    const explicitPattern = new RegExp(`[{,]\\s*${escapedPropName}\\s*:\\s*([A-Za-z_$][\\w$]*)\\s*[,}]`);
+    const explicitMatch = explicitPattern.exec(trimmedSignature);
+    if (explicitMatch) return explicitMatch[1]!;
+
+    const shorthandPattern = new RegExp(`[{,]\\s*(${escapedPropName})\\s*[,}]`);
+    const shorthandMatch = shorthandPattern.exec(trimmedSignature);
+    if (shorthandMatch) return shorthandMatch[1]!;
+
     return null;
   }
 
-  const bare = BARE_ALIAS_RE.exec(initializer);
-  return bare ? bare[1]! : null;
+  const bareMatch = SIMPLE_ASSIGNMENT_REGEX.exec(trimmedSignature);
+  return bareMatch ? bareMatch[1]! : null;
 }
 
 /**
- * The callable an alias binding forwards to.
- *
- * Prefers a declaration in the alias's own file: an alias almost always names a
- * local symbol or one it imported, and a same-file hit needs no disambiguation.
- * Cross-file is accepted only when the name is unique in the project, so an
- * ambiguous name yields no hop rather than an invented edge — a wrong edge is
- * worse than a missing one.
+ * Resolves an alias node to its underlying callable graph node.
  */
 export function resolveAliasBinding(
   aliasNode: Node,
   memberName: string | null,
   context: ResolutionContext
 ): Node | null {
-  if (!ALIAS_BINDING_KINDS.has(aliasNode.kind)) return null;
+  if (!ALIAS_SOURCE_KINDS.has(aliasNode.kind)) return null;
 
-  const targetName = aliasTargetName(aliasNode.signature, memberName);
-  if (!targetName || targetName === aliasNode.name) return null;
+  const targetIdentifier = aliasTargetName(aliasNode.signature, memberName);
+  if (!targetIdentifier || targetIdentifier === aliasNode.name) return null;
 
-  const candidates = context.getNodesByName(targetName).filter((n) => CALLABLE_KINDS.has(n.kind));
-  if (candidates.length === 0) return null;
+  const candidateNodes = context
+    .getNodesByName(targetIdentifier)
+    .filter((n) => CALLABLE_TARGET_KINDS.has(n.kind));
 
-  const sameFile = candidates.filter((n) => n.filePath === aliasNode.filePath);
-  if (sameFile.length === 1) return sameFile[0]!;
-  if (sameFile.length > 1) return null;
-  return candidates.length === 1 ? candidates[0]! : null;
+  if (candidateNodes.length === 0) return null;
+
+  const sameFileMatches = candidateNodes.filter((n) => n.filePath === aliasNode.filePath);
+  if (sameFileMatches.length === 1) return sameFileMatches[0]!;
+  if (sameFileMatches.length > 1) return null;
+
+  return candidateNodes.length === 1 ? candidateNodes[0]! : null;
 }
 
 /**
- * Local export clauses: `export { realImpl as alias }` / `export { realImpl }`
- * with no `from` source.
- *
- * `extractReExports` only models the `export … from './other'` form, so a local
- * clause leaves the exported name bound to nothing the export index knows —
- * importing `alias` matches no declaration and resolution falls through to the
- * name-matcher, which cannot cross the rename (a false 0 callers).
- *
- * Type-only specifiers are skipped: they carry no runtime call.
+ * Extracts local export clause aliases without `from` specifiers from source content.
  */
 export function extractLocalExportAliases(content: string): Array<{ exportedName: string; localName: string }> {
-  const out: Array<{ exportedName: string; localName: string }> = [];
-  // `export { … }` NOT followed by `from` — the `from` form is a re-export.
-  const clauseRe = /export\s*\{([^}]*)\}\s*(?!\s*from)[;\n]/g;
-  let clause: RegExpExecArray | null;
-  while ((clause = clauseRe.exec(content)) !== null) {
-    for (const raw of clause[1]!.split(',')) {
-      const specifier = raw.trim();
-      if (!specifier || /^type\s/.test(specifier)) continue;
-      const renamed = /^([A-Za-z_$][\w$]*)\s+as\s+([A-Za-z_$][\w$]*)$/.exec(specifier);
-      if (renamed) {
-        out.push({ localName: renamed[1]!, exportedName: renamed[2]! });
+  const extractedAliases: Array<{ exportedName: string; localName: string }> = [];
+  const exportPattern = /export\s*\{([^}]*)\}\s*(?!\s*from)[;\n]/g;
+
+  let matchResult: RegExpExecArray | null;
+  while ((matchResult = exportPattern.exec(content)) !== null) {
+    const rawSpecifiers = matchResult[1]!.split(',');
+    for (const token of rawSpecifiers) {
+      const trimmed = token.trim();
+      if (!trimmed || /^type\s/.test(trimmed)) continue;
+
+      const aliasMatch = /^([A-Za-z_$][\w$]*)\s+as\s+([A-Za-z_$][\w$]*)$/.exec(trimmed);
+      if (aliasMatch) {
+        extractedAliases.push({ localName: aliasMatch[1]!, exportedName: aliasMatch[2]! });
         continue;
       }
-      if (/^[A-Za-z_$][\w$]*$/.test(specifier)) {
-        out.push({ localName: specifier, exportedName: specifier });
+
+      if (/^[A-Za-z_$][\w$]*$/.test(trimmed)) {
+        extractedAliases.push({ localName: trimmed, exportedName: trimmed });
       }
     }
   }
-  return out;
+
+  return extractedAliases;
 }

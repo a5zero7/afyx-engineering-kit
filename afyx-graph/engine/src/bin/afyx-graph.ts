@@ -78,6 +78,7 @@ import {
 import { BROWSER_ENV, DEFAULT_UI_PORT } from '../ui-server/constants';
 import type { UiServerHandle } from '../ui-server';
 import { lookupSymbolNodes, describeSymbolNode, groupDefinitions } from '../graph/symbol-lookup';
+import { isSourceGroundedRelationship } from '../graph/relationship-presentation';
 import { analyzeAffectedTests, mergeSymbolImpact, computeAffectedTests, computeOdooImpact } from '../impact';
 import type { Node, Edge } from '../types';
 import { buildIndexHealth } from '../index-health';
@@ -2134,7 +2135,8 @@ for (const direction of ['callers', 'callees'] as const) {
             const nodes = new Map<string, Node>();
             const edges = new Map<string, Edge>();
             for (const target of group) {
-              const connections = direction === 'callers' ? cg.getCallers(target.id) : cg.getCallees(target.id);
+              const connections = (direction === 'callers' ? cg.getCallers(target.id) : cg.getCallees(target.id))
+                .filter(isSourceGroundedRelationship);
               for (const { node, edge } of connections) {
                 nodes.set(node.id, node);
                 edges.set(`${edge.source}->${edge.target}:${edge.kind}`, edge);
