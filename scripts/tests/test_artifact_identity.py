@@ -55,6 +55,7 @@ def create_bundle(release: Path, revision: str) -> Path:
     write(stage / "LICENSE", "Synthetic MIT fixture\n")
     write(stage / "lib/package.json", json.dumps({"name": "@a5zero7/afyx-graph", "bin": {"afyx-graph": "./dist/bin/afyx-graph.js"}}))
     write(stage / "lib/dist/bin/afyx-graph.js", "console.log(process.argv[2] === '--version' ? '1.0.0' : 'help');\n")
+    write(stage / "lib/dist/db/schema.sql", "-- schema fixture\n")
     write(stage / "lib/dist/index.js", "exports.ok = true;\n")
     write(stage / "lib/dist/index.js.map", "{}\n")
     write(stage / "lib/dist/ui/shimmer-progress.js", "exports.ok = true;\n")
