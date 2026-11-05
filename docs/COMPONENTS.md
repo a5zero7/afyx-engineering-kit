@@ -7,18 +7,27 @@ or the current implementation.
 
 **Contract and implementation boundary:** the owner-approved [AfyxUniversalInterop/v1](AFYX_UNIVERSAL_COMPONENT_INTEROPERABILITY.md) defines **default-enabled discovery/integration for all installed Afyx-owned registry components**, including future components and passive, permission-gated Usage Tracking; tasks invoke only relevant capabilities. The six primary products remain the initial functional baseline, not a fixed allow-list. The AFYX-307/308/309 runtime implements deterministic discovery, selection, bounded adapter execution, real host adapters, and request/result contracts in `scripts/afyx-capability-orchestrator.mjs` and `scripts/afyx-host-adapters.mjs`. The installed component must still work alone; simple source edits invoke no unnecessary Afyx runtime.
 
-## At a glance
+## Six independent Afyx products
 
-| Component | Form | Standalone | Kit preset / selection | Primary dependency |
-|---|---|---:|---|---|
-| Afyx Graph | Local runtime, CLI, MCP | Yes | Full; or explicit component | Node.js 22.5+ |
-| Afyx Engineering Expert | Agent Skill | Yes | Recommended and Full | Compatible skill host |
-| Afyx Forge Core | Standalone Node.js assistive CLI/API; separate evaluation foundation | Yes, for bounded planning/diagnostics | Explicit Custom on Windows; dedicated standalone Windows/Unix installer | Node.js 22.5+ (core); Python for evaluation validators |
-| Afyx Context Engine | Local runtime, CLI/API | Yes | Explicit Custom/component only | Node.js 22.5+ |
-| Efficient Coding | Agent Skill | Yes | Minimal, Recommended, Full | Compatible skill host |
-| Odoo Engineering | Agent Skill | Yes | Minimal, Recommended, Full | Exact target-version evidence |
-| Kit lifecycle | PowerShell/Bash scripts | N/A | Repository entrypoint | Git and host shell |
-| Usage Tracking | Windows toolset | Yes | Full on Windows; explicit option | Codex hook/event files |
+All six products are first-class parts of Afyx Engineering Kit. "Core" and
+"optional" in the [component registry](../scripts/components.json) describe
+**installation presets**, not a hierarchy of product importance.
+
+| Product | Standalone interface | Kit selection | Current boundary |
+|---|---|---|---|
+| [**Afyx Graph**](../afyx-graph/engine/README.md) | Node.js CLI, optional MCP and local viewer | `full` or explicit component | Technical Alpha; static code intelligence |
+| [**Afyx Forge**](../afyx-forge/README.md) | Node.js CLI/API with bounded policy and plans | Explicit component on Windows; dedicated standalone installer | Forge Core v0.1.0, Technical Alpha; A8 campaign pending |
+| [**Afyx Efficient Coding**](tool-guides/AFYX_EFFICIENT_CODING.md) | Agent instruction skill | `minimal`, `recommended`, `full` | v1.2.1; source-backed implementation workflow |
+| [**Afyx Odoo Engineering**](tool-guides/AFYX_ODOO_ENGINEERING.md) | Version-aware agent skill | `minimal`, `recommended`, `full` | v1.2.0; references for Odoo 10–20 |
+| [**Afyx Context Engine (ACE)**](../afyx-context/README.md) | Node.js CLI/API | Explicit component only | v0.1.0, Technical Alpha; original-content recovery |
+| [**Afyx Engineering Expert**](../skills/afyx-engineering-expert/README.md) | Cross-disciplinary agent skill | `recommended`, `full` | v0.1.1; final D.6 acceptance pending |
+
+### Shared infrastructure and optional tooling
+
+| Capability | Role | Availability |
+|---|---|---|
+| Kit lifecycle and capability router | Install, update, verify, doctor, discovery, and task-scoped routing; **not a seventh engineering product** | Cross-platform entrypoints; host support varies |
+| [Afyx Codex Usage Tracking](CODEX_USAGE_TRACKER.md) | Optional observability utility; **not a seventh primary engineering product** | Windows; selected by `full` or explicit option |
 
 ## Afyx Graph
 
