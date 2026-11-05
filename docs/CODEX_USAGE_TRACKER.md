@@ -1,4 +1,10 @@
-# Codex token usage tracker
+# Afyx Codex Usage Tracking
+
+**Windows-only optional local telemetry tool.** It is registered in the Kit as
+`codex-usage-tracking`, selected by the `full` preset on Windows, or by an
+explicit supported installation option. It is not a required dependency for
+Graph, Expert, Forge, ACE, Efficient Coding or Odoo Engineering. It must follow
+host telemetry consent and should remain passive outside its selected scope.
 
 The Codex usage tracker is a local, global PowerShell utility for reporting the most recently completed Codex turn. It reads token metadata from Codex rollout telemetry and never sends session data to a model or remote service.
 
