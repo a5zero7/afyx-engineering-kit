@@ -3,7 +3,9 @@ set -eu
 root=$(git rev-parse --show-toplevel)
 case "$(uname -s 2>/dev/null || true)" in
   MINGW*|MSYS*|CYGWIN*)
-    hygiene_script="$(cd "$root/.." && pwd)/_afyx-admin/Test-AfyxWorkspaceHygiene.ps1"
+    common_dir=$(git rev-parse --path-format=absolute --git-common-dir)
+    canonical_repo=$(cd "$common_dir/.." && pwd -P)
+    hygiene_script="$(cd "$canonical_repo/.." && pwd -P)/_afyx-admin/Test-AfyxWorkspaceHygiene.ps1"
     if [ ! -f "$hygiene_script" ]; then
       echo "[pre-push] FAIL: canonical Windows workspace hygiene verifier is missing: $hygiene_script" >&2
       exit 1
