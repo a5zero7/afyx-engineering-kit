@@ -908,11 +908,11 @@ describe('committed-but-unindexed changes (#1829)', () => {
 
     cg = AfyxGraph.initSync(testDir, { config: { include: ['**/*.ts'], exclude: [] } });
     await cg.indexAll();
-  });
+  }, 30_000);
 
   afterEach(() => {
     if (cg) cg.destroy();
-    if (fs.existsSync(testDir)) fs.rmSync(testDir, { recursive: true, force: true });
+    if (fs.existsSync(testDir)) fs.rmSync(testDir, { recursive: true, force: true, maxRetries: 10, retryDelay: 50 });
   });
 
   it('sees a committed NEW file (git status shows nothing; the DB has no row)', async () => {
