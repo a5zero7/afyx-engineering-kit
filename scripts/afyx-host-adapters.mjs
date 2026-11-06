@@ -22,6 +22,13 @@ function isNonEmptyString(val) {
   return typeof val === 'string' && val.trim().length > 0;
 }
 
+function requestTimeout(request, ceilingMs) {
+  const requested = request?.budgetLimits?.maxExecutionMs;
+  return Number.isSafeInteger(requested) && requested > 0
+    ? Math.min(requested, ceilingMs)
+    : ceilingMs;
+}
+
 /**
  * Creates genuine host-wired adapters for all installed components in a pilot root.
  *
@@ -39,7 +46,11 @@ export function createInstalledHostAdapters({
   stateRoot = null,
   codexToolsRoot = null,
   nodePath = process.execPath,
+  environment = process.env,
 } = {}) {
+  if (!isNonEmptyString(installRoot) || !isNonEmptyString(projectRoot)) {
+    throw new TypeError('installRoot and projectRoot are required non-empty paths');
+  }
   const resolvedInstallRoot = resolve(installRoot);
   const resolvedProjectRoot = resolve(projectRoot);
   const resolvedStateRoot = stateRoot ? resolve(stateRoot) : null;
@@ -76,7 +87,7 @@ export function createInstalledHostAdapters({
       const execResult = spawnSync(nodePath, runArgs, {
         cwd: resolvedProjectRoot,
         encoding: 'utf8',
-        timeout: 10_000,
+        timeout: requestTimeout(request, 10_000),
         windowsHide: true,
       });
 
@@ -118,7 +129,7 @@ export function createInstalledHostAdapters({
      */
     'afyx-context': async (request) => {
       // Check for explicit OFF environment variable
-      if (String(process.env.AFYX_CONTEXT_OPT_IN ?? '').trim() === '0') {
+      if (String(environment?.AFYX_CONTEXT_OPT_IN ?? '').trim() === '0') {
         return { status: 'FAILED', reason: 'EXPLICITLY_DISABLED', output: null };
       }
 
@@ -128,7 +139,7 @@ export function createInstalledHostAdapters({
 
       const runResult = spawnSync(nodePath, [contextCliEntrypoint, '--version'], {
         encoding: 'utf8',
-        timeout: 5_000,
+        timeout: requestTimeout(request, 5_000),
         windowsHide: true,
       });
 
@@ -170,9 +181,17 @@ export function createInstalledHostAdapters({
       // Assistive guidance query
       const runResult = spawnSync(nodePath, [forgeEntrypoint, 'doctor'], {
         encoding: 'utf8',
-        timeout: 5_000,
+        timeout: requestTimeout(request, 5_000),
         windowsHide: true,
       });
+
+      if (runResult.status !== 0 || runResult.error) {
+        return {
+          status: 'FAILED',
+          reason: `FORGE_EXECUTION_ERROR: ${runResult.error?.message || runResult.stderr?.trim() || `Exit code ${runResult.status}`}`,
+          output: null,
+        };
+      }
 
       let doctorPayload = null;
       try {
@@ -302,12 +321,15 @@ export function createInstalledHostAdapters({
       }
 
       const toolExists = codexToolFile && existsSync(codexToolFile);
+      if (!toolExists) {
+        return { status: 'FAILED', reason: 'USAGE_TRACKING_TOOL_NOT_FOUND', output: null };
+      }
       return {
         status: 'SUCCESS',
         output: {
-          telemetryRecorded: true,
+          telemetryRecorded: false,
           provider: 'codex',
-          toolAvailable: Boolean(toolExists),
+          toolAvailable: true,
           mode: 'PASSIVE_OBSERVABILITY_ONLY',
         },
         contextBytes: 64,
