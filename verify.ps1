@@ -364,16 +364,13 @@ if (-not $usagePresent) {
 }
 
 if ($Provider.Count -and $node) {
+    $workflowProviders = @($Provider | Where-Object { $_ -eq 'antigravity' -or ($_ -eq 'claude' -and $ProviderScope -eq 'workspace') })
     $bridgeLifecycle = Join-Path $PSScriptRoot 'scripts\afyx-host-bridge-lifecycle.mjs'
     $bridgeJson = (& $node.Source $bridgeLifecycle '--runtime-root' $HostBridgeRuntimeRoot 2>$null) -join ''
     try { $bridge = $bridgeJson | ConvertFrom-Json -Depth 10 }
     catch { $bridge = $null }
-    if (-not $bridge -or $bridge.status -ne 'READY') {
-        Write-Result 'FAIL' 'Afyx Universal Host Bridge' $(if ($bridgeJson) { $bridgeJson } else { 'not installed or integrity verification failed' })
-        $coreFailure = $true
-    } else {
+    if ($bridge -and $bridge.status -eq 'READY') {
         Write-Result 'OK' 'Afyx Universal Host Bridge' "$($bridge.sourceRevision); integrity verified"
-        $workflowProviders = @($Provider | Where-Object { $_ -eq 'antigravity' -or ($_ -eq 'claude' -and $ProviderScope -eq 'workspace') })
         if ($workflowProviders.Count) {
             $providerArgs = @((Join-Path $PSScriptRoot 'scripts\afyx-provider-integration.mjs'), '--providers', ($workflowProviders -join ','),
                 '--scope', $ProviderScope, '--workspace-root', $WorkspaceRoot, '--gemini-home', $GeminiHome,
@@ -394,6 +391,11 @@ if ($Provider.Count -and $node) {
         } else {
             Write-Result 'INFO' 'Afyx workflow MCP' 'session/workspace-isolated; direct CLI and session override available'
         }
+    } elseif ($workflowProviders.Count -or (Test-Path -LiteralPath $HostBridgeRuntimeRoot)) {
+        Write-Result 'FAIL' 'Afyx Universal Host Bridge' $(if ($bridgeJson) { $bridgeJson } else { 'not installed or integrity verification failed' })
+        $coreFailure = $true
+    } else {
+        Write-Result 'INFO' 'Afyx Universal Host Bridge' 'not installed (managed infrastructure for Antigravity/Claude workflow)'
     }
 }
 

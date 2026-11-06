@@ -9,6 +9,7 @@ param(
     [switch]$RemoveAfyxForge,
     [switch]$RemoveHostBridge,
     [switch]$RemoveProviderConfiguration,
+    [switch]$All,
     [string[]]$Provider = @('codex'),
     [ValidateSet('global', 'workspace')][string]$ProviderScope = 'global',
     [string]$WorkspaceRoot = (Get-Location).Path,
@@ -25,6 +26,14 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
 Write-Host 'Afyx Codex Engineering Kit — Windows uninstaller (PowerShell)'
+if ($All) {
+    $RemoveUsageTracker = $true
+    $RemoveAfyxGraph = $true
+    $RemoveAfyxContext = $true
+    $RemoveAfyxForge = $true
+    $RemoveHostBridge = $true
+    $RemoveProviderConfiguration = $true
+}
 $providerSkillRoots = @()
 if ('codex' -in $Provider) {
     $providerSkillRoots += $(if ($PSBoundParameters.ContainsKey('SkillsRoot')) { $SkillsRoot } else { Join-Path $env:USERPROFILE '.agents\skills' })

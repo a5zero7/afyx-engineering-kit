@@ -95,7 +95,7 @@ if ($wizardMode) {
         $presetOptions = @(
             [pscustomobject]@{ Id = 'recommended'; Label = 'Recommended'; Detail = 'Core skills + Engineering Expert'; Enabled = $true },
             [pscustomobject]@{ Id = 'minimal'; Label = 'Minimal'; Detail = 'Core engineering skills'; Enabled = $true },
-            [pscustomobject]@{ Id = 'full'; Label = 'Full'; Detail = 'Recommended + Graph + Codex usage tracking'; Enabled = $true },
+            [pscustomobject]@{ Id = 'full'; Label = 'Full'; Detail = 'All six core products (Graph, Context, Forge, Skills) + Codex usage tracking (Windows)'; Enabled = $true },
             [pscustomobject]@{ Id = 'custom'; Label = 'Custom'; Detail = 'Choose exact components'; Enabled = $true }
         )
         $Preset = Read-AfyxSingleChoice -Prompt 'Choose an installation preset' -Options $presetOptions -DefaultId 'recommended' -Terminal $terminal

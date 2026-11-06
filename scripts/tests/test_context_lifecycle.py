@@ -46,18 +46,18 @@ class ContextLifecycleContractTests(unittest.TestCase):
         context = by_id["afyx-context"]
         self.assertEqual(context["ownership_class"], "AFYX")
         self.assertEqual(context["install_root"], "afyx_context_root")
-        self.assertEqual(context["presets"], "")
+        self.assertEqual(context["presets"], "full")
         expected = {
             "minimal": {"efficient-coding", "odoo-engineering"},
             "recommended": {"efficient-coding", "odoo-engineering", "afyx-engineering-expert"},
-            "full": {"efficient-coding", "odoo-engineering", "afyx-engineering-expert", "afyx-graph", "codex-usage-tracking"},
+            "full": {"efficient-coding", "odoo-engineering", "afyx-engineering-expert", "afyx-graph", "afyx-context", "afyx-forge", "codex-usage-tracking"},
         }
         for preset, members in expected.items():
             actual = {item["id"] for item in contract["components"] if preset in item["presets"].split(";")}
             self.assertEqual(actual, members)
         product = json.loads((ROOT / "afyx-context" / "afyx-context.json").read_text(encoding="utf-8"))
         self.assertEqual(product["kit_management"]["lifecycle_integration"], "managed-optional")
-        self.assertEqual(product["kit_management"]["default_presets"], [])
+        self.assertEqual(product["kit_management"]["default_presets"], ["full"])
         self.assertFalse(product["optional_consumers"]["graph"]["default_enabled"])
 
     def test_entrypoints_forward_context_root_without_path_or_config_mutation(self) -> None:

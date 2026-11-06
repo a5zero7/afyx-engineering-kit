@@ -23,6 +23,8 @@
   "kit_management": {
     "contract_version": 1,
     "lifecycle_integration": "managed-optional",
-    "default_presets": []
+    "default_presets": [
+      "full"
+    ]
   }
 }
