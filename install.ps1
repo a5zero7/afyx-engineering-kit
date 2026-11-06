@@ -510,7 +510,7 @@ if (-not $ValidateOnly -and $providerMcpRequested -and $nodeCommand -and ('codex
     }
     $preflightBlocked = @($preflightResult.providers | Where-Object {
         $_.status -in @('BLOCKED', 'INCOMPATIBLE') -and
-        -not ($_.reason -eq 'GRAPH_RUNTIME_UNAVAILABLE' -and $graphAction -ne 'skip')
+        -not ($_.reason -in @('GRAPH_RUNTIME_UNAVAILABLE', 'MCP_RUNTIME_UNAVAILABLE') -and $graphAction -ne 'skip')
     })
     if ($preflightBlocked.Count) {
         $blocked = $preflightBlocked[0]
