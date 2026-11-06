@@ -88,10 +88,16 @@ export function installHostBridge({ sourceRoot, runtimeRoot, sourceRevision = 'U
     if (!existsSync(join(source, file))) throw new Error(`HOST_BRIDGE_SOURCE_MISSING: ${file}`);
   }
 
+  const current = join(root, 'current');
+  if (existsSync(current)) ensureOrdinaryDirectory(current);
+  const verified = verifyHostBridge(root);
+  if (verified.status === 'READY' && verified.sourceRevision === sourceRevision
+      && HOST_BRIDGE_FILES.every((file) => sha256(join(source, file)) === sha256(join(current, file)))) {
+    return { ...verified, changed: false };
+  }
   mkdirSync(root, { recursive: true });
   const stage = join(root, `.stage-${process.pid}-${Date.now()}`);
   const backup = join(root, `.backup-${process.pid}-${Date.now()}`);
-  const current = join(root, 'current');
   let movedCurrent = false;
   try {
     mkdirSync(stage, { recursive: false });

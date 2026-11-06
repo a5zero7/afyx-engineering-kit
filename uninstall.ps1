@@ -54,6 +54,7 @@ $additionalSkillRoots = @($providerSkillRoots |
 # One component truth: scripts/components.json. Only Afyx-owned skills are removable.
 Import-Module (Join-Path $PSScriptRoot 'scripts\lib\AfyxComponents.psm1') -Force
 Import-Module (Join-Path $PSScriptRoot 'scripts\lib\AfyxSkillLifecycle.psm1') -Force
+Import-Module (Join-Path $PSScriptRoot 'scripts\lib\AfyxTerminal.psm1') -Force
 $providerIds = @(Get-AfyxProviderRegistry | ForEach-Object { [string]$_.provider })
 $unknownProviders = @($Provider | Where-Object { $_ -notin $providerIds })
 if ($unknownProviders.Count) { throw "Unknown provider(s): $($unknownProviders -join ', ')" }
@@ -119,7 +120,7 @@ if ($RemoveProviderConfiguration) {
     if ($WhatIfPreference) { Write-Host "WhatIf: would remove only Afyx-owned provider MCP entries at $ProviderScope scope" }
     else {
         $providerJson = (& $nodeCommand.Source @arguments) -join ''
-        $providerResult = $providerJson | ConvertFrom-Json -Depth 20
+        $providerResult = $providerJson | ConvertFrom-AfyxJson -Depth 20
         Write-Host "Provider removal: $($providerResult.status)"
         if ($LASTEXITCODE -ne 0 -or $providerResult.status -eq 'BLOCKED') { throw "Provider removal failed: $providerJson" }
     }
@@ -136,7 +137,7 @@ if ($RemoveProviderConfiguration) {
         if (-not $WhatIfPreference) { $wfArguments += '--apply' }
         if (-not $WhatIfPreference) {
             $wfJson = (& $nodeCommand.Source @wfArguments) -join ''
-            $wfResult = $wfJson | ConvertFrom-Json -Depth 20
+            $wfResult = $wfJson | ConvertFrom-AfyxJson -Depth 20
             if ($LASTEXITCODE -ne 0 -or $wfResult.status -eq 'BLOCKED') { throw "Host bridge provider removal failed: $wfJson" }
         }
     }

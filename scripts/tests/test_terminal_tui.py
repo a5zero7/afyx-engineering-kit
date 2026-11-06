@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import re
 from pathlib import Path
 import shutil
 import subprocess
@@ -33,6 +34,18 @@ class TerminalPresentationTests(unittest.TestCase):
         )
         self.assertEqual(result.returncode, expected, result.stdout + result.stderr)
         return result
+
+    def test_narrow_banner_and_step_fallback_fit_terminal(self) -> None:
+        script = f"""
+Import-Module '{MODULE}' -Force
+$terminal = [pscustomobject]@{{ Ansi = $false; Interactive = $true; Width = 40 }}
+Show-AfyxBanner -Terminal $terminal -Subtitle 'Midnight Circuit'
+Show-AfyxStep -Current 3 -Terminal $terminal
+"""
+        result = self.run_ps(script)
+        self.assertIn("Step 3/5: Configure", result.stdout)
+        self.assertIn("A F Y X", result.stdout)
+        self.assertTrue(all(len(line) <= 40 for line in result.stdout.splitlines()), result.stdout)
 
     def test_module_import_is_quiet_and_exports_only_approved_public_verbs(self) -> None:
         result = self.run_ps(
@@ -123,7 +136,7 @@ $keys.Enqueue([ConsoleKeyInfo]::new([char]13,[ConsoleKey]::Enter,$false,$false,$
 Read-AfyxSingleChoice -Prompt redraw -Options $options -Terminal $terminal -ReadKey {{$keys.Dequeue()}}
 """
         result = self.run_ps(script)
-        self.assertEqual(result.stdout.count("\x1b[4A"), 1)
+        self.assertEqual(len(re.findall(r"\x1b\[\d+A", result.stdout)), 1)
         self.assertEqual(result.stdout.count("\x1b[0J"), 1)
         self.assertTrue(result.stdout.rstrip().endswith("b"), result.stdout)
 
@@ -311,8 +324,8 @@ Read-AfyxSingleChoice -Prompt test -Options $options -Terminal $terminal -ReadLi
                 cwd=ROOT, env=env, text=True, capture_output=True, timeout=90,
             )
             self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
-            self.assertIn("[PLANNED] afyx-context - action=update", result.stdout)
-            self.assertIn("[PLANNED] Afyx Context Engine - outcome=update", result.stdout)
+            self.assertIn("[NO CHANGE] afyx-context - action=skip", result.stdout)
+            self.assertIn("[NO CHANGE] Afyx Context Engine - outcome=skipped", result.stdout)
             after = {path.relative_to(runtime): path.read_bytes() for path in runtime.rglob("*") if path.is_file()}
             self.assertEqual(after, before)
 

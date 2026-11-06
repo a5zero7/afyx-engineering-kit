@@ -3,12 +3,13 @@ Set-StrictMode -Version Latest
 $script:AfyxAnsi = [char]27
 $script:AfyxPalette = @{
     Primary   = '38;2;34;211;238'
-    Secondary = '38;2;167;139;250'
+    Secondary = '38;2;139;92;246'
+    Accent    = '38;2;96;165;250'
     Success   = '38;2;52;211;153'
     Warning   = '38;2;251;191;36'
     Error     = '38;2;251;113;133'
-    Text      = '38;2;226;232;240'
-    Muted     = '38;2;148;163;184'
+    Text      = '38;2;229;242;255'
+    Muted     = '38;2;147;164;187'
 }
 
 function Test-AfyxAnsiSupport {
@@ -52,7 +53,7 @@ function Get-AfyxStyledText {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory)][AllowEmptyString()][string]$Text,
-        [ValidateSet('Primary', 'Secondary', 'Success', 'Warning', 'Error', 'Text', 'Muted')][string]$Tone = 'Text',
+        [ValidateSet('Primary', 'Secondary', 'Accent', 'Success', 'Warning', 'Error', 'Text', 'Muted')][string]$Tone = 'Text',
         [Parameter(Mandatory)]$Terminal
     )
     if (-not $Terminal.Ansi) { return $Text }
@@ -81,7 +82,7 @@ function Write-AfyxText {
     [CmdletBinding()]
     param(
         [AllowEmptyString()][string]$Text = '',
-        [ValidateSet('Primary', 'Secondary', 'Success', 'Warning', 'Error', 'Text', 'Muted')][string]$Tone = 'Text',
+        [ValidateSet('Primary', 'Secondary', 'Accent', 'Success', 'Warning', 'Error', 'Text', 'Muted')][string]$Tone = 'Text',
         [Parameter(Mandatory)]$Terminal,
         [string]$Indent = ''
     )
@@ -94,9 +95,35 @@ function Show-AfyxBanner {
     [CmdletBinding()]
     param([Parameter(Mandatory)]$Terminal, [string]$Subtitle = 'Code Engineering Kit')
     Write-Host ''
-    Write-AfyxText -Terminal $Terminal -Tone Primary -Text '  +-- AFYX ----------------------------------------+'
-    Write-AfyxText -Terminal $Terminal -Tone Secondary -Text "  |  $Subtitle"
-    Write-AfyxText -Terminal $Terminal -Tone Primary -Text '  +------------------------------------------------+'
+    $width = [Math]::Max(34, [Math]::Min(76, $Terminal.Width - 4))
+    $top = if ($Terminal.Ansi) { [string][char]0x256D + ([string][char]0x2500 * $width) + [char]0x256E } else { '+' + ('-' * $width) + '+' }
+    $bottom = if ($Terminal.Ansi) { [string][char]0x2570 + ([string][char]0x2500 * $width) + [char]0x256F } else { '+' + ('-' * $width) + '+' }
+    Write-Host (Get-AfyxStyledText -Text $top -Tone Primary -Terminal $Terminal)
+    $lines = @('  A F Y X  /  ENGINEERING KIT', "  $Subtitle", '  I choose my path, even in the unknown.')
+    foreach ($line in $lines) {
+        foreach ($part in @(Format-AfyxWrappedText -Text $line -Width ($width - 2))) {
+            $edge = if ($Terminal.Ansi) { [string][char]0x2502 } else { '|' }
+            $padded = $part.PadRight($width)
+            Write-Host ((Get-AfyxStyledText -Text $edge -Tone Primary -Terminal $Terminal) + (Get-AfyxStyledText -Text $padded -Tone Text -Terminal $Terminal) + (Get-AfyxStyledText -Text $edge -Tone Primary -Terminal $Terminal))
+        }
+    }
+    Write-Host (Get-AfyxStyledText -Text $bottom -Tone Primary -Terminal $Terminal)
+}
+
+function Show-AfyxStep {
+    [CmdletBinding()]
+    param([Parameter(Mandatory)][ValidateRange(1, 5)][int]$Current, [Parameter(Mandatory)]$Terminal)
+    $steps = @('Detect', 'Select', 'Configure', 'Install', 'Finish')
+    $parts = @()
+    for ($i = 0; $i -lt $steps.Count; $i++) {
+        $tone = if (($i + 1) -eq $Current) { 'Primary' } elseif (($i + 1) -lt $Current) { 'Success' } else { 'Muted' }
+        $parts += Get-AfyxStyledText -Text "[$($i + 1) $($steps[$i])]" -Tone $tone -Terminal $Terminal
+    }
+    if ($Terminal.Width -lt 72) {
+        Write-AfyxText -Terminal $Terminal -Tone Primary -Text "Step $Current/5: $($steps[$Current - 1])"
+    } else {
+        Write-Host ('  ' + ($parts -join ' > '))
+    }
 }
 
 function Write-AfyxSection {
@@ -160,7 +187,9 @@ function Get-AfyxEnabledOptionIndex {
 
 function Show-AfyxChoiceFrame {
     param([string]$Prompt, [object[]]$Options, [int]$Selected, [hashtable]$Checked, $Terminal, [switch]$Multiple)
-    $lineCount = @(Format-AfyxWrappedText -Text $Prompt -Width $Terminal.Width).Count
+    $border = if ($Terminal.Ansi) { [string][char]0x2500 } else { '-' }
+    $lineCount = @(Format-AfyxWrappedText -Text $Prompt -Width $Terminal.Width).Count + 2
+    Write-AfyxText -Terminal $Terminal -Tone Secondary -Text (('  ' + $border * ([Math]::Max(20, [Math]::Min(72, $Terminal.Width - 4)))))
     Write-AfyxText -Terminal $Terminal -Tone Text -Text $Prompt
     for ($i = 0; $i -lt $Options.Count; $i++) {
         $option = $Options[$i]
@@ -176,6 +205,7 @@ function Show-AfyxChoiceFrame {
     $helpText = if ($Multiple) { 'Up/Down move | Space toggle | Enter continue | Esc cancel' } else { 'Up/Down move | Enter select | Esc cancel' }
     $lineCount += @(Format-AfyxWrappedText -Text $helpText -Width $Terminal.Width -Indent '  ').Count
     Write-AfyxText -Terminal $Terminal -Tone Muted -Text $helpText -Indent '  '
+    Write-AfyxText -Terminal $Terminal -Tone Secondary -Text (('  ' + $border * ([Math]::Max(20, [Math]::Min(72, $Terminal.Width - 4)))))
     return $lineCount
 }
 
@@ -375,4 +405,19 @@ function Show-AfyxReceipt {
     foreach ($item in $Items) { Write-AfyxStatus -Status ([string]$item.Status) -Name ([string]$item.Name) -Detail ([string]$item.Detail) -Terminal $Terminal }
 }
 
-Export-ModuleMember -Function Test-AfyxAnsiSupport, Test-AfyxInteractiveTerminal, New-AfyxTerminalContext, Get-AfyxStyledText, Format-AfyxWrappedText, Write-AfyxText, Show-AfyxBanner, Write-AfyxSection, Write-AfyxStatus, Get-AfyxOutcomeStatus, Get-AfyxKeyAction, Read-AfyxSingleChoice, Read-AfyxMultiChoice, Read-AfyxConfirmation, Show-AfyxReceipt
+function ConvertFrom-AfyxJson {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true, ValueFromPipeline = $true)][string]$InputObject,
+        [int]$Depth = 10
+    )
+    process {
+        if ([string]::IsNullOrWhiteSpace($InputObject)) { return $null }
+        if ($PSVersionTable.PSVersion.Major -ge 6) {
+            return ($InputObject | ConvertFrom-Json -Depth $Depth)
+        }
+        return ($InputObject | ConvertFrom-Json)
+    }
+}
+
+Export-ModuleMember -Function Test-AfyxAnsiSupport, Test-AfyxInteractiveTerminal, New-AfyxTerminalContext, Get-AfyxStyledText, Format-AfyxWrappedText, Write-AfyxText, Show-AfyxBanner, Show-AfyxStep, Write-AfyxSection, Write-AfyxStatus, Get-AfyxOutcomeStatus, Get-AfyxKeyAction, Read-AfyxSingleChoice, Read-AfyxMultiChoice, Read-AfyxConfirmation, Show-AfyxReceipt, ConvertFrom-AfyxJson

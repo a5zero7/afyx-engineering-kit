@@ -77,7 +77,8 @@ function Get-SourceRevision {
     $commit = (& $git.Source -C $kitRoot rev-parse HEAD 2>$null).Trim()
     $branch = ((& $git.Source -C $kitRoot branch --show-current 2>$null) -join '').Trim()
     $dirty = [bool]((& $git.Source -C $kitRoot status --porcelain 2>$null) -join '')
-    return [pscustomobject]@{ Commit = $commit; Branch = $branch; Dirty = $dirty }
+    $graphDirty = [bool]((& $git.Source -C $kitRoot status --porcelain -- afyx-graph 2>$null) -join '')
+    return [pscustomobject]@{ Commit = $commit; Branch = $branch; Dirty = $dirty; GraphDirty = $graphDirty }
 }
 
 function Get-RequestedRevision {
@@ -97,41 +98,85 @@ function Build-LocalArchive {
     if (-not $source) {
         throw 'BUILD_ONLY: local fallback requires a validated Git checkout. Install Git or provide -ArchivePath with SHA256SUMS.'
     }
-    if ($source.Dirty -and -not $AllowDirtySource) {
-        throw 'BUILD_ONLY: local source has uncommitted changes. Refusing to build an unverifiable Technical Alpha artifact; commit the changes or explicitly use -AllowDirtySource.'
-    }
-    if (-not (Test-Path -LiteralPath (Join-Path $engineRoot 'package-lock.json') -PathType Leaf)) {
-        throw 'BUILD_ONLY: afyx-graph/engine/package-lock.json is missing; local source is incomplete.'
+
+    $stagingRoot = $null
+    $buildEngineRoot = $engineRoot
+    $buildProvenance = 'LOCAL_CLEAN_BUILD'
+    try {
+
+    if ($source.Dirty -or $source.GraphDirty) {
+        if ($AllowDirtySource) {
+            Write-Warning "Building Afyx Graph with -AllowDirtySource; artifact provenance will be marked LOCAL_SOURCE_DIRTY."
+            $buildProvenance = 'LOCAL_SOURCE_DIRTY'
+        } else {
+            $stagingAttemptSuccess = $false
+            if ($source.Commit -and $source.Commit -match '^[0-9a-f]{7,64}$') {
+                $stagingRoot = Join-Path ([System.IO.Path]::GetTempPath()) "afyx-graph-clean-staging-$([guid]::NewGuid().ToString('N'))"
+                try {
+                    New-Item -ItemType Directory -Path $stagingRoot -Force | Out-Null
+                    $tar = Get-Command tar -ErrorAction SilentlyContinue
+                    $git = Get-Command git -ErrorAction SilentlyContinue
+                    if ($tar -and $git) {
+                        $archiveTar = Join-Path $stagingRoot 'source.tar'
+                        & $git.Source -C $kitRoot archive -o $archiveTar $source.Commit afyx-graph
+                        if ($LASTEXITCODE -ne 0) { throw 'Git archive failed.' }
+                        & $tar.Source -xf $archiveTar -C $stagingRoot
+                        if ($LASTEXITCODE -ne 0) { throw 'Clean source extraction failed.' }
+                        Remove-Item -LiteralPath $archiveTar -Force
+                        $stagedEngine = Join-Path $stagingRoot 'afyx-graph\engine'
+                        if (Test-Path -LiteralPath (Join-Path $stagedEngine 'package.json') -PathType Leaf) {
+                            $buildEngineRoot = $stagedEngine
+                            $stagingAttemptSuccess = $true
+                            Write-Host "Local checkout has uncommitted changes outside clean revision $($source.Commit). Extracted verified clean commit tree for isolated build."
+                        }
+                    }
+                } catch {
+                    $stagingAttemptSuccess = $false
+                }
+            }
+            if (-not $stagingAttemptSuccess) {
+                if ($stagingRoot -and (Test-Path -LiteralPath $stagingRoot)) { Remove-Item -Recurse -Force $stagingRoot -ErrorAction SilentlyContinue }
+                throw 'BUILD_ONLY: local source has uncommitted changes. Refusing to build an unverifiable Technical Alpha artifact; commit the changes, stash them, or explicitly use -AllowDirtySource for development builds.'
+            }
+        }
     }
 
+    if (-not (Test-Path -LiteralPath (Join-Path $buildEngineRoot 'package-lock.json') -PathType Leaf)) {
+        throw 'BUILD_ONLY: afyx-graph/engine/package-lock.json is missing; local source is incomplete.'
+    }
+    $buildMetadataPath = if ($stagingRoot) { Join-Path $stagingRoot 'afyx-graph\afyx-graph.json' } else { $metadataPath }
+    $buildContractPath = Join-Path $buildEngineRoot 'scripts\distribution-contract.mjs'
+
     Write-Host "Verified release unavailable; building Afyx Graph locally from $($source.Commit) on $($source.Branch)."
-    Push-Location $engineRoot
+    Push-Location $buildEngineRoot
     try {
         & $npm.Source ci | Out-Host
         if ($LASTEXITCODE -ne 0) { throw 'BUILD_ONLY: npm ci failed; the existing installation was not changed.' }
         & $npm.Source run build:clean | Out-Host
         if ($LASTEXITCODE -ne 0) { throw 'BUILD_ONLY: Afyx Graph clean build failed; the existing installation was not changed.' }
-    } finally { Pop-Location }
+    } finally {
+        Pop-Location
+    }
 
     $buildRoot = Join-Path ([System.IO.Path]::GetTempPath()) "afyx-graph-build-$([guid]::NewGuid().ToString('N'))"
     $bundleName = "afyx-graph-$target"
     $bundleRoot = Join-Path $buildRoot $bundleName
     try {
         New-Item -ItemType Directory -Force -Path (Join-Path $bundleRoot 'lib'), (Join-Path $bundleRoot 'bin') | Out-Null
-        Copy-Item -LiteralPath (Join-Path $engineRoot 'dist') -Destination (Join-Path $bundleRoot 'lib\dist') -Recurse
-        Copy-Item -LiteralPath (Join-Path $engineRoot 'package.json') -Destination (Join-Path $bundleRoot 'lib\package.json')
-        Copy-Item -LiteralPath $metadataPath -Destination (Join-Path $bundleRoot 'metadata.json')
+        Copy-Item -LiteralPath (Join-Path $buildEngineRoot 'dist') -Destination (Join-Path $bundleRoot 'lib\dist') -Recurse
+        Copy-Item -LiteralPath (Join-Path $buildEngineRoot 'package.json') -Destination (Join-Path $bundleRoot 'lib\package.json')
+        Copy-Item -LiteralPath $buildMetadataPath -Destination (Join-Path $bundleRoot 'metadata.json')
         $bundleMetadataPath = Join-Path $bundleRoot 'metadata.json'
         $bundleMetadata = Get-Content -Raw -LiteralPath $bundleMetadataPath -Encoding utf8 | ConvertFrom-Json
         $bundleMetadata | Add-Member -NotePropertyName release_channel -NotePropertyValue $releaseChannel
         $bundleMetadata | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $bundleMetadataPath -Encoding utf8
         $extractionVersion = [regex]::Match(
-            (Get-Content -Raw -LiteralPath (Join-Path $engineRoot 'src\extraction\extraction-version.ts')),
+            (Get-Content -Raw -LiteralPath (Join-Path $buildEngineRoot 'src\extraction\extraction-version.ts')),
             'EXTRACTION_VERSION\s*=\s*(\d+)'
         ).Groups[1].Value
         & (Get-Command node).Source $artifactIdentityTool stamp --metadata $bundleMetadataPath --target $target --revision $source.Commit --extraction-version $extractionVersion *> $null
         if ($LASTEXITCODE -ne 0) { throw 'BUILD_ONLY: failed to stamp the local artifact identity.' }
-        Copy-Item -LiteralPath (Join-Path $engineRoot 'LICENSE') -Destination (Join-Path $bundleRoot 'LICENSE')
+        Copy-Item -LiteralPath (Join-Path $buildEngineRoot 'LICENSE') -Destination (Join-Path $bundleRoot 'LICENSE')
         @'
 @echo off
 where node >nul 2>&1
@@ -142,7 +187,7 @@ if errorlevel 1 (
 node --disable-warning=ExperimentalWarning "%~dp0..\lib\dist\bin\afyx-graph.js" %*
 '@ | Set-Content -LiteralPath (Join-Path $bundleRoot 'bin\afyx-graph.cmd') -Encoding ascii
 
-        & (Get-Command node).Source $contractPath verify-bundle --root $bundleRoot --target $target | Out-Host
+        & (Get-Command node).Source $buildContractPath verify-bundle --root $bundleRoot --target $target | Out-Host
         if ($LASTEXITCODE -ne 0) { throw 'BUILD_ONLY: locally staged bundle failed the distribution contract.' }
         New-Item -ItemType Directory -Force -Path $releaseRoot | Out-Null
         $archive = Join-Path $releaseRoot $assetName
@@ -151,9 +196,12 @@ node --disable-warning=ExperimentalWarning "%~dp0..\lib\dist\bin\afyx-graph.js" 
         $hash = (Get-FileHash -Algorithm SHA256 -LiteralPath $archive).Hash.ToLowerInvariant()
         "$hash  $assetName" | Set-Content -LiteralPath (Join-Path $releaseRoot 'SHA256SUMS') -Encoding ascii
         Write-Host "Local artifact verified: $assetName (Node.js $nodeVersion, commit $($source.Commit))."
-        return [pscustomobject]@{ Path = $archive; Source = 'local-build'; Commit = $source.Commit }
+        return [pscustomobject]@{ Path = $archive; Source = 'local-build'; Commit = $source.Commit; BuildProvenance = $buildProvenance }
     } finally {
         if (Test-Path -LiteralPath $buildRoot) { Remove-Item -LiteralPath $buildRoot -Recurse -Force }
+    }
+    } finally {
+        if ($stagingRoot -and (Test-Path -LiteralPath $stagingRoot)) { Remove-Item -LiteralPath $stagingRoot -Recurse -Force -ErrorAction SilentlyContinue }
     }
 }
 
@@ -197,7 +245,7 @@ function Test-AfyxOwnership { return Test-AfyxOwnershipAt -Path $RuntimeRoot }
 function Resolve-Archive {
     if ($ArchivePath) {
         $resolved = Resolve-Path -LiteralPath $ArchivePath -ErrorAction Stop
-        return [pscustomobject]@{ Path = $resolved.Path; Source = 'explicit-archive'; Commit = $null; RevisionStatus = 'UNKNOWN' }
+        return [pscustomobject]@{ Path = $resolved.Path; Source = 'explicit-archive'; Commit = $null; RevisionStatus = 'UNKNOWN'; BuildProvenance = 'EXPLICIT_ARCHIVE' }
     }
     $requestedRevision = Get-RequestedRevision
     $local = Join-Path $releaseRoot $assetName
@@ -215,7 +263,7 @@ function Resolve-Archive {
             Write-Warning "Ignoring valid but stale local release cache (requested $requestedRevision; artifact $($identity.sourceRevision)); rebuilding from validated source."
             return Build-LocalArchive
         }
-        return [pscustomobject]@{ Path = $local; Source = 'local-release-cache'; Commit = $identity.sourceRevision; RevisionStatus = $identity.revisionStatus }
+        return [pscustomobject]@{ Path = $local; Source = 'local-release-cache'; Commit = $identity.sourceRevision; RevisionStatus = $identity.revisionStatus; BuildProvenance = 'RELEASE_CACHE' }
     }
     if (-not $Offline) {
         $downloadRoot = Join-Path ([System.IO.Path]::GetTempPath()) "afyx-graph-download-$([guid]::NewGuid().ToString('N'))"
@@ -223,17 +271,18 @@ function Resolve-Archive {
             New-Item -ItemType Directory -Path $downloadRoot | Out-Null
             $download = Join-Path $downloadRoot $assetName
             $tag = "afyx-graph-v$($metadata.product_version)"
-            $url = "https://github.com/a5zero7/afyx-codex-engineering-kit/releases/download/$tag/$assetName"
+            $repoBase = 'https://github.com/a5zero7/afyx-engineering-kit'
+            $url = "$repoBase/releases/download/$tag/$assetName"
             Invoke-WebRequest -UseBasicParsing -Uri $url -OutFile $download
-            Invoke-WebRequest -UseBasicParsing -Uri "https://github.com/a5zero7/afyx-codex-engineering-kit/releases/download/$tag/SHA256SUMS" -OutFile (Join-Path $downloadRoot 'SHA256SUMS')
-            Invoke-WebRequest -UseBasicParsing -Uri "https://github.com/a5zero7/afyx-codex-engineering-kit/releases/download/$tag/RELEASE-MANIFEST.json" -OutFile (Join-Path $downloadRoot 'RELEASE-MANIFEST.json')
+            Invoke-WebRequest -UseBasicParsing -Uri "$repoBase/releases/download/$tag/SHA256SUMS" -OutFile (Join-Path $downloadRoot 'SHA256SUMS')
+            Invoke-WebRequest -UseBasicParsing -Uri "$repoBase/releases/download/$tag/RELEASE-MANIFEST.json" -OutFile (Join-Path $downloadRoot 'RELEASE-MANIFEST.json')
             Test-ArchiveChecksum -Path $download
             Test-ArchiveBundle -Path $download
             $identity = Get-ArchiveIdentity -Path $download -RequestedRevision $requestedRevision
             if ($requestedRevision -and $identity.revisionStatus -ne 'MATCH') {
                 throw "Downloaded release revision is $($identity.sourceRevision), requested checkout is $requestedRevision."
             }
-            return [pscustomobject]@{ Path = $download; Source = 'github-release'; Commit = $identity.sourceRevision; RevisionStatus = $identity.revisionStatus }
+            return [pscustomobject]@{ Path = $download; Source = 'github-release'; Commit = $identity.sourceRevision; RevisionStatus = $identity.revisionStatus; BuildProvenance = 'GITHUB_RELEASE' }
         } catch {
             Write-Warning "Verified GitHub release unavailable ($($_.Exception.Message)); trying bounded local build fallback."
         }
@@ -346,7 +395,7 @@ if ($ValidateOnly) {
         RevisionStatus = $revisionStatus
         UpdateAvailable = $revisionStatus -eq 'REVISION_MISMATCH'
     } | Format-List
-    if ($revisionStatus -eq 'REVISION_MISMATCH') { Write-Host 'UPDATE AVAILABLE — REVISION MISMATCH' }
+    if ($revisionStatus -eq 'REVISION_MISMATCH') { Write-Host 'UPDATE AVAILABLE - REVISION MISMATCH' }
     if ($state -in @('INCOMPLETE', 'INVALID')) { exit 1 }
     exit 0
 }
@@ -407,11 +456,12 @@ try {
     }
     $gh = Get-Command gh -ErrorAction SilentlyContinue
     if ($resolvedArchive.Source -eq 'github-release' -and $gh) {
-        & $gh.Source attestation verify $archive --repo a5zero7/afyx-codex-engineering-kit *> $null
+        & $gh.Source attestation verify $archive --repo a5zero7/afyx-engineering-kit *> $null
         if ($LASTEXITCODE -ne 0) { throw 'GitHub publisher/build attestation verification failed.' }
         $publisherAuthenticity = 'GITHUB_ATTESTED'
         $buildProvenance = 'GITHUB_ATTESTED'
     }
+    if ($resolvedArchive.Source -eq 'local-build' -and $resolvedArchive.PSObject.Properties['BuildProvenance'] -and $resolvedArchive.BuildProvenance) { $buildProvenance = $resolvedArchive.BuildProvenance }
     & (Get-Command node).Source $artifactIdentityTool record-install --metadata (Join-Path $bundle.FullName 'metadata.json') --archive $archive --provenance $resolvedArchive.Source --requested-revision $(if ($requestedRevision) { $requestedRevision } else { 'UNKNOWN' }) --release-manifest-status $manifestStatus --publisher-authenticity $publisherAuthenticity --build-provenance $buildProvenance *> $null
     if ($LASTEXITCODE -ne 0) { throw 'Failed to record installed artifact provenance.' }
     Move-Item -LiteralPath $bundle.FullName -Destination (Join-Path $prepared 'current')
@@ -468,7 +518,7 @@ if ($SkipMcp) {
     try {
         $mcpResult = $mcpJson | ConvertFrom-Json
         $mcpState = $mcpResult.mcp
-        Write-Host "Afyx Graph MCP: $($mcpResult.mcp) — $($mcpResult.detail)"
+        Write-Host "Afyx Graph MCP: $($mcpResult.mcp) - $($mcpResult.detail)"
     } catch {
         $mcpState = 'MCP_BLOCKED'
         Write-Warning 'Afyx Graph MCP integration could not be evaluated; the healthy Graph runtime was preserved.'
