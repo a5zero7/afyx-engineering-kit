@@ -383,21 +383,44 @@ export async function runInstalledAfyxWorkflow(options = {}) {
   }
 }
 
+export {
+  AFYX_HOST_BRIDGE_CONTRACT,
+  invokeHostWorkflow,
+  serveHostMcpBridge,
+} from './afyx-host-bridge.mjs';
+
 function argumentValue(flag) {
   const index = process.argv.indexOf(flag);
   return index >= 0 && index + 1 < process.argv.length ? process.argv[index + 1] : null;
 }
 
 async function main() {
-  const installRoot = argumentValue('--install-root');
-  const projectRoot = argumentValue('--project-root');
+  if (process.argv.includes('--mcp') || (process.argv.includes('serve') && process.argv.includes('--mcp'))) {
+    const { serveHostMcpBridge } = await import('./afyx-host-bridge.mjs');
+    const installRoot = argumentValue('--install-root');
+    const projectRoot = argumentValue('--project-root');
+    const provider = argumentValue('--provider') || 'antigravity';
+    serveHostMcpBridge({ installRoot, projectRoot, provider });
+    return;
+  }
+
+  const installRoot = argumentValue('--install-root') || process.env.AFYX_INSTALL_ROOT;
+  const projectRoot = argumentValue('--project-root') || process.cwd();
   const taskFile = argumentValue('--task-file');
+  const taskArg = argumentValue('--task');
   const provider = argumentValue('--provider');
   const authorizedIds = new Set((argumentValue('--authorize') ?? '').split(',').filter(Boolean));
-  if (!installRoot || !projectRoot || !taskFile) {
-    throw new Error('--install-root, --project-root, and --task-file are required');
+  if (!installRoot || !projectRoot || (!taskFile && !taskArg)) {
+    throw new Error('--install-root, --project-root, and either --task-file or --task are required');
   }
-  const task = JSON.parse(readFileSync(resolve(taskFile), 'utf8'));
+  let task = null;
+  if (taskArg) {
+    task = JSON.parse(taskArg);
+  } else if (taskFile === '-') {
+    task = JSON.parse(readFileSync(0, 'utf8'));
+  } else {
+    task = JSON.parse(readFileSync(resolve(taskFile), 'utf8'));
+  }
   const authorizations = Object.fromEntries([...authorizedIds].map((id) => [id, true]));
   const result = await runInstalledAfyxWorkflow({
     installRoot,
