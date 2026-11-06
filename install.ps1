@@ -86,6 +86,14 @@ $explicitSelection = @(
         Where-Object { $PSBoundParameters.ContainsKey($_) }
 )
 $wizardMode = $terminal.Interactive -and -not $ValidateOnly -and -not $WhatIfPreference -and -not $env:CI -and $explicitSelection.Count -eq 0
+if ($wizardMode) {
+    $providerSnapshot = @(
+        "Codex: $(if ($codexCommandDetected) { 'CLI detected' } else { 'CLI unavailable' })"
+        "Antigravity: $(if ($antigravityCommandDetected) { 'CLI detected' } elseif ($antigravityIdeDetected) { 'IDE only' } else { 'unavailable' })"
+        "Claude Code: $(if ($claudeCommandDetected) { 'CLI detected' } else { 'CLI unavailable' })"
+    )
+    Enable-AfyxDashboard -Terminal $terminal -Providers $providerSnapshot
+}
 
 if ($wizardMode) {
     try {
@@ -101,6 +109,7 @@ if ($wizardMode) {
         )
         Show-AfyxStep -Current 2 -Terminal $terminal
         $Preset = Read-AfyxSingleChoice -Prompt 'Choose an installation preset' -Options $presetOptions -DefaultId 'recommended' -Terminal $terminal
+        Write-AfyxStatus -Status INFO -Name 'Preset selected' -Detail $Preset -Terminal $terminal
         if ($Preset -eq 'custom') {
             $componentOptions = @()
             foreach ($component in @(Get-AfyxComponentContract)) {
@@ -111,6 +120,7 @@ if ($wizardMode) {
                 $componentOptions += [pscustomobject]@{ Id = [string]$component.id; Label = [string]$component.name; Detail = $detail; Enabled = $true }
             }
             $CustomComponent = @(Read-AfyxMultiChoice -Prompt 'Select components' -Options $componentOptions -DefaultId @('efficient-coding', 'odoo-engineering') -Terminal $terminal)
+            Write-AfyxStatus -Status INFO -Name 'Components selected' -Detail ($CustomComponent -join ', ') -Terminal $terminal
         }
 
         Show-AfyxStep -Current 3 -Terminal $terminal
@@ -126,6 +136,7 @@ if ($wizardMode) {
         $detectedProviderDefaults = @($providerOptions | Where-Object { $_.Enabled -and $_.Id -ne 'skip' } | ForEach-Object { $_.Id })
         if (-not $detectedProviderDefaults.Count) { $detectedProviderDefaults = @('skip') }
         $providerChoice = @(Read-AfyxMultiChoice -Prompt 'Select provider integrations' -Options $providerOptions -DefaultId $detectedProviderDefaults -Terminal $terminal)
+        Write-AfyxStatus -Status INFO -Name 'Provider selection' -Detail ($providerChoice -join ', ') -Terminal $terminal
         if ('skip' -in $providerChoice) {
             if ($providerChoice.Count -ne 1) { throw 'Skip provider configuration cannot be combined with a provider.' }
             $Provider = @()
@@ -141,6 +152,7 @@ if ($wizardMode) {
                 [pscustomobject]@{ Id = 'global'; Label = 'Global'; Detail = 'user-level configuration for every selected provider'; Enabled = $true }
             )
             $ProviderScope = Read-AfyxSingleChoice -Prompt 'Choose compatible provider scope' -Options $scopeOptions -DefaultId $(if ($workspaceCompatible) { 'workspace' } else { 'global' }) -Terminal $terminal
+            Write-AfyxStatus -Status INFO -Name 'Provider scope' -Detail $ProviderScope -Terminal $terminal
         }
     } catch [System.OperationCanceledException] {
         Write-AfyxStatus -Status SKIPPED -Name 'Installation cancelled' -Detail 'no configuration changes were made' -Terminal $terminal
@@ -599,9 +611,20 @@ if ($graphAction -ne 'skip') {
 }
 
 if ($wizardMode) {
+    Show-AfyxStep -Current 4 -Terminal $terminal
     Write-AfyxSection -Title 'Review Actual Planned Changes' -Terminal $terminal
-    Write-AfyxStatus -Status INFO -Name 'Destinations' -Detail "skills=$SkillsRoot; Graph=$graphRuntimeRoot; Context=$ContextRuntimeRoot; Forge=$ForgeRuntimeRoot; Host Bridge=$HostBridgeRuntimeRoot" -Terminal $terminal
-    Write-AfyxStatus -Status INFO -Name 'Ownership and recovery' -Detail 'Only AFYX-owned entries may be changed; existing installations are staged for rollback' -Terminal $terminal
+    Write-AfyxStatus -Status INFO -Name 'Policy' -Detail 'Only AFYX-owned entries will be changed; state backup enables rollback' -Terminal $terminal
+    Write-AfyxStatus -Status INFO -Name 'Target: Skills' -Detail $SkillsRoot -Terminal $terminal
+    if ($graphAction -ne 'skip') {
+        Write-AfyxStatus -Status INFO -Name 'Target: Afyx Graph' -Detail $graphRuntimeRoot -Terminal $terminal
+    }
+    if ($contextAction -ne 'skip') {
+        Write-AfyxStatus -Status INFO -Name 'Target: Context' -Detail $ContextRuntimeRoot -Terminal $terminal
+    }
+    if ($forgeAction -ne 'skip') {
+        Write-AfyxStatus -Status INFO -Name 'Target: Forge' -Detail $ForgeRuntimeRoot -Terminal $terminal
+    }
+    Write-AfyxStatus -Status INFO -Name 'Target: Host Bridge' -Detail $HostBridgeRuntimeRoot -Terminal $terminal
     $mutationPreview = @()
     foreach ($decision in $actionDecisions.GetEnumerator()) {
         if ([string]$decision.Value -eq 'skip') { continue }
@@ -615,6 +638,12 @@ if ($wizardMode) {
         }
     }
     if (-not $mutationPreview.Count) { Write-AfyxStatus -Status 'NO CHANGE' -Name 'Components' -Detail 'selected component versions and ownership are already healthy' -Terminal $terminal }
+
+    if (Test-AfyxDashboard -Terminal $terminal) {
+        $terminal.DashboardState.Scroll[2] = 0
+        Show-AfyxDashboard -Terminal $terminal -ForceFull
+    }
+
     try {
         if (($mutationPreview.Count -or (-not $SkipProviderConfiguration -and $Provider.Count)) -and -not (Read-AfyxConfirmation -Prompt 'Apply the reviewed plan?' -Terminal $terminal)) {
             Write-AfyxStatus -Status SKIPPED -Name 'Installation cancelled' -Detail 'no configuration changes were made' -Terminal $terminal
@@ -624,6 +653,48 @@ if ($wizardMode) {
         Write-AfyxStatus -Status SKIPPED -Name 'Installation cancelled' -Detail 'no configuration changes were made' -Terminal $terminal
         exit 130
     }
+}
+
+function Invoke-AfyxInstallStage {
+    param(
+        [Parameter(Mandatory)][scriptblock]$Action,
+        [Parameter(Mandatory)][string]$Stage,
+        [string]$Description = ''
+    )
+    if (-not $wizardMode -or -not $terminal.Ansi) {
+        $output = & $Action 2>&1
+        $success = [bool]$?
+        $output | Out-Host
+        return $success
+    }
+    $logRoot = Join-Path $AfyxInstallRoot 'logs'
+    New-Item -ItemType Directory -Path $logRoot -Force | Out-Null
+    $stageSlug = $Stage -replace '[^a-zA-Z0-9_-]', '_'
+    $logFile = Join-Path $logRoot ("installer-$stageSlug-$([guid]::NewGuid().ToString('N')).log")
+    $detailStart = if ($Description) { "$Description; log: $logFile" } else { "in progress; log: $logFile" }
+    Write-AfyxStatus -Status PLANNED -Name $Stage -Detail $detailStart -Terminal $terminal
+    $failure = $null
+    $global:LASTEXITCODE = 0
+    try {
+        & $Action *> $logFile
+        $success = [bool]$? -and ($LASTEXITCODE -eq 0 -or $LASTEXITCODE -eq $null)
+    } catch {
+        $failure = $_
+        $success = $false
+    }
+    if (-not $success) {
+        $lastLogLines = if (Test-Path -LiteralPath $logFile) {
+            @(Get-Content -LiteralPath $logFile -Tail 10 | Where-Object { $_ -match '\S' })
+        } else { @() }
+        $tailSummary = if ($lastLogLines.Count) { $lastLogLines[-1] } else { '' }
+        $diagMsg = if ($failure) { $failure.Exception.Message } elseif ($tailSummary) { $tailSummary } else { "Process exited with code $LASTEXITCODE" }
+        Write-AfyxStatus -Status FAILED -Name $Stage -Detail "$diagMsg; log: $logFile" -Terminal $terminal
+        if ($failure) { throw $failure }
+        else { throw "$Stage failed: $diagMsg (log: $logFile)" }
+    } else {
+        Write-AfyxStatus -Status HEALTHY -Name $Stage -Detail "completed successfully" -Terminal $terminal
+    }
+    return $success
 }
 
 if ($wizardMode) { Show-AfyxStep -Current 4 -Terminal $terminal }
@@ -711,8 +782,7 @@ else {
     if ($SkipGraphPathUpdate) { $arguments.SkipPathUpdate = $true }
     # ProviderAdapter/v1 owns one transactional MCP configuration pass for every selected provider.
     $arguments.SkipMcp = $true
-    & $graphInstaller -Confirm:$false -WhatIf:$WhatIfPreference @arguments
-    if (-not $?) { throw 'Afyx Graph installation failed.' }
+    if (-not (Invoke-AfyxInstallStage -Stage 'Afyx Graph' -Description "$graphAction local build / package verification" -Action { & $graphInstaller -Confirm:$false -WhatIf:$WhatIfPreference @arguments })) { throw 'Afyx Graph installation failed.' }
     $summary['Afyx Graph'] = $graphAction
     if (-not $WhatIfPreference) { $changesApplied = $true }
 }
@@ -773,8 +843,7 @@ else {
     $contextArguments = @{ RuntimeRoot = $ContextRuntimeRoot }
     if ($contextAction -eq 'update') { $contextArguments.Update = $true }
     elseif ($contextAction -eq 'repair') { $contextArguments.Repair = $true }
-    & $contextInstaller -Confirm:$false -WhatIf:$WhatIfPreference @contextArguments
-    if (-not $?) { throw 'Afyx Context installation failed.' }
+    if (-not (Invoke-AfyxInstallStage -Stage 'Afyx Context Engine' -Description "$contextAction runtime" -Action { & $contextInstaller -Confirm:$false -WhatIf:$WhatIfPreference @contextArguments })) { throw 'Afyx Context installation failed.' }
     $summary['Afyx Context Engine'] = $contextAction
     if (-not $WhatIfPreference) { $changesApplied = $true }
 }
@@ -813,8 +882,7 @@ else {
     $forgeArguments = @{ RuntimeRoot = $ForgeRuntimeRoot }
     if ($forgeAction -eq 'update') { $forgeArguments.Update = $true }
     elseif ($forgeAction -eq 'repair') { $forgeArguments.Repair = $true }
-    & $forgeInstaller -Confirm:$false -WhatIf:$WhatIfPreference @forgeArguments
-    if (-not $?) { throw 'Afyx Forge Core installation failed.' }
+    if (-not (Invoke-AfyxInstallStage -Stage 'Afyx Forge Core' -Description "$forgeAction runtime" -Action { & $forgeInstaller -Confirm:$false -WhatIf:$WhatIfPreference @forgeArguments })) { throw 'Afyx Forge Core installation failed.' }
     $summary['Afyx Forge Core'] = $forgeAction
     if (-not $WhatIfPreference) { $changesApplied = $true }
 }
@@ -847,8 +915,7 @@ $usageAction = if ($controlPlan) { [string]$actionDecisions['codex-usage-trackin
 if ($usageAction -eq 'skip') { $summary['Usage Tracking'] = 'skipped'; Write-Host 'Usage Tracking: skipped' }
 else {
     Write-AfyxStatus -Status INFO -Name 'Usage Tracking' -Detail "$usageAction in progress" -Terminal $terminal
-    & $usageTrackerInstaller -Confirm:$false -WhatIf:$WhatIfPreference
-    if (-not $?) { throw 'Codex Usage Tracking installation failed.' }
+    if (-not (Invoke-AfyxInstallStage -Stage 'Usage Tracking' -Description "$usageAction tracking hooks" -Action { & $usageTrackerInstaller -Confirm:$false -WhatIf:$WhatIfPreference })) { throw 'Codex Usage Tracking installation failed.' }
     $summary['Usage Tracking'] = $usageAction
     if (-not $WhatIfPreference) { $changesApplied = $true }
 }
@@ -881,3 +948,4 @@ if ($wizardMode) {
 if ($WhatIfPreference) { Write-AfyxStatus -Status PLANNED -Name 'WhatIf complete' -Detail 'no files or configuration were changed' -Terminal $terminal }
 elseif ($changesApplied) { Write-AfyxStatus -Status 'RESTART REQUIRED' -Name 'Provider session' -Detail 'start a new provider session to load installed components' -Terminal $terminal }
 else { Write-AfyxStatus -Status 'NO CHANGE' -Name 'Installation' -Detail 'existing healthy components were preserved' -Terminal $terminal }
+if ($wizardMode) { Disable-AfyxDashboard -Terminal $terminal }

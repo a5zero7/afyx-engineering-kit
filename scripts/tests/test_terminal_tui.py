@@ -673,6 +673,71 @@ if ($selected -ne 'opt2') {{ throw "PS5.1 KeyInfo expected 'opt2' but got '$sele
         self.assertIn("Install-AfyxSkillTransaction", source)
         self.assertNotIn("Spectre", source)
 
+    def test_keyboard_navigation_extended_keys(self) -> None:
+        script = f"""
+Set-StrictMode -Version Latest
+$ErrorActionPreference = 'Stop'
+Import-Module '{MODULE}' -Force
+$virtualKeys = @(
+    @{{ Code = 37; Expected = 'LeftArrow' }},
+    @{{ Code = 39; Expected = 'RightArrow' }},
+    @{{ Code = 33; Expected = 'PageUp' }},
+    @{{ Code = 34; Expected = 'PageDown' }},
+    @{{ Code = 36; Expected = 'Home' }},
+    @{{ Code = 35; Expected = 'End' }}
+)
+foreach ($item in $virtualKeys) {{
+    $rawKey = [pscustomobject]@{{ VirtualKeyCode = $item.Code; KeyDown = $true }}
+    $action = Get-AfyxKeyAction -RawKey $rawKey
+    if ($action -ne $item.Expected) {{ throw "Key $($item.Code) expected $($item.Expected) but got $action" }}
+}}
+'EXTENDED_KEYS_OK'
+"""
+        result = self.run_ps(script)
+        self.assertIn("EXTENDED_KEYS_OK", result.stdout)
+
+    def test_long_path_wrapping_and_scrolling(self) -> None:
+        script = f"""
+Set-StrictMode -Version Latest
+$ErrorActionPreference = 'Stop'
+Import-Module '{MODULE}' -Force
+& (Get-Module AfyxTerminal) {{
+    $longPath = '[INFO] Target: Codex - C:\\Users\\afif\\AppData\\Local\\Temp\\afyx-unified-installer-4kprnvgw\\codex\\config.toml'
+    $items = @([pscustomobject]@{{ Text = $longPath; Tone = 'Text' }})
+    $expanded = @(Expand-AfyxDashboardItems -Items $items -Width 32)
+    if ($expanded.Count -lt 3) {{ throw "Expected path to wrap into at least 3 lines, got $($expanded.Count)" }}
+    foreach ($line in $expanded) {{
+        if ($line.Text.Length -gt 32) {{ throw "Line exceeded limit (32): $($line.Text)" }}
+    }}
+    if ($expanded[1].Text -notmatch '^  ') {{ throw "Continuation line must have hanging indent: $($expanded[1].Text)" }}
+    if ($expanded[0].Text -notmatch '\-$') {{ throw "First line should split cleanly at delimiter: $($expanded[0].Text)" }}
+}}
+'LONG_PATH_WRAPPING_OK'
+"""
+        result = self.run_ps(script)
+        self.assertIn("LONG_PATH_WRAPPING_OK", result.stdout)
+
+    def test_dashboard_cursor_restoration_and_disable(self) -> None:
+        script = f"""
+Set-StrictMode -Version Latest
+$ErrorActionPreference = 'Stop'
+Import-Module '{MODULE}' -Force
+$terminal = [pscustomobject]@{{
+    Interactive = $true
+    Ansi = $true
+    Width = 80
+    Height = 24
+}}
+Enable-AfyxDashboard -Terminal $terminal -Providers @('Codex: CLI detected')
+if (-not (Test-AfyxDashboard -Terminal $terminal)) {{ throw 'Dashboard should be enabled' }}
+Disable-AfyxDashboard -Terminal $terminal
+if (Test-AfyxDashboard -Terminal $terminal) {{ throw 'Dashboard should be disabled after cleanup' }}
+'DASHBOARD_CLEANUP_OK'
+"""
+        result = self.run_ps(script)
+        self.assertIn("DASHBOARD_CLEANUP_OK", result.stdout)
+
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

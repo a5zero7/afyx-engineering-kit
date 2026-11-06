@@ -150,9 +150,9 @@ function Build-LocalArchive {
     Write-Host "Verified release unavailable; building Afyx Graph locally from $($source.Commit) on $($source.Branch)."
     Push-Location $buildEngineRoot
     try {
-        & $npm.Source ci | Out-Host
+        & $npm.Source ci
         if ($LASTEXITCODE -ne 0) { throw 'BUILD_ONLY: npm ci failed; the existing installation was not changed.' }
-        & $npm.Source run build:clean | Out-Host
+        & $npm.Source run build:clean
         if ($LASTEXITCODE -ne 0) { throw 'BUILD_ONLY: Afyx Graph clean build failed; the existing installation was not changed.' }
     } finally {
         Pop-Location
@@ -187,7 +187,7 @@ if errorlevel 1 (
 node --disable-warning=ExperimentalWarning "%~dp0..\lib\dist\bin\afyx-graph.js" %*
 '@ | Set-Content -LiteralPath (Join-Path $bundleRoot 'bin\afyx-graph.cmd') -Encoding ascii
 
-        & (Get-Command node).Source $buildContractPath verify-bundle --root $bundleRoot --target $target | Out-Host
+        & (Get-Command node).Source $buildContractPath verify-bundle --root $bundleRoot --target $target
         if ($LASTEXITCODE -ne 0) { throw 'BUILD_ONLY: locally staged bundle failed the distribution contract.' }
         New-Item -ItemType Directory -Force -Path $releaseRoot | Out-Null
         $archive = Join-Path $releaseRoot $assetName
@@ -340,7 +340,7 @@ function Test-StagedBundle([string]$Path) {
         throw "Afyx Graph version mismatch: expected $($metadata.product_version), got $($stagedMetadata.product_version)."
     }
     if ($target -notin @($stagedMetadata.supported_platforms)) { throw "Afyx Graph bundle does not support $target." }
-    & (Get-Command node).Source $contractPath verify-bundle --root $Path --target $target | Out-Host
+    & (Get-Command node).Source $contractPath verify-bundle --root $Path --target $target
     if ($LASTEXITCODE -ne 0) { throw 'Afyx Graph staged bundle failed the distribution contract.' }
 }
 
