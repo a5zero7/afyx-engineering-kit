@@ -39,6 +39,25 @@ $engineRoot = Join-Path $kitRoot 'afyx-graph\engine'
 $contractPath = Join-Path $engineRoot 'scripts\distribution-contract.mjs'
 $artifactIdentityTool = Join-Path $kitRoot 'scripts\afyx-graph-artifact.mjs'
 $releaseRoot = if ($env:AFYX_GRAPH_RELEASE_ROOT) { $env:AFYX_GRAPH_RELEASE_ROOT } else { Join-Path $engineRoot 'release' }
+$diagnosticLog = Join-Path ([System.IO.Path]::GetTempPath()) "afyx-graph-installer-$([guid]::NewGuid().ToString('N')).log"
+
+function Invoke-LoggedNative {
+    param([string]$FilePath, [string[]]$Arguments, [string]$FailureMessage)
+    $previousPreference = $ErrorActionPreference
+    $global:LASTEXITCODE = 0
+    try {
+        # Windows PowerShell 5.1 treats redirected native stderr as an error record.
+        # Let the process finish, then judge the exit code while retaining its diagnostics.
+        $ErrorActionPreference = 'Continue'
+        & $FilePath @Arguments *>> $diagnosticLog
+        $exitCode = $LASTEXITCODE
+    } catch {
+        throw "$FailureMessage $($_.Exception.Message) Log: $diagnosticLog"
+    } finally {
+        $ErrorActionPreference = $previousPreference
+    }
+    if ($exitCode -ne 0) { throw "$FailureMessage Exit code: $exitCode. Log: $diagnosticLog" }
+}
 
 function Get-CommandVersion([string]$Name, [string[]]$Arguments = @('--version')) {
     $command = Get-Command $Name -ErrorAction SilentlyContinue
@@ -150,10 +169,8 @@ function Build-LocalArchive {
     Write-Host "Verified release unavailable; building Afyx Graph locally from $($source.Commit) on $($source.Branch)."
     Push-Location $buildEngineRoot
     try {
-        & $npm.Source ci
-        if ($LASTEXITCODE -ne 0) { throw 'BUILD_ONLY: npm ci failed; the existing installation was not changed.' }
-        & $npm.Source run build:clean
-        if ($LASTEXITCODE -ne 0) { throw 'BUILD_ONLY: Afyx Graph clean build failed; the existing installation was not changed.' }
+        Invoke-LoggedNative -FilePath $npm.Source -Arguments @('ci') -FailureMessage 'BUILD_ONLY: npm ci failed; the existing installation was not changed.'
+        Invoke-LoggedNative -FilePath $npm.Source -Arguments @('run', 'build:clean') -FailureMessage 'BUILD_ONLY: Afyx Graph clean build failed; the existing installation was not changed.'
     } finally {
         Pop-Location
     }
@@ -174,8 +191,7 @@ function Build-LocalArchive {
             (Get-Content -Raw -LiteralPath (Join-Path $buildEngineRoot 'src\extraction\extraction-version.ts')),
             'EXTRACTION_VERSION\s*=\s*(\d+)'
         ).Groups[1].Value
-        & (Get-Command node).Source $artifactIdentityTool stamp --metadata $bundleMetadataPath --target $target --revision $source.Commit --extraction-version $extractionVersion *> $null
-        if ($LASTEXITCODE -ne 0) { throw 'BUILD_ONLY: failed to stamp the local artifact identity.' }
+        Invoke-LoggedNative -FilePath ((Get-Command node).Source) -Arguments @($artifactIdentityTool, 'stamp', '--metadata', $bundleMetadataPath, '--target', $target, '--revision', $source.Commit, '--extraction-version', $extractionVersion) -FailureMessage 'BUILD_ONLY: failed to stamp the local artifact identity.'
         Copy-Item -LiteralPath (Join-Path $buildEngineRoot 'LICENSE') -Destination (Join-Path $bundleRoot 'LICENSE')
         @'
 @echo off
@@ -187,15 +203,14 @@ if errorlevel 1 (
 node --disable-warning=ExperimentalWarning "%~dp0..\lib\dist\bin\afyx-graph.js" %*
 '@ | Set-Content -LiteralPath (Join-Path $bundleRoot 'bin\afyx-graph.cmd') -Encoding ascii
 
-        & (Get-Command node).Source $buildContractPath verify-bundle --root $bundleRoot --target $target
-        if ($LASTEXITCODE -ne 0) { throw 'BUILD_ONLY: locally staged bundle failed the distribution contract.' }
+        Invoke-LoggedNative -FilePath ((Get-Command node).Source) -Arguments @($buildContractPath, 'verify-bundle', '--root', $bundleRoot, '--target', $target) -FailureMessage 'BUILD_ONLY: locally staged bundle failed the distribution contract.'
         New-Item -ItemType Directory -Force -Path $releaseRoot | Out-Null
         $archive = Join-Path $releaseRoot $assetName
         if (Test-Path -LiteralPath $archive) { Remove-Item -LiteralPath $archive -Force }
         Compress-Archive -LiteralPath $bundleRoot -DestinationPath $archive -CompressionLevel Optimal
         $hash = (Get-FileHash -Algorithm SHA256 -LiteralPath $archive).Hash.ToLowerInvariant()
         "$hash  $assetName" | Set-Content -LiteralPath (Join-Path $releaseRoot 'SHA256SUMS') -Encoding ascii
-        Write-Host "Local artifact verified: $assetName (Node.js $nodeVersion, commit $($source.Commit))."
+        Write-Host "Local artifact verified: $assetName (Node.js $nodeVersion, commit $($source.Commit)); build log: $diagnosticLog."
         return [pscustomobject]@{ Path = $archive; Source = 'local-build'; Commit = $source.Commit; BuildProvenance = $buildProvenance }
     } finally {
         if (Test-Path -LiteralPath $buildRoot) { Remove-Item -LiteralPath $buildRoot -Recurse -Force }
@@ -340,8 +355,7 @@ function Test-StagedBundle([string]$Path) {
         throw "Afyx Graph version mismatch: expected $($metadata.product_version), got $($stagedMetadata.product_version)."
     }
     if ($target -notin @($stagedMetadata.supported_platforms)) { throw "Afyx Graph bundle does not support $target." }
-    & (Get-Command node).Source $contractPath verify-bundle --root $Path --target $target
-    if ($LASTEXITCODE -ne 0) { throw 'Afyx Graph staged bundle failed the distribution contract.' }
+    Invoke-LoggedNative -FilePath ((Get-Command node).Source) -Arguments @($contractPath, 'verify-bundle', '--root', $Path, '--target', $target) -FailureMessage 'Afyx Graph staged bundle failed the distribution contract.'
 }
 
 function Test-StagedRuntimeIdentity([string]$Path) {
@@ -425,7 +439,22 @@ if ($WhatIfPreference) {
 }
 
 $nodeVersion = Assert-HostRuntime
-$resolvedArchive = Resolve-Archive
+$archiveResults = @(Resolve-Archive)
+if ($archiveResults.Count -ne 1) { throw "Archive resolution returned $($archiveResults.Count) values instead of one artifact record. Log: $diagnosticLog" }
+$resolvedArchive = $archiveResults[0]
+if ($resolvedArchive -isnot [pscustomobject]) { throw 'Archive resolution did not return a structured artifact record.' }
+foreach ($property in @('Path', 'Source', 'Commit', 'BuildProvenance')) {
+    if (-not $resolvedArchive.PSObject.Properties[$property]) { throw "Archive resolution omitted $property." }
+}
+if ([string]::IsNullOrWhiteSpace([string]$resolvedArchive.Path) -or -not (Test-Path -LiteralPath $resolvedArchive.Path -PathType Leaf)) {
+    throw 'Archive resolution returned a missing or invalid artifact path.'
+}
+if ($resolvedArchive.Source -notin @('explicit-archive', 'local-release-cache', 'github-release', 'local-build')) {
+    throw "Archive resolution returned an unsupported source: $($resolvedArchive.Source)."
+}
+if ($resolvedArchive.Source -ne 'local-build' -and -not $resolvedArchive.PSObject.Properties['RevisionStatus']) {
+    throw 'Archive resolution omitted revision status.'
+}
 $archive = $resolvedArchive.Path
 Test-ArchiveChecksum -Path $archive
 $parent = Split-Path -Parent $RuntimeRoot

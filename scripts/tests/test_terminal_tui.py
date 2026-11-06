@@ -768,6 +768,26 @@ if (Test-AfyxDashboard -Terminal $terminal) {{ throw 'Dashboard should be disabl
         result = self.run_ps(script)
         self.assertIn("DASHBOARD_CLEANUP_OK", result.stdout)
 
+    def test_wide_dashboard_panels_fit_content_without_shrinking_frame(self) -> None:
+        script = f"""
+Set-StrictMode -Version Latest
+$ErrorActionPreference = 'Stop'
+Import-Module '{MODULE}' -Force
+$terminal = [pscustomobject]@{{ Interactive = $true; Ansi = $true; Width = 120; Height = 35 }}
+Enable-AfyxDashboard -Terminal $terminal -Providers @('Codex: CLI detected', 'Antigravity: CLI detected')
+$terminal.Width = 120
+$terminal.Height = 35
+$shortFrame = @(Get-AfyxDashboardFrame -Terminal $terminal)
+if ($shortFrame.Count -ne 35 -or $shortFrame[9] -notmatch '╰') {{ throw 'Compact provider panel or fixed-height frame missing' }}
+1..35 | ForEach-Object {{ $terminal.DashboardState.Events += [pscustomobject]@{{ Text = "Build detail $_"; Tone = 'Muted'; Selected = $false }} }}
+$longFrame = @(Get-AfyxDashboardFrame -Terminal $terminal)
+if ($longFrame.Count -ne 35 -or $longFrame[33] -notmatch '╯') {{ throw 'Activity panel did not expand without changing frame height' }}
+Disable-AfyxDashboard -Terminal $terminal
+'ADAPTIVE_PANELS_OK'
+"""
+        result = self.run_ps(script)
+        self.assertIn("ADAPTIVE_PANELS_OK", result.stdout)
+
 
 
 if __name__ == "__main__":

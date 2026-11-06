@@ -735,10 +735,22 @@ function Get-AfyxDashboardFrame {
         $providers = @(Expand-AfyxDashboardItems -Items $providers -Width ($leftWidth - 4))
         $choice = @(Expand-AfyxDashboardItems -Items $choice -Width ($middleWidth - 4))
         $activity = @(Expand-AfyxDashboardItems -Items $activity -Width ($rightWidth - 4))
-        $left = New-AfyxDashboardPanel -Title 'PROVIDERS / HOST' -Items @(Select-AfyxDashboardWindow -Items $providers -Capacity ($panelHeight - 3) -State $state -Panel 0) -Width $leftWidth -Height $panelHeight -Terminal $Terminal -Focused ($state.Focus -eq 0) -TotalCount $providers.Count -StartIndex ([int]$state.Scroll[0])
-        $middle = New-AfyxDashboardPanel -Title 'SELECTION / STATUS' -Items @(Select-AfyxDashboardWindow -Items $choice -Capacity ($panelHeight - 3) -State $state -Panel 1) -Width $middleWidth -Height $panelHeight -Terminal $Terminal -Focused ($state.Focus -eq 1) -TotalCount $choice.Count -StartIndex ([int]$state.Scroll[1])
-        $right = New-AfyxDashboardPanel -Title 'PLAN / ACTIVITY' -Items @(Select-AfyxDashboardWindow -Items $activity -Capacity ($panelHeight - 3) -State $state -Panel 2) -Width $rightWidth -Height $panelHeight -Terminal $Terminal -Focused ($state.Focus -eq 2) -TotalCount $activity.Count -StartIndex ([int]$state.Scroll[2])
-        for ($index = 0; $index -lt $panelHeight; $index++) { $frame += $left[$index] + $gap + $middle[$index] + $gap + $right[$index] }
+        $leftHeight = [Math]::Min($panelHeight, [Math]::Max(6, $providers.Count + 3))
+        $middleHeight = [Math]::Min($panelHeight, [Math]::Max(8, $choice.Count + 3))
+        $rightHeight = [Math]::Min($panelHeight, [Math]::Max(8, $activity.Count + 3))
+        $contentHeight = [Math]::Max($leftHeight, [Math]::Max($middleHeight, $rightHeight))
+        $left = New-AfyxDashboardPanel -Title 'PROVIDERS / HOST' -Items @(Select-AfyxDashboardWindow -Items $providers -Capacity ($leftHeight - 3) -State $state -Panel 0) -Width $leftWidth -Height $leftHeight -Terminal $Terminal -Focused ($state.Focus -eq 0) -TotalCount $providers.Count -StartIndex ([int]$state.Scroll[0])
+        $middle = New-AfyxDashboardPanel -Title 'SELECTION / STATUS' -Items @(Select-AfyxDashboardWindow -Items $choice -Capacity ($middleHeight - 3) -State $state -Panel 1) -Width $middleWidth -Height $middleHeight -Terminal $Terminal -Focused ($state.Focus -eq 1) -TotalCount $choice.Count -StartIndex ([int]$state.Scroll[1])
+        $right = New-AfyxDashboardPanel -Title 'PLAN / ACTIVITY' -Items @(Select-AfyxDashboardWindow -Items $activity -Capacity ($rightHeight - 3) -State $state -Panel 2) -Width $rightWidth -Height $rightHeight -Terminal $Terminal -Focused ($state.Focus -eq 2) -TotalCount $activity.Count -StartIndex ([int]$state.Scroll[2])
+        $blankLeft = Format-AfyxDashboardSegment -Text (' ' * $leftWidth) -Tone Muted -Background Base -Terminal $Terminal
+        $blankMiddle = Format-AfyxDashboardSegment -Text (' ' * $middleWidth) -Tone Muted -Background Base -Terminal $Terminal
+        $blankRight = Format-AfyxDashboardSegment -Text (' ' * $rightWidth) -Tone Muted -Background Base -Terminal $Terminal
+        for ($index = 0; $index -lt $contentHeight; $index++) {
+            $frame += $(if ($index -lt $left.Count) { $left[$index] } else { $blankLeft }) + $gap + $(if ($index -lt $middle.Count) { $middle[$index] } else { $blankMiddle }) + $gap + $(if ($index -lt $right.Count) { $right[$index] } else { $blankRight })
+        }
+        while ($frame.Count -lt $height - 1) {
+            $frame += Format-AfyxDashboardSegment -Text (' ' * $width) -Tone Muted -Background Base -Terminal $Terminal
+        }
     } else {
         $mainHeight = [Math]::Max(8, $height - 14)
         $subHeight = [Math]::Max(4, [Math]::Floor(($height - $mainHeight - 5) / 2))
