@@ -694,6 +694,9 @@ export async function executeAfyxCapabilityRoute(options = {}) {
           hopCount: request.hopCount + 1,
         }),
         callerComponentId: request.targetComponentId,
+        // Carry the actual bounded result to an optional downstream adapter.
+        // A model-provided task cannot fabricate this execution evidence.
+        sourceResult: result.status === 'EXECUTED' ? result : null,
       }));
     }
   }

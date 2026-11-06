@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import {
   mkdirSync,
   mkdtempSync,
@@ -11,6 +12,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
+import { pathToFileURL } from 'node:url';
 
 import { discoverAfyxCapabilities } from '../afyx-capability-orchestrator.mjs';
 import { createInstalledHostAdapters } from '../afyx-host-adapters.mjs';
@@ -41,6 +43,7 @@ function fixture() {
     installRoot,
     projectRoot,
     codexToolsRoot,
+    stateRoot: join(root, 'context-state'),
     cleanup() {
       rmSync(root, { recursive: true, force: true, maxRetries: 3, retryDelay: 20 });
     },
@@ -84,7 +87,7 @@ function installContext(fx) {
   }));
   write(join(fx.installRoot, 'context', 'current', 'identity.json'), '{}');
   write(join(fx.installRoot, 'context', 'current', 'dist', 'cli.js'),
-    "if (process.argv.includes('--version')) console.log('0.1.0');\n");
+    `import(${JSON.stringify(pathToFileURL(resolve(HERE, '..', '..', 'afyx-context', 'src', 'cli.js')).href)});\n`);
 }
 
 function installGraph(fx, outputBytes = 256) {
@@ -95,7 +98,7 @@ function installGraph(fx, outputBytes = 256) {
   }));
   write(
     join(fx.installRoot, 'graph', 'current', 'lib', 'dist', 'bin', 'afyx-graph.js'),
-    `process.stdout.write('G'.repeat(${outputBytes}));\n`,
+    `if (process.argv[2] === 'status') console.log(JSON.stringify({initialized:true,projectPath:${JSON.stringify(fx.projectRoot)},indexPath:${JSON.stringify(join(fx.projectRoot, '.afyx-graph'))},index:{state:'complete',pendingRefs:0,reindexRecommended:false},health:{pendingChanges:{state:'CURRENT'},compatibility:{reindexRecommended:false},gitFreshness:{state:'CURRENT'}}})); else process.stdout.write('G'.repeat(${outputBytes}));\n`,
   );
   write(join(fx.projectRoot, '.afyx-graph', 'afyx-graph.db'), 'disposable-db');
   write(join(fx.projectRoot, '.afyx-graph', 'freshness.json'), JSON.stringify({
@@ -277,9 +280,62 @@ test('installed Graph executes and lazily requests Context only for large eviden
     assert.equal(result.metrics.toolCalls, 2);
     assert.equal(graph?.provenance.componentSourceIdentity, 'graph-source-1');
     assert.equal(context?.provenance.componentSourceIdentity, 'context-source-1');
+    assert.equal(context.output.mode, 'optimized');
+    assert.ok(context.output.metrics.savedChars > 0);
+    const reference = context.output.items[0].reference;
+    const recovery = context.output.recovery;
+    const recovered = spawnSync(process.execPath, [resolve(HERE, '..', '..', 'afyx-context', 'src', 'cli.js'),
+      'get', '--state', recovery.stateRoot, '--owner', recovery.owner,
+      '--session', recovery.session, '--reference', reference], { encoding: 'utf8' });
+    assert.equal(recovered.status, 0, recovered.stderr);
+    assert.equal(recovered.stdout, graph.output);
   } finally {
     fx.cleanup();
   }
+});
+
+test('Graph discovers an immediate workspace index and rejects stale or foreign status', () => {
+  const fx = fixture();
+  try {
+    installGraph(fx);
+    const entry = join(fx.installRoot, 'graph', 'current', 'lib', 'dist', 'bin', 'afyx-graph.js');
+    const state = join(fx.root, '.afyx-graph');
+    write(join(state, 'afyx-graph.db'), 'disposable-db');
+    const status = (projectPath, reindexRecommended = false) =>
+      `if (process.argv[2] === 'status') console.log(JSON.stringify({initialized:true,projectPath:${JSON.stringify(projectPath)},indexPath:${JSON.stringify(state)},index:{state:'complete',pendingRefs:0,reindexRecommended:${reindexRecommended}},health:{pendingChanges:{state:'CURRENT'},compatibility:{reindexRecommended:${reindexRecommended}},gitFreshness:{state:'CURRENT'}}}));\n`;
+    write(entry, status(fx.root));
+    const options = { ...fx, authorizations: { 'afyx-graph': true } };
+    const healthy = createInstalledAfyxRuntime(options).componentStates['afyx-graph'];
+    assert.equal(healthy.indexReady, true);
+    assert.equal(healthy.indexFresh, true);
+    assert.equal(healthy.indexRoot, fx.root);
+    write(entry, status(fx.root, true));
+    assert.equal(createInstalledAfyxRuntime(options).componentStates['afyx-graph'].indexFresh, false);
+    write(entry, status(fx.installRoot));
+    assert.equal(createInstalledAfyxRuntime(options).componentStates['afyx-graph'].indexReady, false);
+  } finally { fx.cleanup(); }
+});
+
+test('provider-managed skill requires matching ownership marker and unchanged content', () => {
+  const fx = fixture();
+  try {
+    const component = COMPONENTS.find((item) => item.id === 'efficient-coding');
+    const providerRoot = join(fx.root, 'provider-skills');
+    const skillRoot = join(providerRoot, 'efficient-coding');
+    const files = component.required_files.split(';');
+    for (const file of files) write(join(skillRoot, ...file.split('/')), file === 'SKILL.md' ? '# Efficient Coding\n' : 'reference\n');
+    const ordered = files.map((file) => join(skillRoot, ...file.split('/'))).sort((a, b) => {
+      const left = a.toUpperCase(); const right = b.toUpperCase();
+      return left < right ? -1 : (left > right ? 1 : 0);
+    });
+    const lines = ordered.map((file) => `${createHash('sha256').update(readFileSync(file)).digest('hex').toUpperCase()}  ./${file.slice(skillRoot.length + 1).replaceAll('\\', '/')}`);
+    const digest = createHash('sha256').update(`${lines.join('\n')}\n`).digest('hex');
+    write(join(skillRoot, '.afyx-install.json'), JSON.stringify({ schema: 1, product: 'Afyx Codex Engineering Kit', component: 'efficient-coding', owner: 'afyx', content_sha256: digest }));
+    const options = { ...fx, provider: 'codex', providerSkillRoots: { codex: providerRoot } };
+    assert.equal(createInstalledAfyxRuntime(options).componentStates['efficient-coding'].installed, true);
+    write(join(skillRoot, 'SKILL.md'), '# Modified\n');
+    assert.equal(createInstalledAfyxRuntime(options).componentStates['efficient-coding'].installed, false);
+  } finally { fx.cleanup(); }
 });
 
 test('dynamic AFYX manifest is discovered and executed through bounded JSON stdio', async () => {

@@ -13,7 +13,9 @@
  */
 
 import { spawnSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { existsSync, readFileSync, statSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 
 export const AFYX_HOST_ADAPTERS_CONTRACT = 'AfyxHostAdapters/v1';
@@ -43,8 +45,10 @@ function requestTimeout(request, ceilingMs) {
 export function createInstalledHostAdapters({
   installRoot,
   projectRoot,
+  graphIndexRoot = null,
   stateRoot = null,
   codexToolsRoot = null,
+  skillRoots = {},
   nodePath = process.execPath,
   environment = process.env,
 } = {}) {
@@ -59,9 +63,9 @@ export function createInstalledHostAdapters({
   const graphEntrypoint = join(resolvedInstallRoot, 'graph', 'current', 'lib', 'dist', 'bin', 'afyx-graph.js');
   const contextCliEntrypoint = join(resolvedInstallRoot, 'context', 'current', 'dist', 'cli.js');
   const forgeEntrypoint = join(resolvedInstallRoot, 'forge', 'current', 'bin', 'afyx-forge.js');
-  const odooSkillDir = join(resolvedInstallRoot, 'skills', 'odoo-engineering');
-  const expertSkillDir = join(resolvedInstallRoot, 'skills', 'afyx-engineering-expert');
-  const efficientSkillDir = join(resolvedInstallRoot, 'skills', 'efficient-coding');
+  const odooSkillDir = skillRoots['odoo-engineering'] ?? join(resolvedInstallRoot, 'skills', 'odoo-engineering');
+  const expertSkillDir = skillRoots['afyx-engineering-expert'] ?? join(resolvedInstallRoot, 'skills', 'afyx-engineering-expert');
+  const efficientSkillDir = skillRoots['efficient-coding'] ?? join(resolvedInstallRoot, 'skills', 'efficient-coding');
   const codexToolFile = codexToolsRoot ? join(resolve(codexToolsRoot), 'CodexUsage.psm1') : null;
 
   return Object.freeze({
@@ -118,7 +122,7 @@ export function createInstalledHostAdapters({
         contextBytes: outputBytes,
         evidence: [
           { kind: 'graph-tool', command: isInventory ? 'inventory' : 'explore' },
-          { kind: 'graph-source-root', path: resolvedProjectRoot },
+          { kind: 'graph-source-root', path: graphIndexRoot ?? resolvedProjectRoot },
         ],
         followUpRequests,
       };
@@ -137,22 +141,54 @@ export function createInstalledHostAdapters({
         return { status: 'FAILED', reason: 'CONTEXT_ENTRYPOINT_NOT_FOUND', output: null };
       }
 
-      const runResult = spawnSync(nodePath, [contextCliEntrypoint, '--version'], {
+      const source = request.sourceResult;
+      if (source?.componentId !== 'afyx-graph' || source.status !== 'EXECUTED'
+        || typeof source.output !== 'string') {
+        return { status: 'FAILED', reason: 'GRAPH_EVIDENCE_NOT_AVAILABLE', output: null };
+      }
+      const sourceBytes = Buffer.byteLength(source.output, 'utf8');
+      if (sourceBytes > 1_048_576) {
+        return { status: 'FAILED', reason: 'GRAPH_EVIDENCE_BUDGET_EXCEEDED', output: null };
+      }
+      const digest = createHash('sha256').update(source.output).digest('hex');
+      const session = `graph-${digest.slice(0, 24)}`;
+      const owner = `afyx-host-${createHash('sha256').update(resolvedProjectRoot).digest('hex').slice(0, 24)}`;
+      const contextState = resolvedStateRoot ?? join(tmpdir(), 'afyx-host-context', owner);
+      const input = JSON.stringify({
+        budgetChars: Math.max(1_024, Math.min(16_000, Math.ceil(source.output.length / 2))),
+        segments: [{
+          id: 'graph-structure', content: source.output,
+          classification: 'normal',
+          provenance: { sourceComponent: 'afyx-graph', sourceDigest: digest,
+            projectRoot: resolvedProjectRoot, sourceIdentity: source.provenance?.componentSourceIdentity },
+        }],
+      });
+      const runResult = spawnSync(nodePath, [contextCliEntrypoint, 'reduce',
+        '--state', contextState, '--owner', owner, '--session', session, '--input', '-'], {
+        input,
         encoding: 'utf8',
         timeout: requestTimeout(request, 5_000),
         windowsHide: true,
+        maxBuffer: 1_048_576,
       });
 
-      if (runResult.status !== 0) {
-        return { status: 'FAILED', reason: 'CONTEXT_VERSION_CHECK_FAILED', output: null };
+      if (runResult.status !== 0 || runResult.error) {
+        return { status: 'FAILED', reason: `CONTEXT_REDUCTION_FAILED: ${runResult.error?.message || runResult.stderr?.trim() || runResult.status}`, output: null };
       }
-
-      const versionString = (runResult.stdout || '').trim();
+      let reduced;
+      try { reduced = JSON.parse(runResult.stdout); } catch {
+        return { status: 'FAILED', reason: 'CONTEXT_RESULT_INVALID', output: null };
+      }
+      if (reduced.contract !== 'ace.result/v1' || typeof reduced.renderedContext !== 'string') {
+        return { status: 'FAILED', reason: 'CONTEXT_RESULT_INVALID', output: null };
+      }
       return {
         status: 'SUCCESS',
-        output: `Context Engine active (${versionString}); bounded reduction ready`,
-        contextBytes: 128,
-        evidence: [{ kind: 'context-engine-version', value: versionString }],
+        output: { mode: reduced.mode, renderedContext: reduced.renderedContext,
+          items: reduced.items, metrics: reduced.metrics, recovery: { stateRoot: contextState, owner, session } },
+        contextBytes: Buffer.byteLength(reduced.renderedContext, 'utf8'),
+        evidence: [{ kind: 'graph-result-digest', value: digest },
+          { kind: 'context-mode', value: reduced.mode }],
         followUpRequests: [],
       };
     },
