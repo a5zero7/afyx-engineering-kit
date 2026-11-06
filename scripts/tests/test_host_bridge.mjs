@@ -290,6 +290,7 @@ test('host bridge MCP: stdio MCP server supports initialize, tools/list, and too
     assert.ok(Array.isArray(tools));
     const workflowTool = tools.find((t) => t.name === 'afyx_workflow');
     assert.ok(workflowTool, 'afyx_workflow tool must be present');
+    assert.deepEqual(Object.keys(workflowTool.inputSchema.properties), ['task']);
 
     // 4. Tools call direct source
     sendRpc({
@@ -318,6 +319,82 @@ test('host bridge MCP: stdio MCP server supports initialize, tools/list, and too
   } finally {
     child.stdin.end();
     child.kill();
+    fx.cleanup();
+  }
+});
+
+test('host bridge MCP: trusted launch authorization cannot be supplied or overridden by tool input', async () => {
+  const fx = fixture();
+  installGraph(fx, 500);
+
+  const invoke = (extraArgs, suppliedArguments) => new Promise((accept, reject) => {
+    const child = spawn(process.execPath, [
+      HOST_BRIDGE,
+      'serve',
+      '--mcp',
+      '--install-root', fx.installRoot,
+      '--project-root', fx.projectRoot,
+      '--provider', 'antigravity',
+      ...extraArgs,
+    ], { stdio: ['pipe', 'pipe', 'pipe'] });
+    let stdout = '';
+    let stderr = '';
+    const timer = setTimeout(() => {
+      child.kill();
+      reject(new Error(`Timeout waiting for MCP response: ${stdout} ${stderr}`));
+    }, 5_000);
+    child.stdout.on('data', (chunk) => {
+      stdout += chunk.toString('utf8');
+      const newline = stdout.indexOf('\n');
+      if (newline < 0) return;
+      clearTimeout(timer);
+      child.stdin.end();
+      child.kill();
+      try {
+        accept(JSON.parse(stdout.slice(0, newline)));
+      } catch (error) {
+        reject(error);
+      }
+    });
+    child.stderr.on('data', (chunk) => { stderr += chunk.toString('utf8'); });
+    child.on('error', (error) => {
+      clearTimeout(timer);
+      reject(error);
+    });
+    child.stdin.write(`${JSON.stringify({
+      jsonrpc: '2.0',
+      id: 1,
+      method: 'tools/call',
+      params: { name: 'afyx_workflow', arguments: suppliedArguments },
+    })}\n`);
+  });
+
+  const task = {
+    id: 'trusted-auth-1',
+    taskType: 'impact-analysis',
+    needsRelationalEvidence: true,
+    intent: 'impact analysis OrderService',
+  };
+  try {
+    const denied = await invoke([], {
+      task,
+      projectRoot: 'D:/model-controlled-project',
+      installRoot: 'D:/model-controlled-install',
+      provider: 'codex',
+      authorizations: { 'afyx-graph': true },
+    });
+    const deniedPayload = JSON.parse(denied.result.content[0].text);
+    assert.equal(deniedPayload.host.provider, 'antigravity');
+    assert.equal(deniedPayload.host.projectRoot, resolve(fx.projectRoot));
+    assert.equal(deniedPayload.results.some((item) => item.componentId === 'afyx-graph'), false);
+    assert.equal(deniedPayload.degradations.some((item) =>
+      item.componentId === 'afyx-graph' && item.reason === 'UNAUTHORIZED_OR_UNVERIFIED'), true);
+
+    const allowed = await invoke(['--authorize', 'afyx-graph'], { task });
+    const allowedPayload = JSON.parse(allowed.result.content[0].text);
+    assert.equal(allowedPayload.results.some((item) =>
+      item.componentId === 'afyx-graph' && item.executionStatus === 'EXECUTED'), true);
+  } finally {
     fx.cleanup();
   }
 });

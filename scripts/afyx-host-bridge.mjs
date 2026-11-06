@@ -153,23 +153,6 @@ export function serveHostMcpBridge(serverOptions = {}) {
                       type: 'object',
                       description: 'The engineering task specification',
                     },
-                    projectRoot: {
-                      type: 'string',
-                      description: 'Root directory of the target project',
-                    },
-                    installRoot: {
-                      type: 'string',
-                      description: 'Root directory where AFYX components are installed',
-                    },
-                    provider: {
-                      type: 'string',
-                      description: 'Host provider identifier (e.g. antigravity, codex, claude)',
-                      default: 'antigravity',
-                    },
-                    authorizations: {
-                      type: 'object',
-                      description: 'Map of component IDs to authorization booleans',
-                    },
                   },
                   required: ['task'],
                 },
@@ -193,8 +176,9 @@ export function serveHostMcpBridge(serverOptions = {}) {
         try {
           const args = params.arguments || {};
           const result = await invokeHostWorkflow({
+            task: args.task,
+            budgetLimits: args.budgetLimits,
             ...serverOptions,
-            ...args,
           });
 
           sendResponse({
@@ -246,7 +230,15 @@ async function main() {
     const installRoot = argumentValue('--install-root');
     const projectRoot = argumentValue('--project-root');
     const provider = argumentValue('--provider') || 'antigravity';
-    serveHostMcpBridge({ installRoot, projectRoot, provider });
+    const authorizedIds = new Set((argumentValue('--authorize') ?? '').split(',').filter(Boolean));
+    const authorizations = Object.fromEntries([...authorizedIds].map((id) => [id, true]));
+    serveHostMcpBridge({
+      installRoot,
+      projectRoot,
+      provider,
+      authorizations,
+      providerPermissions: authorizations,
+    });
     return;
   }
 
