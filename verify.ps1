@@ -10,7 +10,9 @@ param(
     [string]$ClaudeHome = $(if ($env:CLAUDE_CONFIG_DIR) { $env:CLAUDE_CONFIG_DIR } else { Join-Path $env:USERPROFILE '.claude' }),
     [string]$ClaudeConfigDir = $(if ($env:CLAUDE_CONFIG_DIR) { $env:CLAUDE_CONFIG_DIR } else { '' }),
     [string]$ContextRuntimeRoot = $(if ($env:AFYX_CONTEXT_RUNTIME_ROOT) { $env:AFYX_CONTEXT_RUNTIME_ROOT } else { Join-Path $env:USERPROFILE '.afyx\context' }),
-    [string]$ForgeRuntimeRoot = $(if ($env:AFYX_FORGE_RUNTIME_ROOT) { $env:AFYX_FORGE_RUNTIME_ROOT } else { Join-Path $env:USERPROFILE '.afyx\forge' })
+    [string]$ForgeRuntimeRoot = $(if ($env:AFYX_FORGE_RUNTIME_ROOT) { $env:AFYX_FORGE_RUNTIME_ROOT } else { Join-Path $env:USERPROFILE '.afyx\forge' }),
+    [string]$AfyxInstallRoot = $(if ($env:AFYX_INSTALL_ROOT) { $env:AFYX_INSTALL_ROOT } else { Join-Path $env:USERPROFILE '.afyx' }),
+    [string]$HostBridgeRuntimeRoot = $(if ($env:AFYX_HOST_BRIDGE_RUNTIME_ROOT) { $env:AFYX_HOST_BRIDGE_RUNTIME_ROOT } else { Join-Path $env:USERPROFILE '.afyx\host-bridge' })
 )
 
 Set-StrictMode -Version Latest
@@ -359,6 +361,40 @@ if (-not $usagePresent) {
     if ($taskConfigured) { Write-Result 'OK' 'Codex Usage VS Code Task' 'configured' }
     else { Write-Result 'WARN' 'Codex Usage VS Code Task' 'not configured (optional fallback)' }
     Write-Result 'INFO' 'Codex Usage Hook trust' 'verify with /hooks'
+}
+
+if ($Provider.Count -and $node) {
+    $bridgeLifecycle = Join-Path $PSScriptRoot 'scripts\afyx-host-bridge-lifecycle.mjs'
+    $bridgeJson = (& $node.Source $bridgeLifecycle '--runtime-root' $HostBridgeRuntimeRoot 2>$null) -join ''
+    try { $bridge = $bridgeJson | ConvertFrom-Json -Depth 10 }
+    catch { $bridge = $null }
+    if (-not $bridge -or $bridge.status -ne 'READY') {
+        Write-Result 'FAIL' 'Afyx Universal Host Bridge' $(if ($bridgeJson) { $bridgeJson } else { 'not installed or integrity verification failed' })
+        $coreFailure = $true
+    } else {
+        Write-Result 'OK' 'Afyx Universal Host Bridge' "$($bridge.sourceRevision); integrity verified"
+        $workflowProviders = @($Provider | Where-Object { $_ -eq 'antigravity' -or ($_ -eq 'claude' -and $ProviderScope -eq 'workspace') })
+        if ($workflowProviders.Count) {
+            $providerArgs = @((Join-Path $PSScriptRoot 'scripts\afyx-provider-integration.mjs'), '--providers', ($workflowProviders -join ','),
+                '--scope', $ProviderScope, '--workspace-root', $WorkspaceRoot, '--gemini-home', $GeminiHome,
+                '--codex-home', $codexHome, '--node', $node.Source, '--entry', $bridge.entry,
+                '--server', 'afyx_workflow', '--mode', 'workflow', '--tool', 'afyx_workflow',
+                '--install-root', $AfyxInstallRoot, '--authorize', 'afyx-graph,afyx-context', '--verify')
+            if ($claudeCommand) { $providerArgs += @('--claude', $claudeCommand.Source) }
+            if ($ClaudeConfigDir) { $providerArgs += @('--claude-config-dir', $ClaudeConfigDir) }
+            $providerJson = (& $node.Source @providerArgs 2>$null) -join ''
+            try { $providerResult = $providerJson | ConvertFrom-Json -Depth 20 }
+            catch { $providerResult = $null }
+            if (-not $providerResult -or $providerResult.status -eq 'BLOCKED') {
+                Write-Result 'FAIL' 'Afyx workflow MCP' $(if ($providerJson) { $providerJson } else { 'provider verification failed' })
+                $coreFailure = $true
+            } else {
+                Write-Result 'OK' 'Afyx workflow MCP' $providerResult.status
+            }
+        } else {
+            Write-Result 'INFO' 'Afyx workflow MCP' 'session/workspace-isolated; direct CLI and session override available'
+        }
+    }
 }
 
 if ($coreFailure) { Write-Result 'FAIL' 'Core readiness'; exit 1 }

@@ -43,11 +43,16 @@ export function classifyEntry(existing, expected) {
   const actualNode = normalized(transport.command);
   const executableName = (value) => basename(value).replace(/\.exe$/i, '');
   const nodeMatches = actualNode === expectedNode || executableName(actualNode) === executableName(expectedNode);
-  const afyxShape = transport.type === 'stdio' && args.length === 3 &&
-    /(?:^|[\\/])lib[\\/]dist[\\/]bin[\\/]afyx-graph\.js$/i.test(String(args[0])) &&
-    args[1] === 'serve' && args[2] === '--mcp';
+  const explicitArgs = Array.isArray(expected.args);
+  const expectedArgs = explicitArgs ? expected.args.map(String) : [expected.entry, 'serve', '--mcp'];
+  const afyxShape = explicitArgs
+    ? transport.type === 'stdio' && args.length === expectedArgs.length
+      && args.every((value, index) => normalized(value) === normalized(expectedArgs[index]))
+    : transport.type === 'stdio' && args.length === 3
+      && /(?:^|[\\/])lib[\\/]dist[\\/]bin[\\/]afyx-graph\.js$/i.test(String(args[0]))
+      && args[1] === 'serve' && args[2] === '--mcp';
   if (!afyxShape) return 'MCP_BLOCKED';
-  if (nodeMatches && normalized(args[0]) === normalized(expected.entry)) return 'MCP_CONFIGURED';
+  if (nodeMatches && (explicitArgs || normalized(args[0]) === normalized(expected.entry))) return 'MCP_CONFIGURED';
   return 'MCP_STALE_OWNED';
 }
 
@@ -114,8 +119,8 @@ function requireCodexSuccess(result, action) {
   return result;
 }
 
-function readExisting(codex, codexHome, providerTimeoutMs) {
-  const result = codexRun(codex, codexHome, ['mcp', 'get', 'afyx_graph', '--json'], providerTimeoutMs);
+function readExisting(codex, codexHome, providerTimeoutMs, server = 'afyx_graph') {
+  const result = codexRun(codex, codexHome, ['mcp', 'get', server, '--json'], providerTimeoutMs);
   if (result.error?.code === 'ETIMEDOUT' || result.signal === 'SIGTERM') {
     throw new McpIntegrationError('CODEX_TIMEOUT', 'Codex MCP inspection timed out within the bounded provider execution window.');
   }
@@ -214,7 +219,7 @@ function writeOwnership(ownership) {
   }
 }
 
-export async function probeMcp(node, entry) {
+export async function probeMcp(node, entry, options = {}) {
   return await new Promise((resolveHandshake) => {
     const probeRoot = mkdtempSync(join(tmpdir(), 'afyx-mcp-probe-'));
     const probeEnv = {
@@ -230,7 +235,9 @@ export async function probeMcp(node, entry) {
     // state before provider configuration has even been consented.
     delete probeEnv.AFYX_GRAPH_STATE_DIR;
     delete probeEnv.NODE_COMPILE_CACHE;
-    const child = spawn(node, [entry, 'serve', '--mcp'], {
+    const launchArgs = Array.isArray(options.args) ? options.args : [entry, 'serve', '--mcp'];
+    const expectedTool = options.tool || 'afyx_graph_explore';
+    const child = spawn(node, launchArgs, {
       cwd: probeRoot,
       stdio: ['pipe', 'pipe', 'pipe'],
       windowsHide: true,
@@ -274,9 +281,9 @@ export async function probeMcp(node, entry) {
           child.stdin.write(`${JSON.stringify({ jsonrpc: '2.0', id: 2, method: 'tools/list', params: {} })}\n`);
         } else if (message.id === 2) {
           const names = message.result?.tools?.map((tool) => tool.name) || [];
-          finish(names.includes('afyx_graph_explore')
+          finish(names.includes(expectedTool)
             ? { ok: true, detail: `${names.length} tools discovered.` }
-            : { ok: false, detail: 'MCP tools/list did not expose afyx_graph_explore.' });
+            : { ok: false, detail: `MCP tools/list did not expose ${expectedTool}.` });
         }
       }
     });
@@ -285,6 +292,12 @@ export async function probeMcp(node, entry) {
 }
 
 export async function integrate(options) {
+  const server = options.server || 'afyx_graph';
+  const launchArgs = Array.isArray(options.args) ? options.args.map(String) : [options.entry, 'serve', '--mcp'];
+  const expectedTool = options.tool || 'afyx_graph_explore';
+  const expected = Array.isArray(options.args)
+    ? { node: options.node, entry: options.entry, args: launchArgs }
+    : { node: options.node, entry: options.entry };
   const result = {
     graph: existsSync(options.entry) ? 'GRAPH_INSTALLED' : 'GRAPH_NOT_INSTALLED',
     cli: existsSync(options.entry) && existsSync(options.node) ? 'CLI_REACHABLE' : 'CLI_BLOCKED',
@@ -303,8 +316,8 @@ export async function integrate(options) {
     return result;
   }
   if (result.cli !== 'CLI_REACHABLE') {
-    result.reason = 'GRAPH_RUNTIME_UNAVAILABLE';
-    result.detail = 'Installed entry point or Node.js executable is unavailable.';
+    result.reason = 'MCP_RUNTIME_UNAVAILABLE';
+    result.detail = 'Installed MCP entry point or Node.js executable is unavailable.';
     return result;
   }
   if (!options.codex || !existsSync(options.codex)) {
@@ -324,7 +337,7 @@ export async function integrate(options) {
   if (options.apply) mkdirSync(options.codexHome, { recursive: true });
   let inspection;
   try {
-    inspection = readExisting(options.codex, options.codexHome, options.providerTimeoutMs);
+    inspection = readExisting(options.codex, options.codexHome, options.providerTimeoutMs, server);
   } catch (error) {
     result.reason = error instanceof McpIntegrationError ? error.reason : 'MCP_INSPECTION_FAILED';
     result.detail = `Graph runtime is installed; MCP integration failed: ${error instanceof Error ? error.message : String(error)}`;
@@ -332,11 +345,11 @@ export async function integrate(options) {
   }
   let existing = inspection.existing;
   result.reason = inspection.reason;
-  let state = classifyEntry(existing, options);
+  let state = classifyEntry(existing, expected);
   result.mcp = state;
   if (state === 'MCP_BLOCKED') {
     result.reason = 'MCP_INVALID_CONFIGURATION';
-    result.detail = 'Conflicting or unproven afyx_graph entry was preserved.';
+    result.detail = `Conflicting or unproven ${server} entry was preserved.`;
     return result;
   }
   let ownership;
@@ -353,12 +366,12 @@ export async function integrate(options) {
       result.detail = 'No Codex MCP entry is configured.';
       return result;
     }
-    const claim = ownership.document.entries?.afyx_graph;
+    const claim = ownership.document.entries?.[server];
     const claimedExpected = claim?.provider === 'codex' ? claim.expected : null;
     if (!claimedExpected || classifyEntry(existing, claimedExpected) !== 'MCP_CONFIGURED') {
       result.mcp = 'MCP_BLOCKED';
       result.reason = 'MCP_UNOWNED_ENTRY';
-      result.detail = 'Codex afyx_graph entry lacks a matching Afyx ownership marker and was preserved.';
+      result.detail = `Codex ${server} entry lacks a matching Afyx ownership marker and was preserved.`;
       return result;
     }
     if (!options.apply) {
@@ -369,10 +382,10 @@ export async function integrate(options) {
     const markerBefore = fileBytes(ownership.file);
     let markerExpected = markerBefore;
     try {
-      requireCodexSuccess(codexRun(options.codex, options.codexHome, ['mcp', 'remove', 'afyx_graph'], options.providerTimeoutMs), 'Codex MCP removal');
+      requireCodexSuccess(codexRun(options.codex, options.codexHome, ['mcp', 'remove', server], options.providerTimeoutMs), 'Codex MCP removal');
       markBackupState(backup);
-      if (readExisting(options.codex, options.codexHome, options.providerTimeoutMs).existing) throw new Error('Codex MCP removal did not persist.');
-      delete ownership.document.entries.afyx_graph;
+      if (readExisting(options.codex, options.codexHome, options.providerTimeoutMs, server).existing) throw new Error('Codex MCP removal did not persist.');
+      delete ownership.document.entries[server];
       if (Object.keys(ownership.document.entries).length) writeOwnership(ownership);
       else rmSync(ownership.file, { force: true });
       markerExpected = fileBytes(ownership.file);
@@ -398,7 +411,7 @@ export async function integrate(options) {
     return result;
   }
   if (options.apply && state !== 'MCP_CONFIGURED') {
-    const preflightProbe = await probeMcp(options.node, options.entry);
+    const preflightProbe = await probeMcp(options.node, options.entry, { args: launchArgs, tool: expectedTool });
     if (!preflightProbe.ok) {
       result.mcp = 'MCP_HANDSHAKE_FAILED';
       result.reason = 'MCP_HANDSHAKE_FAILED';
@@ -410,20 +423,20 @@ export async function integrate(options) {
     let ownershipExpected = ownershipBefore;
     try {
       if (state === 'MCP_STALE_OWNED') {
-        const removed = codexRun(options.codex, options.codexHome, ['mcp', 'remove', 'afyx_graph'], options.providerTimeoutMs);
+        const removed = codexRun(options.codex, options.codexHome, ['mcp', 'remove', server], options.providerTimeoutMs);
         requireCodexSuccess(removed, 'Codex MCP removal');
         markBackupState(backup);
       }
-      const added = codexRun(options.codex, options.codexHome, ['mcp', 'add', 'afyx_graph', '--', options.node, options.entry, 'serve', '--mcp'], options.providerTimeoutMs);
+      const added = codexRun(options.codex, options.codexHome, ['mcp', 'add', server, '--', options.node, ...launchArgs], options.providerTimeoutMs);
       requireCodexSuccess(added, 'Codex MCP registration');
       markBackupState(backup);
-      inspection = readExisting(options.codex, options.codexHome, options.providerTimeoutMs);
+      inspection = readExisting(options.codex, options.codexHome, options.providerTimeoutMs, server);
       existing = inspection.existing;
-      state = classifyEntry(existing, options);
+      state = classifyEntry(existing, expected);
       if (state !== 'MCP_CONFIGURED') throw new Error('Codex MCP registration did not persist the expected direct-Node entry.');
       result.changed = true;
       result.reason = '';
-      ownership.document.entries.afyx_graph = { provider: 'codex', expected: { node: options.node, entry: options.entry } };
+      ownership.document.entries[server] = { provider: 'codex', expected };
       writeOwnership(ownership);
       ownershipExpected = fileBytes(ownership.file);
       removeBackup(backup);
@@ -440,7 +453,7 @@ export async function integrate(options) {
       return result;
     }
   }
-  const probe = await probeMcp(options.node, options.entry);
+  const probe = await probeMcp(options.node, options.entry, { args: launchArgs, tool: expectedTool });
   result.mcp = probe.ok ? 'MCP_REACHABLE' : 'MCP_HANDSHAKE_FAILED';
   result.reason = probe.ok ? '' : 'MCP_HANDSHAKE_FAILED';
   result.detail = probe.detail;

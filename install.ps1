@@ -22,7 +22,9 @@ param(
     [string]$ClaudeConfigDir = $(if ($env:CLAUDE_CONFIG_DIR) { $env:CLAUDE_CONFIG_DIR } else { '' }),
     [switch]$SkipProviderConfiguration,
     [string]$ContextRuntimeRoot = $(if ($env:AFYX_CONTEXT_RUNTIME_ROOT) { $env:AFYX_CONTEXT_RUNTIME_ROOT } else { Join-Path $env:USERPROFILE '.afyx\context' }),
-    [string]$ForgeRuntimeRoot = $(if ($env:AFYX_FORGE_RUNTIME_ROOT) { $env:AFYX_FORGE_RUNTIME_ROOT } else { Join-Path $env:USERPROFILE '.afyx\forge' })
+    [string]$ForgeRuntimeRoot = $(if ($env:AFYX_FORGE_RUNTIME_ROOT) { $env:AFYX_FORGE_RUNTIME_ROOT } else { Join-Path $env:USERPROFILE '.afyx\forge' }),
+    [string]$AfyxInstallRoot = $(if ($env:AFYX_INSTALL_ROOT) { $env:AFYX_INSTALL_ROOT } else { Join-Path $env:USERPROFILE '.afyx' }),
+    [string]$HostBridgeRuntimeRoot = $(if ($env:AFYX_HOST_BRIDGE_RUNTIME_ROOT) { $env:AFYX_HOST_BRIDGE_RUNTIME_ROOT } else { Join-Path $env:USERPROFILE '.afyx\host-bridge' })
 )
 
 Set-StrictMode -Version Latest
@@ -475,6 +477,7 @@ foreach ($providerId in $Provider) {
 $graphState = $states['Afyx Graph']
 $graphAction = if ($ValidateOnly) { 'skip' } elseif ($controlPlan) { [string]$actionDecisions['afyx-graph'] } else { Resolve-ComponentAction 'afyx-graph' 'Afyx Graph' }
 $providerTool = Join-Path $packageRoot 'scripts\afyx-provider-integration.mjs'
+$hostBridgeLifecycle = Join-Path $packageRoot 'scripts\afyx-host-bridge-lifecycle.mjs'
 $nodeCommand = Get-Command node -ErrorAction SilentlyContinue
 $plannedProviderEntry = Join-Path $graphRuntimeRoot 'current\lib\dist\bin\afyx-graph.js'
 $providerMcpRequested = -not $SkipGraphMcp -and -not $SkipProviderConfiguration -and $Provider.Count -and `
@@ -484,6 +487,15 @@ function Get-AfyxProviderArguments([string]$Entry) {
         '--workspace-root', $WorkspaceRoot, '--gemini-home', $GeminiHome, '--codex-home', $codexHome,
         '--node', $nodeCommand.Source, '--entry', $Entry)
     if ($codexCommandDetected) { $arguments += @('--codex', $codexCommandDetected.Source) }
+    if ($claudeCommandDetected) { $arguments += @('--claude', $claudeCommandDetected.Source) }
+    if ($ClaudeConfigDir) { $arguments += @('--claude-config-dir', $ClaudeConfigDir) }
+    return $arguments
+}
+function Get-AfyxWorkflowProviderArguments([string]$Entry, [string[]]$TargetProviders) {
+    $arguments = @($providerTool, '--providers', ($TargetProviders -join ','), '--scope', $ProviderScope,
+        '--workspace-root', $WorkspaceRoot, '--gemini-home', $GeminiHome, '--codex-home', $codexHome,
+        '--node', $nodeCommand.Source, '--entry', $Entry, '--server', 'afyx_workflow', '--mode', 'workflow',
+        '--tool', 'afyx_workflow', '--install-root', $AfyxInstallRoot, '--authorize', 'afyx-graph,afyx-context')
     if ($claudeCommandDetected) { $arguments += @('--claude', $claudeCommandDetected.Source) }
     if ($ClaudeConfigDir) { $arguments += @('--claude-config-dir', $ClaudeConfigDir) }
     return $arguments
@@ -687,6 +699,34 @@ if ($providerMcpRequested) {
         foreach ($providerEntry in $providerResult.providers) { $summary["$($providerEntry.provider) MCP"] = $providerEntry.status }
         if (@($providerResult.providers | Where-Object { $_.changed }).Count) { $changesApplied = $true }
     } else { throw 'Installed Graph entry is unavailable for selected provider configuration.' }
+}
+
+if (-not $SkipProviderConfiguration) {
+    $hostBridgeInstalledEntry = Join-Path $HostBridgeRuntimeRoot 'current\afyx-host-bridge.mjs'
+    if ($WhatIfPreference) {
+        Write-Host "WhatIf: would install AfyxHostBridge/v1 at $HostBridgeRuntimeRoot"
+    } else {
+        $bridgeJson = (& $nodeCommand.Source $hostBridgeLifecycle '--install' '--source-root' (Join-Path $packageRoot 'scripts') `
+            '--runtime-root' $HostBridgeRuntimeRoot '--source-revision' $sourceCommit) -join ''
+        if ($LASTEXITCODE -ne 0) { throw "Host bridge installation failed: $bridgeJson" }
+        $bridgeResult = $bridgeJson | ConvertFrom-Json -Depth 10
+        if ($bridgeResult.status -ne 'READY') { throw "Host bridge verification failed: $bridgeJson" }
+        $summary['Afyx Universal Host Bridge'] = 'installed'
+        $changesApplied = $true
+    }
+    $workflowProviders = @($Provider | Where-Object { $_ -eq 'antigravity' -or ($_ -eq 'claude' -and $ProviderScope -eq 'workspace') })
+    if ($workflowProviders.Count -and (Test-Path -LiteralPath $hostBridgeInstalledEntry -PathType Leaf)) {
+        $wfArguments = Get-AfyxWorkflowProviderArguments $hostBridgeInstalledEntry $workflowProviders
+        if (-not $WhatIfPreference) { $wfArguments += '--apply' }
+        if ($WhatIfPreference) { Write-Host "WhatIf: would configure host bridge MCP entries through ProviderAdapter/v1" }
+        else {
+            $wfJson = (& $nodeCommand.Source @wfArguments) -join ''
+            $wfResult = $wfJson | ConvertFrom-Json -Depth 20
+            if ($LASTEXITCODE -ne 0 -or $wfResult.status -eq 'BLOCKED') { throw "Host bridge provider configuration failed: $wfJson" }
+            foreach ($wfEntry in $wfResult.providers) { $summary["$($wfEntry.provider) workflow MCP"] = $wfEntry.status }
+            if (@($wfResult.providers | Where-Object { $_.changed }).Count) { $changesApplied = $true }
+        }
+    }
 }
 
 $contextState = $states['Afyx Context Engine']
