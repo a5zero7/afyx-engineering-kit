@@ -7,7 +7,9 @@ param(
     [switch]$RemoveAfyxGraph,
     [switch]$RemoveAfyxContext,
     [switch]$RemoveAfyxForge,
+    [switch]$RemoveHostBridge,
     [switch]$RemoveProviderConfiguration,
+    [switch]$All,
     [string[]]$Provider = @('codex'),
     [ValidateSet('global', 'workspace')][string]$ProviderScope = 'global',
     [string]$WorkspaceRoot = (Get-Location).Path,
@@ -15,13 +17,23 @@ param(
     [string]$ClaudeHome = $(if ($env:CLAUDE_CONFIG_DIR) { $env:CLAUDE_CONFIG_DIR } else { Join-Path $env:USERPROFILE '.claude' }),
     [string]$ClaudeConfigDir = $(if ($env:CLAUDE_CONFIG_DIR) { $env:CLAUDE_CONFIG_DIR } else { '' }),
     [string]$ContextRuntimeRoot = $(if ($env:AFYX_CONTEXT_RUNTIME_ROOT) { $env:AFYX_CONTEXT_RUNTIME_ROOT } else { Join-Path $env:USERPROFILE '.afyx\context' }),
-    [string]$ForgeRuntimeRoot = $(if ($env:AFYX_FORGE_RUNTIME_ROOT) { $env:AFYX_FORGE_RUNTIME_ROOT } else { Join-Path $env:USERPROFILE '.afyx\forge' })
+    [string]$ForgeRuntimeRoot = $(if ($env:AFYX_FORGE_RUNTIME_ROOT) { $env:AFYX_FORGE_RUNTIME_ROOT } else { Join-Path $env:USERPROFILE '.afyx\forge' }),
+    [string]$AfyxInstallRoot = $(if ($env:AFYX_INSTALL_ROOT) { $env:AFYX_INSTALL_ROOT } else { Join-Path $env:USERPROFILE '.afyx' }),
+    [string]$HostBridgeRuntimeRoot = $(if ($env:AFYX_HOST_BRIDGE_RUNTIME_ROOT) { $env:AFYX_HOST_BRIDGE_RUNTIME_ROOT } else { Join-Path $env:USERPROFILE '.afyx\host-bridge' })
 )
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
 Write-Host 'Afyx Codex Engineering Kit — Windows uninstaller (PowerShell)'
+if ($All) {
+    $RemoveUsageTracker = $true
+    $RemoveAfyxGraph = $true
+    $RemoveAfyxContext = $true
+    $RemoveAfyxForge = $true
+    $RemoveHostBridge = $true
+    $RemoveProviderConfiguration = $true
+}
 $providerSkillRoots = @()
 if ('codex' -in $Provider) {
     $providerSkillRoots += $(if ($PSBoundParameters.ContainsKey('SkillsRoot')) { $SkillsRoot } else { Join-Path $env:USERPROFILE '.agents\skills' })
@@ -98,7 +110,8 @@ if ($RemoveProviderConfiguration) {
     if ('codex' -in $Provider -and -not $codexCommand) { throw "Codex MCP removal requires a native Codex CLI. $($codexHost.Detail)" }
     $codexHome = if ($env:CODEX_HOME) { $env:CODEX_HOME } else { Join-Path $env:USERPROFILE '.codex' }
     $arguments = @((Join-Path $PSScriptRoot 'scripts\afyx-provider-integration.mjs'), '--providers', ($Provider -join ','), '--scope', $ProviderScope,
-        '--workspace-root', $WorkspaceRoot, '--gemini-home', $GeminiHome, '--codex-home', $codexHome, '--node', $nodeCommand.Source, '--entry', $installedEntry, '--uninstall')
+        '--workspace-root', $WorkspaceRoot, '--gemini-home', $GeminiHome, '--codex-home', $codexHome, '--node', $nodeCommand.Source,
+        '--entry', $installedEntry, '--uninstall')
     if ($codexCommand) { $arguments += @('--codex', $codexCommand.Source) }
     if ($claudeCommand) { $arguments += @('--claude', $claudeCommand.Source) }
     if ($ClaudeConfigDir) { $arguments += @('--claude-config-dir', $ClaudeConfigDir) }
@@ -109,6 +122,23 @@ if ($RemoveProviderConfiguration) {
         $providerResult = $providerJson | ConvertFrom-Json -Depth 20
         Write-Host "Provider removal: $($providerResult.status)"
         if ($LASTEXITCODE -ne 0 -or $providerResult.status -eq 'BLOCKED') { throw "Provider removal failed: $providerJson" }
+    }
+
+    $workflowProviders = @($Provider | Where-Object { $_ -eq 'antigravity' -or ($_ -eq 'claude' -and $ProviderScope -eq 'workspace') })
+    if ($workflowProviders.Count) {
+        $hostBridgeEntry = Join-Path $HostBridgeRuntimeRoot 'current\afyx-host-bridge.mjs'
+        $wfArguments = @((Join-Path $PSScriptRoot 'scripts\afyx-provider-integration.mjs'), '--providers', ($workflowProviders -join ','), '--scope', $ProviderScope,
+            '--workspace-root', $WorkspaceRoot, '--gemini-home', $GeminiHome, '--codex-home', $codexHome, '--node', $nodeCommand.Source,
+            '--entry', $hostBridgeEntry, '--server', 'afyx_workflow', '--mode', 'workflow', '--tool', 'afyx_workflow',
+            '--install-root', $AfyxInstallRoot, '--authorize', 'afyx-graph,afyx-context', '--uninstall')
+        if ($claudeCommand) { $wfArguments += @('--claude', $claudeCommand.Source) }
+        if ($ClaudeConfigDir) { $wfArguments += @('--claude-config-dir', $ClaudeConfigDir) }
+        if (-not $WhatIfPreference) { $wfArguments += '--apply' }
+        if (-not $WhatIfPreference) {
+            $wfJson = (& $nodeCommand.Source @wfArguments) -join ''
+            $wfResult = $wfJson | ConvertFrom-Json -Depth 20
+            if ($LASTEXITCODE -ne 0 -or $wfResult.status -eq 'BLOCKED') { throw "Host bridge provider removal failed: $wfJson" }
+        }
     }
 }
 if (Test-Path -LiteralPath $graphRoot) {
@@ -142,5 +172,16 @@ if ($RemoveAfyxForge) {
     & (Join-Path $PSScriptRoot 'scripts\install-afyx-forge.ps1') -RuntimeRoot $ForgeRuntimeRoot -Uninstall -Confirm:$false -WhatIf:$WhatIfPreference
     if (-not $?) { throw 'Afyx Forge removal failed.' }
 } elseif (Test-Path -LiteralPath $ForgeRuntimeRoot) { Write-Host 'Afyx Forge Core: kept' }
+
+if ($RemoveHostBridge) {
+    $nodeCommand = Get-Command node -ErrorAction SilentlyContinue
+    if (-not $nodeCommand) { throw 'Node.js is required to remove the owned host bridge runtime.' }
+    if ($WhatIfPreference) { Write-Host "WhatIf: would remove owned host bridge runtime at $HostBridgeRuntimeRoot" }
+    else {
+        & $nodeCommand.Source (Join-Path $PSScriptRoot 'scripts\afyx-host-bridge-lifecycle.mjs') `
+            '--uninstall' '--runtime-root' $HostBridgeRuntimeRoot
+        if ($LASTEXITCODE -ne 0) { throw 'Afyx Universal Host Bridge removal failed.' }
+    }
+}
 
 Write-Host 'ACE user state, project indexes, external software, and unrelated Codex configuration were not changed.'

@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-/** Provider-aware, consent-safe Afyx Graph MCP lifecycle. */
+/** Provider-aware, consent-safe Afyx MCP lifecycle. */
 import {
   copyFileSync,
   existsSync,
@@ -21,7 +21,27 @@ import {
   negotiateProviderCapabilities,
 } from './afyx-integration-contracts.mjs';
 
-const SERVER = 'afyx_graph';
+function serverName(options) {
+  return options.server || 'afyx_graph';
+}
+
+function launchArgs(options, provider) {
+  if (Array.isArray(options.args)) return options.args.map(String);
+  if (options.mode === 'workflow') {
+    return [
+      canonicalPath(options.entry), 'serve', '--mcp',
+      '--install-root', canonicalPath(options.installRoot),
+      '--project-root', canonicalPath(options.workspaceRoot),
+      '--provider', provider,
+      '--authorize', options.authorize || 'afyx-graph,afyx-context',
+    ];
+  }
+  return [canonicalPath(options.entry), 'serve', '--mcp'];
+}
+
+function expectedTool(options) {
+  return options.tool || (options.mode === 'workflow' ? 'afyx_workflow' : 'afyx_graph_explore');
+}
 const COMPONENT_CONTRACT = JSON.parse(readFileSync(fileURLToPath(new URL('./components.json', import.meta.url)), 'utf8'));
 const PROVIDER_DEFINITIONS = new Map(COMPONENT_CONTRACT.providers.map((definition) => [definition.provider, definition]));
 
@@ -53,9 +73,8 @@ function canonicalPath(value) {
 function entryEquivalent(actual, expected) {
   return actual && typeof actual === 'object' && !Array.isArray(actual)
     && normalizedPath(actual.command) === normalizedPath(expected.command)
-    && Array.isArray(actual.args) && actual.args.length === 3
-    && normalizedPath(actual.args[0]) === normalizedPath(expected.args[0])
-    && actual.args[1] === 'serve' && actual.args[2] === '--mcp';
+    && Array.isArray(actual.args) && actual.args.length === expected.args.length
+    && actual.args.every((value, index) => normalizedPath(value) === normalizedPath(expected.args[index]));
 }
 
 function inside(base, candidate) {
@@ -135,11 +154,12 @@ function antigravityPaths(options) {
   return { base, config: resolve(base, 'config', 'mcp_config.json') };
 }
 
-function expectedEntry(options) {
-  return { command: canonicalPath(options.node), args: [canonicalPath(options.entry), 'serve', '--mcp'] };
+function expectedEntry(options, provider = 'antigravity') {
+  return { command: canonicalPath(options.node), args: launchArgs(options, provider) };
 }
 
 function inspectAntigravity(options) {
+  const server = serverName(options);
   const paths = antigravityPaths(options);
   const ownership = `${paths.config}.afyx-ownership.json`;
   assertSafePath(paths.base, paths.config);
@@ -153,13 +173,13 @@ function inspectAntigravity(options) {
     const legacy = resolve(options.geminiHome || resolve(homedir(), '.gemini'), 'antigravity', 'mcp_config.json');
     assertSafePath(paths.base, legacy);
     const legacyDocument = parseObject(legacy);
-    if (legacyDocument.mcpServers?.[SERVER]) {
-      return { paths, ownership, document, marker, actual: null, expected: expectedEntry(options), claim: null, state: 'MCP_BLOCKED_LEGACY_DUPLICATE', owned: false, legacy };
+    if (legacyDocument.mcpServers?.[server]) {
+      return { paths, ownership, document, marker, actual: null, expected: expectedEntry(options), claim: null, state: 'MCP_BLOCKED_LEGACY_DUPLICATE', owned: false, legacy, server };
     }
   }
-  const actual = document.mcpServers?.[SERVER] ?? null;
+  const actual = document.mcpServers?.[server] ?? null;
   const expected = expectedEntry(options);
-  const claim = marker.entries?.[SERVER] ?? null;
+  const claim = marker.entries?.[server] ?? null;
   const claimValid = claim?.provider === 'antigravity' && resolve(claim.configPath || '') === paths.config;
   let state = 'MCP_NOT_CONFIGURED';
   let owned = false;
@@ -174,7 +194,7 @@ function inspectAntigravity(options) {
       state = 'MCP_BLOCKED';
     }
   }
-  return { paths, ownership, document, marker, actual, expected, claim, state, owned };
+  return { paths, ownership, document, marker, actual, expected, claim, state, owned, server };
 }
 
 function planForAntigravity(options, inspection) {
@@ -213,10 +233,10 @@ export async function integrateAntigravity(options) {
     let configKnown = configBefore;
     let markerKnown = markerBefore;
     try {
-      delete inspection.document.mcpServers[SERVER];
+      delete inspection.document.mcpServers[inspection.server];
       if (Object.keys(inspection.document.mcpServers).length === 0) delete inspection.document.mcpServers;
       if (inspection.marker.entries) {
-        delete inspection.marker.entries[SERVER];
+        delete inspection.marker.entries[inspection.server];
         if (Object.keys(inspection.marker.entries).length === 0) delete inspection.marker.entries;
       }
       atomicJson(inspection.paths.config, inspection.document);
@@ -241,12 +261,14 @@ export async function integrateAntigravity(options) {
     }
   }
   if (!existsSync(options.node) || !existsSync(options.entry)) {
-    return { ...result, status: 'BLOCKED', reason: 'GRAPH_RUNTIME_UNAVAILABLE', detail: 'Absolute Node.js or Graph MCP entry is unavailable.' };
+    return { ...result, status: 'BLOCKED', reason: 'MCP_RUNTIME_UNAVAILABLE', detail: 'Absolute Node.js or MCP entry is unavailable.' };
   }
   if (!options.apply && ['MCP_NOT_CONFIGURED', 'MCP_STALE_OWNED'].includes(inspection.state)) {
     return { ...result, status: 'DETECTED', detail: 'Configuration change is planned but not consented.' };
   }
-  const probe = await probeMcp(resolve(options.node), resolve(options.entry));
+  const probe = await probeMcp(resolve(options.node), resolve(options.entry), {
+    args: launchArgs(options, 'antigravity'), tool: expectedTool(options),
+  });
   if (!probe.ok) return { ...result, status: 'BLOCKED', reason: 'MCP_HANDSHAKE_FAILED', detail: probe.detail };
   if (options.apply && ['MCP_NOT_CONFIGURED', 'MCP_STALE_OWNED'].includes(inspection.state)) {
     const configBefore = snapshot(inspection.paths.config);
@@ -255,10 +277,10 @@ export async function integrateAntigravity(options) {
     let markerKnown = markerBefore;
     try {
       inspection.document.mcpServers ||= {};
-      inspection.document.mcpServers[SERVER] = inspection.expected;
+      inspection.document.mcpServers[inspection.server] = inspection.expected;
       inspection.marker.schemaVersion = 1;
       inspection.marker.entries ||= {};
-      inspection.marker.entries[SERVER] = {
+      inspection.marker.entries[inspection.server] = {
         provider: 'antigravity',
         configPath: inspection.paths.config,
         entry: inspection.expected,
@@ -293,13 +315,15 @@ async function integrateCodexAdapter(options) {
     return {
       provider: 'codex', status: 'INCOMPATIBLE', changed: false,
       reason: 'SCOPE_UNSUPPORTED',
-      detail: 'Codex adapter currently supports its user-scoped native CLI configuration.',
+      detail: 'Codex direct MCP registration is user-scoped; use a session override or an installed plugin for isolated project acceptance.',
     };
   }
+  const codexConfigRoot = resolve(options.codexHome);
   const codex = await integrateCodex({
     node: resolve(options.node), entry: resolve(options.entry), codex: options.codex,
-    codexHome: resolve(options.codexHome), apply: Boolean(options.apply), uninstall: Boolean(options.uninstall),
-    providerTimeoutMs: options.providerTimeoutMs,
+    codexHome: codexConfigRoot, apply: Boolean(options.apply), uninstall: Boolean(options.uninstall),
+    providerTimeoutMs: options.providerTimeoutMs, server: serverName(options),
+    args: launchArgs(options, 'codex'), tool: expectedTool(options),
   });
   return {
     provider: 'codex',
@@ -307,8 +331,8 @@ async function integrateCodexAdapter(options) {
       : codex.mcp === 'MCP_NOT_CONFIGURED' ? (options.uninstall ? 'UNAVAILABLE' : 'DETECTED')
         : options.uninstall && codex.mcp === 'MCP_CONFIGURED' ? 'CONFIGURED'
         : 'BLOCKED',
-    configPath: resolve(options.codexHome, 'config.toml'),
-    ownershipPath: resolve(options.codexHome, '.afyx-provider-ownership.json'),
+    configPath: resolve(codexConfigRoot, 'config.toml'),
+    ownershipPath: resolve(codexConfigRoot, '.afyx-provider-ownership.json'),
     ...codex,
   };
 }
@@ -616,7 +640,7 @@ export async function runProviderLifecycle(options) {
       results.push(item.failure);
       continue;
     }
-    const operation = options.uninstall ? 'uninstall' : options.apply ? 'apply' : 'plan';
+    const operation = options.uninstall ? 'uninstall' : options.verify ? 'verify' : options.apply ? 'apply' : 'plan';
     results.push(await item.adapter[operation](options));
   }
   return {
@@ -634,6 +658,11 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === resolve(process.argv[1
     workspaceRoot,
     node: argument('--node'),
     entry: argument('--entry'),
+    server: argument('--server', 'afyx_graph'),
+    mode: argument('--mode', 'graph'),
+    installRoot: resolve(argument('--install-root', resolve(homedir(), '.afyx'))),
+    authorize: argument('--authorize', 'afyx-graph,afyx-context'),
+    tool: argument('--tool'),
     codex: argument('--codex'),
     codexHome: argument('--codex-home', resolve(homedir(), '.codex')),
     geminiHome: argument('--gemini-home', resolve(homedir(), '.gemini')),
@@ -641,6 +670,7 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === resolve(process.argv[1
     claudeConfigDir: argument('--claude-config-dir') || undefined,
     providerTimeoutMs: Number(argument('--provider-timeout-ms', '15000')),
     apply: process.argv.includes('--apply'),
+    verify: process.argv.includes('--verify'),
     uninstall: process.argv.includes('--uninstall'),
   };
   runProviderLifecycle(options).then((result) => {

@@ -25,6 +25,7 @@ WINDOWS = sys.platform == "win32"
 GRAPH_FILES = ("current/bin/afyx-graph.cmd",) if WINDOWS else ("current/bin/afyx-graph",)
 FORGE_FILES = (
     "current/package.json",
+    "current/LICENSE",
     "current/afyx-forge.json",
     "current/src/index.js",
     "current/bin/afyx-forge.js",

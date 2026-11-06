@@ -150,7 +150,7 @@ class ControlPlaneContractTests(unittest.TestCase):
         )
         self.assertEqual(
             {item["id"] for item in contract["components"] if "full" in item["presets"].split(";")},
-            {"efficient-coding", "odoo-engineering", "afyx-engineering-expert", "afyx-graph", "codex-usage-tracking"},
+            {"efficient-coding", "odoo-engineering", "afyx-engineering-expert", "afyx-graph", "afyx-context", "afyx-forge", "codex-usage-tracking"},
         )
         self.assertEqual(by_id["codex-usage-tracking"]["providers"], "codex")
     def test_legacy_verify_preserves_retired_external_skill(self) -> None:
@@ -434,7 +434,7 @@ class ControlPlaneContractTests(unittest.TestCase):
         )
         self.assertEqual(
             result.stdout.strip(),
-            "v1|full|antigravity|efficient-coding,odoo-engineering,afyx-engineering-expert,afyx-graph",
+            "v1|full|antigravity|efficient-coding,odoo-engineering,afyx-engineering-expert,afyx-graph,afyx-context,afyx-forge",
         )
 
 

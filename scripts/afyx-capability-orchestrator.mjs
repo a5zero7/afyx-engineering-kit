@@ -197,7 +197,8 @@ export function discoverAfyxCapabilities({
     );
     const installed = observed.installed === true;
     // Default-enabled for interoperability if installed, unless explicitly set to false or context env off
-    const enabled = installed && observed.enabled !== false && !contextEnvironmentOff;
+    const enabled = installed && observed.enabled !== false &&
+      !(componentId === 'afyx-context' && contextEnvironmentOff);
     const healthy = observed.healthy === true;
     const compatible = observed.compatible === true;
     const authorized = observed.authorized === true && providerAuthorized;
@@ -247,7 +248,7 @@ export function discoverAfyxCapabilities({
 export function classifyTaskIntent(task = {}) {
   const intentText = `${task.intent ?? ''} ${task.operation ?? ''}`.toLowerCase();
   const taskType = String(task.taskType ?? 'generic').toLowerCase();
-  const directSource = task.exactKnownSource === true || task.knownFile === true ||
+  const directSourceCandidate = task.exactKnownSource === true || task.knownFile === true ||
     ['known-file', 'string-replacement', 'exact-source'].includes(taskType) ||
     /\b(exact source|known file|string replacement)\b/.test(intentText);
   const odoo = task.project?.isOdoo === true || task.explicitOdooEvidence === true ||
@@ -265,6 +266,10 @@ export function classifyTaskIntent(task = {}) {
     /\b(telemetry|usage tracking|usage report)\b/.test(intentText);
   const customCapability = task.needsCustomCapability ?? task.customCapability ?? null;
   const customComponentId = task.customComponentId ?? null;
+  const complexCapabilityNeeded = odoo || relational || contextOptimization ||
+    architecture || forgeAdvice || forgeAutonomous || telemetry ||
+    Boolean(customCapability) || Boolean(customComponentId);
+  const directSource = directSourceCandidate && !complexCapabilityNeeded;
 
   return Object.freeze({
     directSource,
@@ -486,6 +491,7 @@ function normalizedAdapterResult(request, raw, durationMs, validTargetIds) {
     componentId: request.targetComponentId,
     status: succeeded ? 'EXECUTED' : (raw?.status ?? 'FAILED'),
     executionStatus: succeeded ? 'EXECUTED' : 'FAILED',
+    reason: succeeded ? undefined : (raw?.reason ?? 'ADAPTER_EXECUTION_FAILED'),
     output,
     evidence: Object.freeze(Array.isArray(raw?.evidence) ? raw.evidence : []),
     provenance: Object.freeze({
