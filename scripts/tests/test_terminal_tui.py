@@ -666,12 +666,40 @@ if ($selected -ne 'opt2') {{ throw "PS5.1 KeyInfo expected 'opt2' but got '$sele
         self.assertIn("Read-AfyxMultiChoice", source)
         self.assertLess(source.index("Read-AfyxConfirmation"), source.index("$summary = [ordered]@{}"))
         self.assertLess(source.index("$actionDecisions = [ordered]@{}"), source.index("Read-AfyxConfirmation -Prompt 'Apply the reviewed plan?'"))
-        self.assertIn("$contextAction = if ($controlPlan) { [string]$actionDecisions['afyx-context'] }", source)
+        for action, component in (("contextAction", "afyx-context"), ("forgeAction", "afyx-forge")):
+            assignment = f"${action} = if ($ValidateOnly) {{ 'skip' }} elseif ($controlPlan) {{ [string]$actionDecisions['{component}'] }}"
+            self.assertEqual(source.count(assignment), 1)
+            self.assertLess(source.index(assignment), source.index("Write-AfyxSection -Title 'Review Actual Planned Changes'"))
+        self.assertLess(source.index("if (-not (Test-AfyxDashboard -Terminal $terminal))"), source.index("Show-AfyxBanner -Terminal $terminal"))
+        self.assertIn("} finally {\n    Disable-AfyxDashboard -Terminal $terminal", source)
         self.assertNotIn("[Console]::IsInputRedirected", source)
         self.assertIn("-and $terminal.Interactive", source)
         self.assertIn("Get-AfyxControlPlan", source)
         self.assertIn("Install-AfyxSkillTransaction", source)
         self.assertNotIn("Spectre", source)
+
+    def test_single_line_backend_failure_retains_original_error_and_log(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="afyx-stage-failure-") as runtime:
+            script = f"""
+Set-StrictMode -Version Latest
+$ErrorActionPreference = 'Stop'
+$ast = [System.Management.Automation.Language.Parser]::ParseFile('{ROOT / 'install.ps1'}', [ref]$null, [ref]$null)
+$definition = $ast.FindAll({{ param($node) $node -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq 'Invoke-AfyxInstallStage' }}, $true)
+if ($definition.Count -ne 1) {{ throw 'Install stage definition missing' }}
+Invoke-Expression $definition[0].Extent.Text
+function Write-AfyxStatus {{ param($Status, $Name, $Detail, $Terminal) $script:lastStatus = [pscustomobject]@{{ Status = $Status; Detail = $Detail }} }}
+$terminal = [pscustomobject]@{{ Ansi = $true }}
+$wizardMode = $true
+$AfyxInstallRoot = '{runtime}'
+try {{ Invoke-AfyxInstallStage -Stage 'Afyx Graph' -Action {{ 'single diagnostic line'; throw 'backend-broke' }} | Out-Null; throw 'Expected backend failure' }}
+catch {{ if ($_.Exception.Message -ne 'backend-broke') {{ throw }} }}
+if ($script:lastStatus.Status -ne 'FAILED' -or $script:lastStatus.Detail -notmatch 'backend-broke; log: ') {{ throw 'Failure status lost original error or log path' }}
+$logs = @(Get-ChildItem -LiteralPath (Join-Path $AfyxInstallRoot 'logs') -File)
+if ($logs.Count -ne 1 -or (Get-Content -LiteralPath $logs[0].FullName -Raw) -notmatch 'single diagnostic line') {{ throw 'Backend log missing' }}
+'STAGE_FAILURE_LOG_OK'
+"""
+            result = self.run_ps(script)
+            self.assertIn("STAGE_FAILURE_LOG_OK", result.stdout)
 
     def test_keyboard_navigation_extended_keys(self) -> None:
         script = f"""
@@ -729,6 +757,9 @@ $terminal = [pscustomobject]@{{
     Height = 24
 }}
 Enable-AfyxDashboard -Terminal $terminal -Providers @('Codex: CLI detected')
+        $frame = @(Get-AfyxDashboardFrame -Terminal $terminal) -join "`n"
+        if ($frame -notmatch 'AFYX  /  ENGINEERING KIT' -or $frame -notmatch 'ALPHA INSTALLER') {{ throw 'Cohesive dashboard header missing' }}
+        if ($frame -match 'FFFF') {{ throw 'Legacy ASCII wordmark remains' }}
 if (-not (Test-AfyxDashboard -Terminal $terminal)) {{ throw 'Dashboard should be enabled' }}
 Disable-AfyxDashboard -Terminal $terminal
 if (Test-AfyxDashboard -Terminal $terminal) {{ throw 'Dashboard should be disabled after cleanup' }}

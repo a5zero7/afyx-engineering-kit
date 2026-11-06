@@ -680,18 +680,14 @@ function Get-AfyxDashboardFrame {
     $width = [Math]::Max(40, [int]$Terminal.Width)
     $height = [Math]::Max(20, [int]$Terminal.Height)
     $wide = $width -ge 96
-    $brandLines = if ($wide) {
-        @('  /\\    FFFFF   Y   Y  X   X        AFYX  /  ENGINEERING KIT',
-          ' /__\\   FFFF     Y Y    X X         MIDNIGHT CIRCUIT',
-          '/    \\  F         Y      X          I choose my path, even in the unknown.')
-    } else {
-        @('  /\\   FFFF  Y  Y  X  X   AFYX',
-          ' /__\\  FFF    YY    XX    ENGINEERING',
-          '/    \\ F      Y    X  X  KIT')
-    }
+    $brandLines = @(
+        ' AFYX  /  ENGINEERING KIT'
+        ' MIDNIGHT CIRCUIT  |  ALPHA INSTALLER'
+        " $($state.Section)  |  Component versions and source identity in the review"
+    )
     $header = @($brandLines | ForEach-Object { Fit-AfyxDashboardLine -Text $_ -Width $width })
     $frame = @($header | ForEach-Object { Format-AfyxDashboardSegment -Text $_ -Tone Primary -Background Base -Terminal $Terminal })
-    $steps = @('DETECT', 'SELECT', 'CONFIGURE', 'INSTALL', 'FINISH')
+    $steps = @('DETECT', 'SELECT', 'CONFIGURE', 'REVIEW/APPLY', 'FINISH')
     if ($wide) {
         $stepParts = @()
         for ($index = 0; $index -lt $steps.Count; $index++) {

@@ -62,7 +62,6 @@ Import-Module (Join-Path $packageRoot 'scripts\lib\AfyxComponents.psm1') -Force
 Import-Module (Join-Path $packageRoot 'scripts\lib\AfyxSkillLifecycle.psm1') -Force -DisableNameChecking
 Import-Module (Join-Path $packageRoot 'scripts\lib\AfyxTerminal.psm1') -Force
 $terminal = New-AfyxTerminalContext
-Show-AfyxBanner -Terminal $terminal -Subtitle 'Interactive Installer | Midnight Circuit'
 $providerRegistry = @(Get-AfyxProviderRegistry)
 $providerIds = @($providerRegistry | ForEach-Object { [string]$_.provider })
 $codexHost = Get-AfyxCodexHost
@@ -94,7 +93,11 @@ if ($wizardMode) {
     )
     Enable-AfyxDashboard -Terminal $terminal -Providers $providerSnapshot
 }
+if (-not (Test-AfyxDashboard -Terminal $terminal)) {
+    Show-AfyxBanner -Terminal $terminal -Subtitle 'Interactive Installer | Midnight Circuit'
+}
 
+try {
 if ($wizardMode) {
     try {
         Show-AfyxStep -Current 1 -Terminal $terminal
@@ -491,6 +494,8 @@ foreach ($providerId in $Provider) {
 }
 $graphState = $states['Afyx Graph']
 $graphAction = if ($ValidateOnly) { 'skip' } elseif ($controlPlan) { [string]$actionDecisions['afyx-graph'] } else { Resolve-ComponentAction 'afyx-graph' 'Afyx Graph' }
+$contextAction = if ($ValidateOnly) { 'skip' } elseif ($controlPlan) { [string]$actionDecisions['afyx-context'] } else { Resolve-ComponentAction 'afyx-context' 'Afyx Context Engine' }
+$forgeAction = if ($ValidateOnly) { 'skip' } elseif ($controlPlan) { [string]$actionDecisions['afyx-forge'] } else { Resolve-ComponentAction 'afyx-forge' 'Afyx Forge Core' }
 $providerTool = Join-Path $packageRoot 'scripts\afyx-provider-integration.mjs'
 $hostBridgeLifecycle = Join-Path $packageRoot 'scripts\afyx-host-bridge-lifecycle.mjs'
 $nodeCommand = Get-Command node -ErrorAction SilentlyContinue
@@ -683,9 +688,11 @@ function Invoke-AfyxInstallStage {
         $success = $false
     }
     if (-not $success) {
-        $lastLogLines = if (Test-Path -LiteralPath $logFile) {
-            @(Get-Content -LiteralPath $logFile -Tail 10 | Where-Object { $_ -match '\S' })
-        } else { @() }
+        $lastLogLines = @(
+            if (Test-Path -LiteralPath $logFile) {
+                Get-Content -LiteralPath $logFile -Tail 10 | Where-Object { $_ -match '\S' }
+            }
+        )
         $tailSummary = if ($lastLogLines.Count) { $lastLogLines[-1] } else { '' }
         $diagMsg = if ($failure) { $failure.Exception.Message } elseif ($tailSummary) { $tailSummary } else { "Process exited with code $LASTEXITCODE" }
         Write-AfyxStatus -Status FAILED -Name $Stage -Detail "$diagMsg; log: $logFile" -Terminal $terminal
@@ -836,7 +843,6 @@ if ($shouldInstallHostBridge) {
 }
 
 $contextState = $states['Afyx Context Engine']
-$contextAction = if ($controlPlan) { [string]$actionDecisions['afyx-context'] } else { Resolve-ComponentAction 'afyx-context' 'Afyx Context Engine' }
 if ($contextAction -eq 'skip') { $summary['Afyx Context Engine'] = 'skipped' }
 else {
     Write-AfyxStatus -Status INFO -Name 'Afyx Context Engine' -Detail "$contextAction in progress; task-based enablement available; Graph consumer registration still requires integration support" -Terminal $terminal
@@ -875,7 +881,6 @@ if ($contextCompanionDesired -and $contextReadyForCompanion -and $Provider.Count
 }
 
 $forgeState = $states['Afyx Forge Core']
-$forgeAction = if ($controlPlan) { [string]$actionDecisions['afyx-forge'] } else { Resolve-ComponentAction 'afyx-forge' 'Afyx Forge Core' }
 if ($forgeAction -eq 'skip') { $summary['Afyx Forge Core'] = 'skipped' }
 else {
     Write-AfyxStatus -Status INFO -Name 'Afyx Forge Core' -Detail "$forgeAction in progress; Guidance Alpha mode active" -Terminal $terminal
@@ -948,4 +953,11 @@ if ($wizardMode) {
 if ($WhatIfPreference) { Write-AfyxStatus -Status PLANNED -Name 'WhatIf complete' -Detail 'no files or configuration were changed' -Terminal $terminal }
 elseif ($changesApplied) { Write-AfyxStatus -Status 'RESTART REQUIRED' -Name 'Provider session' -Detail 'start a new provider session to load installed components' -Terminal $terminal }
 else { Write-AfyxStatus -Status 'NO CHANGE' -Name 'Installation' -Detail 'existing healthy components were preserved' -Terminal $terminal }
-if ($wizardMode) { Disable-AfyxDashboard -Terminal $terminal }
+} catch {
+    if (Test-AfyxDashboard -Terminal $terminal) {
+        Write-AfyxStatus -Status FAILED -Name 'Installation stopped' -Detail $_.Exception.Message -Terminal $terminal
+    }
+    throw
+} finally {
+    Disable-AfyxDashboard -Terminal $terminal
+}
