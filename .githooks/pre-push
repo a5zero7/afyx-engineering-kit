@@ -3,7 +3,16 @@ set -eu
 root=$(git rev-parse --show-toplevel)
 case "$(uname -s 2>/dev/null || true)" in
   MINGW*|MSYS*|CYGWIN*)
-    hygiene_script="$(cd "$root/.." && pwd)/_afyx-admin/Test-AfyxWorkspaceHygiene.ps1"
+    # The common Git directory belongs to the canonical primary checkout even
+    # when this hook runs from a linked worktree under progres/.
+    common_dir=$(git rev-parse --path-format=absolute --git-common-dir)
+    canonical_root=$(cd "$common_dir/.." && pwd -P)
+    canonical_common=$(git -C "$canonical_root" rev-parse --path-format=absolute --git-common-dir)
+    if [ "$(cd "$canonical_common" && pwd -P)" != "$(cd "$common_dir" && pwd -P)" ]; then
+      echo "[pre-push] FAIL: Git common directory does not identify the canonical checkout" >&2
+      exit 1
+    fi
+    hygiene_script="$(cd "$canonical_root/.." && pwd -P)/_afyx-admin/Test-AfyxWorkspaceHygiene.ps1"
     if [ ! -f "$hygiene_script" ]; then
       echo "[pre-push] FAIL: canonical Windows workspace hygiene verifier is missing: $hygiene_script" >&2
       exit 1
@@ -11,6 +20,13 @@ case "$(uname -s 2>/dev/null || true)" in
     powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$hygiene_script" -RunSelfTests
     ;;
 esac
+
+# Git supplies repository-local variables to hooks. They must not redirect the
+# independent Git repositories created by the validation suites below.
+for git_var in $(git rev-parse --local-env-vars); do
+  unset "$git_var"
+done
+
 python "$root/scripts/validate-afyx-graph.py"
 python "$root/scripts/audit-legacy-identity.py"
 node "$root/scripts/verify-native-source-ownership.mjs"

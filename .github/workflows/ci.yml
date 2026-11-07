@@ -48,6 +48,8 @@ jobs:
         run: python evals/harness/routing.py
       - name: Deterministic tests (component contract, project detector, doctor, routing guard)
         run: python -m unittest discover -s scripts/tests -p 'test_*.py' -v
+      - name: Native universal integration and security regressions (serialized)
+        run: node --test --test-concurrency=1 scripts/tests/test_native_universal_integration.mjs scripts/tests/test_native_skill_broker.mjs scripts/tests/test_native_skill_host_adapter.mjs scripts/tests/test_capability_orchestrator.mjs scripts/tests/test_host_bridge.mjs scripts/tests/test_universal_runtime.mjs
       - name: Afyx Forge Core unit and acceptance tests
         run: |
           node --test afyx-forge/test/*.test.js
@@ -116,6 +118,8 @@ jobs:
         run: ./tools/codex-usage/tests/run-tests.ps1
       - name: Forge frozen input newline portability
         run: python -m unittest scripts.tests.test_forge_portability -v
+      - name: Native universal integration and security regressions (serialized)
+        run: node --test --test-concurrency=1 scripts/tests/test_native_universal_integration.mjs scripts/tests/test_native_skill_broker.mjs scripts/tests/test_native_skill_host_adapter.mjs scripts/tests/test_capability_orchestrator.mjs scripts/tests/test_host_bridge.mjs scripts/tests/test_universal_runtime.mjs
       - name: Afyx Forge Core unit and acceptance tests
         shell: pwsh
         run: |
@@ -184,6 +188,8 @@ jobs:
           ! grep -q '^\[FAIL\] \(Efficient Coding\|Odoo Engineering\)' verify.out
           ! grep -q '^\[FAIL\] Prompt Master' verify.out
           rm -f verify.out
+      - name: Native universal integration and security regressions (serialized)
+        run: node --test --test-concurrency=1 scripts/tests/test_native_universal_integration.mjs scripts/tests/test_native_skill_broker.mjs scripts/tests/test_native_skill_host_adapter.mjs scripts/tests/test_capability_orchestrator.mjs scripts/tests/test_host_bridge.mjs scripts/tests/test_universal_runtime.mjs
       - name: Afyx Forge Core unit and acceptance tests
         run: |
           node --test afyx-forge/test/*.test.js

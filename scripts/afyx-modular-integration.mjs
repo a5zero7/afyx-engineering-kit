@@ -151,6 +151,22 @@ export const PRODUCT_INVENTORY = Object.freeze({
     activationMode: 'GATED_EVALUATION',
     gateStatus: 'UNAVAILABLE_PENDING_A8',
   }),
+  'afyx-skill-engineering': Object.freeze({
+    id: 'afyx-skill-engineering', canonicalName: 'Afyx Skill Engineering',
+    type: 'toolset', primaryCapability: 'skill-authoring-lifecycle',
+    domainAuthority: 'Skill creation, validation, packaging and provider-scoped installation.',
+    cooperatingComponents: Object.freeze([]), ownershipClass: 'AFYX', maturity: 'SOURCE_READY',
+    productionReady: false, activationMode: 'ON_DEMAND',
+    providers: Object.freeze(['codex', 'antigravity', 'claude']),
+  }),
+  'afyx-credential-broker': Object.freeze({
+    id: 'afyx-credential-broker', canonicalName: 'Afyx Credential Broker',
+    type: 'toolset', primaryCapability: 'credential-use-authorization',
+    domainAuthority: 'Host authorization and consent for scoped credential use.',
+    cooperatingComponents: Object.freeze([]), ownershipClass: 'AFYX', maturity: 'SOURCE_READY',
+    productionReady: false, activationMode: 'ON_DEMAND',
+    providers: Object.freeze(['codex', 'antigravity', 'claude']),
+  }),
 });
 
 /**

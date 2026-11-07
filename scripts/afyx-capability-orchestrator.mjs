@@ -89,6 +89,7 @@ export function registerAfyxComponent(componentDef) {
     productionReady: false,
     activationMode: componentDef.activationMode ?? 'ON_DEMAND',
     cooperatingComponents: Object.freeze(componentDef.cooperatingComponents ?? []),
+    providers: componentDef.providers ?? null,
   });
   DYNAMIC_COMPONENT_REGISTRY.set(componentDef.id, definition);
   return definition;
@@ -129,9 +130,11 @@ function providerAllows(componentId, capability, provider, providerPermissions) 
   if (providerPermissions?.[componentId] === false || providerPermissions?.[capability] === false) {
     return false;
   }
-  if (provider === null) return true;
+  if (provider === null) return componentId !== 'afyx-credential-broker';
   const providerMeta = PROVIDER_CAPABILITY_SUPPORT[provider];
   if (!providerMeta) return false;
+  const declaredProviders = DYNAMIC_COMPONENT_REGISTRY.get(componentId)?.providers;
+  if (declaredProviders && !declaredProviders.includes(provider)) return false;
   if (componentId === 'afyx-forge') {
     return providerPermissions?.[componentId] === true;
   }
@@ -299,6 +302,7 @@ function makeRequest({ task, componentId, discovery, budgets, reason, hopCount =
   return Object.freeze({
     contract: AFYX_CAPABILITY_REQUEST_CONTRACT,
     taskId: task.id ?? 'anonymous-task',
+    taskType: task.taskType ?? null,
     intent: task.intent ?? task.taskType ?? 'generic',
     capability: discovered.capability,
     targetComponentId: componentId,
@@ -348,6 +352,9 @@ function selectionCandidates(task, classification, modularRuntimePlan, discovery
     ...(classification.forgeAdvice ? ['afyx-forge'] : []),
     ...(classification.telemetry ? ['codex-usage-tracking'] : []),
     ...(classification.customComponentId ? [classification.customComponentId] : []),
+    ...(classification.customCapability ? Object.entries(discovery.capabilities)
+      .filter(([, component]) => component.capability === classification.customCapability)
+      .map(([id]) => id) : []),
     ...modularRuntimePlan.plannedComponents,
   ];
   const reasons = {
@@ -694,6 +701,8 @@ export async function executeAfyxCapabilityRoute(options = {}) {
           hopCount: request.hopCount + 1,
         }),
         callerComponentId: request.targetComponentId,
+        // Only actual executed evidence is passed to bounded downstream adapters.
+        sourceResult: result.status === 'EXECUTED' ? result : null,
       }));
     }
   }

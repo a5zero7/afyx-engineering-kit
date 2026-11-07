@@ -6,11 +6,13 @@ import { createHash } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
 import {
   existsSync,
+  lstatSync,
   readFileSync,
   realpathSync,
   readdirSync,
   statSync,
 } from 'node:fs';
+import { homedir } from 'node:os';
 import {
   isAbsolute,
   join,
@@ -24,6 +26,7 @@ import {
   executeAfyxCapabilityRoute,
 } from './afyx-capability-orchestrator.mjs';
 import { createInstalledHostAdapters } from './afyx-host-adapters.mjs';
+import { createNativeSkillHostAdapter } from './afyx-native-skill-host.mjs';
 
 export const AFYX_UNIVERSAL_RUNTIME_CONTRACT = 'AfyxUniversalRuntime/v1';
 export const AFYX_COMPONENT_MANIFEST_CONTRACT = 'AfyxComponentManifest/v1';
@@ -58,7 +61,7 @@ const KNOWN_LAYOUT = Object.freeze(Object.fromEntries(
     return [component.id, Object.freeze({
       root: Object.freeze(root),
       required: Object.freeze([...new Set(required)]),
-      identity: component.marker_file ?? component.version_source?.split('#')[0] ?? required[0],
+      identity: component.marker_file || component.version_source?.split('#')[0] || required[0],
       codexTools,
     })];
   }),
@@ -107,39 +110,86 @@ function componentEnabled(componentId, settings, environment) {
   return true;
 }
 
-function inspectGraphIndex(projectRoot) {
-  const stateRoot = join(projectRoot, '.afyx-graph');
-  const database = join(stateRoot, 'afyx-graph.db');
-  const freshnessPath = join(stateRoot, 'freshness.json');
-  const freshness = readJson(freshnessPath);
-  const indexReady = existsSync(database) && statSync(database).isFile() && freshness?.schema_version === 1;
-  if (!indexReady) return { indexReady: false, indexFresh: false };
+function inspectGraphIndex(projectRoot, entrypoint, nodePath, environment) {
+  // Graph's status command is the authority for ancestor resolution, ownership,
+  // extraction compatibility, pending changes and incomplete indexes.
+  const result = spawnSync(nodePath, [entrypoint, 'status', projectRoot, '--json'], {
+    encoding: 'utf8', windowsHide: true, timeout: 10_000,
+    maxBuffer: 2 * 1024 * 1024, env: environment,
+  });
+  if (result.status !== 0 || result.error) return { indexReady: false, indexFresh: false };
+  let status;
+  try { status = JSON.parse(result.stdout); } catch { return { indexReady: false, indexFresh: false }; }
+  let indexRoot;
+  let trustedRoot = false;
+  let safeState = false;
+  try {
+    indexRoot = status.projectPath && resolve(status.projectPath);
+    const project = realpathSync(projectRoot);
+    // Only the project or its immediate workspace parent may own an implicit index.
+    // Reject aliases, unrelated worktrees and reparse-point state directories.
+    trustedRoot = Boolean(indexRoot && [project, resolve(project, '..')].includes(indexRoot)
+      && realpathSync(indexRoot) === indexRoot);
+    const statePath = status.indexPath && resolve(status.indexPath);
+    const database = statePath && join(statePath, 'afyx-graph.db');
+    safeState = Boolean(statePath && existsSync(statePath)
+      && !lstatSync(statePath).isSymbolicLink()
+      && realpathSync(statePath) === statePath
+      && database && existsSync(database) && lstatSync(database).isFile());
+  } catch { return { indexReady: false, indexFresh: false }; }
+  const indexReady = status.initialized === true && trustedRoot && safeState
+    && !status.worktreeMismatch && status.index?.state === 'complete'
+    && status.index?.pendingRefs === 0;
+  const health = status.health ?? {};
+  const indexFresh = Boolean(indexReady && status.index?.reindexRecommended === false
+    && health.pendingChanges?.state === 'CURRENT'
+    && health.compatibility?.reindexRecommended === false
+    && health.gitFreshness?.state !== 'STALE');
+  return { indexReady: Boolean(indexReady), indexFresh, indexRoot: indexReady ? indexRoot : null };
+}
 
-  const gitHead = spawnSync('git', ['-C', projectRoot, 'rev-parse', 'HEAD'], {
-    encoding: 'utf8',
-    windowsHide: true,
-    timeout: 2_000,
-  });
-  if (gitHead.status !== 0) {
-    return { indexReady: true, indexFresh: typeof freshness.indexed_at === 'string' };
+function skillRootFor(provider, componentId, providerSkillRoots) {
+  const explicit = providerSkillRoots?.[provider];
+  const base = explicit ?? (provider === 'codex' ? join(homedir(), '.agents', 'skills')
+    : provider === 'antigravity' ? join(homedir(), '.gemini', 'config', 'skills')
+      : provider === 'antigravity-cli' ? join(homedir(), '.gemini', 'antigravity-cli', 'skills') : null);
+  return base ? join(resolve(base), componentId) : null;
+}
+
+function ownedSkill(root, componentId) {
+  if (!root || !existsSync(root) || lstatSync(root).isSymbolicLink()) return false;
+  const marker = readJson(join(root, '.afyx-install.json'));
+  if (marker?.schema !== 1 || marker.product !== 'Afyx Codex Engineering Kit'
+    || marker.component !== componentId || marker.owner !== 'afyx'
+    || !/^[0-9a-f]{64}$/.test(marker.content_sha256 ?? '')) return false;
+  const files = [];
+  function visit(dir) {
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      if (entry.name === '.afyx-install.json' || entry.name === '.git') continue;
+      const path = join(dir, entry.name);
+      if (lstatSync(path).isSymbolicLink()) throw new Error('UNSAFE_SKILL_REPARSE_POINT');
+      if (entry.isDirectory()) visit(path);
+      else if (entry.isFile()) files.push(path);
+    }
   }
-  const status = spawnSync('git', ['-C', projectRoot, 'status', '--porcelain', '--untracked-files=no'], {
-    encoding: 'utf8',
-    windowsHide: true,
-    timeout: 2_000,
+  try { visit(root); } catch { return false; }
+  files.sort((a, b) => {
+    const left = a.toUpperCase();
+    const right = b.toUpperCase();
+    return left < right ? -1 : (left > right ? 1 : 0);
   });
-  const currentHead = gitHead.stdout.trim();
-  const clean = status.status === 0 && status.stdout.trim() === '';
-  return {
-    indexReady: true,
-    indexFresh: freshness.git_head === currentHead && freshness.tracked_clean === clean,
-  };
+  const lines = files.map((path) => `${sha256File(path).toUpperCase()}  ./${relative(root, path).replaceAll('\\', '/')}`);
+  const digest = createHash('sha256').update(`${lines.join('\n')}\n`).digest('hex');
+  return digest === marker.content_sha256;
 }
 
 function inspectKnownComponents({
   installRoot,
   projectRoot,
+  provider,
+  providerSkillRoots,
   codexToolsRoot,
+  nodePath,
   componentSettings,
   authorizations,
   environment,
@@ -148,14 +198,16 @@ function inspectKnownComponents({
   const states = {};
   const evidence = [];
   for (const [componentId, layout] of Object.entries(KNOWN_LAYOUT)) {
+    const providerRoot = layout.root[0] === 'skills'
+      ? skillRootFor(provider, componentId, providerSkillRoots) : null;
     const root = layout.codexTools
       ? codexToolsRoot
-      : join(installRoot, ...layout.root);
+      : (providerRoot && existsSync(providerRoot) ? providerRoot : join(installRoot, ...layout.root));
     const requiredPaths = root
       ? layout.required.map((item) => join(root, ...item.split('/')))
       : [];
-    const installed = Boolean(root) && requiredPaths.every((path) =>
-      existsSync(path) && statSync(path).isFile());
+    const installed = Boolean(root) && (!providerRoot || root !== providerRoot || ownedSkill(root, componentId))
+      && requiredPaths.every((path) => existsSync(path) && statSync(path).isFile());
     const sourceIdentity = installed ? metadataIdentity(root, layout.identity) : null;
     const enabled = installed && componentEnabled(
       componentId,
@@ -163,7 +215,7 @@ function inspectKnownComponents({
       environment,
     );
     const graph = componentId === 'afyx-graph' && installed
-      ? inspectGraphIndex(projectRoot)
+      ? inspectGraphIndex(projectRoot, join(root, 'current', 'lib', 'dist', 'bin', 'afyx-graph.js'), nodePath, environment)
       : (componentId === 'afyx-graph' ? { indexReady: false, indexFresh: false } : {});
     const override = componentStateOverrides?.[componentId] ?? {};
     states[componentId] = {
@@ -299,6 +351,8 @@ function discoverDynamicComponents({
 export function createInstalledAfyxRuntime({
   installRoot,
   projectRoot,
+  provider = null,
+  providerSkillRoots = {},
   stateRoot = null,
   codexToolsRoot = null,
   componentSettings = {},
@@ -306,6 +360,7 @@ export function createInstalledAfyxRuntime({
   componentStateOverrides = {},
   environment = process.env,
   nodePath = process.execPath,
+  trustedSkillEngineering = null,
 } = {}) {
   if (typeof installRoot !== 'string' || !installRoot.trim() ||
       typeof projectRoot !== 'string' || !projectRoot.trim()) {
@@ -313,11 +368,17 @@ export function createInstalledAfyxRuntime({
   }
   const resolvedInstallRoot = resolve(installRoot);
   const resolvedProjectRoot = resolve(projectRoot);
-  const resolvedToolsRoot = codexToolsRoot ? resolve(codexToolsRoot) : null;
+  // Usage Tracking is a Codex/Windows toolset installed under the provider's
+  // tools root, outside the shared AFYX runtime directory.
+  const resolvedToolsRoot = provider === 'codex' && process.platform === 'win32'
+    ? resolve(codexToolsRoot ?? join(homedir(), '.codex', 'tools')) : null;
   const known = inspectKnownComponents({
     installRoot: resolvedInstallRoot,
     projectRoot: resolvedProjectRoot,
+    provider,
+    providerSkillRoots,
     codexToolsRoot: resolvedToolsRoot,
+    nodePath,
     componentSettings,
     authorizations,
     environment,
@@ -330,24 +391,51 @@ export function createInstalledAfyxRuntime({
     environment,
     nodePath,
   });
+  // A native skill adapter exists only when a trusted in-process host supplies
+  // the complete write plan and a callable owner-approval boundary. Never infer
+  // this from an agent task or the general AFYX source inventory.
+  if (trustedSkillEngineering && trustedSkillEngineering.provider !== provider) {
+    throw new Error('TRUSTED_SKILL_PROVIDER_MISMATCH');
+  }
+  const nativeSkill = trustedSkillEngineering
+    ? createNativeSkillHostAdapter(trustedSkillEngineering) : null;
+  const nativeSkillState = nativeSkill ? {
+    installed: true,
+    enabled: componentEnabled('afyx-skill-engineering', componentSettings?.['afyx-skill-engineering'], environment),
+    healthy: true, compatible: true,
+    authorized: authorizations?.['afyx-skill-engineering'] === true,
+    sourceIdentity: nativeSkill.sourceIdentity,
+    observationSource: 'TRUSTED_HOST_ADAPTER',
+  } : null;
   const adapters = {
     ...createInstalledHostAdapters({
       installRoot: resolvedInstallRoot,
       projectRoot: resolvedProjectRoot,
+      graphIndexRoot: known.states['afyx-graph']?.indexRoot ?? null,
+      skillRoots: Object.fromEntries(known.evidence
+        .filter((item) => KNOWN_LAYOUT[item.componentId]?.root[0] === 'skills' && item.installed)
+        .map((item) => [item.componentId, item.root])),
       stateRoot,
       codexToolsRoot: resolvedToolsRoot,
       nodePath,
       environment,
     }),
     ...dynamic.adapters,
+    ...(nativeSkill ? { 'afyx-skill-engineering': nativeSkill.adapter } : {}),
   };
   return Object.freeze({
     contract: AFYX_UNIVERSAL_RUNTIME_CONTRACT,
     installRoot: resolvedInstallRoot,
     projectRoot: resolvedProjectRoot,
-    componentStates: Object.freeze({ ...known.states, ...dynamic.states }),
+    provider,
+    providerSkillRoots,
+    componentStates: Object.freeze({ ...known.states, ...dynamic.states,
+      ...(nativeSkillState ? { 'afyx-skill-engineering': nativeSkillState } : {}) }),
     adapters: Object.freeze(adapters),
-    discoveryEvidence: Object.freeze([...known.evidence, ...dynamic.evidence]),
+    discoveryEvidence: Object.freeze([...known.evidence, ...dynamic.evidence,
+      ...(nativeSkill ? [Object.freeze({ componentId: 'afyx-skill-engineering',
+        installed: true, sourceIdentity: nativeSkill.sourceIdentity,
+        observationSource: 'TRUSTED_HOST_ADAPTER' })] : [])]),
     dispose() {},
   });
 }

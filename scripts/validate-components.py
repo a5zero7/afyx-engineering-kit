@@ -118,7 +118,7 @@ by_id = {component["id"]: component for component in components}
 expected_presets = {
     "minimal": {"efficient-coding", "odoo-engineering"},
     "recommended": {"efficient-coding", "odoo-engineering", "afyx-engineering-expert"},
-    "full": {"efficient-coding", "odoo-engineering", "afyx-engineering-expert", "afyx-graph", "codex-usage-tracking"},
+    "full": {"efficient-coding", "odoo-engineering", "afyx-engineering-expert", "afyx-graph", "afyx-context", "afyx-forge", "codex-usage-tracking"},
 }
 for preset, expected in expected_presets.items():
     actual = {component["id"] for component in components if preset in component["presets"].split(";")}
@@ -159,25 +159,25 @@ if version_field not in metadata:
 if metadata["cli"] not in graph["required_files_unix"] or f"{metadata['cli']}.cmd" not in graph["required_files_windows"]:
     fail("afyx-graph launcher files must match the metadata CLI name")
 
-# ACE is first-party and explicitly selectable, but remains absent from every
-# implicit preset and default-OFF for Graph consumers.
+# ACE is first-party in the explicitly selected Full preset. Graph consumers
+# remain OFF unless separately authorized.
 context = by_id["afyx-context"]
 context_metadata = json.loads((ROOT / "afyx-context" / "afyx-context.json").read_text(encoding="utf-8"))
-if context["ownership_class"] != "AFYX" or context["install_root"] != "afyx_context_root" or context["presets"]:
-    fail("afyx-context must be an AFYX-owned explicit-only runtime")
+if context["ownership_class"] != "AFYX" or context["install_root"] != "afyx_context_root" or context["presets"] != "full":
+    fail("afyx-context must be an AFYX-owned Full-preset runtime")
 if context_metadata["kit_management"]["lifecycle_integration"] != "managed-optional":
     fail("afyx-context lifecycle metadata must declare managed-optional")
-if context_metadata["kit_management"]["default_presets"] or context_metadata["optional_consumers"]["graph"]["default_enabled"]:
-    fail("afyx-context must remain absent from defaults and Graph integration must remain OFF")
+if context_metadata["kit_management"]["default_presets"] != ["full"] or context_metadata["optional_consumers"]["graph"]["default_enabled"]:
+    fail("afyx-context Full-preset metadata and Graph OFF must remain aligned")
 if context["marker_value"] != context_metadata["product_name"] or context["marker_field"] not in context_metadata:
     fail("afyx-context component metadata does not match its product identity")
 
-# Afyx Forge Core is first-party, explicitly selectable, absent from implicit
-# presets, and bounded to assistive guidance while A8 remains evaluation-gated.
+# Afyx Forge Core is first-party in the explicitly selected Full preset,
+# bounded to assistive guidance while A8 remains evaluation-gated.
 forge = by_id["afyx-forge"]
 forge_metadata = json.loads((ROOT / "afyx-forge" / "afyx-forge.json").read_text(encoding="utf-8"))
-if forge["ownership_class"] != "AFYX" or forge["install_root"] != "afyx_forge_root" or forge["presets"]:
-    fail("afyx-forge must be an AFYX-owned explicit-only runtime")
+if forge["ownership_class"] != "AFYX" or forge["install_root"] != "afyx_forge_root" or forge["presets"] != "full":
+    fail("afyx-forge must be an AFYX-owned Full-preset runtime")
 if forge["marker_value"] != forge_metadata["product_name"] or forge["marker_field"] not in forge_metadata:
     fail("afyx-forge component metadata does not match its product identity")
 if forge_metadata.get("runtime_mode") != "ASSISTIVE_GUIDANCE_ONLY" or forge_metadata.get("evaluation_gate", {}).get("autonomous_code_execution") is not False:
