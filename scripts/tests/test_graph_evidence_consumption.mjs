@@ -45,10 +45,10 @@ const SAMPLE_INVENTORY_OUTPUT = `# Declarations matching \`_inherit\` = \`sale.o
 - \`SaleOrderExtended\` — \`models/sale_ext.py:45\` — module \`sale\` — values \`sale.order\`
 `;
 
-test('extractGraphEvidence parses symbols, lines, types, and calls from explore output', () => {
+test('extractGraphEvidence preserves explicit symbol locations without inferring calls', () => {
   const evidence = extractGraphEvidence(SAMPLE_EXPLORE_OUTPUT, false, '/workspace');
 
-  assert.ok(evidence.length >= 4);
+  assert.ok(evidence.length >= 3);
 
   const orderService = evidence.find((e) => e.kind === 'graph-symbol' && e.symbol === 'OrderService');
   assert.ok(orderService, 'OrderService symbol found');
@@ -65,16 +65,11 @@ test('extractGraphEvidence parses symbols, lines, types, and calls from explore 
   const createTotal = evidence.find((e) => e.kind === 'graph-symbol' && e.symbol === 'createOrderTotal');
   assert.ok(createTotal, 'createOrderTotal function found');
   assert.equal(createTotal.file, 'src/OrderService.ts');
-  assert.equal(createTotal.line, 7);
+  assert.equal(createTotal.line, null);
   assert.equal(createTotal.type, 'function');
 
-  const calls = evidence.filter((e) => e.kind === 'graph-call');
-  assert.ok(calls.length >= 1, 'At least one call relationship found');
-
-  const calcTotalCall = calls.find((c) => c.caller === 'createOrderTotal' && c.callee === 'calculateTotal');
-  assert.ok(calcTotalCall, 'Call from createOrderTotal to calculateTotal found');
-  assert.equal(calcTotalCall.file, 'src/OrderService.ts');
-  assert.equal(calcTotalCall.line, 8);
+  assert.equal(evidence.filter((e) => e.kind === 'graph-call').length, 0);
+  assert.equal(evidence.filter((e) => e.kind === 'graph-relationship').length, 0);
 });
 
 test('extractGraphEvidence parses inventory declarations and summary', () => {
@@ -237,26 +232,39 @@ test('afyx-graph host adapter preserves raw output byte-for-byte in results outp
   }
 });
 
-test('extractGraphEvidence ignores calls in commented lines and deduplicates calls per line', () => {
-  const sampleWithComments = `**\`src/CommentService.ts\`** — CommentService(class), doTask(function), targetMethod(method)
-
+test('extractGraphEvidence keeps only explicit Graph relationships', () => {
+  const output = `**\`src/service.ts\`** — caller(function), callee(function)
+- caller → callee
 \`\`\`typescript
-1\texport function doTask(): void {
-2\t    // targetMethod(1, 2) should be ignored
-3\t    /* targetMethod(3, 4) should also be ignored */
-4\t    * targetMethod(5, 6) in javadoc should be ignored
-5\t    targetMethod(10); targetMethod(20);
-6\t}
-\`\`\`
-`;
-  const evidence = extractGraphEvidence(sampleWithComments, false);
-  const calls = evidence.filter((e) => e.kind === 'graph-call');
+1\tfunction caller() { callee(); }
+\`\`\``;
+  const evidence = extractGraphEvidence(output);
+  assert.deepEqual(evidence.filter((entry) => entry.kind === 'graph-relationship'), [
+    { kind: 'graph-relationship', caller: 'caller', callee: 'callee' },
+  ]);
+  assert.equal(evidence.some((entry) => entry.kind === 'graph-call'), false);
+});
 
-  // Should only have 1 call entry for line 5 (deduplicated for line 5, lines 2, 3, 4 ignored)
-  assert.equal(calls.length, 1);
-  assert.equal(calls[0].caller, 'doTask');
-  assert.equal(calls[0].callee, 'targetMethod');
-  assert.equal(calls[0].line, 5);
+test('extractGraphEvidence does not infer calls or ambiguous symbol locations from source text', () => {
+  const snippets = [
+    ['scope closure', 'function caller() {}\ncallee();'],
+    ['top-level call', 'callee();\nfunction caller() {}'],
+    ['string literal', 'function caller() { const text = "callee()"; }'],
+    ['line comment', 'function caller() {\n// callee();\n}'],
+    ['block comment', 'function caller() { /* callee(); */ }'],
+    ['nested function', 'function caller() { function nested() { callee(); } }'],
+    ['ambiguous declarations', 'function callee() {}\nfunction callee() {}'],
+  ];
+  for (const [label, source] of snippets) {
+    const numbered = source.split('\n').map((line, index) => `${index + 1}\t${line}`).join('\n');
+    const output = `**\`src/service.ts\`** — caller(function), callee(function)
+\`\`\`typescript
+${numbered}
+\`\`\``;
+    const evidence = extractGraphEvidence(output);
+    assert.equal(evidence.some((entry) => entry.kind === 'graph-call' || entry.kind === 'graph-relationship'), false, label);
+    assert.equal(evidence.find((entry) => entry.symbol === 'callee').line, null, label);
+  }
 });
 
 test('extractGraphEvidence caps maximum extracted evidence at 200 items', () => {

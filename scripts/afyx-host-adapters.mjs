@@ -99,11 +99,6 @@ export function extractGraphEvidence(stdout, isInventory = false, projectRoot = 
 
     // 3. Reconcile symbols from file declarations
     for (const [file, symbols] of fileSymbolsMap.entries()) {
-      const escapedFile = file.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&');
-      const codeBlockRegex = new RegExp(`\\*\\*\\\`${escapedFile}\\\`\\*\\*[\\s\\S]*?\`\`\`[a-z]*\\n([\\s\\S]*?)\`\`\``);
-      const codeMatch = stdout.match(codeBlockRegex);
-      const codeLines = codeMatch ? codeMatch[1].split('\n') : [];
-
       for (const s of symbols) {
         const key = `${file}:${s.name}`;
         if (symbolMap.has(key)) {
@@ -112,62 +107,14 @@ export function extractGraphEvidence(stdout, isInventory = false, projectRoot = 
             existing.type = s.type;
           }
         } else {
-          let foundLine = null;
-          for (const l of codeLines) {
-            const numMatch = l.match(/^(\d+)\t(.*)$/);
-            if (numMatch && numMatch[2].includes(s.name)) {
-              foundLine = Number(numMatch[1]);
-              break;
-            }
-          }
           const item = {
             kind: 'graph-symbol',
             symbol: s.name,
             type: s.type,
             file,
-            line: foundLine,
+            line: null,
           };
           symbolMap.set(key, item);
-        }
-      }
-
-      // 4. Detect calls in code block
-      if (codeLines.length > 0) {
-        let currentScope = null;
-        const callKeys = new Set();
-        for (const l of codeLines) {
-          const numMatch = l.match(/^(\d+)\t(.*)$/);
-          if (!numMatch) continue;
-          const lineNum = Number(numMatch[1]);
-          const lineContent = numMatch[2];
-          const trimmedLine = lineContent.trim();
-          if (trimmedLine.startsWith('//') || trimmedLine.startsWith('*') || trimmedLine.startsWith('/*')) {
-            continue;
-          }
-          const fnDecl = lineContent.match(/(?:function|class)\s+([A-Za-z0-9_]+)/)
-            || lineContent.match(/^\s*([A-Za-z0-9_]+)\s*\([^)]*\)\s*[{:]/);
-          if (fnDecl && symbols.some((s) => s.name === fnDecl[1])) {
-            currentScope = fnDecl[1];
-          }
-          if (currentScope) {
-            for (const s of symbols) {
-              if (s.name !== currentScope && lineContent.includes(s.name)) {
-                if (new RegExp(`\\b${s.name}\\s*\\(`).test(lineContent)) {
-                  const callKey = `${currentScope}:${s.name}:${lineNum}`;
-                  if (!callKeys.has(callKey)) {
-                    callKeys.add(callKey);
-                    evidence.push({
-                      kind: 'graph-call',
-                      caller: currentScope,
-                      callee: s.name,
-                      file,
-                      line: lineNum,
-                    });
-                  }
-                }
-              }
-            }
-          }
         }
       }
     }
