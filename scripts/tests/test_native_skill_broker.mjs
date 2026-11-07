@@ -138,8 +138,10 @@ test('broker fails closed for missing backend, denied grant, invalid scope, expi
   assert.equal(result.status, 'EXECUTED');
   assert.equal(JSON.stringify(result).includes('fixture-value'), false);
   assert.equal(calls, 1);
+  assert.equal((await broker.use(request)).status, 'DENIED'); // approval cannot be replayed
+  const unused = broker.grant(grant, { authorize: () => true, consent: () => true });
   clock = 1010;
-  assert.equal((await broker.use(request)).status, 'EXPIRED');
+  assert.equal((await broker.use({ ...request, sessionId: unused.sessionId })).status, 'EXPIRED');
 });
 
 test('broker suppresses backend errors and supports revocation', async () => {
@@ -150,6 +152,29 @@ test('broker suppresses backend errors and supports revocation', async () => {
   assert.equal(result.status, 'BACKEND_FAILED');
   assert.equal(JSON.stringify(result).includes('fixture-secret'), false);
   broker.revoke(grant.sessionId);
+  assert.equal((await broker.use(request)).status, 'DENIED');
+});
+
+test('broker consumes each approved grant before asynchronous backend execution', async () => {
+  let calls = 0;
+  let release;
+  const pending = new Promise((resolve) => { release = resolve; });
+  const broker = createCredentialBroker({ adapters: {
+    mock: { use: async () => { calls++; await pending; return { performed: true }; } },
+  } });
+  const input = { provider: 'codex', backend: 'mock', scope: 'fixture',
+    aliases: ['key'], operations: ['inject-process'], targets: ['fixture-command'], ttlMs: 5000 };
+  const approved = broker.grant(input, { authorize: () => true, consent: () => true });
+  assert.equal(approved.status, 'GRANTED');
+  const request = { contract: CREDENTIAL_BROKER_CONTRACT, sessionId: approved.sessionId,
+    provider: 'codex', scope: 'fixture', alias: 'key',
+    operation: 'inject-process', target: 'fixture-command' };
+  const first = broker.use(request);
+  const repeated = await broker.use(request);
+  assert.equal(repeated.status, 'DENIED');
+  assert.equal(calls, 1);
+  release();
+  assert.equal((await first).status, 'EXECUTED');
   assert.equal((await broker.use(request)).status, 'DENIED');
 });
 
