@@ -302,6 +302,7 @@ function makeRequest({ task, componentId, discovery, budgets, reason, hopCount =
   return Object.freeze({
     contract: AFYX_CAPABILITY_REQUEST_CONTRACT,
     taskId: task.id ?? 'anonymous-task',
+    taskType: task.taskType ?? null,
     intent: task.intent ?? task.taskType ?? 'generic',
     capability: discovered.capability,
     targetComponentId: componentId,
@@ -700,6 +701,8 @@ export async function executeAfyxCapabilityRoute(options = {}) {
           hopCount: request.hopCount + 1,
         }),
         callerComponentId: request.targetComponentId,
+        // Only actual executed evidence is passed to bounded downstream adapters.
+        sourceResult: result.status === 'EXECUTED' ? result : null,
       }));
     }
   }
