@@ -8,7 +8,7 @@ import { invokeHostWorkflow } from '../afyx-host-bridge.mjs';
 import { createInstalledAfyxRuntime } from '../afyx-universal-runtime.mjs';
 import { verifySkillInstall } from '../afyx-skill-engineering.mjs';
 
-function fixture(run) {
+async function fixture(run) {
   const root = mkdtempSync(join(tmpdir(), 'afyx-native-skill-host-'));
   const draftsRoot = join(root, 'drafts');
   const skillsRoot = join(root, 'provider-skills');
@@ -31,7 +31,7 @@ function fixture(run) {
       needsCustomCapability: 'skill-authoring-lifecycle' },
   };
   try {
-    return run({ root, draftsRoot, skillsRoot, installRoot, projectRoot, spec, hostPlan, options });
+    return await run({ root, draftsRoot, skillsRoot, installRoot, projectRoot, spec, hostPlan, options });
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
