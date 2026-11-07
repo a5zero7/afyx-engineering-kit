@@ -162,3 +162,77 @@ test('afyx-graph host adapter propagates environment variables to subprocess', a
     rmSync(temp, { recursive: true, force: true });
   }
 });
+
+test('extractGraphEvidence safely handles malformed and truncated output', () => {
+  const malformed = [
+    '### Not a graph format at all\nrandom string',
+    '**`incomplete/path`**',
+    '**`incomplete/path`** — symbolWithoutParens, another(incomplete',
+    '- `Broken` (no-line-number) — invalid details',
+    '- callerWithoutArrow',
+    '```typescript\nrandom code block without line numbers\n```',
+    '12345\t\t\t\t',
+    '**Exploration: OrderService**\n\nFound 3 symbols\n- `OrderSer',
+    '**`src/OrderService.ts`** — OrderService(class)\n```typescript\n1\texport class Ord',
+  ];
+  for (const item of malformed) {
+    const res = extractGraphEvidence(item, false);
+    assert.ok(Array.isArray(res), 'Malformed or truncated input must return an array');
+  }
+});
+
+test('afyx-graph host adapter reports FAILED on nonzero subprocess exit', async () => {
+  const temp = mkdtempSync(join(tmpdir(), 'afyx-adapter-err-'));
+  try {
+    const installRoot = join(temp, 'install');
+    const projectRoot = join(temp, 'project');
+    const graphBin = join(installRoot, 'graph', 'current', 'lib', 'dist', 'bin', 'afyx-graph.js');
+
+    mkdirSync(join(installRoot, 'graph', 'current', 'lib', 'dist', 'bin'), { recursive: true });
+    mkdirSync(projectRoot, { recursive: true });
+
+    // Script that writes stderr and exits with code 1
+    writeFileSync(graphBin, 'process.stderr.write("FATAL_GRAPH_CRASH"); process.exit(1);\n', 'utf8');
+
+    const adapters = createInstalledHostAdapters({
+      installRoot,
+      projectRoot,
+      nodePath: process.execPath,
+    });
+
+    const result = await adapters['afyx-graph']({ intent: 'OrderService' });
+    assert.equal(result.status, 'FAILED');
+    assert.ok(result.reason.includes('FATAL_GRAPH_CRASH'));
+    assert.equal(result.output, null);
+  } finally {
+    rmSync(temp, { recursive: true, force: true });
+  }
+});
+
+test('afyx-graph host adapter preserves raw output byte-for-byte in results output', async () => {
+  const temp = mkdtempSync(join(tmpdir(), 'afyx-adapter-raw-'));
+  try {
+    const installRoot = join(temp, 'install');
+    const projectRoot = join(temp, 'project');
+    const graphBin = join(installRoot, 'graph', 'current', 'lib', 'dist', 'bin', 'afyx-graph.js');
+
+    mkdirSync(join(installRoot, 'graph', 'current', 'lib', 'dist', 'bin'), { recursive: true });
+    mkdirSync(projectRoot, { recursive: true });
+
+    const rawExpected = SAMPLE_EXPLORE_OUTPUT;
+    writeFileSync(graphBin, `process.stdout.write(${JSON.stringify(rawExpected)});\n`, 'utf8');
+
+    const adapters = createInstalledHostAdapters({
+      installRoot,
+      projectRoot,
+      nodePath: process.execPath,
+    });
+
+    const result = await adapters['afyx-graph']({ intent: 'OrderService' });
+    assert.equal(result.status, 'SUCCESS');
+    assert.equal(result.output, rawExpected, 'Original output must be preserved byte-for-byte');
+    assert.ok(result.evidence.length >= 4, 'Structured evidence is populated alongside output');
+  } finally {
+    rmSync(temp, { recursive: true, force: true });
+  }
+});
