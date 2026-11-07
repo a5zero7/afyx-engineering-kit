@@ -74,7 +74,8 @@ export function createNativeSkillHostAdapter(config = {}) {
     if (request?.targetComponentId !== 'afyx-skill-engineering'
         || request.capability !== CAPABILITY
         || request.permissions?.authorized !== true
-        || !request.candidateProviders?.includes(provider)
+        || !Array.isArray(request.candidateProviders)
+        || !request.candidateProviders.includes(provider)
         || request.sourceIdentity !== sourceIdentity) {
       return denied('TRUSTED_HOST_REQUEST_DENIED');
     }
