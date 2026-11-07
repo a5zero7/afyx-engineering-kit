@@ -867,3 +867,34 @@ test('AFYX-309: standalone Context behavior is preserved when Graph is not reque
   assert.equal(result.results[0].componentId, 'afyx-context');
   assert.equal(result.results[0].output, 'standalone reduced');
 });
+
+test('AFYX-309: standalone Context propagates task payload and classification to request contract', async () => {
+  let capturedRequest = null;
+  const result = await executeAfyxCapabilityRoute({
+    task: {
+      id: 'afyx309-standalone-payload',
+      intent: 'Standalone text reduction with payload',
+      taskType: 'large-context',
+      needsContextOptimization: true,
+      needsRelationalEvidence: false,
+      payload: 'Contracted standalone payload to optimize',
+      classification: 'diagnostic',
+    },
+    provider: 'codex',
+    componentStates: {
+      'afyx-context': { installed: true, enabled: true, healthy: true, compatible: true, authorized: true, sourceIdentity: 'test' },
+    },
+    adapters: {
+      'afyx-context': (req) => {
+        capturedRequest = req;
+        return { status: 'SUCCESS', output: 'reduced payload', contextBytes: 15 };
+      },
+    },
+  });
+
+  assert.equal(result.status, 'READY');
+  assert.equal(result.executionStatus, 'EXECUTED');
+  assert.equal(capturedRequest.payload, 'Contracted standalone payload to optimize');
+  assert.equal(capturedRequest.classification, 'diagnostic');
+  assert.equal(result.results[0].output, 'reduced payload');
+});

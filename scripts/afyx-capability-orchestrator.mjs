@@ -316,6 +316,8 @@ function makeRequest({ task, componentId, discovery, budgets, reason, hopCount =
     hopCount,
     invocationReason: reason,
     sourceIdentity: discovered.sourceIdentity,
+    payload: typeof task.payload === 'string' ? task.payload : (typeof task.text === 'string' ? task.text : (typeof task.input === 'string' ? task.input : null)),
+    classification: typeof task.classification === 'string' ? task.classification : null,
   });
 }
 

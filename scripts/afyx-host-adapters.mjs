@@ -304,9 +304,11 @@ export function createInstalledHostAdapters({
       // Preserve Context Engine's diagnostic/security protection:
       // Content classified as security or diagnostic must not be forcibly compressed.
       const isSecurity = request.classification === 'security' ||
+        request.taskType === 'security' ||
         Boolean(request.task?.securityFinding) ||
         source?.evidence?.some((e) => ['security-finding', 'security-alert', 'vulnerability'].includes(e.kind));
       const isDiagnostic = request.classification === 'diagnostic' ||
+        request.taskType === 'diagnostic' ||
         Boolean(request.task?.diagnosticContent) ||
         source?.evidence?.some((e) => e.kind === 'diagnostic');
       const segmentClassification = isSecurity ? 'security' : (isDiagnostic ? 'diagnostic' : 'normal');

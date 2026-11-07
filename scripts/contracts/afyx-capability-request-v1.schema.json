@@ -94,6 +94,18 @@
         "null"
       ]
     },
+    "payload": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "classification": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
     "sourceResult": {
       "anyOf": [
         {
