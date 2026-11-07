@@ -45,7 +45,7 @@ export function createNativeSkillHostAdapter(config = {}) {
     peerRoots = [], authorize } = config;
   if (negotiateSkillProvider(provider, scope).status !== 'SUPPORTED'
       || typeof authorize !== 'function'
-      || !spec || typeof spec !== 'object' || !NAME.test(spec.name)
+      || !spec || typeof spec !== 'object' || typeof spec.name !== 'string' || !NAME.test(spec.name)
       || typeof spec.description !== 'string'
       || typeof spec.body !== 'string'
       || !Array.isArray(spec.triggers)
