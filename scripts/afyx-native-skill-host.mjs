@@ -14,6 +14,7 @@ import {
 export const AFYX_NATIVE_SKILL_HOST_CONTRACT = 'AfyxNativeSkillHost/v1';
 const CAPABILITY = 'skill-authoring-lifecycle';
 const NAME = /^[a-z][a-z0-9-]{1,63}$/;
+const claimedHostPlans = new WeakSet();
 
 const digest = (value) => createHash('sha256').update(value).digest('hex');
 const beneath = (parent, child) => {
@@ -39,10 +40,9 @@ function trustedRoot(path) {
  * Never pass task JSON or MCP tool arguments into this factory.
  * Approval is synchronous because the underlying atomic install API is synchronous.
  */
-export function createNativeSkillHostAdapter({
-  provider, scope = 'workspace', draftsRoot, skillsRoot, spec, peerRoots = [],
-  authorize,
-} = {}) {
+export function createNativeSkillHostAdapter(config = {}) {
+  const { provider, scope = 'workspace', draftsRoot, skillsRoot, spec,
+    peerRoots = [], authorize } = config;
   if (negotiateSkillProvider(provider, scope).status !== 'SUPPORTED'
       || typeof authorize !== 'function'
       || !spec || typeof spec !== 'object' || !NAME.test(spec.name)
@@ -80,8 +80,9 @@ export function createNativeSkillHostAdapter({
     }
     // One approved plan may be executed only once per host adapter instance.
     // Consume before touching disk, including denied and failed attempts.
-    if (consumed) return denied('TRUSTED_SKILL_PLAN_CONSUMED');
+    if (consumed || claimedHostPlans.has(config)) return denied('TRUSTED_SKILL_PLAN_CONSUMED');
     consumed = true;
+    claimedHostPlans.add(config);
 
     const proposal = Object.freeze({
       contract: AFYX_NATIVE_SKILL_HOST_CONTRACT,
