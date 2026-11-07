@@ -60,7 +60,7 @@ const KNOWN_LAYOUT = Object.freeze(Object.fromEntries(
     return [component.id, Object.freeze({
       root: Object.freeze(root),
       required: Object.freeze([...new Set(required)]),
-      identity: component.marker_file ?? component.version_source?.split('#')[0] ?? required[0],
+      identity: component.marker_file || component.version_source?.split('#')[0] || required[0],
       codexTools,
     })];
   }),
@@ -366,7 +366,10 @@ export function createInstalledAfyxRuntime({
   }
   const resolvedInstallRoot = resolve(installRoot);
   const resolvedProjectRoot = resolve(projectRoot);
-  const resolvedToolsRoot = codexToolsRoot ? resolve(codexToolsRoot) : null;
+  // Usage Tracking is a Codex/Windows toolset installed under the provider's
+  // tools root, outside the shared AFYX runtime directory.
+  const resolvedToolsRoot = provider === 'codex' && process.platform === 'win32'
+    ? resolve(codexToolsRoot ?? join(homedir(), '.codex', 'tools')) : null;
   const known = inspectKnownComponents({
     installRoot: resolvedInstallRoot,
     projectRoot: resolvedProjectRoot,

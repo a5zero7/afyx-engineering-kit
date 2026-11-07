@@ -338,6 +338,21 @@ test('provider-managed skill requires matching ownership marker and unchanged co
   } finally { fx.cleanup(); }
 });
 
+test('Codex Usage Tracking discovery is provider and permission scoped', () => {
+  const fx = fixture();
+  try {
+    installRegistrySkeleton(fx, 'codex-usage-tracking');
+    const codex = createInstalledAfyxRuntime({ ...fx, provider: 'codex' });
+    const antigravity = createInstalledAfyxRuntime({ ...fx, provider: 'antigravity' });
+    assert.equal(codex.componentStates['codex-usage-tracking'].installed, process.platform === 'win32');
+    if (process.platform === 'win32') {
+      assert.match(codex.componentStates['codex-usage-tracking'].sourceIdentity, /^sha256:[0-9a-f]{64}$/);
+    }
+    assert.equal(codex.componentStates['codex-usage-tracking'].authorized, false);
+    assert.equal(antigravity.componentStates['codex-usage-tracking'].installed, false);
+  } finally { fx.cleanup(); }
+});
+
 test('dynamic AFYX manifest is discovered and executed through bounded JSON stdio', async () => {
   const fx = fixture();
   const { id } = installDynamic(fx);
