@@ -1,10 +1,24 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
 import {
   executeAfyxCapabilityRoute,
   resolveAfyxCapabilityRoute,
 } from '../afyx-capability-orchestrator.mjs';
+
+test('merged request contract accepts taskType and real executed sourceResult handoff', () => {
+  const schema = JSON.parse(readFileSync(new URL('../contracts/afyx-capability-request-v1.schema.json', import.meta.url), 'utf8'));
+  assert.equal(schema.additionalProperties, false);
+  assert.deepEqual(schema.properties.taskType.type, ['string', 'null']);
+  const variants = schema.properties.sourceResult.anyOf;
+  assert.equal(variants.some((item) => item.type === 'null'), true);
+  const executed = variants.find((item) => item.type === 'object');
+  assert.deepEqual(executed.required, ['contract', 'componentId', 'status', 'executionStatus', 'provenance']);
+  assert.equal(executed.properties.contract.const, 'AfyxCapabilityResult/v1');
+  assert.equal(executed.properties.status.const, 'EXECUTED');
+  assert.equal(executed.properties.provenance.properties.observationSource.const, 'ADAPTER_EXECUTION');
+});
 
 const available = (extra = {}) => ({
   installed: true,
