@@ -33,6 +33,7 @@ export const AFYX_HOST_BRIDGE_CONTRACT = 'AfyxHostBridge/v1';
  * @param {Object} [options.providerPermissions] - Map of provider permissions
  * @param {Object} [options.budgetLimits] - Budget limits override
  * @param {Object} [options.environment] - Environment variables
+ * @param {Object} [options.trustedSkillEngineering] - Host-supplied plan and approval callback; never MCP tool input
  * @returns {Promise<Object>} Workflow execution result with host bridge envelope
  */
 export async function invokeHostWorkflow({
@@ -44,6 +45,7 @@ export async function invokeHostWorkflow({
   providerPermissions = null,
   budgetLimits = undefined,
   environment = process.env,
+  trustedSkillEngineering = null,
 } = {}) {
   const parsedTask = typeof task === 'string' ? JSON.parse(task) : task;
   const resolvedProjectRoot = resolve(projectRoot);
@@ -59,6 +61,7 @@ export async function invokeHostWorkflow({
     providerPermissions: permissions,
     budgetLimits,
     environment,
+    trustedSkillEngineering,
   });
 
   return {
