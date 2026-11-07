@@ -68,6 +68,14 @@ export const DOMAIN_AUTHORITY_MATRIX = Object.freeze({
     primaryOwner: 'afyx-forge',
     description: 'Adaptive engineering execution policy (Gated pending formal A8 acceptance).',
   },
+  'skill-authoring-lifecycle': {
+    primaryOwner: 'afyx-skill-engineering',
+    description: 'Skill authoring, validation, packaging, review and installation.',
+  },
+  'credential-use-authorization': {
+    primaryOwner: 'afyx-credential-broker',
+    description: 'Host-scoped credential use authorization without secret disclosure.',
+  },
 });
 
 /**

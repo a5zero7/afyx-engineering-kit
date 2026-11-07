@@ -89,6 +89,7 @@ export function registerAfyxComponent(componentDef) {
     productionReady: false,
     activationMode: componentDef.activationMode ?? 'ON_DEMAND',
     cooperatingComponents: Object.freeze(componentDef.cooperatingComponents ?? []),
+    providers: componentDef.providers ?? null,
   });
   DYNAMIC_COMPONENT_REGISTRY.set(componentDef.id, definition);
   return definition;
@@ -129,9 +130,11 @@ function providerAllows(componentId, capability, provider, providerPermissions) 
   if (providerPermissions?.[componentId] === false || providerPermissions?.[capability] === false) {
     return false;
   }
-  if (provider === null) return true;
+  if (provider === null) return componentId !== 'afyx-credential-broker';
   const providerMeta = PROVIDER_CAPABILITY_SUPPORT[provider];
   if (!providerMeta) return false;
+  const declaredProviders = DYNAMIC_COMPONENT_REGISTRY.get(componentId)?.providers;
+  if (declaredProviders && !declaredProviders.includes(provider)) return false;
   if (componentId === 'afyx-forge') {
     return providerPermissions?.[componentId] === true;
   }
@@ -348,6 +351,9 @@ function selectionCandidates(task, classification, modularRuntimePlan, discovery
     ...(classification.forgeAdvice ? ['afyx-forge'] : []),
     ...(classification.telemetry ? ['codex-usage-tracking'] : []),
     ...(classification.customComponentId ? [classification.customComponentId] : []),
+    ...(classification.customCapability ? Object.entries(discovery.capabilities)
+      .filter(([, component]) => component.capability === classification.customCapability)
+      .map(([id]) => id) : []),
     ...modularRuntimePlan.plannedComponents,
   ];
   const reasons = {
