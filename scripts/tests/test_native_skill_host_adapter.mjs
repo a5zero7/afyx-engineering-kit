@@ -120,8 +120,9 @@ test('install approval refusal preserves draft evidence but never touches provid
 
 test('adapter refuses a second operation and never overwrites a foreign skill', async () => {
   await fixture(async (fx) => {
+    const hostPlan = fx.hostPlan();
     const runtime = createInstalledAfyxRuntime({
-      ...fx.options, trustedSkillEngineering: fx.hostPlan(),
+      ...fx.options, trustedSkillEngineering: hostPlan,
     });
     const state = runtime.componentStates['afyx-skill-engineering'];
     assert.equal(state.installed, true);
@@ -138,6 +139,11 @@ test('adapter refuses a second operation and never overwrites a foreign skill', 
     assert.equal(first.status, 'SUCCESS');
     assert.equal((await adapter(request)).reason, 'TRUSTED_SKILL_PLAN_CONSUMED');
     assert.equal((await adapter({ ...request, targetComponentId: 'other' })).reason, 'TRUSTED_HOST_REQUEST_DENIED');
+    const replay = await invokeHostWorkflow({ ...fx.options, trustedSkillEngineering: hostPlan });
+    assert.equal(
+      replay.results.find((item) => item.componentId === 'afyx-skill-engineering')?.reason,
+      'TRUSTED_SKILL_PLAN_CONSUMED',
+    );
     runtime.dispose();
   });
   await fixture(async (fx) => {
