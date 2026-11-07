@@ -18,11 +18,9 @@ export default defineConfig({
     environment: 'node',
     testTimeout: isCI ? 30_000 : 10_000,
     hookTimeout: isCI ? 30_000 : 10_000,
-    // Node 26 on Windows oversubscribes the Git/SQLite-heavy integration suite
-    // at Vitest's CPU-derived default. The resulting timeouts and stale daemon
-    // observations disappear with bounded concurrency; product behavior and
-    // per-test assertions remain unchanged.
-    ...(capWindowsNodeWorkers ? { maxWorkers: isCI ? 2 : 4 } : {}),
+    // Keep Windows Node 24+ Git/SQLite suites at two workers in local and CI runs.
+    // Vitest 4 requires the same limit across projects in a shared group.
+    ...(capWindowsNodeWorkers ? { maxWorkers: 2 } : {}),
     include: ['__tests__/**/*.test.ts'],
     /**
      * Several MCP integration tests (mcp-daemon, mcp-initialize, mcp-ppid-watchdog,
@@ -62,6 +60,7 @@ export default defineConfig({
         test: {
           name: 'ui',
           globals: true,
+          ...(capWindowsNodeWorkers ? { maxWorkers: 2 } : {}),
           include: ['__tests__/ui-package.test.ts', '__tests__/ui-native-runtime.test.ts'],
           environment: 'jsdom',
         },
