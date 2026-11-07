@@ -26,6 +26,7 @@ import {
   executeAfyxCapabilityRoute,
 } from './afyx-capability-orchestrator.mjs';
 import { createInstalledHostAdapters } from './afyx-host-adapters.mjs';
+import { createNativeSkillHostAdapter } from './afyx-native-skill-host.mjs';
 
 export const AFYX_UNIVERSAL_RUNTIME_CONTRACT = 'AfyxUniversalRuntime/v1';
 export const AFYX_COMPONENT_MANIFEST_CONTRACT = 'AfyxComponentManifest/v1';
@@ -359,6 +360,7 @@ export function createInstalledAfyxRuntime({
   componentStateOverrides = {},
   environment = process.env,
   nodePath = process.execPath,
+  trustedSkillEngineering = null,
 } = {}) {
   if (typeof installRoot !== 'string' || !installRoot.trim() ||
       typeof projectRoot !== 'string' || !projectRoot.trim()) {
@@ -389,6 +391,22 @@ export function createInstalledAfyxRuntime({
     environment,
     nodePath,
   });
+  // A native skill adapter exists only when a trusted in-process host supplies
+  // the complete write plan and a callable owner-approval boundary. Never infer
+  // this from an agent task or the general AFYX source inventory.
+  if (trustedSkillEngineering && trustedSkillEngineering.provider !== provider) {
+    throw new Error('TRUSTED_SKILL_PROVIDER_MISMATCH');
+  }
+  const nativeSkill = trustedSkillEngineering
+    ? createNativeSkillHostAdapter(trustedSkillEngineering) : null;
+  const nativeSkillState = nativeSkill ? {
+    installed: true,
+    enabled: componentEnabled('afyx-skill-engineering', componentSettings?.['afyx-skill-engineering'], environment),
+    healthy: true, compatible: true,
+    authorized: authorizations?.['afyx-skill-engineering'] === true,
+    sourceIdentity: nativeSkill.sourceIdentity,
+    observationSource: 'TRUSTED_HOST_ADAPTER',
+  } : null;
   const adapters = {
     ...createInstalledHostAdapters({
       installRoot: resolvedInstallRoot,
@@ -403,6 +421,7 @@ export function createInstalledAfyxRuntime({
       environment,
     }),
     ...dynamic.adapters,
+    ...(nativeSkill ? { 'afyx-skill-engineering': nativeSkill.adapter } : {}),
   };
   return Object.freeze({
     contract: AFYX_UNIVERSAL_RUNTIME_CONTRACT,
@@ -410,9 +429,13 @@ export function createInstalledAfyxRuntime({
     projectRoot: resolvedProjectRoot,
     provider,
     providerSkillRoots,
-    componentStates: Object.freeze({ ...known.states, ...dynamic.states }),
+    componentStates: Object.freeze({ ...known.states, ...dynamic.states,
+      ...(nativeSkillState ? { 'afyx-skill-engineering': nativeSkillState } : {}) }),
     adapters: Object.freeze(adapters),
-    discoveryEvidence: Object.freeze([...known.evidence, ...dynamic.evidence]),
+    discoveryEvidence: Object.freeze([...known.evidence, ...dynamic.evidence,
+      ...(nativeSkill ? [Object.freeze({ componentId: 'afyx-skill-engineering',
+        installed: true, sourceIdentity: nativeSkill.sourceIdentity,
+        observationSource: 'TRUSTED_HOST_ADAPTER' })] : [])]),
     dispose() {},
   });
 }
