@@ -12,7 +12,7 @@ Supported provider skill scopes are read from `scripts/components.json`; the hos
 
 ## Credential Broker (`AfyxCredentialBroker/v1`)
 
-`scripts/afyx-credential-broker.mjs` owns session-scoped authorization and consent for `inject-process` or `fill-host-field`. Trusted host code supplies adapters, authorization, consent, scope, credential aliases, target aliases, and a short lifetime. The model-facing request cannot supply backend code or additional fields. Adapter output and errors are never returned to the agent. There is no plaintext read operation, persistent secret cache, logging, or automatic provider fallback.
+`scripts/afyx-credential-broker.mjs` owns session-scoped authorization and consent for `inject-process` or `fill-host-field`. Trusted host code supplies adapters, authorization, consent, scope, credential aliases, target aliases, and a short lifetime. Each approved grant is **single-use**: it is consumed before awaiting the trusted adapter, so a repeated or concurrent request requires a fresh approval even within the original lifetime. The model-facing request cannot supply backend code or additional fields. Adapter output and errors are never returned to the agent. There is no plaintext read operation, persistent secret cache, logging, or automatic provider fallback.
 
 Only a synthetic adapter is exercised in tests. The official 1Password backend is **DEFERRED** because its supported CLI is unavailable in this environment and no authorized live credential-use acceptance was performed. A real host adapter must keep values outside agent output and obtain independent owner approval before use. AFYX-315 retirement cannot proceed on this source-level evidence.
 
