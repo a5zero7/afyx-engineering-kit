@@ -216,6 +216,8 @@ export function negotiateSkillProvider(provider, scope = 'workspace') {
 export function previewSkillInstall(packageBytes, { provider, scope = 'workspace', skillsRoot, peerRoots = [] }) {
   if (!PROVIDERS.has(provider) || negotiateSkillProvider(provider, scope).status !== 'SUPPORTED') fail('PROVIDER_SCOPE_UNSUPPORTED');
   const payload = inspectSkillPackage(packageBytes);
+  if (!Array.isArray(peerRoots) || peerRoots.some((peer) => typeof peer !== 'string' || !peer.trim())) fail('PEER_ROOTS_INVALID');
+  const scopedPeerRoots = Object.freeze(peerRoots.map((peer) => resolve(peer)));
   const root = safeRoot(skillsRoot);
   ordinary(root, true);
   const target = join(root, payload.metadata.name);
@@ -241,12 +243,13 @@ export function previewSkillInstall(packageBytes, { provider, scope = 'workspace
     if (!Array.isArray(triggers)) triggers = [];
     if (triggers.some((trigger) => payload.metadata.triggers.includes(trigger))) fail('SKILL_OR_TRIGGER_CONFLICT');
   }
-  for (const peer of peerRoots) {
+  for (const peer of scopedPeerRoots) {
     if (!itemAt(peer)) continue;
     const other = validateSkill(peer);
     if (other.name !== payload.metadata.name && other.triggers.some((trigger) => payload.metadata.triggers.includes(trigger))) fail('SKILL_OR_TRIGGER_CONFLICT');
   }
-  return Object.freeze({ contract: SKILL_ENGINEERING_CONTRACT, provider, scope, root, target, action: existing ? 'UPDATE' : 'INSTALL', digest: payload.metadata.digest, previousDigest: existing?.digest ?? null });
+  return Object.freeze({ contract: SKILL_ENGINEERING_CONTRACT, provider, scope, root, target, action: existing ? 'UPDATE' : 'INSTALL', digest: payload.metadata.digest, previousDigest: existing?.digest ?? null,
+    peerRoots: scopedPeerRoots });
 }
 
 export function verifySkillInstall({ provider, skillsRoot, name }) {
@@ -291,7 +294,10 @@ export function reconcileSkillInstall({ provider, skillsRoot, name }, { authoriz
 
 export function applySkillInstall(packageBytes, preview, { authorize } = {}) {
   if (typeof authorize !== 'function' || authorize(preview) !== true) fail('HOST_APPROVAL_REQUIRED');
-  const current = previewSkillInstall(packageBytes, { provider: preview.provider, scope: preview.scope, skillsRoot: preview.root });
+  const current = previewSkillInstall(packageBytes, {
+    provider: preview.provider, scope: preview.scope, skillsRoot: preview.root,
+    peerRoots: preview.peerRoots,
+  });
   if (JSON.stringify(current) !== JSON.stringify(preview)) fail('PREVIEW_STALE');
   const payload = inspectSkillPackage(packageBytes);
   const root = preview.root;
