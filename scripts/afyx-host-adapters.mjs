@@ -20,6 +20,132 @@ import { join, resolve } from 'node:path';
 
 export const AFYX_HOST_ADAPTERS_CONTRACT = 'AfyxHostAdapters/v1';
 
+/**
+ * Safely extracts structured graph evidence (symbols, declarations, calls)
+ * from afyx-graph stdout so that downstream host models (Codex, Antigravity)
+ * receive explicit, structured evidence in the JSON payload without relying
+ * solely on raw unparsed text or falling victim to host string truncation.
+ *
+ * @param {string} stdout - Raw stdout from afyx-graph CLI execution
+ * @param {boolean} [isInventory=false] - Whether the execution was an inventory command
+ * @param {string} [projectRoot=null] - Target project root
+ * @returns {Array<Object>} Structured evidence entries
+ */
+export function extractGraphEvidence(stdout, isInventory = false, projectRoot = null) {
+  const evidence = [];
+  if (typeof stdout !== 'string' || !stdout.trim()) {
+    return evidence;
+  }
+
+  try {
+    if (isInventory) {
+      const declRegex = /^-\s+`([A-Za-z0-9_]+)`\s+—\s+`([^:]+):(\d+)`\s+—\s+module\s+`([^`]+)`\s+—\s+values\s+`([^`]+)`/gm;
+      let match;
+      while ((match = declRegex.exec(stdout)) !== null) {
+        evidence.push({
+          kind: 'graph-declaration',
+          symbol: match[1],
+          file: match[2],
+          line: Number(match[3]),
+          module: match[4],
+          value: match[5],
+        });
+      }
+      const matchCount = stdout.match(/\*\*Matches:\*\*\s+(\d+)\s+declarations/);
+      if (matchCount) {
+        evidence.push({
+          kind: 'graph-inventory-summary',
+          matchCount: Number(matchCount[1]),
+        });
+      }
+      return evidence;
+    }
+
+    // 1. Files and symbol declarations from header: **`file`** — Sym1(kind), Sym2(kind)
+    const fileDeclRegex = /^\*\*`([^`]+)`\*\*\s+—\s+(.+)$/gm;
+    let fileMatch;
+    const fileSymbolsMap = new Map();
+    while ((fileMatch = fileDeclRegex.exec(stdout)) !== null) {
+      const file = fileMatch[1];
+      const declsStr = fileMatch[2];
+      const symbols = [];
+      const symRegex = /([A-Za-z0-9_]+)(?:\(([^)]+)\))?/g;
+      let symMatch;
+      while ((symMatch = symRegex.exec(declsStr)) !== null) {
+        symbols.push({ name: symMatch[1], type: symMatch[2] || 'unknown' });
+      }
+      fileSymbolsMap.set(file, symbols);
+    }
+
+    // 2. Blast radius items: - `Sym` (file:line) — callers/references
+    const blastRegex = /^-\s+`([A-Za-z0-9_]+)`\s+\(([^:]+):(\d+)\)\s+—\s+(.+)$/gm;
+    let blastMatch;
+    const symbolMap = new Map();
+    while ((blastMatch = blastRegex.exec(stdout)) !== null) {
+      const sym = blastMatch[1];
+      const file = blastMatch[2];
+      const line = Number(blastMatch[3]);
+      const details = blastMatch[4].trim();
+      const key = `${file}:${sym}`;
+      const item = {
+        kind: 'graph-symbol',
+        symbol: sym,
+        file,
+        line,
+        details,
+      };
+      symbolMap.set(key, item);
+    }
+
+    // 3. Reconcile symbols from file declarations
+    for (const [file, symbols] of fileSymbolsMap.entries()) {
+      for (const s of symbols) {
+        const key = `${file}:${s.name}`;
+        if (symbolMap.has(key)) {
+          const existing = symbolMap.get(key);
+          if (s.type && s.type !== 'unknown') {
+            existing.type = s.type;
+          }
+        } else {
+          const item = {
+            kind: 'graph-symbol',
+            symbol: s.name,
+            type: s.type,
+            file,
+            line: null,
+          };
+          symbolMap.set(key, item);
+        }
+      }
+    }
+
+    // Add all unique symbols to evidence
+    for (const item of symbolMap.values()) {
+      evidence.push(item);
+    }
+
+    // 5. Explicit relationship lines: - caller → callee
+    const relCallsRegex = /^-\s+([A-Za-z0-9_]+)\s+→\s+([A-Za-z0-9_]+)/gm;
+    let relMatch;
+    while ((relMatch = relCallsRegex.exec(stdout)) !== null) {
+      evidence.push({
+        kind: 'graph-relationship',
+        caller: relMatch[1],
+        callee: relMatch[2],
+      });
+    }
+
+    // Cap evidence count to prevent unbounded memory or payload inflation
+    if (evidence.length > 200) {
+      evidence.length = 200;
+    }
+  } catch {
+    // If parsing fails for any reason, do not fail execution
+  }
+
+  return evidence;
+}
+
 function isNonEmptyString(val) {
   return typeof val === 'string' && val.trim().length > 0;
 }
@@ -93,15 +219,27 @@ export function createInstalledHostAdapters({
         encoding: 'utf8',
         timeout: requestTimeout(request, 10_000),
         windowsHide: true,
+        env: {
+          ...process.env,
+          ...(environment ?? {}),
+        },
       });
 
       const stdout = execResult.stdout || '';
       const stderr = execResult.stderr || '';
 
-      if (execResult.status !== 0 && !stdout) {
+      if (execResult.status !== 0 || execResult.error) {
         return {
           status: 'FAILED',
-          reason: `GRAPH_EXECUTION_ERROR: ${stderr.trim() || 'Exit code ' + execResult.status}`,
+          reason: `GRAPH_EXECUTION_ERROR: ${execResult.error?.message || stderr.trim() || 'Exit code ' + execResult.status}`,
+          output: null,
+        };
+      }
+
+      if (!stdout || !stdout.trim()) {
+        return {
+          status: 'FAILED',
+          reason: 'GRAPH_OUTPUT_EMPTY',
           output: null,
         };
       }
@@ -116,6 +254,8 @@ export function createInstalledHostAdapters({
         });
       }
 
+      const structuredEvidence = extractGraphEvidence(stdout, isInventory, resolvedProjectRoot);
+
       return {
         status: 'SUCCESS',
         output: stdout,
@@ -123,6 +263,7 @@ export function createInstalledHostAdapters({
         evidence: [
           { kind: 'graph-tool', command: isInventory ? 'inventory' : 'explore' },
           { kind: 'graph-source-root', path: graphIndexRoot ?? resolvedProjectRoot },
+          ...structuredEvidence,
         ],
         followUpRequests,
       };
