@@ -43,6 +43,9 @@ try {
     $stagedScripts = Join-Path $stagingDir 'scripts'
     New-Item -ItemType Directory -Path $stagedScripts -Force | Out-Null
     Copy-Item -LiteralPath (Join-Path $repoRoot 'scripts\lib') -Destination $stagedScripts -Recurse -Force
+    if (Test-Path -LiteralPath (Join-Path $repoRoot 'scripts\contracts')) {
+        Copy-Item -LiteralPath (Join-Path $repoRoot 'scripts\contracts') -Destination $stagedScripts -Recurse -Force
+    }
 
     Get-ChildItem -Path (Join-Path $repoRoot 'scripts') -File | Where-Object {
         $_.Name -notin @('build-windows-installer.ps1')
