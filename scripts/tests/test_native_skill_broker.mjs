@@ -151,8 +151,9 @@ test('broker suppresses backend errors and supports revocation', async () => {
   const result = await broker.use(request);
   assert.equal(result.status, 'BACKEND_FAILED');
   assert.equal(JSON.stringify(result).includes('fixture-secret'), false);
-  broker.revoke(grant.sessionId);
+  // A failed backend attempt must also consume consent; retries need a new grant.
   assert.equal((await broker.use(request)).status, 'DENIED');
+  assert.equal(broker.revoke(grant.sessionId), false);
 });
 
 test('broker consumes each approved grant before asynchronous backend execution', async () => {
