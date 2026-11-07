@@ -55,6 +55,10 @@ export function createCredentialBroker({ adapters = {}, now = Date.now } = {}) {
     }
     const adapter = supported.get(session.backend);
     if (!adapter) return { ...base, status: 'BACKEND_UNAVAILABLE' };
+    // An approved grant authorizes exactly one use, not unlimited secret-use
+    // operations during the TTL. Consume it before awaiting the trusted
+    // backend so simultaneous/replayed requests cannot race past consent.
+    sessions.delete(request.sessionId);
     try {
       // Adapter output and thrown errors are intentionally never returned to the agent.
       const result = await adapter.use(Object.freeze({ alias: request.alias, operation: request.operation,
