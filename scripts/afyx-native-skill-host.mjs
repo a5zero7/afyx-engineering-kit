@@ -71,7 +71,8 @@ export function createNativeSkillHostAdapter({
   let consumed = false;
 
   const adapter = async (request) => {
-    if (request?.capability !== CAPABILITY
+    if (request?.targetComponentId !== 'afyx-skill-engineering'
+        || request.capability !== CAPABILITY
         || request.permissions?.authorized !== true
         || !request.candidateProviders?.includes(provider)
         || request.sourceIdentity !== sourceIdentity) {
