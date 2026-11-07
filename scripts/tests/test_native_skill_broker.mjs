@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { mkdtempSync, mkdirSync, readFileSync, renameSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, mkdirSync, readFileSync, renameSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
@@ -100,6 +100,25 @@ test('negative skill paths, duplicate triggers, symlinks, foreign target and tam
   mkdirSync(join(providerRoot, 'afyx-fixture'), { recursive: true });
   writeFileSync(join(providerRoot, 'afyx-fixture', 'SKILL.md'), readFileSync(join(first, 'SKILL.md')));
   assert.throws(() => previewSkillInstall(packageBytes, { provider: 'codex', skillsRoot: providerRoot }), /FOREIGN_SKILL_PROTECTED/);
+}));
+
+test('apply rechecks external peer skill conflicts created after approval preview', () => fixture((root) => {
+  const draft = source(root, 'afyx-draft', 'review fixture');
+  const providerRoot = join(root, 'provider');
+  const peerRoot = join(root, 'afyx-external');
+  mkdirSync(providerRoot);
+  const pkg = packageSkill(draft);
+  const preview = previewSkillInstall(pkg, { provider: 'codex', skillsRoot: providerRoot, peerRoots: [peerRoot] });
+  assert.equal(Object.isFrozen(preview.peerRoots), true);
+  assert.deepEqual(preview.peerRoots, [peerRoot]);
+
+  // A separate provider gains a conflicting skill after preview, before Apply.
+  source(root, 'afyx-external', 'review fixture');
+  assert.throws(
+    () => applySkillInstall(pkg, preview, { authorize: () => true }),
+    /SKILL_OR_TRIGGER_CONFLICT/,
+  );
+  assert.equal(existsSync(join(providerRoot, 'afyx-draft')), false);
 }));
 
 test('broker fails closed for missing backend, denied grant, invalid scope, expiry and disclosure payload', async () => {
