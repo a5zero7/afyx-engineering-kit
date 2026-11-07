@@ -294,6 +294,23 @@ test('installed Graph executes and lazily requests Context only for large eviden
   }
 });
 
+test('Odoo impact request preserves task type for Graph structural inventory', async () => {
+  const fx = fixture();
+  try {
+    installGraph(fx);
+    installSkill(fx, 'odoo-engineering');
+    const result = await runInstalledAfyxWorkflow({
+      ...fx, provider: 'codex',
+      authorizations: { 'afyx-graph': true, 'odoo-engineering': true },
+      task: { taskType: 'odoo-impact-analysis', needsRelationalEvidence: true,
+        intent: 'inspect Odoo sale.order inheritance' },
+    });
+    const graph = result.results.find((item) => item.componentId === 'afyx-graph');
+    assert.equal(graph?.executionStatus, 'EXECUTED');
+    assert.equal(graph.evidence.find((item) => item.kind === 'graph-tool')?.command, 'inventory');
+  } finally { fx.cleanup(); }
+});
+
 test('Graph discovers an immediate workspace index and rejects stale or foreign status', () => {
   const fx = fixture();
   try {

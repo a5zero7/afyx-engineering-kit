@@ -299,6 +299,7 @@ function makeRequest({ task, componentId, discovery, budgets, reason, hopCount =
   return Object.freeze({
     contract: AFYX_CAPABILITY_REQUEST_CONTRACT,
     taskId: task.id ?? 'anonymous-task',
+    taskType: task.taskType ?? null,
     intent: task.intent ?? task.taskType ?? 'generic',
     capability: discovered.capability,
     targetComponentId: componentId,
