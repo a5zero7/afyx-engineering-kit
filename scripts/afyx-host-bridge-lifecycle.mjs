@@ -19,6 +19,8 @@ export const HOST_BRIDGE_FILES = Object.freeze([
   'afyx-modular-integration.mjs',
   'afyx-modular-runtime.mjs',
   'afyx-tool-family-routing.mjs',
+  'afyx-native-skill-host.mjs',
+  'afyx-skill-engineering.mjs',
   'components.json',
 ]);
 
