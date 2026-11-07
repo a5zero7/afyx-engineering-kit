@@ -20,6 +20,13 @@ case "$(uname -s 2>/dev/null || true)" in
     powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$hygiene_script" -RunSelfTests
     ;;
 esac
+
+# Git supplies repository-local variables to hooks. They must not redirect the
+# independent Git repositories created by the validation suites below.
+for git_var in $(git rev-parse --local-env-vars); do
+  unset "$git_var"
+done
+
 python "$root/scripts/validate-afyx-graph.py"
 python "$root/scripts/audit-legacy-identity.py"
 node "$root/scripts/verify-native-source-ownership.mjs"
