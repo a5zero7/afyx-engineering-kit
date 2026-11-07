@@ -236,3 +236,34 @@ test('afyx-graph host adapter preserves raw output byte-for-byte in results outp
     rmSync(temp, { recursive: true, force: true });
   }
 });
+
+test('extractGraphEvidence ignores calls in commented lines and deduplicates calls per line', () => {
+  const sampleWithComments = `**\`src/CommentService.ts\`** — CommentService(class), doTask(function), targetMethod(method)
+
+\`\`\`typescript
+1\texport function doTask(): void {
+2\t    // targetMethod(1, 2) should be ignored
+3\t    /* targetMethod(3, 4) should also be ignored */
+4\t    * targetMethod(5, 6) in javadoc should be ignored
+5\t    targetMethod(10); targetMethod(20);
+6\t}
+\`\`\`
+`;
+  const evidence = extractGraphEvidence(sampleWithComments, false);
+  const calls = evidence.filter((e) => e.kind === 'graph-call');
+
+  // Should only have 1 call entry for line 5 (deduplicated for line 5, lines 2, 3, 4 ignored)
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].caller, 'doTask');
+  assert.equal(calls[0].callee, 'targetMethod');
+  assert.equal(calls[0].line, 5);
+});
+
+test('extractGraphEvidence caps maximum extracted evidence at 200 items', () => {
+  let hugeOutput = '**Exploration: Huge**\n\n';
+  for (let i = 0; i < 300; i++) {
+    hugeOutput += `- \`Sym${i}\` (src/file${i}.ts:${i}) — caller\n`;
+  }
+  const evidence = extractGraphEvidence(hugeOutput, false);
+  assert.ok(evidence.length <= 200, `Expected <= 200 items, got ${evidence.length}`);
+});

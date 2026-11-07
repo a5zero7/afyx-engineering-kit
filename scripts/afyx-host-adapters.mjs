@@ -134,26 +134,37 @@ export function extractGraphEvidence(stdout, isInventory = false, projectRoot = 
       // 4. Detect calls in code block
       if (codeLines.length > 0) {
         let currentScope = null;
+        const callKeys = new Set();
         for (const l of codeLines) {
           const numMatch = l.match(/^(\d+)\t(.*)$/);
           if (!numMatch) continue;
           const lineNum = Number(numMatch[1]);
           const lineContent = numMatch[2];
+          const trimmedLine = lineContent.trim();
+          if (trimmedLine.startsWith('//') || trimmedLine.startsWith('*') || trimmedLine.startsWith('/*')) {
+            continue;
+          }
           const fnDecl = lineContent.match(/(?:function|class)\s+([A-Za-z0-9_]+)/)
             || lineContent.match(/^\s*([A-Za-z0-9_]+)\s*\([^)]*\)\s*[{:]/);
           if (fnDecl && symbols.some((s) => s.name === fnDecl[1])) {
             currentScope = fnDecl[1];
           }
-          for (const s of symbols) {
-            if (s.name !== currentScope && lineContent.includes(s.name)) {
-              if (new RegExp(`\\b${s.name}\\s*\\(`).test(lineContent)) {
-                evidence.push({
-                  kind: 'graph-call',
-                  caller: currentScope,
-                  callee: s.name,
-                  file,
-                  line: lineNum,
-                });
+          if (currentScope) {
+            for (const s of symbols) {
+              if (s.name !== currentScope && lineContent.includes(s.name)) {
+                if (new RegExp(`\\b${s.name}\\s*\\(`).test(lineContent)) {
+                  const callKey = `${currentScope}:${s.name}:${lineNum}`;
+                  if (!callKeys.has(callKey)) {
+                    callKeys.add(callKey);
+                    evidence.push({
+                      kind: 'graph-call',
+                      caller: currentScope,
+                      callee: s.name,
+                      file,
+                      line: lineNum,
+                    });
+                  }
+                }
               }
             }
           }
@@ -175,6 +186,11 @@ export function extractGraphEvidence(stdout, isInventory = false, projectRoot = 
         caller: relMatch[1],
         callee: relMatch[2],
       });
+    }
+
+    // Cap evidence count to prevent unbounded memory or payload inflation
+    if (evidence.length > 200) {
+      evidence.length = 200;
     }
   } catch {
     // If parsing fails for any reason, do not fail execution
