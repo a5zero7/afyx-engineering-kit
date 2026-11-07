@@ -10,7 +10,7 @@ import {
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import test from 'node:test';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import {
   AFYX_HOST_BRIDGE_CONTRACT,
@@ -79,7 +79,7 @@ function installGraph(fx, outputBytes = 256) {
   }));
   write(
     join(fx.installRoot, 'graph', 'current', 'lib', 'dist', 'bin', 'afyx-graph.js'),
-    `process.stdout.write('G'.repeat(${outputBytes}));\n`,
+    `if (process.argv[2] === 'status') console.log(JSON.stringify({initialized:true,projectPath:${JSON.stringify(fx.projectRoot)},indexPath:${JSON.stringify(join(fx.projectRoot, '.afyx-graph'))},index:{state:'complete',pendingRefs:0,reindexRecommended:false},health:{pendingChanges:{state:'CURRENT'},compatibility:{reindexRecommended:false},gitFreshness:{state:'CURRENT'}}})); else process.stdout.write('G'.repeat(${outputBytes}));\n`,
   );
   write(join(fx.projectRoot, '.afyx-graph', 'afyx-graph.db'), 'disposable-db');
   write(join(fx.projectRoot, '.afyx-graph', 'freshness.json'), JSON.stringify({
@@ -99,7 +99,7 @@ function installContext(fx) {
   write(join(fx.installRoot, 'context', 'current', 'identity.json'), '{}');
   write(
     join(fx.installRoot, 'context', 'current', 'dist', 'cli.js'),
-    "if (process.argv.includes('--version')) console.log('0.1.0');\n",
+    `import(${JSON.stringify(pathToFileURL(resolve(HERE, '..', '..', 'afyx-context', 'src', 'cli.js')).href)});\n`,
   );
 }
 
