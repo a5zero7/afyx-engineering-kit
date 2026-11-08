@@ -4,6 +4,36 @@ This guide covers supported Kit onboarding on native Windows, Linux, and macOS,
 plus standalone Graph and ACE development. Preview first: installation changes
 only selected Afyx-owned destinations, but those changes are real.
 
+## Quickstart: Universal Cross-Platform npm CLI Installer
+
+The canonical, single-command installation method across Windows, Linux, and macOS is via `npx`:
+
+```bash
+# Recommended installation with default provider configuration
+npx afyx-engineering-kit install --preset recommended
+
+# Preview actions first (dry-run)
+npx afyx-engineering-kit install --preset full --dry-run
+
+# Run diagnostics and system prerequisites check
+npx afyx-engineering-kit doctor
+
+# Verify installed components and health
+npx afyx-engineering-kit verify --preset recommended
+
+# Update installed components to latest revision
+npx afyx-engineering-kit update
+
+# Safely uninstall a specific component
+npx afyx-engineering-kit uninstall --component afyx-engineering-expert
+```
+
+The universal CLI package `afyx-engineering-kit` is a thin, zero-dependency Node.js wrapper that detects the host platform:
+- On **Windows**: delegates transparently to native PowerShell (`install.ps1`, `verify.ps1`, `scripts/afyx-doctor.ps1`, `update.ps1`, `uninstall.ps1`) using `pwsh` (or `powershell.exe`).
+- On **Linux & macOS**: delegates transparently to Bash (`install.sh`, `verify.sh`, `scripts/afyx-doctor.sh`, `update.sh`, `uninstall.sh`).
+
+All canonical CLI commands (`install`, `verify`, `doctor`, `update`, `uninstall`) and options (`--preset`, `--provider`, `--provider-scope`, `--dry-run`, `--force`, `--offline`) are normalized across platforms.
+
 ## Requirements
 
 | Requirement | When needed | Notes |

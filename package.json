@@ -1,0 +1,55 @@
+{
+  "name": "afyx-engineering-kit",
+  "version": "0.1.0-alpha.1",
+  "description": "Universal cross-platform CLI installer and lifecycle manager for AFYX Engineering Kit",
+  "type": "module",
+  "main": "./bin/afyx-engineering-kit.mjs",
+  "bin": {
+    "afyx-engineering-kit": "./bin/afyx-engineering-kit.mjs"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "scripts": {
+    "test": "node --test scripts/tests/test_npm_installer.mjs"
+  },
+  "files": [
+    "bin/",
+    "scripts/",
+    "skills/",
+    "afyx-context/",
+    "afyx-forge/",
+    "afyx-graph/afyx-graph.json",
+    "afyx-graph/engine/release/afyx-graph-win32-x64.zip",
+    "afyx-graph/engine/release/SHA256SUMS",
+    "afyx-graph/engine/scripts/distribution-product.json",
+    "afyx-graph/engine/scripts/distribution-contract.mjs",
+    "tools/",
+    "install.ps1",
+    "install.sh",
+    "verify.ps1",
+    "verify.sh",
+    "update.ps1",
+    "update.sh",
+    "uninstall.ps1",
+    "uninstall.sh",
+    "LICENSE",
+    "README.md"
+  ],
+  "author": "Afif Mifbakhul Makruf <afifbendol@gmail.com>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/a5zero7/afyx-engineering-kit.git"
+  },
+  "keywords": [
+    "afyx",
+    "engineering-kit",
+    "codex",
+    "antigravity",
+    "claude-code",
+    "mcp",
+    "graph",
+    "context-engine"
+  ]
+}
