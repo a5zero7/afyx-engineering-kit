@@ -11,6 +11,8 @@ import { dirname } from 'node:path';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const REPO_ROOT = join(__dirname, '..', '..');
+const hadBackupRoot = Object.hasOwn(process.env, 'AFYX_BACKUP_ROOT');
+const originalBackupRoot = process.env.AFYX_BACKUP_ROOT;
 
 describe('AFYX Universal npm Package Disposable Smoke Suite', () => {
   let tempRoot;
@@ -19,6 +21,7 @@ describe('AFYX Universal npm Package Disposable Smoke Suite', () => {
   let isoSkills;
   let foreignDir;
   let mockBinDir;
+  let isolatedEnv;
   let mockHostEnv;
 
   before(() => {
@@ -94,24 +97,27 @@ node "%~dp0codex.js" %*
     // Isolate backup directory so tests do not collide with retention limits
     const isoBackups = join(tempRoot, 'backups');
     mkdirSync(isoBackups, { recursive: true });
-    process.env.AFYX_BACKUP_ROOT = isoBackups;
-
     const pathSep = process.platform === 'win32' ? ';' : ':';
+    isolatedEnv = { ...process.env, AFYX_BACKUP_ROOT: isoBackups };
+    // Windows host resolution checks codex.exe before codex.cmd, even when
+    // the mock cmd directory is first on PATH.
+    const mockPath = (process.env.PATH || '').split(pathSep)
+      .filter((entry) => process.platform !== 'win32' || !existsSync(join(entry, 'codex.exe')))
+      .join(pathSep);
     mockHostEnv = {
-      ...process.env,
-      AFYX_BACKUP_ROOT: isoBackups,
-      PATH: `${mockBinDir}${pathSep}${process.env.PATH || ''}`,
+      ...isolatedEnv,
+      PATH: `${mockBinDir}${pathSep}${mockPath}`,
     };
   });
 
   after(() => {
-    delete process.env.AFYX_BACKUP_ROOT;
-    if (tempRoot && existsSync(tempRoot)) {
-      try {
+    try {
+      if (tempRoot && existsSync(tempRoot)) {
         rmSync(tempRoot, { recursive: true, force: true });
-      } catch {
-        // Best-effort cleanup
       }
+    } finally {
+      if (hadBackupRoot) process.env.AFYX_BACKUP_ROOT = originalBackupRoot;
+      else delete process.env.AFYX_BACKUP_ROOT;
     }
   });
 
@@ -120,7 +126,7 @@ node "%~dp0codex.js" %*
   });
 
   test('packaged CLI responds to --version with expected semver', () => {
-    const res = spawnSync(process.execPath, [cliPath, '--version'], { encoding: 'utf8' });
+    const res = spawnSync(process.execPath, [cliPath, '--version'], { encoding: 'utf8', env: isolatedEnv });
     assert.equal(
       res.status,
       0,
@@ -130,7 +136,7 @@ node "%~dp0codex.js" %*
   });
 
   test('packaged CLI responds to --help with canonical usage', () => {
-    const res = spawnSync(process.execPath, [cliPath, '--help'], { encoding: 'utf8' });
+    const res = spawnSync(process.execPath, [cliPath, '--help'], { encoding: 'utf8', env: isolatedEnv });
     assert.equal(
       res.status,
       0,
@@ -141,7 +147,7 @@ node "%~dp0codex.js" %*
   });
 
   test('packaged CLI rejects unsupported command option before launching subprocess', () => {
-    const res = spawnSync(process.execPath, [cliPath, 'doctor', '--preset', 'minimal'], { encoding: 'utf8' });
+    const res = spawnSync(process.execPath, [cliPath, 'doctor', '--preset', 'minimal'], { encoding: 'utf8', env: isolatedEnv });
     assert.equal(res.status, 1);
     assert.match(res.stderr, /Option "--preset" is not supported for command "doctor"/);
   });
@@ -154,7 +160,7 @@ node "%~dp0codex.js" %*
       '--preset', 'minimal',
       '--skills-root', isoSkills,
       '--skip-provider-configuration',
-    ], { encoding: 'utf8' });
+    ], { encoding: 'utf8', env: isolatedEnv });
 
     assert.equal(
       res.status,
@@ -175,7 +181,7 @@ node "%~dp0codex.js" %*
       '--preset', 'minimal',
       '--skills-root', isoSkills,
       '--skip-provider-configuration',
-    ], { encoding: 'utf8' });
+    ], { encoding: 'utf8', env: isolatedEnv });
 
     assert.equal(
       res.status,
@@ -194,7 +200,7 @@ node "%~dp0codex.js" %*
       '--skip-provider-configuration',
       '--skills-root', isoSkills,
       '--non-interactive',
-    ], { encoding: 'utf8' });
+    ], { encoding: 'utf8', env: isolatedEnv });
 
     assert.equal(
       res.status,
@@ -230,8 +236,8 @@ node "%~dp0codex.js" %*
     );
     // Assert that mock host was detected
     assert.ok(
-      combined.includes('codex-cli 0.1.0-test-mock') || combined.includes('Codex CLI'),
-      'Expected mock Codex host to be detected by verify'
+      combined.includes('codex-cli 0.1.0-test-mock'),
+      `Expected exact mock Codex host identity in verify output, got:\n${combined}`
     );
   });
 
@@ -282,11 +288,11 @@ node "%~dp0codex.js" %*
     );
 
     const combined = res.stdout + res.stderr;
-    assert.ok(combined.includes('READY'));
+    assert.ok(combined.includes('READY'), `Expected READY diagnostic, got:\n${combined}`);
     // Assert that mock host was detected
     assert.ok(
-      combined.includes('codex-cli 0.1.0-test-mock') || combined.includes('Codex CLI'),
-      'Expected mock Codex host to be detected by doctor'
+      combined.includes('codex-cli 0.1.0-test-mock'),
+      `Expected exact mock Codex host identity in doctor output, got:\n${combined}`
     );
   });
 
@@ -298,7 +304,7 @@ node "%~dp0codex.js" %*
       '--skip-provider-configuration',
       '--skills-root', isoSkills,
       '--non-interactive',
-    ], { encoding: 'utf8' });
+    ], { encoding: 'utf8', env: isolatedEnv });
 
     assert.equal(
       res.status,
@@ -316,7 +322,7 @@ node "%~dp0codex.js" %*
       '--component', 'odoo-engineering',
       '--skills-root', isoSkills,
       '--non-interactive',
-    ], { encoding: 'utf8' });
+    ], { encoding: 'utf8', env: isolatedEnv });
 
     assert.equal(
       res.status,
