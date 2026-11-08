@@ -4,19 +4,53 @@
 [CmdletBinding()]
 param(
     [string]$OutputDir = (Join-Path $PSScriptRoot '..\dist'),
-    [switch]$SkipPayloadBuild
+    [switch]$SkipPayloadBuild,
+    [string]$RepoRoot = ''
 )
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
 $scriptRoot = $PSScriptRoot
-$repoRoot = (Resolve-Path (Join-Path $scriptRoot '..')).Path
+$repoRoot = if ($RepoRoot) {
+    if (-not (Test-Path -LiteralPath $RepoRoot)) {
+        throw "Repository root path does not exist: $RepoRoot"
+    }
+    (Resolve-Path $RepoRoot).Path
+} else {
+    (Resolve-Path (Join-Path $scriptRoot '..')).Path
+}
 $toolsDir = Join-Path $repoRoot 'tools\windows-setup'
 
 Write-Host "=== Afyx Unified Windows Installer Builder (TASK U-A02) ===" -ForegroundColor Cyan
 Write-Host "Repo Root: $repoRoot"
 Write-Host "Output Dir: $OutputDir"
+
+# Preflight: Require mandatory capability contracts before packaging (AFYX-304)
+$contractsDir = Join-Path $repoRoot 'scripts\contracts'
+if (-not (Test-Path -LiteralPath $contractsDir -PathType Container)) {
+    throw "Required capability contracts directory missing: $contractsDir. Packaging requires capability contracts for host bridge productization."
+}
+
+$requiredSchemas = @(
+    'afyx-capability-request-v1.schema.json',
+    'afyx-capability-result-v1.schema.json'
+)
+foreach ($schemaFile in $requiredSchemas) {
+    $schemaPath = Join-Path $contractsDir $schemaFile
+    if (-not (Test-Path -LiteralPath $schemaPath -PathType Leaf)) {
+        throw "Required capability contract schema missing: $schemaPath. The Windows installer package requires valid capability contracts."
+    }
+}
+
+if ($SkipPayloadBuild) {
+    Write-Host "Contract preflight PASSED. Skipping installer payload build (-SkipPayloadBuild specified)." -ForegroundColor Green
+    return [pscustomobject]@{
+        Preflight       = 'PASS'
+        ContractsDir    = $contractsDir
+        RequiredSchemas = $requiredSchemas
+    }
+}
 
 if (-not (Test-Path -LiteralPath $OutputDir)) {
     New-Item -ItemType Directory -Path $OutputDir -Force | Out-Null
@@ -43,9 +77,7 @@ try {
     $stagedScripts = Join-Path $stagingDir 'scripts'
     New-Item -ItemType Directory -Path $stagedScripts -Force | Out-Null
     Copy-Item -LiteralPath (Join-Path $repoRoot 'scripts\lib') -Destination $stagedScripts -Recurse -Force
-    if (Test-Path -LiteralPath (Join-Path $repoRoot 'scripts\contracts')) {
-        Copy-Item -LiteralPath (Join-Path $repoRoot 'scripts\contracts') -Destination $stagedScripts -Recurse -Force
-    }
+    Copy-Item -LiteralPath $contractsDir -Destination $stagedScripts -Recurse -Force
 
     Get-ChildItem -Path (Join-Path $repoRoot 'scripts') -File | Where-Object {
         $_.Name -notin @('build-windows-installer.ps1')

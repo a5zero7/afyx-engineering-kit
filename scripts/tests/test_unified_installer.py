@@ -299,6 +299,91 @@ class UnifiedInstallerIntegrationTests(unittest.TestCase):
         self.assertNotIn("Id = 'both'; Label = 'Codex + Antigravity'", source)
         self.assertIn("ProviderAdapter/v1 owns one transactional MCP configuration pass", source)
 
+    def test_installer_packaging_missing_contracts_dir_fails_explicitly(self) -> None:
+        fixture_repo = self.base / "fixture-no-contracts"
+        fixture_repo.mkdir()
+        out_dir = self.base / "out-no-contracts"
+        builder = ROOT / "scripts" / "build-windows-installer.ps1"
+        command = f"& {ps_literal(builder)} -RepoRoot {ps_literal(fixture_repo)} -OutputDir {ps_literal(out_dir)}"
+        result = subprocess.run(
+            [self.shell, "-NoProfile", "-NonInteractive", "-Command", command],
+            cwd=self.workspace,
+            env=self.environment,
+            text=True,
+            capture_output=True,
+        )
+        self.assertNotEqual(result.returncode, 0)
+        output = result.stdout + result.stderr
+        self.assertIn("Required capability contracts directory missing", output)
+        self.assertFalse((out_dir / "AfyxSetup.exe").exists())
+        self.assertFalse((out_dir / "afyx-kit-payload.zip").exists())
+
+    def test_installer_packaging_missing_request_schema_fails_explicitly(self) -> None:
+        fixture_repo = self.base / "fixture-no-req-schema"
+        contracts = fixture_repo / "scripts" / "contracts"
+        contracts.mkdir(parents=True)
+        (contracts / "afyx-capability-result-v1.schema.json").write_text("{}", encoding="utf-8")
+        out_dir = self.base / "out-no-req-schema"
+        builder = ROOT / "scripts" / "build-windows-installer.ps1"
+        command = f"& {ps_literal(builder)} -RepoRoot {ps_literal(fixture_repo)} -OutputDir {ps_literal(out_dir)}"
+        result = subprocess.run(
+            [self.shell, "-NoProfile", "-NonInteractive", "-Command", command],
+            cwd=self.workspace,
+            env=self.environment,
+            text=True,
+            capture_output=True,
+        )
+        self.assertNotEqual(result.returncode, 0)
+        output = result.stdout + result.stderr
+        self.assertIn("Required capability contract schema missing", output)
+        self.assertIn("afyx-capability-request-v1.schema.json", output)
+        self.assertFalse((out_dir / "AfyxSetup.exe").exists())
+        self.assertFalse((out_dir / "afyx-kit-payload.zip").exists())
+
+    def test_installer_packaging_missing_result_schema_fails_explicitly(self) -> None:
+        fixture_repo = self.base / "fixture-no-res-schema"
+        contracts = fixture_repo / "scripts" / "contracts"
+        contracts.mkdir(parents=True)
+        (contracts / "afyx-capability-request-v1.schema.json").write_text("{}", encoding="utf-8")
+        out_dir = self.base / "out-no-res-schema"
+        builder = ROOT / "scripts" / "build-windows-installer.ps1"
+        command = f"& {ps_literal(builder)} -RepoRoot {ps_literal(fixture_repo)} -OutputDir {ps_literal(out_dir)}"
+        result = subprocess.run(
+            [self.shell, "-NoProfile", "-NonInteractive", "-Command", command],
+            cwd=self.workspace,
+            env=self.environment,
+            text=True,
+            capture_output=True,
+        )
+        self.assertNotEqual(result.returncode, 0)
+        output = result.stdout + result.stderr
+        self.assertIn("Required capability contract schema missing", output)
+        self.assertIn("afyx-capability-result-v1.schema.json", output)
+        self.assertFalse((out_dir / "AfyxSetup.exe").exists())
+        self.assertFalse((out_dir / "afyx-kit-payload.zip").exists())
+
+    def test_installer_packaging_both_contracts_present_preflight_passes(self) -> None:
+        fixture_repo = self.base / "fixture-valid-contracts"
+        contracts = fixture_repo / "scripts" / "contracts"
+        contracts.mkdir(parents=True)
+        (contracts / "afyx-capability-request-v1.schema.json").write_text("{}", encoding="utf-8")
+        (contracts / "afyx-capability-result-v1.schema.json").write_text("{}", encoding="utf-8")
+        out_dir = self.base / "out-valid-contracts"
+        builder = ROOT / "scripts" / "build-windows-installer.ps1"
+        command = f"& {ps_literal(builder)} -RepoRoot {ps_literal(fixture_repo)} -OutputDir {ps_literal(out_dir)} -SkipPayloadBuild"
+        result = subprocess.run(
+            [self.shell, "-NoProfile", "-NonInteractive", "-Command", command],
+            cwd=self.workspace,
+            env=self.environment,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        output = result.stdout + result.stderr
+        self.assertIn("Contract preflight PASSED", output)
+        self.assertFalse((out_dir / "AfyxSetup.exe").exists())
+        self.assertFalse((out_dir / "afyx-kit-payload.zip").exists())
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
