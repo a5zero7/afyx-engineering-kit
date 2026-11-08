@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import re
 from pathlib import Path
 import shutil
 import subprocess
@@ -33,6 +34,18 @@ class TerminalPresentationTests(unittest.TestCase):
         )
         self.assertEqual(result.returncode, expected, result.stdout + result.stderr)
         return result
+
+    def test_narrow_banner_and_step_fallback_fit_terminal(self) -> None:
+        script = f"""
+Import-Module '{MODULE}' -Force
+$terminal = [pscustomobject]@{{ Ansi = $false; Interactive = $true; Width = 40 }}
+Show-AfyxBanner -Terminal $terminal -Subtitle 'Midnight Circuit'
+Show-AfyxStep -Current 3 -Terminal $terminal
+"""
+        result = self.run_ps(script)
+        self.assertIn("Step 3/5: Configure", result.stdout)
+        self.assertIn("A F Y X", result.stdout)
+        self.assertTrue(all(len(line) <= 40 for line in result.stdout.splitlines()), result.stdout)
 
     def test_module_import_is_quiet_and_exports_only_approved_public_verbs(self) -> None:
         result = self.run_ps(
@@ -123,7 +136,7 @@ $keys.Enqueue([ConsoleKeyInfo]::new([char]13,[ConsoleKey]::Enter,$false,$false,$
 Read-AfyxSingleChoice -Prompt redraw -Options $options -Terminal $terminal -ReadKey {{$keys.Dequeue()}}
 """
         result = self.run_ps(script)
-        self.assertEqual(result.stdout.count("\x1b[4A"), 1)
+        self.assertEqual(len(re.findall(r"\x1b\[\d+A", result.stdout)), 1)
         self.assertEqual(result.stdout.count("\x1b[0J"), 1)
         self.assertTrue(result.stdout.rstrip().endswith("b"), result.stdout)
 
@@ -311,8 +324,8 @@ Read-AfyxSingleChoice -Prompt test -Options $options -Terminal $terminal -ReadLi
                 cwd=ROOT, env=env, text=True, capture_output=True, timeout=90,
             )
             self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
-            self.assertIn("[PLANNED] afyx-context - action=update", result.stdout)
-            self.assertIn("[PLANNED] Afyx Context Engine - outcome=update", result.stdout)
+            self.assertIn("[NO CHANGE] afyx-context - action=skip", result.stdout)
+            self.assertIn("[NO CHANGE] Afyx Context Engine - outcome=skipped", result.stdout)
             after = {path.relative_to(runtime): path.read_bytes() for path in runtime.rglob("*") if path.is_file()}
             self.assertEqual(after, before)
 
@@ -653,12 +666,128 @@ if ($selected -ne 'opt2') {{ throw "PS5.1 KeyInfo expected 'opt2' but got '$sele
         self.assertIn("Read-AfyxMultiChoice", source)
         self.assertLess(source.index("Read-AfyxConfirmation"), source.index("$summary = [ordered]@{}"))
         self.assertLess(source.index("$actionDecisions = [ordered]@{}"), source.index("Read-AfyxConfirmation -Prompt 'Apply the reviewed plan?'"))
-        self.assertIn("$contextAction = if ($controlPlan) { [string]$actionDecisions['afyx-context'] }", source)
+        for action, component in (("contextAction", "afyx-context"), ("forgeAction", "afyx-forge")):
+            assignment = f"${action} = if ($ValidateOnly) {{ 'skip' }} elseif ($controlPlan) {{ [string]$actionDecisions['{component}'] }}"
+            self.assertEqual(source.count(assignment), 1)
+            self.assertLess(source.index(assignment), source.index("Write-AfyxSection -Title 'Review Actual Planned Changes'"))
+        self.assertLess(source.index("if (-not (Test-AfyxDashboard -Terminal $terminal))"), source.index("Show-AfyxBanner -Terminal $terminal"))
+        self.assertIn("} finally {\n    Disable-AfyxDashboard -Terminal $terminal", source)
         self.assertNotIn("[Console]::IsInputRedirected", source)
         self.assertIn("-and $terminal.Interactive", source)
         self.assertIn("Get-AfyxControlPlan", source)
         self.assertIn("Install-AfyxSkillTransaction", source)
         self.assertNotIn("Spectre", source)
+
+    def test_single_line_backend_failure_retains_original_error_and_log(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="afyx-stage-failure-") as runtime:
+            script = f"""
+Set-StrictMode -Version Latest
+$ErrorActionPreference = 'Stop'
+$ast = [System.Management.Automation.Language.Parser]::ParseFile('{ROOT / 'install.ps1'}', [ref]$null, [ref]$null)
+$definition = $ast.FindAll({{ param($node) $node -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq 'Invoke-AfyxInstallStage' }}, $true)
+if ($definition.Count -ne 1) {{ throw 'Install stage definition missing' }}
+Invoke-Expression $definition[0].Extent.Text
+function Write-AfyxStatus {{ param($Status, $Name, $Detail, $Terminal) $script:lastStatus = [pscustomobject]@{{ Status = $Status; Detail = $Detail }} }}
+$terminal = [pscustomobject]@{{ Ansi = $true }}
+$wizardMode = $true
+$AfyxInstallRoot = '{runtime}'
+try {{ Invoke-AfyxInstallStage -Stage 'Afyx Graph' -Action {{ 'single diagnostic line'; throw 'backend-broke' }} | Out-Null; throw 'Expected backend failure' }}
+catch {{ if ($_.Exception.Message -ne 'backend-broke') {{ throw }} }}
+if ($script:lastStatus.Status -ne 'FAILED' -or $script:lastStatus.Detail -notmatch 'backend-broke; log: ') {{ throw 'Failure status lost original error or log path' }}
+$logs = @(Get-ChildItem -LiteralPath (Join-Path $AfyxInstallRoot 'logs') -File)
+if ($logs.Count -ne 1 -or (Get-Content -LiteralPath $logs[0].FullName -Raw) -notmatch 'single diagnostic line') {{ throw 'Backend log missing' }}
+'STAGE_FAILURE_LOG_OK'
+"""
+            result = self.run_ps(script)
+            self.assertIn("STAGE_FAILURE_LOG_OK", result.stdout)
+
+    def test_keyboard_navigation_extended_keys(self) -> None:
+        script = f"""
+Set-StrictMode -Version Latest
+$ErrorActionPreference = 'Stop'
+Import-Module '{MODULE}' -Force
+$virtualKeys = @(
+    @{{ Code = 37; Expected = 'LeftArrow' }},
+    @{{ Code = 39; Expected = 'RightArrow' }},
+    @{{ Code = 33; Expected = 'PageUp' }},
+    @{{ Code = 34; Expected = 'PageDown' }},
+    @{{ Code = 36; Expected = 'Home' }},
+    @{{ Code = 35; Expected = 'End' }}
+)
+foreach ($item in $virtualKeys) {{
+    $rawKey = [pscustomobject]@{{ VirtualKeyCode = $item.Code; KeyDown = $true }}
+    $action = Get-AfyxKeyAction -RawKey $rawKey
+    if ($action -ne $item.Expected) {{ throw "Key $($item.Code) expected $($item.Expected) but got $action" }}
+}}
+'EXTENDED_KEYS_OK'
+"""
+        result = self.run_ps(script)
+        self.assertIn("EXTENDED_KEYS_OK", result.stdout)
+
+    def test_long_path_wrapping_and_scrolling(self) -> None:
+        script = f"""
+Set-StrictMode -Version Latest
+$ErrorActionPreference = 'Stop'
+Import-Module '{MODULE}' -Force
+& (Get-Module AfyxTerminal) {{
+    $longPath = '[INFO] Target: Codex - C:\\Users\\afif\\AppData\\Local\\Temp\\afyx-unified-installer-4kprnvgw\\codex\\config.toml'
+    $items = @([pscustomobject]@{{ Text = $longPath; Tone = 'Text' }})
+    $expanded = @(Expand-AfyxDashboardItems -Items $items -Width 32)
+    if ($expanded.Count -lt 3) {{ throw "Expected path to wrap into at least 3 lines, got $($expanded.Count)" }}
+    foreach ($line in $expanded) {{
+        if ($line.Text.Length -gt 32) {{ throw "Line exceeded limit (32): $($line.Text)" }}
+    }}
+    if ($expanded[1].Text -notmatch '^  ') {{ throw "Continuation line must have hanging indent: $($expanded[1].Text)" }}
+    if ($expanded[0].Text -notmatch '\-$') {{ throw "First line should split cleanly at delimiter: $($expanded[0].Text)" }}
+}}
+'LONG_PATH_WRAPPING_OK'
+"""
+        result = self.run_ps(script)
+        self.assertIn("LONG_PATH_WRAPPING_OK", result.stdout)
+
+    def test_dashboard_cursor_restoration_and_disable(self) -> None:
+        script = f"""
+Set-StrictMode -Version Latest
+$ErrorActionPreference = 'Stop'
+Import-Module '{MODULE}' -Force
+$terminal = [pscustomobject]@{{
+    Interactive = $true
+    Ansi = $true
+    Width = 80
+    Height = 24
+}}
+Enable-AfyxDashboard -Terminal $terminal -Providers @('Codex: CLI detected')
+        $frame = @(Get-AfyxDashboardFrame -Terminal $terminal) -join "`n"
+        if ($frame -notmatch 'AFYX  /  ENGINEERING KIT' -or $frame -notmatch 'ALPHA INSTALLER') {{ throw 'Cohesive dashboard header missing' }}
+        if ($frame -match 'FFFF') {{ throw 'Legacy ASCII wordmark remains' }}
+if (-not (Test-AfyxDashboard -Terminal $terminal)) {{ throw 'Dashboard should be enabled' }}
+Disable-AfyxDashboard -Terminal $terminal
+if (Test-AfyxDashboard -Terminal $terminal) {{ throw 'Dashboard should be disabled after cleanup' }}
+'DASHBOARD_CLEANUP_OK'
+"""
+        result = self.run_ps(script)
+        self.assertIn("DASHBOARD_CLEANUP_OK", result.stdout)
+
+    def test_wide_dashboard_panels_fit_content_without_shrinking_frame(self) -> None:
+        script = f"""
+Set-StrictMode -Version Latest
+$ErrorActionPreference = 'Stop'
+Import-Module '{MODULE}' -Force
+$terminal = [pscustomobject]@{{ Interactive = $true; Ansi = $true; Width = 120; Height = 35 }}
+Enable-AfyxDashboard -Terminal $terminal -Providers @('Codex: CLI detected', 'Antigravity: CLI detected')
+$terminal.Width = 120
+$terminal.Height = 35
+$shortFrame = @(Get-AfyxDashboardFrame -Terminal $terminal)
+if ($shortFrame.Count -ne 35 -or $shortFrame[9] -notmatch '╰') {{ throw 'Compact provider panel or fixed-height frame missing' }}
+1..35 | ForEach-Object {{ $terminal.DashboardState.Events += [pscustomobject]@{{ Text = "Build detail $_"; Tone = 'Muted'; Selected = $false }} }}
+$longFrame = @(Get-AfyxDashboardFrame -Terminal $terminal)
+if ($longFrame.Count -ne 35 -or $longFrame[33] -notmatch '╯') {{ throw 'Activity panel did not expand without changing frame height' }}
+Disable-AfyxDashboard -Terminal $terminal
+'ADAPTIVE_PANELS_OK'
+"""
+        result = self.run_ps(script)
+        self.assertIn("ADAPTIVE_PANELS_OK", result.stdout)
+
 
 
 if __name__ == "__main__":

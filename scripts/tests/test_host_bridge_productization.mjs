@@ -39,6 +39,8 @@ test('host bridge lifecycle installs, verifies, updates and uninstalls owned bun
   try {
     const installed = installHostBridge({ sourceRoot: SCRIPTS, runtimeRoot: fx.runtimeRoot, sourceRevision: 'test-rev-1' });
     assert.equal(installed.status, 'READY');
+  const repeated = installHostBridge({ sourceRoot: SCRIPTS, runtimeRoot: fx.runtimeRoot, sourceRevision: 'test-rev-1' });
+  assert.equal(repeated.changed, false, 'an unchanged bridge must not be rewritten');
     assert.equal(verifyHostBridge(fx.runtimeRoot).sourceRevision, 'test-rev-1');
 
     const updated = installHostBridge({ sourceRoot: SCRIPTS, runtimeRoot: fx.runtimeRoot, sourceRevision: 'test-rev-2' });

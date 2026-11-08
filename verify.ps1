@@ -108,7 +108,7 @@ if ($Provider.Count) {
         if ($ClaudeConfigDir) { $providerArguments += @('--claude-config-dir', $ClaudeConfigDir) }
         $providerJson = (& $nodeCommand.Source @providerArguments) -join ''
         try {
-            $providerResult = $providerJson | ConvertFrom-Json -Depth 20
+            $providerResult = $providerJson | ConvertFrom-AfyxJson -Depth 20
             foreach ($providerEntry in $providerResult.providers) {
                 $level = if ($providerEntry.status -in @('READY', 'CONFIGURED', 'CONFIGURED_RESTART_REQUIRED')) { 'OK' } elseif ($providerEntry.status -in @('BLOCKED', 'INCOMPATIBLE')) { 'FAIL' } else { 'INFO' }
                 Write-Result $level "$($providerEntry.provider) MCP" "$($providerEntry.status): $($providerEntry.detail)"
@@ -334,7 +334,7 @@ if (-not $usagePresent) {
     $hookConfigured = $false
     if (Test-Path -LiteralPath $hooksPath -PathType Leaf) {
         try {
-            $hooksDocument = Get-Content -Raw -LiteralPath $hooksPath | ConvertFrom-Json -Depth 50 -ErrorAction Stop
+            $hooksDocument = Get-Content -Raw -LiteralPath $hooksPath | ConvertFrom-AfyxJson -Depth 50 -ErrorAction Stop
             $hookConfigured = [bool](@($hooksDocument.hooks.Stop | ForEach-Object { $_.hooks } | Where-Object {
                 ([string]$_.statusMessage -eq 'Afyx Codex Usage Tracking') -or
                 ([string]$_.commandWindows -match '(?i)codex-usage-stop\.ps1') -or
@@ -346,7 +346,7 @@ if (-not $usagePresent) {
     else { Write-Result 'WARN' 'Codex Usage Hook' 'global Stop hook not configured (optional)' }
 
     try {
-        $pricing = Get-Content -Raw -LiteralPath (Join-Path $codexHome 'tools\codex-usage-pricing.json') | ConvertFrom-Json -Depth 20 -ErrorAction Stop
+        $pricing = Get-Content -Raw -LiteralPath (Join-Path $codexHome 'tools\codex-usage-pricing.json') | ConvertFrom-AfyxJson -Depth 20 -ErrorAction Stop
         if ($pricing.unit_tokens -and $pricing.models) { Write-Result 'OK' 'Codex Usage Pricing' 'valid' }
         else { throw 'required pricing fields missing' }
     } catch { Write-Result 'WARN' 'Codex Usage Pricing' 'missing or invalid (optional)' }
@@ -354,7 +354,7 @@ if (-not $usagePresent) {
     $taskConfigured = $false
     if (Test-Path -LiteralPath $tasksPath -PathType Leaf) {
         try {
-            $taskDocument = Get-Content -Raw -LiteralPath $tasksPath | ConvertFrom-Json -Depth 30 -ErrorAction Stop
+            $taskDocument = Get-Content -Raw -LiteralPath $tasksPath | ConvertFrom-AfyxJson -Depth 30 -ErrorAction Stop
             $taskConfigured = [bool](@($taskDocument.tasks | Where-Object { $_.label -eq 'Codex: Watch Token Usage' }).Count)
         } catch { }
     }
@@ -367,7 +367,7 @@ if ($Provider.Count -and $node) {
     $workflowProviders = @($Provider | Where-Object { $_ -eq 'antigravity' -or ($_ -eq 'claude' -and $ProviderScope -eq 'workspace') })
     $bridgeLifecycle = Join-Path $PSScriptRoot 'scripts\afyx-host-bridge-lifecycle.mjs'
     $bridgeJson = (& $node.Source $bridgeLifecycle '--runtime-root' $HostBridgeRuntimeRoot 2>$null) -join ''
-    try { $bridge = $bridgeJson | ConvertFrom-Json -Depth 10 }
+    try { $bridge = $bridgeJson | ConvertFrom-AfyxJson -Depth 10 }
     catch { $bridge = $null }
     if ($bridge -and $bridge.status -eq 'READY') {
         Write-Result 'OK' 'Afyx Universal Host Bridge' "$($bridge.sourceRevision); integrity verified"
@@ -380,7 +380,7 @@ if ($Provider.Count -and $node) {
             if ($claudeCommand) { $providerArgs += @('--claude', $claudeCommand.Source) }
             if ($ClaudeConfigDir) { $providerArgs += @('--claude-config-dir', $ClaudeConfigDir) }
             $providerJson = (& $node.Source @providerArgs 2>$null) -join ''
-            try { $providerResult = $providerJson | ConvertFrom-Json -Depth 20 }
+            try { $providerResult = $providerJson | ConvertFrom-AfyxJson -Depth 20 }
             catch { $providerResult = $null }
             if (-not $providerResult -or $providerResult.status -eq 'BLOCKED') {
                 Write-Result 'FAIL' 'Afyx workflow MCP' $(if ($providerJson) { $providerJson } else { 'provider verification failed' })
