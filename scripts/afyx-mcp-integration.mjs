@@ -316,9 +316,30 @@ export async function integrate(options) {
     return result;
   }
   if (result.cli !== 'CLI_REACHABLE') {
-    result.reason = 'MCP_RUNTIME_UNAVAILABLE';
-    result.detail = 'Installed MCP entry point or Node.js executable is unavailable.';
-    return result;
+    if (options.uninstall) {
+      const codexHome = resolve(options.codexHome);
+      if (!existsSync(codexHome) || !options.codex || !existsSync(options.codex)) {
+        result.mcp = 'MCP_NOT_CONFIGURED';
+        result.detail = 'No Codex home exists; no MCP entry to remove.';
+        return result;
+      }
+      try {
+        const inspection = readExisting(options.codex, codexHome, options.providerTimeoutMs, server);
+        if (!inspection.existing) {
+          result.mcp = 'MCP_NOT_CONFIGURED';
+          result.detail = 'No Codex MCP entry is configured.';
+          return result;
+        }
+      } catch {
+        result.mcp = 'MCP_NOT_CONFIGURED';
+        result.detail = 'No Codex MCP entry is configured.';
+        return result;
+      }
+    } else {
+      result.reason = 'MCP_RUNTIME_UNAVAILABLE';
+      result.detail = 'Installed MCP entry point or Node.js executable is unavailable.';
+      return result;
+    }
   }
   if (!options.codex || !existsSync(options.codex)) {
     result.reason = 'CODEX_UNAVAILABLE';
