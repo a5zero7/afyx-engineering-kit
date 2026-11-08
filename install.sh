@@ -374,8 +374,8 @@ if [[ -n "$preset" ]]; then
   [[ -z "$blocked_plan" ]] || { printf 'Desired-state plan is blocked before mutation: %s\n' "$blocked_plan" >&2; exit 1; }
 fi
 
-if [[ ",$provider_list," == *,codex,* ]] && ! "$codex_cli_detected" && ! "$vscode_extension_detected"; then printf 'Selected Codex provider host was not detected.\n' >&2; exit 1; fi
-if [[ ",$provider_list," == *,antigravity,* ]] && ! "$antigravity_detected"; then printf 'Selected Antigravity provider host was not detected.\n' >&2; exit 1; fi
+if ! "$skip_provider_configuration" && [[ ",$provider_list," == *,codex,* ]] && ! "$codex_cli_detected" && ! "$vscode_extension_detected"; then printf 'Selected Codex provider host was not detected.\n' >&2; exit 1; fi
+if ! "$skip_provider_configuration" && [[ ",$provider_list," == *,antigravity,* ]] && ! "$antigravity_detected"; then printf 'Selected Antigravity provider host was not detected.\n' >&2; exit 1; fi
 command -v git >/dev/null 2>&1 || { printf 'Git is required for Afyx source validation and lifecycle updates.\n' >&2; exit 1; }
 efficient_action="$(component_action efficient-coding 'Efficient Coding' "$efficient_state" "$(component_version efficient-coding)")"
 odoo_action="$(component_action odoo-engineering 'Odoo Engineering' "$odoo_state" "$(component_version odoo-engineering)")"

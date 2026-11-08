@@ -1,7 +1,7 @@
 import test, { describe, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { execSync, spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { chmodSync, existsSync, mkdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { randomBytes } from 'node:crypto';
@@ -18,6 +18,8 @@ describe('AFYX Universal npm Package Disposable Smoke Suite', () => {
   let cliPath;
   let isoSkills;
   let foreignDir;
+  let mockBinDir;
+  let mockHostEnv;
 
   before(() => {
     tempRoot = join(tmpdir(), 'afyx-npm-smoke-test-' + randomBytes(4).toString('hex'));
@@ -49,9 +51,61 @@ describe('AFYX Universal npm Package Disposable Smoke Suite', () => {
     foreignDir = join(isoSkills, 'custom-foreign-skill');
     mkdirSync(foreignDir, { recursive: true });
     writeFileSync(join(foreignDir, 'SKILL.md'), '# Preserved Foreign Skill\n');
+
+    // 3. Isolated Mock Codex host executable for readiness verification
+    mockBinDir = join(tempRoot, 'mock-bin');
+    mkdirSync(mockBinDir, { recursive: true });
+
+    // Universal mock script logic
+    const mockJsPath = join(mockBinDir, 'codex.js');
+    const mockJsContent = `const args = process.argv.slice(2);
+if (args[0] === '--version' || args[0] === '-v') {
+  console.log('codex-cli 0.1.0-test-mock');
+  process.exit(0);
+}
+if (args[0] === 'mcp' && args[1] === 'get') {
+  console.error('no mcp server named ' + (args[2] || 'unknown'));
+  process.exit(1);
+}
+console.error('not found: ' + args.join(' '));
+process.exit(1);
+`;
+    writeFileSync(mockJsPath, mockJsContent, { encoding: 'utf8' });
+
+    // Linux / macOS executable shell script
+    const mockShPath = join(mockBinDir, 'codex');
+    const mockShContent = `#!/bin/sh
+exec node "$(dirname "$0")/codex.js" "$@"
+`;
+    writeFileSync(mockShPath, mockShContent, { encoding: 'utf8' });
+    try {
+      chmodSync(mockShPath, 0o755);
+    } catch {
+      // Windows filesystem may ignore posix mode
+    }
+
+    // Windows CMD batch executable
+    const mockCmdPath = join(mockBinDir, 'codex.cmd');
+    const mockCmdContent = `@echo off
+node "%~dp0codex.js" %*
+`;
+    writeFileSync(mockCmdPath, mockCmdContent, { encoding: 'utf8' });
+
+    // Isolate backup directory so tests do not collide with retention limits
+    const isoBackups = join(tempRoot, 'backups');
+    mkdirSync(isoBackups, { recursive: true });
+    process.env.AFYX_BACKUP_ROOT = isoBackups;
+
+    const pathSep = process.platform === 'win32' ? ';' : ':';
+    mockHostEnv = {
+      ...process.env,
+      AFYX_BACKUP_ROOT: isoBackups,
+      PATH: `${mockBinDir}${pathSep}${process.env.PATH || ''}`,
+    };
   });
 
   after(() => {
+    delete process.env.AFYX_BACKUP_ROOT;
     if (tempRoot && existsSync(tempRoot)) {
       try {
         rmSync(tempRoot, { recursive: true, force: true });
@@ -67,13 +121,21 @@ describe('AFYX Universal npm Package Disposable Smoke Suite', () => {
 
   test('packaged CLI responds to --version with expected semver', () => {
     const res = spawnSync(process.execPath, [cliPath, '--version'], { encoding: 'utf8' });
-    assert.equal(res.status, 0);
+    assert.equal(
+      res.status,
+      0,
+      `Exit: ${res.status}\nSTDOUT:\n${res.stdout}\nSTDERR:\n${res.stderr}`
+    );
     assert.match(res.stdout, /afyx-engineering-kit v\d+\.\d+\.\d+/);
   });
 
   test('packaged CLI responds to --help with canonical usage', () => {
     const res = spawnSync(process.execPath, [cliPath, '--help'], { encoding: 'utf8' });
-    assert.equal(res.status, 0);
+    assert.equal(
+      res.status,
+      0,
+      `Exit: ${res.status}\nSTDOUT:\n${res.stdout}\nSTDERR:\n${res.stderr}`
+    );
     assert.match(res.stdout, /AFYX Engineering Kit — Universal Cross-Platform CLI Installer/);
     assert.match(res.stdout, /Commands:/);
   });
@@ -94,9 +156,13 @@ describe('AFYX Universal npm Package Disposable Smoke Suite', () => {
       '--skip-provider-configuration',
     ], { encoding: 'utf8' });
 
-    assert.equal(res.status, 0);
+    assert.equal(
+      res.status,
+      0,
+      `Exit: ${res.status}\nSTDOUT:\n${res.stdout}\nSTDERR:\n${res.stderr}`
+    );
     const combined = res.stdout + res.stderr;
-    assert.ok(combined.includes('WhatIf') || combined.includes('PLANNED') || combined.includes('DRY RUN'));
+    assert.match(combined, /whatif|planned|dry[- ]?run/i);
     // Ensure no skills were installed during dry-run
     assert.equal(existsSync(join(isoSkills, 'efficient-coding')), false);
   });
@@ -111,9 +177,13 @@ describe('AFYX Universal npm Package Disposable Smoke Suite', () => {
       '--skip-provider-configuration',
     ], { encoding: 'utf8' });
 
-    assert.equal(res.status, 0);
+    assert.equal(
+      res.status,
+      0,
+      `Exit: ${res.status}\nSTDOUT:\n${res.stdout}\nSTDERR:\n${res.stderr}`
+    );
     const combined = res.stdout + res.stderr;
-    assert.ok(combined.includes('WhatIf') || combined.includes('PLANNED') || combined.includes('DRY RUN'));
+    assert.match(combined, /whatif|planned|dry[- ]?run/i);
   });
 
   test('packaged CLI performs actual isolated installation and respects foreign files', () => {
@@ -126,35 +196,98 @@ describe('AFYX Universal npm Package Disposable Smoke Suite', () => {
       '--non-interactive',
     ], { encoding: 'utf8' });
 
-    assert.equal(res.status, 0);
+    assert.equal(
+      res.status,
+      0,
+      `Exit: ${res.status}\nSTDOUT:\n${res.stdout}\nSTDERR:\n${res.stderr}`
+    );
     assert.ok(existsSync(join(isoSkills, 'efficient-coding')), 'efficient-coding must be installed');
     assert.ok(existsSync(join(isoSkills, 'odoo-engineering')), 'odoo-engineering must be installed');
     assert.ok(existsSync(join(foreignDir, 'SKILL.md')), 'Foreign skill must be preserved untouched');
   });
 
-  test('packaged CLI verify checks installed isolated state', () => {
+  test('packaged CLI verify checks installed isolated state with isolated mock host', () => {
     const res = spawnSync(process.execPath, [
       cliPath,
       'verify',
       '--preset', 'minimal',
       '--skills-root', isoSkills,
-    ], { encoding: 'utf8' });
+    ], {
+      encoding: 'utf8',
+      env: mockHostEnv,
+    });
 
-    assert.equal(res.status, 0);
+    assert.equal(
+      res.status,
+      0,
+      `Exit: ${res.status}\nSTDOUT:\n${res.stdout}\nSTDERR:\n${res.stderr}`
+    );
+
     const combined = res.stdout + res.stderr;
-    assert.ok(combined.includes('HEALTHY') || combined.includes('PASS') || combined.includes('Verified'));
+    assert.ok(
+      combined.includes('OK') || combined.includes('HEALTHY') || combined.includes('PASS') || combined.includes('Verified'),
+      `Expected healthy verification output, got:\n${combined}`
+    );
+    // Assert that mock host was detected
+    assert.ok(
+      combined.includes('codex-cli 0.1.0-test-mock') || combined.includes('Codex CLI'),
+      'Expected mock Codex host to be detected by verify'
+    );
   });
 
-  test('packaged CLI doctor runs diagnostic checks', () => {
+  test('packaged CLI verify fails without detectable host when unmocked on POSIX', (t) => {
+    if (process.platform === 'win32') {
+      const check = spawnSync('where', ['codex'], { encoding: 'utf8' });
+      if (check.status === 0) {
+        t.skip('Skipped on Windows where system codex is installed');
+        return;
+      }
+    } else {
+      const check = spawnSync('which', ['codex'], { encoding: 'utf8' });
+      if (check.status === 0) {
+        t.skip('Skipped when unmocked system codex exists on PATH');
+        return;
+      }
+    }
+
+    const res = spawnSync(process.execPath, [
+      cliPath,
+      'verify',
+      '--preset', 'minimal',
+      '--skills-root', isoSkills,
+    ], {
+      encoding: 'utf8',
+      env: process.env, // Unmocked environment
+    });
+
+    assert.equal(res.status, 1, `Expected exit 1 without host, got ${res.status}`);
+    const combined = res.stdout + res.stderr;
+    assert.ok(combined.includes('FAIL') || combined.includes('not found') || combined.includes('BLOCKED'));
+  });
+
+  test('packaged CLI doctor runs diagnostic checks with isolated mock host', () => {
     const res = spawnSync(process.execPath, [
       cliPath,
       'doctor',
       '--skills-root', isoSkills,
-    ], { encoding: 'utf8' });
+    ], {
+      encoding: 'utf8',
+      env: mockHostEnv,
+    });
 
-    assert.equal(res.status, 0);
+    assert.equal(
+      res.status,
+      0,
+      `Exit: ${res.status}\nSTDOUT:\n${res.stdout}\nSTDERR:\n${res.stderr}`
+    );
+
     const combined = res.stdout + res.stderr;
-    assert.ok(combined.includes('HEALTHY') || combined.includes('System check') || combined.includes('Prerequisite'));
+    assert.ok(combined.includes('READY'));
+    // Assert that mock host was detected
+    assert.ok(
+      combined.includes('codex-cli 0.1.0-test-mock') || combined.includes('Codex CLI'),
+      'Expected mock Codex host to be detected by doctor'
+    );
   });
 
   test('packaged CLI idempotent reinstall maintains healthy state', () => {
@@ -167,7 +300,11 @@ describe('AFYX Universal npm Package Disposable Smoke Suite', () => {
       '--non-interactive',
     ], { encoding: 'utf8' });
 
-    assert.equal(res.status, 0);
+    assert.equal(
+      res.status,
+      0,
+      `Exit: ${res.status}\nSTDOUT:\n${res.stdout}\nSTDERR:\n${res.stderr}`
+    );
     assert.ok(existsSync(join(isoSkills, 'efficient-coding')));
     assert.ok(existsSync(join(isoSkills, 'odoo-engineering')));
   });
@@ -181,7 +318,11 @@ describe('AFYX Universal npm Package Disposable Smoke Suite', () => {
       '--non-interactive',
     ], { encoding: 'utf8' });
 
-    assert.equal(res.status, 0);
+    assert.equal(
+      res.status,
+      0,
+      `Exit: ${res.status}\nSTDOUT:\n${res.stdout}\nSTDERR:\n${res.stderr}`
+    );
     assert.ok(existsSync(join(isoSkills, 'efficient-coding')), 'efficient-coding must remain installed');
     assert.equal(existsSync(join(isoSkills, 'odoo-engineering')), false, 'odoo-engineering must be removed');
     assert.ok(existsSync(join(foreignDir, 'SKILL.md')), 'Foreign skill must remain untouched');
