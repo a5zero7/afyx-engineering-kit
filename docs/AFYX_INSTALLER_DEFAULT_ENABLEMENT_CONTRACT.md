@@ -86,3 +86,6 @@ This contract complements the existing Afyx component registry and ProviderAdapt
   - Native GUI packaging (MSI / AppX / GUI wizard).
 - **Platform-dependent / Externally blocked:**
   - Real human Windows Terminal visual acceptance gate: **NOT TESTED** in automated headless execution harness.
+
+For recovery procedures and common failure modes, refer to [Installer Troubleshooting](INSTALLER_TROUBLESHOOTING.md).
+For the complete technical alpha release gate matrix, refer to [Release Readiness](RELEASE_READINESS.md).

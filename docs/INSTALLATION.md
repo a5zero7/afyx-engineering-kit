@@ -80,6 +80,10 @@ scope uses `~/.gemini/config/skills/`,
 refuses foreign `afyx_graph`, malformed, reparse-point, or ambiguous legacy
 configuration. A global MCP change requires restarting the host. Usage Tracking
 is Codex-only and is excluded when Antigravity is the only selected provider.
+Note on test status: The regression suite uses hermetic mock-provider harnesses
+to validate config file serialization, schema contracts, and isolation boundaries.
+Actual live host acceptance has been verified for native Antigravity IDE and Codex CLI;
+Claude Code live host acceptance is evaluated separately.
 
 Preview with `-WhatIf` / `--dry-run`; verification accepts the same provider and
 scope arguments. Remove provider configuration only when explicitly requested:
@@ -141,6 +145,48 @@ Status labels distinguish healthy/no-change components from skipped attempts,
 planned work, blocked work, updates, and restart requirements. An installed
 optional component outside the selected preset is reported as `EXTRA` and is
 preserved; it is not treated as a failure or silently removed.
+
+### Single-binary Windows installer (`AfyxSetup.exe`)
+
+For environments where cloning the repository is not preferred, the single-binary
+Windows Alpha bootstrapper packages the clean 7-component offline distribution
+into an executable:
+
+```powershell
+# Interactive Midnight Circuit wizard from standalone package
+.\AfyxSetup.exe
+
+# Non-interactive discovery check
+.\AfyxSetup.exe -ValidateOnly
+
+# Install specific preset with provider integration
+.\AfyxSetup.exe -Preset recommended -Provider codex,antigravity
+
+# Verify existing installation integrity
+.\AfyxSetup.exe --verify -Preset recommended
+
+# Extract embedded payload without executing
+.\AfyxSetup.exe --extract C:\AfyxPayload
+
+# Safe uninstallation
+.\AfyxSetup.exe --uninstall
+```
+
+#### Checksum and artifact verification
+
+Verify the executable before execution using the accompanying checksum files:
+
+```powershell
+# Verify SHA-256 hash
+Get-FileHash .\AfyxSetup.exe -Algorithm SHA256
+Get-Content .\AfyxSetup.exe.sha256
+Get-Content .\SHA256SUMS
+```
+
+The accompanying `build-manifest.json` provides machine-readable metadata binding
+the executable and payload digests to the exact Git `source_revision`,
+distribution channel (`technical-alpha`), and component inventory. Note that the
+binary is currently an unsigned technical alpha candidate (`code_signing: UNSIGNED_ALPHA_CANDIDATE`).
 
 ### Clone and inspect
 
