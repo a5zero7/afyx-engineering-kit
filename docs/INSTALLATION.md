@@ -34,6 +34,18 @@ The universal CLI package `afyx-engineering-kit` is a thin, zero-dependency Node
 
 All canonical CLI commands (`install`, `verify`, `doctor`, `update`, `uninstall`) and options (`--preset`, `--provider`, `--provider-scope`, `--dry-run`, `--force`, `--offline`) are normalized across platforms.
 
+### Packaged Component Asset Scope & Runtime Boundaries
+
+The universal npm package bundles runtime source code and definitions for 6 core AFYX products:
+- **Skills**: `skills/efficient-coding`, `skills/odoo-engineering`, `skills/afyx-engineering-expert` (fully bundled).
+- **Engines**: `afyx-context` (Context Engine) and `afyx-forge` (Forge Core) (fully bundled Node.js runtimes).
+- **Tools**: `tools/codex-usage` and provider adapters (fully bundled).
+
+For **Afyx Graph** (`preset full`):
+- Graph is an optional component requiring a platform-specific binary or pre-installed runtime root (`--graph-runtime-root`).
+- When installing from an extracted npm tarball where platform archives are unbundled, the backend installer validates archive presence before staging and gracefully falls back to local build if npm and build dependencies are present.
+- Running `update` from an npm package distribution updates installed components directly from bundled assets without requiring a git checkout.
+
 ## Requirements
 
 | Requirement | When needed | Notes |

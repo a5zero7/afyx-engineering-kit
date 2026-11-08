@@ -8,6 +8,7 @@ import {
   getHelpText,
   parseCliArgs,
   buildSubprocessCall,
+  COMMAND_ALLOWED_OPTIONS,
   PACKAGE_ROOT,
 } from '../afyx-npm-installer.mjs';
 
@@ -90,6 +91,29 @@ test('parseCliArgs parses common boolean and value options', () => {
   assert.deepEqual(res.options.customComponents, ['comp-a', 'comp-b']);
 });
 
+test('parseCliArgs enforces explicit per-command option allowlist', () => {
+  // doctor does not support --preset or --dry-run
+  const badDoc = parseCliArgs(['doctor', '--preset', 'minimal']);
+  assert.ok(badDoc.errors.length > 0);
+  assert.match(badDoc.errors[0], /Option "--preset" is not supported for command "doctor"/);
+
+  // verify does not support --remove-afyx-graph
+  const badVerify = parseCliArgs(['verify', '--remove-afyx-graph']);
+  assert.ok(badVerify.errors.length > 0);
+  assert.match(badVerify.errors[0], /Option "--remove-afyx-graph" is not supported for command "verify"/);
+
+  // uninstall does not support --preset
+  const badUninst = parseCliArgs(['uninstall', '--preset', 'full']);
+  assert.ok(badUninst.errors.length > 0);
+  assert.match(badUninst.errors[0], /Option "--preset" is not supported for command "uninstall"/);
+});
+
+test('parseCliArgs rejects conflicting option combinations', () => {
+  const conflict = parseCliArgs(['install', '--skip-provider-configuration', '--provider', 'codex']);
+  assert.ok(conflict.errors.length > 0);
+  assert.match(conflict.errors[0], /cannot be used together/);
+});
+
 test('parseCliArgs detects missing option values', () => {
   const res = parseCliArgs(['install', '--preset']);
   assert.ok(res.errors.length > 0);
@@ -112,11 +136,34 @@ test('buildSubprocessCall maps Windows arguments to PowerShell', () => {
   assert.ok(call.args.includes('-Confirm:$false'));
 });
 
-test('buildSubprocessCall maps Linux/macOS arguments to Bash', () => {
+test('buildSubprocessCall handles Windows graph-runtime-root via environment variable', () => {
+  const call = buildSubprocessCall('install', {
+    graphRuntimeRoot: 'C:\\custom\\graph\\root',
+  }, 'win32', '/pkg');
+
+  assert.equal(call.env.AFYX_GRAPH_RUNTIME_ROOT, 'C:\\custom\\graph\\root');
+  assert.equal(call.args.includes('-GraphRuntimeRoot'), false);
+});
+
+test('buildSubprocessCall preserves update --dry-run and --non-interactive on Windows', () => {
+  const call = buildSubprocessCall('update', {
+    dryRun: true,
+    nonInteractive: true,
+    preset: 'recommended',
+  }, 'win32', '/pkg');
+
+  assert.ok(call.args.includes('-WhatIf'));
+  assert.ok(call.args.includes('-Confirm:$false'));
+  assert.ok(call.args.includes('-Preset'));
+});
+
+test('buildSubprocessCall maps Linux/macOS arguments to Bash and sets CI=1 for non-interactive', () => {
   const call = buildSubprocessCall('install', {
     preset: 'minimal',
     dryRun: true,
     offline: true,
+    nonInteractive: true,
+    graphRuntimeRoot: '/opt/afyx/graph',
   }, 'linux', '/pkg');
 
   assert.equal(call.executable, 'bash');
@@ -125,6 +172,9 @@ test('buildSubprocessCall maps Linux/macOS arguments to Bash', () => {
   assert.ok(call.args.includes('minimal'));
   assert.ok(call.args.includes('--dry-run'));
   assert.ok(call.args.includes('--offline'));
+  assert.equal(call.args.includes('--non-interactive'), false);
+  assert.equal(call.env.CI, '1');
+  assert.equal(call.env.AFYX_GRAPH_RUNTIME_ROOT, '/opt/afyx/graph');
 });
 
 test('buildSubprocessCall routes doctor to afyx-doctor script', () => {
@@ -156,4 +206,10 @@ test('CLI executable rejects unknown command with exit code 1', () => {
   const run = spawnSync(process.execPath, [CLI_BIN, 'unrecognized-verb'], { encoding: 'utf8' });
   assert.equal(run.status, 1);
   assert.match(run.stderr, /Unknown command/);
+});
+
+test('CLI executable rejects unsupported option for command with exit code 1', () => {
+  const run = spawnSync(process.execPath, [CLI_BIN, 'doctor', '--preset', 'minimal'], { encoding: 'utf8' });
+  assert.equal(run.status, 1);
+  assert.match(run.stderr, /Option "--preset" is not supported for command "doctor"/);
 });

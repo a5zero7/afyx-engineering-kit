@@ -4,7 +4,9 @@
  * AFYX Universal Cross-Platform npm CLI Installer (Core Adapter)
  *
  * Exposes universal CLI entrypoint for AFYX Engineering Kit across Windows, Linux, and macOS.
- * Bridges npm invocation to underlying PowerShell/Bash lifecycle scripts.
+ * Bridges npm invocation to underlying PowerShell/Bash lifecycle scripts with hardened
+ * per-command argument allowlists, safety enforcement, deterministic fallback,
+ * and clear packaged component asset boundaries.
  */
 
 import { existsSync, readFileSync } from 'node:fs';
@@ -33,6 +35,38 @@ export function getPackageVersion() {
 }
 
 export const SUPPORTED_COMMANDS = ['install', 'verify', 'doctor', 'update', 'uninstall'];
+
+// Explicit per-command option allowlist
+export const COMMAND_ALLOWED_OPTIONS = {
+  install: new Set([
+    'preset', 'provider', 'providerScope', 'workspaceRoot', 'skillsRoot',
+    'contextRuntimeRoot', 'forgeRuntimeRoot', 'graphRuntimeRoot',
+    'customComponents', 'componentActions',
+    'dryRun', 'validateOnly', 'force', 'offline', 'noBuildFallback',
+    'skipProviderConfiguration', 'nonInteractive'
+  ]),
+  verify: new Set([
+    'preset', 'provider', 'providerScope', 'workspaceRoot', 'skillsRoot',
+    'contextRuntimeRoot', 'forgeRuntimeRoot', 'graphRuntimeRoot',
+    'customComponents'
+  ]),
+  doctor: new Set([
+    'skillsRoot', 'project'
+  ]),
+  update: new Set([
+    'preset', 'provider', 'providerScope', 'workspaceRoot', 'skillsRoot',
+    'contextRuntimeRoot', 'forgeRuntimeRoot', 'graphRuntimeRoot',
+    'customComponents', 'componentActions',
+    'dryRun', 'offline', 'noBuildFallback', 'skipProviderConfiguration',
+    'skipSelfUpdate', 'nonInteractive'
+  ]),
+  uninstall: new Set([
+    'skillsRoot', 'provider', 'providerScope', 'workspaceRoot',
+    'componentActions',
+    'removeProviderConfiguration', 'removeAfyxGraph', 'removeAfyxContext', 'removeAfyxForge',
+    'dryRun', 'nonInteractive'
+  ])
+};
 
 export function getHelpText() {
   const version = getPackageVersion();
@@ -81,6 +115,7 @@ Examples:
   npx afyx-engineering-kit install --preset full --provider codex,antigravity --dry-run
   npx afyx-engineering-kit verify --preset recommended
   npx afyx-engineering-kit doctor
+  npx afyx-engineering-kit update
   npx afyx-engineering-kit uninstall --component afyx-engineering-expert
 `;
 }
@@ -125,6 +160,15 @@ export function parseCliArgs(rawArgs) {
     return result;
   }
 
+  const recordOption = (key, flagName) => {
+    const allowed = COMMAND_ALLOWED_OPTIONS[result.command];
+    if (allowed && !allowed.has(key)) {
+      result.errors.push(`Option "${flagName}" is not supported for command "${result.command}".`);
+      return false;
+    }
+    return true;
+  };
+
   for (let i = 0; i < args.length; i++) {
     const arg = args[i];
 
@@ -138,76 +182,81 @@ export function parseCliArgs(rawArgs) {
     }
 
     if (arg === '--dry-run' || arg === '-n' || arg === '--what-if') {
-      result.options.dryRun = true;
+      if (recordOption('dryRun', arg)) result.options.dryRun = true;
     } else if (arg === '--validate-only') {
-      result.options.validateOnly = true;
+      if (recordOption('validateOnly', arg)) result.options.validateOnly = true;
     } else if (arg === '--force') {
-      result.options.force = true;
+      if (recordOption('force', arg)) result.options.force = true;
     } else if (arg === '--offline') {
-      result.options.offline = true;
+      if (recordOption('offline', arg)) result.options.offline = true;
     } else if (arg === '--no-build-fallback') {
-      result.options.noBuildFallback = true;
+      if (recordOption('noBuildFallback', arg)) result.options.noBuildFallback = true;
     } else if (arg === '--skip-provider-configuration') {
-      result.options.skipProviderConfiguration = true;
+      if (recordOption('skipProviderConfiguration', arg)) result.options.skipProviderConfiguration = true;
     } else if (arg === '--skip-self-update') {
-      result.options.skipSelfUpdate = true;
+      if (recordOption('skipSelfUpdate', arg)) result.options.skipSelfUpdate = true;
     } else if (arg === '--remove-provider-configuration') {
-      result.options.removeProviderConfiguration = true;
+      if (recordOption('removeProviderConfiguration', arg)) result.options.removeProviderConfiguration = true;
     } else if (arg === '--remove-afyx-graph') {
-      result.options.removeAfyxGraph = true;
+      if (recordOption('removeAfyxGraph', arg)) result.options.removeAfyxGraph = true;
     } else if (arg === '--remove-afyx-context') {
-      result.options.removeAfyxContext = true;
+      if (recordOption('removeAfyxContext', arg)) result.options.removeAfyxContext = true;
     } else if (arg === '--remove-afyx-forge') {
-      result.options.removeAfyxForge = true;
+      if (recordOption('removeAfyxForge', arg)) result.options.removeAfyxForge = true;
     } else if (arg === '--non-interactive' || arg === '-y' || arg === '--yes') {
-      result.options.nonInteractive = true;
+      if (recordOption('nonInteractive', arg)) result.options.nonInteractive = true;
     } else if (arg === '--preset' || arg.startsWith('--preset=')) {
       const val = arg.includes('=') ? arg.split('=')[1] : args[++i];
       if (!val) result.errors.push('--preset requires a value');
-      else result.options.preset = val;
+      else if (recordOption('preset', '--preset')) result.options.preset = val;
     } else if (arg === '--provider' || arg.startsWith('--provider=')) {
       const val = arg.includes('=') ? arg.split('=')[1] : args[++i];
       if (!val) result.errors.push('--provider requires a value');
-      else result.options.provider = val;
+      else if (recordOption('provider', '--provider')) result.options.provider = val;
     } else if (arg === '--provider-scope' || arg.startsWith('--provider-scope=')) {
       const val = arg.includes('=') ? arg.split('=')[1] : args[++i];
       if (!val) result.errors.push('--provider-scope requires a value');
-      else result.options.providerScope = val;
+      else if (recordOption('providerScope', '--provider-scope')) result.options.providerScope = val;
     } else if (arg === '--workspace-root' || arg.startsWith('--workspace-root=')) {
       const val = arg.includes('=') ? arg.split('=')[1] : args[++i];
       if (!val) result.errors.push('--workspace-root requires a value');
-      else result.options.workspaceRoot = val;
+      else if (recordOption('workspaceRoot', '--workspace-root')) result.options.workspaceRoot = val;
     } else if (arg === '--skills-root' || arg.startsWith('--skills-root=')) {
       const val = arg.includes('=') ? arg.split('=')[1] : args[++i];
       if (!val) result.errors.push('--skills-root requires a value');
-      else result.options.skillsRoot = val;
+      else if (recordOption('skillsRoot', '--skills-root')) result.options.skillsRoot = val;
     } else if (arg === '--context-runtime-root' || arg.startsWith('--context-runtime-root=')) {
       const val = arg.includes('=') ? arg.split('=')[1] : args[++i];
       if (!val) result.errors.push('--context-runtime-root requires a value');
-      else result.options.contextRuntimeRoot = val;
+      else if (recordOption('contextRuntimeRoot', '--context-runtime-root')) result.options.contextRuntimeRoot = val;
     } else if (arg === '--forge-runtime-root' || arg.startsWith('--forge-runtime-root=')) {
       const val = arg.includes('=') ? arg.split('=')[1] : args[++i];
       if (!val) result.errors.push('--forge-runtime-root requires a value');
-      else result.options.forgeRuntimeRoot = val;
+      else if (recordOption('forgeRuntimeRoot', '--forge-runtime-root')) result.options.forgeRuntimeRoot = val;
     } else if (arg === '--graph-runtime-root' || arg.startsWith('--graph-runtime-root=')) {
       const val = arg.includes('=') ? arg.split('=')[1] : args[++i];
       if (!val) result.errors.push('--graph-runtime-root requires a value');
-      else result.options.graphRuntimeRoot = val;
+      else if (recordOption('graphRuntimeRoot', '--graph-runtime-root')) result.options.graphRuntimeRoot = val;
     } else if (arg === '--project' || arg.startsWith('--project=')) {
       const val = arg.includes('=') ? arg.split('=')[1] : args[++i];
       if (!val) result.errors.push('--project requires a value');
-      else result.options.project = val;
+      else if (recordOption('project', '--project')) result.options.project = val;
     } else if (arg === '--custom-component' || arg.startsWith('--custom-component=')) {
       const val = arg.includes('=') ? arg.split('=')[1] : args[++i];
       if (!val) result.errors.push('--custom-component requires a value');
-      else result.options.customComponents.push(val);
+      else if (recordOption('customComponents', '--custom-component')) result.options.customComponents.push(val);
     } else if (arg === '--component' || arg.startsWith('--component=')) {
       const val = arg.includes('=') ? arg.split('=')[1] : args[++i];
       if (!val) result.errors.push('--component requires a value');
-      else result.options.componentActions.push(val);
+      else if (recordOption('componentActions', '--component')) result.options.componentActions.push(val);
     } else {
       result.errors.push(`Unknown option: "${arg}"`);
     }
+  }
+
+  // Cross-option validation
+  if (result.options.skipProviderConfiguration && result.options.provider) {
+    result.errors.push('--skip-provider-configuration cannot be used together with --provider');
   }
 
   return result;
@@ -215,32 +264,54 @@ export function parseCliArgs(rawArgs) {
 
 export function buildSubprocessCall(command, options = {}, platform = process.platform, pkgRoot = PACKAGE_ROOT) {
   const isWindows = platform === 'win32';
+  const env = { ...process.env };
+
+  // Graph runtime root is passed via environment variable across all backend scripts
+  if (options.graphRuntimeRoot) {
+    env.AFYX_GRAPH_RUNTIME_ROOT = options.graphRuntimeRoot;
+  }
+
+  // Handle outside-git-checkout update behavior
+  let isGitRepo = true;
+  try {
+    isGitRepo = existsSync(join(pkgRoot, '.git'));
+  } catch {
+    isGitRepo = false;
+  }
+  const effectiveOptions = { ...options };
+  if (command === 'update' && !isGitRepo && !effectiveOptions.skipSelfUpdate) {
+    effectiveOptions.skipSelfUpdate = true;
+  }
 
   if (isWindows) {
     let scriptName;
     if (command === 'doctor') scriptName = join('scripts', 'afyx-doctor.ps1');
+    else if (command === 'update' && !isGitRepo) scriptName = 'install.ps1';
     else scriptName = `${command}.ps1`;
 
     const scriptPath = join(pkgRoot, scriptName);
     const psArgs = [];
 
-    if (options.preset) psArgs.push('-Preset', options.preset);
-    if (options.provider) psArgs.push('-Provider', options.provider);
-    if (options.providerScope) psArgs.push('-ProviderScope', options.providerScope);
-    if (options.workspaceRoot) psArgs.push('-WorkspaceRoot', options.workspaceRoot);
-    if (options.skillsRoot) psArgs.push('-SkillsRoot', options.skillsRoot);
-    if (options.contextRuntimeRoot) psArgs.push('-ContextRuntimeRoot', options.contextRuntimeRoot);
-    if (options.forgeRuntimeRoot) psArgs.push('-ForgeRuntimeRoot', options.forgeRuntimeRoot);
-    if (options.graphRuntimeRoot) psArgs.push('-GraphRuntimeRoot', options.graphRuntimeRoot);
-    if (options.project) psArgs.push('-ProjectPath', options.project);
+    if (command === 'update' && !isGitRepo) {
+      psArgs.push('-UpdateInstalled');
+    }
 
-    if (options.customComponents && options.customComponents.length > 0) {
-      for (const comp of options.customComponents) {
+    if (effectiveOptions.preset) psArgs.push('-Preset', effectiveOptions.preset);
+    if (effectiveOptions.provider) psArgs.push('-Provider', effectiveOptions.provider);
+    if (effectiveOptions.providerScope) psArgs.push('-ProviderScope', effectiveOptions.providerScope);
+    if (effectiveOptions.workspaceRoot) psArgs.push('-WorkspaceRoot', effectiveOptions.workspaceRoot);
+    if (effectiveOptions.skillsRoot) psArgs.push('-SkillsRoot', effectiveOptions.skillsRoot);
+    if (effectiveOptions.contextRuntimeRoot) psArgs.push('-ContextRuntimeRoot', effectiveOptions.contextRuntimeRoot);
+    if (effectiveOptions.forgeRuntimeRoot) psArgs.push('-ForgeRuntimeRoot', effectiveOptions.forgeRuntimeRoot);
+    if (effectiveOptions.project) psArgs.push('-ProjectPath', effectiveOptions.project);
+
+    if (effectiveOptions.customComponents && effectiveOptions.customComponents.length > 0) {
+      for (const comp of effectiveOptions.customComponents) {
         psArgs.push('-CustomComponent', comp);
       }
     }
-    if (options.componentActions && options.componentActions.length > 0) {
-      for (const act of options.componentActions) {
+    if (effectiveOptions.componentActions && effectiveOptions.componentActions.length > 0) {
+      for (const act of effectiveOptions.componentActions) {
         if (command === 'uninstall') {
           psArgs.push('-Component', act);
         } else {
@@ -249,24 +320,24 @@ export function buildSubprocessCall(command, options = {}, platform = process.pl
       }
     }
 
-    if (options.dryRun) {
-      if (command === 'install' || command === 'uninstall') {
-        psArgs.push('-WhatIf');
-      }
+    // SupportsShouldProcess commands (install, update, uninstall)
+    if (effectiveOptions.dryRun && (command === 'install' || command === 'update' || command === 'uninstall')) {
+      psArgs.push('-WhatIf');
     }
-    if (options.validateOnly) psArgs.push('-ValidateOnly');
-    if (options.force && command === 'install') psArgs.push('-Force');
-    if (options.offline) psArgs.push('-Offline');
-    if (options.noBuildFallback) psArgs.push('-NoBuildFallback');
-    if (options.skipProviderConfiguration && command === 'install') psArgs.push('-SkipProviderConfiguration');
-    if (options.skipSelfUpdate && command === 'update') psArgs.push('-SkipSelfUpdate');
-    if (options.removeProviderConfiguration && command === 'uninstall') psArgs.push('-RemoveProviderConfiguration');
-    if (options.removeAfyxGraph && command === 'uninstall') psArgs.push('-RemoveAfyxGraph');
-    if (options.removeAfyxContext && command === 'uninstall') psArgs.push('-RemoveAfyxContext');
-    if (options.removeAfyxForge && command === 'uninstall') psArgs.push('-RemoveAfyxForge');
-    if (options.nonInteractive && (command === 'install' || command === 'uninstall')) {
+    if (effectiveOptions.nonInteractive && (command === 'install' || command === 'update' || command === 'uninstall')) {
       psArgs.push('-Confirm:$false');
     }
+
+    if (effectiveOptions.validateOnly && command === 'install') psArgs.push('-ValidateOnly');
+    if (effectiveOptions.force && command === 'install') psArgs.push('-Force');
+    if (effectiveOptions.offline && (command === 'install' || command === 'update')) psArgs.push('-Offline');
+    if (effectiveOptions.noBuildFallback && (command === 'install' || command === 'update')) psArgs.push('-NoBuildFallback');
+    if (effectiveOptions.skipProviderConfiguration && (command === 'install' || command === 'update')) psArgs.push('-SkipProviderConfiguration');
+    if (effectiveOptions.skipSelfUpdate && command === 'update' && isGitRepo) psArgs.push('-SkipSelfUpdate');
+    if (effectiveOptions.removeProviderConfiguration && command === 'uninstall') psArgs.push('-RemoveProviderConfiguration');
+    if (effectiveOptions.removeAfyxGraph && command === 'uninstall') psArgs.push('-RemoveAfyxGraph');
+    if (effectiveOptions.removeAfyxContext && command === 'uninstall') psArgs.push('-RemoveAfyxContext');
+    if (effectiveOptions.removeAfyxForge && command === 'uninstall') psArgs.push('-RemoveAfyxForge');
 
     // Prefer PowerShell 7+ (pwsh), fall back to Windows PowerShell (powershell.exe)
     const executable = 'pwsh';
@@ -277,99 +348,132 @@ export function buildSubprocessCall(command, options = {}, platform = process.pl
       fallbackExecutable: 'powershell.exe',
       args: invocationArgs,
       scriptPath,
+      env,
     };
   }
 
   // Linux & macOS (Bash)
   let scriptName;
   if (command === 'doctor') scriptName = join('scripts', 'afyx-doctor.sh');
+  else if (command === 'update' && !isGitRepo) scriptName = 'install.sh';
   else scriptName = `${command}.sh`;
 
   const scriptPath = join(pkgRoot, scriptName);
   const shArgs = [scriptPath];
 
-  if (options.preset) shArgs.push('--preset', options.preset);
-  if (options.provider) shArgs.push('--provider', options.provider);
-  if (options.providerScope) shArgs.push('--provider-scope', options.providerScope);
-  if (options.workspaceRoot) shArgs.push('--workspace-root', options.workspaceRoot);
-  if (options.skillsRoot) shArgs.push('--skills-root', options.skillsRoot);
-  if (options.contextRuntimeRoot) shArgs.push('--context-runtime-root', options.contextRuntimeRoot);
-  if (options.forgeRuntimeRoot) shArgs.push('--forge-runtime-root', options.forgeRuntimeRoot);
-  if (options.project) shArgs.push('--project', options.project);
+  if (command === 'update' && !isGitRepo) {
+    shArgs.push('--update-installed');
+  }
 
-  if (options.customComponents && options.customComponents.length > 0) {
-    for (const comp of options.customComponents) {
+  // In Linux/macOS bash scripts, non-interactive mode is activated by CI=1
+  if (effectiveOptions.nonInteractive) {
+    env.CI = '1';
+  }
+
+  if (effectiveOptions.preset) shArgs.push('--preset', effectiveOptions.preset);
+  if (effectiveOptions.provider) shArgs.push('--provider', effectiveOptions.provider);
+  if (effectiveOptions.providerScope) shArgs.push('--provider-scope', effectiveOptions.providerScope);
+  if (effectiveOptions.workspaceRoot) shArgs.push('--workspace-root', effectiveOptions.workspaceRoot);
+  if (effectiveOptions.skillsRoot) shArgs.push('--skills-root', effectiveOptions.skillsRoot);
+  if (effectiveOptions.contextRuntimeRoot) shArgs.push('--context-runtime-root', effectiveOptions.contextRuntimeRoot);
+  if (effectiveOptions.forgeRuntimeRoot) shArgs.push('--forge-runtime-root', effectiveOptions.forgeRuntimeRoot);
+  if (effectiveOptions.project) shArgs.push('--project', effectiveOptions.project);
+
+  if (effectiveOptions.customComponents && effectiveOptions.customComponents.length > 0) {
+    for (const comp of effectiveOptions.customComponents) {
       shArgs.push('--custom-component', comp);
     }
   }
-  if (options.componentActions && options.componentActions.length > 0) {
-    for (const act of options.componentActions) {
+  if (effectiveOptions.componentActions && effectiveOptions.componentActions.length > 0) {
+    for (const act of effectiveOptions.componentActions) {
       shArgs.push('--component', act);
     }
   }
 
-  if (options.dryRun) shArgs.push('--dry-run');
-  if (options.validateOnly) shArgs.push('--validate-only');
-  if (options.force && command === 'install') shArgs.push('--force');
-  if (options.offline) shArgs.push('--offline');
-  if (options.noBuildFallback) shArgs.push('--no-build-fallback');
-  if (options.skipProviderConfiguration && command === 'install') shArgs.push('--skip-provider-configuration');
-  if (options.skipSelfUpdate && command === 'update') shArgs.push('--skip-self-update');
-  if (options.removeProviderConfiguration && command === 'uninstall') shArgs.push('--remove-provider-configuration');
-  if (options.removeAfyxGraph && command === 'uninstall') shArgs.push('--remove-afyx-graph');
-  if (options.removeAfyxContext && command === 'uninstall') shArgs.push('--remove-afyx-context');
-  if (options.removeAfyxForge && command === 'uninstall') shArgs.push('--remove-afyx-forge');
+  if (effectiveOptions.dryRun && (command === 'install' || command === 'update' || command === 'uninstall')) {
+    shArgs.push('--dry-run');
+  }
+  if (effectiveOptions.validateOnly && command === 'install') shArgs.push('--validate-only');
+  if (effectiveOptions.force && command === 'install') shArgs.push('--force');
+  if (effectiveOptions.offline && (command === 'install' || command === 'update')) shArgs.push('--offline');
+  if (effectiveOptions.noBuildFallback && (command === 'install' || command === 'update')) shArgs.push('--no-build-fallback');
+  if (effectiveOptions.skipProviderConfiguration && (command === 'install' || command === 'update')) shArgs.push('--skip-provider-configuration');
+  if (effectiveOptions.skipSelfUpdate && command === 'update' && isGitRepo) shArgs.push('--skip-self-update');
+  if (effectiveOptions.removeProviderConfiguration && command === 'uninstall') shArgs.push('--remove-provider-configuration');
+  if (effectiveOptions.removeAfyxGraph && command === 'uninstall') shArgs.push('--remove-afyx-graph');
+  if (effectiveOptions.removeAfyxContext && command === 'uninstall') shArgs.push('--remove-afyx-context');
+  if (effectiveOptions.removeAfyxForge && command === 'uninstall') shArgs.push('--remove-afyx-forge');
 
   return {
     executable: 'bash',
     args: shArgs,
     scriptPath,
+    env,
   };
 }
 
 export function executeSubprocess(callInfo, { onExit = null } = {}) {
   return new Promise((resolvePromise, rejectPromise) => {
-    let child;
+    let currentChild = null;
+    let resolved = false;
 
-    const trySpawn = (exe, args) => {
+    const cleanupSignalHandlers = () => {
+      process.removeListener('SIGINT', handleSigInt);
+      process.removeListener('SIGTERM', handleSigTerm);
+    };
+
+    const handleSigInt = () => {
+      if (currentChild && !currentChild.killed) currentChild.kill('SIGINT');
+    };
+    const handleSigTerm = () => {
+      if (currentChild && !currentChild.killed) currentChild.kill('SIGTERM');
+    };
+
+    process.on('SIGINT', handleSigInt);
+    process.on('SIGTERM', handleSigTerm);
+
+    const run = (exe, args) => {
+      let child;
       try {
         child = spawn(exe, args, {
           stdio: 'inherit',
           cwd: process.cwd(),
-          env: process.env,
-        });
-
-        child.on('error', (err) => {
-          if (callInfo.fallbackExecutable && exe !== callInfo.fallbackExecutable) {
-            trySpawn(callInfo.fallbackExecutable, args);
-            return;
-          }
-          rejectPromise(err);
-        });
-
-        child.on('close', (code, signal) => {
-          const finalCode = signal ? 1 : (code ?? 0);
-          if (onExit) onExit(finalCode);
-          resolvePromise(finalCode);
+          env: callInfo.env || process.env,
         });
       } catch (err) {
         if (callInfo.fallbackExecutable && exe !== callInfo.fallbackExecutable) {
-          trySpawn(callInfo.fallbackExecutable, args);
+          run(callInfo.fallbackExecutable, args);
           return;
         }
+        cleanupSignalHandlers();
         rejectPromise(err);
+        return;
       }
+
+      currentChild = child;
+      let hasErrored = false;
+
+      child.on('error', (err) => {
+        hasErrored = true;
+        child.removeAllListeners('close');
+        if (callInfo.fallbackExecutable && exe !== callInfo.fallbackExecutable) {
+          run(callInfo.fallbackExecutable, args);
+          return;
+        }
+        cleanupSignalHandlers();
+        rejectPromise(err);
+      });
+
+      child.on('close', (code, signal) => {
+        if (hasErrored || resolved) return;
+        resolved = true;
+        cleanupSignalHandlers();
+        const finalCode = signal ? 1 : (code ?? 0);
+        if (onExit) onExit(finalCode);
+        resolvePromise(finalCode);
+      });
     };
 
-    trySpawn(callInfo.executable, callInfo.args);
-
-    const forwardSignal = (sig) => {
-      if (child && !child.killed) {
-        child.kill(sig);
-      }
-    };
-
-    process.on('SIGINT', () => forwardSignal('SIGINT'));
-    process.on('SIGTERM', () => forwardSignal('SIGTERM'));
+    run(callInfo.executable, callInfo.args);
   });
 }

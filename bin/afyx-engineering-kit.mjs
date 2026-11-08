@@ -13,7 +13,17 @@ import {
   executeSubprocess,
 } from '../scripts/afyx-npm-installer.mjs';
 
+function verifyNodeRuntime() {
+  const version = process.versions.node;
+  const [major, minor] = version.split('.').map(Number);
+  if (major < 22 || (major === 22 && minor < 5)) {
+    console.error(`Error: AFYX Engineering Kit requires Node.js >= 22.5.0 (current: v${version}).`);
+    process.exit(1);
+  }
+}
+
 async function main() {
+  verifyNodeRuntime();
   const parsed = parseCliArgs(process.argv.slice(2));
 
   if (parsed.showVersion) {
