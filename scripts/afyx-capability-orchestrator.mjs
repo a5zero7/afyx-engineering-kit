@@ -316,6 +316,8 @@ function makeRequest({ task, componentId, discovery, budgets, reason, hopCount =
     hopCount,
     invocationReason: reason,
     sourceIdentity: discovered.sourceIdentity,
+    payload: typeof task.payload === 'string' ? task.payload : (typeof task.text === 'string' ? task.text : (typeof task.input === 'string' ? task.input : null)),
+    classification: typeof task.classification === 'string' ? task.classification : null,
   });
 }
 
@@ -443,6 +445,14 @@ export function resolveAfyxCapabilityRoute(options = {}) {
         reason: 'CAPABILITY_BUDGET_EXHAUSTED',
         fallback: 'DIRECT_SOURCE',
       });
+      continue;
+    }
+    // Graph->Context Dependency-Aware Scheduling:
+    // When a task requests both relational Graph evidence and Context optimization,
+    // Context is a downstream dependent capability of Graph evidence.
+    // Do not schedule Context in initial requests; it will be scheduled dynamically
+    // only when the actual Graph result is eligible (>20KB) and available.
+    if (componentId === 'afyx-context' && classification.relational && classification.contextOptimization) {
       continue;
     }
     requests.push(makeRequest({ task, componentId, discovery, budgets, reason }));
@@ -649,8 +659,22 @@ export async function executeAfyxCapabilityRoute(options = {}) {
       break;
     }
 
-    // Process bidirectional follow-up capability requests
-    for (const followUp of result.followUpRequests) {
+    // Process bidirectional follow-up capability requests and dynamic Graph->Context handoff
+    const isGraphResult = request.targetComponentId === 'afyx-graph';
+    const contextOptimizationRequested = route.classification.contextOptimization === true;
+    const isEligibleGraphPayload = result.status === 'EXECUTED' && typeof result.output === 'string' &&
+      (result.contextBytes > 20_000 || Buffer.byteLength(result.output, 'utf8') > 20_000);
+    const alreadyHasContextFollowUp = result.followUpRequests.some((f) => f?.targetComponentId === 'afyx-context');
+
+    const effectiveFollowUps = [...result.followUpRequests];
+    if (isGraphResult && contextOptimizationRequested && isEligibleGraphPayload && !alreadyHasContextFollowUp) {
+      effectiveFollowUps.push({
+        targetComponentId: 'afyx-context',
+        invocationReason: 'Compress large graph evidence payload',
+      });
+    }
+
+    for (const followUp of effectiveFollowUps) {
       const target = followUp?.targetComponentId;
       const followUpCapability = route.discovery.capabilities[target];
       const forgeAllowed = target !== 'afyx-forge' ||

@@ -283,25 +283,43 @@ export function createInstalledHostAdapters({
       }
 
       const source = request.sourceResult;
-      if (source?.componentId !== 'afyx-graph' || source.status !== 'EXECUTED'
-        || typeof source.output !== 'string') {
+      const standaloneContent = typeof request.payload === 'string' ? request.payload
+        : (typeof request.text === 'string' ? request.text : (typeof request.input === 'string' ? request.input : null));
+      const contentToReduce = (source?.componentId === 'afyx-graph' && source.status === 'EXECUTED' && typeof source.output === 'string')
+        ? source.output
+        : standaloneContent;
+
+      if (!contentToReduce) {
         return { status: 'FAILED', reason: 'GRAPH_EVIDENCE_NOT_AVAILABLE', output: null };
       }
-      const sourceBytes = Buffer.byteLength(source.output, 'utf8');
+      const sourceBytes = Buffer.byteLength(contentToReduce, 'utf8');
       if (sourceBytes > 1_048_576) {
         return { status: 'FAILED', reason: 'GRAPH_EVIDENCE_BUDGET_EXCEEDED', output: null };
       }
-      const digest = createHash('sha256').update(source.output).digest('hex');
+      const digest = createHash('sha256').update(contentToReduce).digest('hex');
       const session = `graph-${digest.slice(0, 24)}`;
       const owner = `afyx-host-${createHash('sha256').update(resolvedProjectRoot).digest('hex').slice(0, 24)}`;
       const contextState = resolvedStateRoot ?? join(tmpdir(), 'afyx-host-context', owner);
+
+      // Preserve Context Engine's diagnostic/security protection:
+      // Content classified as security or diagnostic must not be forcibly compressed.
+      const isSecurity = request.classification === 'security' ||
+        request.taskType === 'security' ||
+        Boolean(request.task?.securityFinding) ||
+        source?.evidence?.some((e) => ['security-finding', 'security-alert', 'vulnerability'].includes(e.kind));
+      const isDiagnostic = request.classification === 'diagnostic' ||
+        request.taskType === 'diagnostic' ||
+        Boolean(request.task?.diagnosticContent) ||
+        source?.evidence?.some((e) => e.kind === 'diagnostic');
+      const segmentClassification = isSecurity ? 'security' : (isDiagnostic ? 'diagnostic' : 'normal');
+
       const input = JSON.stringify({
-        budgetChars: Math.max(1_024, Math.min(16_000, Math.ceil(source.output.length / 2))),
+        budgetChars: Math.max(1_024, Math.min(16_000, Math.ceil(contentToReduce.length / 2))),
         segments: [{
-          id: 'graph-structure', content: source.output,
-          classification: 'normal',
-          provenance: { sourceComponent: 'afyx-graph', sourceDigest: digest,
-            projectRoot: resolvedProjectRoot, sourceIdentity: source.provenance?.componentSourceIdentity },
+          id: 'graph-structure', content: contentToReduce,
+          classification: segmentClassification,
+          provenance: { sourceComponent: source?.componentId ?? 'standalone-context', sourceDigest: digest,
+            projectRoot: resolvedProjectRoot, sourceIdentity: source?.provenance?.componentSourceIdentity ?? null },
         }],
       });
       const runResult = spawnSync(nodePath, [contextCliEntrypoint, 'reduce',

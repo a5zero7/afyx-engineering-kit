@@ -573,3 +573,328 @@ test('dynamic discovery and routing of synthetic future component without hardco
     unregisterAfyxComponent(syntheticComponentId);
   }
 });
+
+// ---------------------------------------------------------------------------
+// 11. AFYX-309: Dependency-Aware Graph -> Context Scheduling Regression Tests
+// ---------------------------------------------------------------------------
+test('AFYX-309: dual-flag task executes Graph first and schedules Context only with eligible payload (>20KB)', async () => {
+  let graphCalls = 0;
+  let contextCalls = 0;
+  let contextReceivedSource = null;
+
+  const result = await executeAfyxCapabilityRoute({
+    task: {
+      id: 'afyx309-eligible',
+      intent: 'OrderService refactor',
+      taskType: 'feature-refactor',
+      needsRelationalEvidence: true,
+      needsContextOptimization: true,
+    },
+    provider: 'codex',
+    componentStates: {
+      'afyx-graph': { installed: true, enabled: true, healthy: true, compatible: true, authorized: true, indexReady: true, indexFresh: true, sourceIdentity: 'test' },
+      'afyx-context': { installed: true, enabled: true, healthy: true, compatible: true, authorized: true, sourceIdentity: 'test' },
+    },
+    adapters: {
+      'afyx-graph': () => {
+        graphCalls += 1;
+        return {
+          status: 'SUCCESS',
+          output: 'large graph output over 20kb...'.padEnd(25000, 'x'),
+          contextBytes: 25000,
+          followUpRequests: [{ targetComponentId: 'afyx-context', invocationReason: 'Compress large graph evidence payload' }],
+        };
+      },
+      'afyx-context': (req) => {
+        contextCalls += 1;
+        contextReceivedSource = req.sourceResult;
+        return {
+          status: 'SUCCESS',
+          output: 'reduced context',
+          contextBytes: 100,
+        };
+      },
+    },
+  });
+
+  assert.equal(result.status, 'READY');
+  assert.equal(result.executionStatus, 'EXECUTED');
+  assert.equal(graphCalls, 1, 'Graph must be executed exactly once');
+  assert.equal(contextCalls, 1, 'Context must be scheduled and executed exactly once');
+  assert.ok(contextReceivedSource, 'Context must receive executed Graph sourceResult');
+  assert.equal(contextReceivedSource.componentId, 'afyx-graph');
+  assert.equal(contextReceivedSource.status, 'EXECUTED');
+  assert.equal(result.results.length, 2, 'No premature or duplicate suppressions');
+  assert.equal(result.results[0].componentId, 'afyx-graph');
+  assert.equal(result.results[1].componentId, 'afyx-context');
+});
+
+test('AFYX-309: dual-flag task with ineligible payload (<=20KB) omits Context without failure', async () => {
+  let graphCalls = 0;
+  let contextCalls = 0;
+
+  const result = await executeAfyxCapabilityRoute({
+    task: {
+      id: 'afyx309-ineligible',
+      intent: 'OrderService small query',
+      taskType: 'feature-refactor',
+      needsRelationalEvidence: true,
+      needsContextOptimization: true,
+    },
+    provider: 'codex',
+    componentStates: {
+      'afyx-graph': { installed: true, enabled: true, healthy: true, compatible: true, authorized: true, indexReady: true, indexFresh: true, sourceIdentity: 'test' },
+      'afyx-context': { installed: true, enabled: true, healthy: true, compatible: true, authorized: true, sourceIdentity: 'test' },
+    },
+    adapters: {
+      'afyx-graph': () => {
+        graphCalls += 1;
+        return {
+          status: 'SUCCESS',
+          output: 'small output 500 bytes',
+          contextBytes: 500,
+          followUpRequests: [],
+        };
+      },
+      'afyx-context': () => {
+        contextCalls += 1;
+        return { status: 'SUCCESS', output: 'reduced' };
+      },
+    },
+  });
+
+  assert.equal(result.status, 'READY');
+  assert.equal(result.executionStatus, 'EXECUTED');
+  assert.equal(graphCalls, 1, 'Graph executed');
+  assert.equal(contextCalls, 0, 'Context must NOT be invoked for ineligible payload');
+  assert.equal(result.results.length, 1);
+  assert.equal(result.results[0].componentId, 'afyx-graph');
+});
+
+test('AFYX-309: dual-flag task with Graph failure does not schedule Context', async () => {
+  let graphCalls = 0;
+  let contextCalls = 0;
+
+  const result = await executeAfyxCapabilityRoute({
+    task: {
+      id: 'afyx309-graph-fail',
+      intent: 'OrderService refactor',
+      taskType: 'feature-refactor',
+      needsRelationalEvidence: true,
+      needsContextOptimization: true,
+    },
+    provider: 'codex',
+    componentStates: {
+      'afyx-graph': { installed: true, enabled: true, healthy: true, compatible: true, authorized: true, indexReady: true, indexFresh: true, sourceIdentity: 'test' },
+      'afyx-context': { installed: true, enabled: true, healthy: true, compatible: true, authorized: true, sourceIdentity: 'test' },
+    },
+    adapters: {
+      'afyx-graph': () => {
+        graphCalls += 1;
+        return {
+          status: 'FAILED',
+          reason: 'GRAPH_PROCESS_CRASHED',
+          output: null,
+          followUpRequests: [],
+        };
+      },
+      'afyx-context': () => {
+        contextCalls += 1;
+        return { status: 'SUCCESS', output: 'reduced' };
+      },
+    },
+  });
+
+  assert.equal(result.status, 'FAILED');
+  assert.equal(graphCalls, 1);
+  assert.equal(contextCalls, 0, 'Context must not be called when Graph failed');
+  assert.equal(result.results.length, 1);
+  assert.equal(result.results[0].componentId, 'afyx-graph');
+  assert.equal(result.results[0].status, 'FAILED');
+});
+
+test('AFYX-309: dual-flag task with unauthorized Context blocks follow-up cleanly without failing Graph', async () => {
+  let graphCalls = 0;
+  let contextCalls = 0;
+
+  const result = await executeAfyxCapabilityRoute({
+    task: {
+      id: 'afyx309-unauthorized',
+      intent: 'OrderService refactor',
+      taskType: 'feature-refactor',
+      needsRelationalEvidence: true,
+      needsContextOptimization: true,
+    },
+    provider: 'codex',
+    componentStates: {
+      'afyx-graph': { installed: true, enabled: true, healthy: true, compatible: true, authorized: true, indexReady: true, indexFresh: true, sourceIdentity: 'test' },
+      'afyx-context': { installed: true, enabled: true, healthy: true, compatible: true, authorized: false, sourceIdentity: 'test' },
+    },
+    adapters: {
+      'afyx-graph': () => {
+        graphCalls += 1;
+        return {
+          status: 'SUCCESS',
+          output: 'large graph output over 20kb...'.padEnd(25000, 'x'),
+          contextBytes: 25000,
+          followUpRequests: [{ targetComponentId: 'afyx-context', invocationReason: 'Compress large graph evidence payload' }],
+        };
+      },
+      'afyx-context': () => {
+        contextCalls += 1;
+        return { status: 'SUCCESS', output: 'reduced' };
+      },
+    },
+  });
+
+  assert.equal(graphCalls, 1);
+  assert.equal(contextCalls, 0, 'Unauthorized context adapter must not be invoked');
+  assert.ok(result.degradations.some((d) => d.componentId === 'afyx-context' && d.reason === 'UNAUTHORIZED_OR_UNVERIFIED'));
+  const contextRes = result.results.find((r) => r.componentId === 'afyx-context');
+  assert.equal(contextRes?.status, 'BLOCKED');
+  assert.equal(contextRes?.reason, 'FOLLOW_UP_NOT_AUTHORIZED');
+});
+
+test('AFYX-309: dual-flag task with explicit Context OFF (AFYX_CONTEXT_OPT_IN=0) honors setting', async () => {
+  let graphCalls = 0;
+  let contextCalls = 0;
+
+  const result = await executeAfyxCapabilityRoute({
+    task: {
+      id: 'afyx309-explicit-off',
+      intent: 'OrderService refactor',
+      taskType: 'feature-refactor',
+      needsRelationalEvidence: true,
+      needsContextOptimization: true,
+    },
+    provider: 'codex',
+    environment: { AFYX_CONTEXT_OPT_IN: '0' },
+    componentStates: {
+      'afyx-graph': { installed: true, enabled: true, healthy: true, compatible: true, authorized: true, indexReady: true, indexFresh: true, sourceIdentity: 'test' },
+      'afyx-context': { installed: true, enabled: true, healthy: true, compatible: true, authorized: true, sourceIdentity: 'test' },
+    },
+    adapters: {
+      'afyx-graph': () => {
+        graphCalls += 1;
+        return {
+          status: 'SUCCESS',
+          output: 'large graph output over 20kb...'.padEnd(25000, 'x'),
+          contextBytes: 25000,
+          followUpRequests: [{ targetComponentId: 'afyx-context', invocationReason: 'Compress large graph evidence payload' }],
+        };
+      },
+      'afyx-context': () => {
+        contextCalls += 1;
+        return { status: 'SUCCESS', output: 'reduced' };
+      },
+    },
+  });
+
+  assert.equal(graphCalls, 1);
+  assert.equal(contextCalls, 0);
+  assert.ok(result.degradations.some((d) => d.componentId === 'afyx-context' && d.reason === 'EXPLICITLY_DISABLED'));
+});
+
+test('AFYX-309: duplicate follow-up requests to Context are cleanly suppressed', async () => {
+  let contextCalls = 0;
+
+  const result = await executeAfyxCapabilityRoute({
+    task: {
+      id: 'afyx309-duplicate-prevention',
+      intent: 'OrderService refactor',
+      taskType: 'feature-refactor',
+      needsRelationalEvidence: true,
+      needsContextOptimization: true,
+    },
+    provider: 'codex',
+    componentStates: {
+      'afyx-graph': { installed: true, enabled: true, healthy: true, compatible: true, authorized: true, indexReady: true, indexFresh: true, sourceIdentity: 'test' },
+      'afyx-context': { installed: true, enabled: true, healthy: true, compatible: true, authorized: true, sourceIdentity: 'test' },
+    },
+    adapters: {
+      'afyx-graph': () => ({
+        status: 'SUCCESS',
+        output: 'large graph output over 20kb...'.padEnd(25000, 'x'),
+        contextBytes: 25000,
+        followUpRequests: [
+          { targetComponentId: 'afyx-context', invocationReason: 'Call 1' },
+          { targetComponentId: 'afyx-context', invocationReason: 'Call 2' },
+        ],
+      }),
+      'afyx-context': () => {
+        contextCalls += 1;
+        return { status: 'SUCCESS', output: 'reduced', contextBytes: 100 };
+      },
+    },
+  });
+
+  assert.equal(contextCalls, 1, 'Context should execute only once');
+  const contextResults = result.results.filter((r) => r.componentId === 'afyx-context');
+  assert.equal(contextResults.length, 2);
+  assert.equal(contextResults[0].status, 'EXECUTED');
+  assert.equal(contextResults[1].status, 'SUPPRESSED');
+  assert.equal(contextResults[1].reason, 'DUPLICATE_REQUEST');
+  assert.equal(result.metrics.duplicateInvocationsAvoided, 1);
+});
+
+test('AFYX-309: standalone Context behavior is preserved when Graph is not requested', async () => {
+  let contextCalls = 0;
+
+  const result = await executeAfyxCapabilityRoute({
+    task: {
+      id: 'afyx309-standalone-context',
+      intent: 'Standalone text reduction',
+      taskType: 'large-context',
+      needsContextOptimization: true,
+      needsRelationalEvidence: false,
+    },
+    provider: 'codex',
+    componentStates: {
+      'afyx-context': { installed: true, enabled: true, healthy: true, compatible: true, authorized: true, sourceIdentity: 'test' },
+    },
+    adapters: {
+      'afyx-context': () => {
+        contextCalls += 1;
+        return { status: 'SUCCESS', output: 'standalone reduced', contextBytes: 50 };
+      },
+    },
+  });
+
+  assert.equal(result.status, 'READY');
+  assert.equal(result.executionStatus, 'EXECUTED');
+  assert.equal(contextCalls, 1, 'Standalone context must execute directly');
+  assert.equal(result.results.length, 1);
+  assert.equal(result.results[0].componentId, 'afyx-context');
+  assert.equal(result.results[0].output, 'standalone reduced');
+});
+
+test('AFYX-309: standalone Context propagates task payload and classification to request contract', async () => {
+  let capturedRequest = null;
+  const result = await executeAfyxCapabilityRoute({
+    task: {
+      id: 'afyx309-standalone-payload',
+      intent: 'Standalone text reduction with payload',
+      taskType: 'large-context',
+      needsContextOptimization: true,
+      needsRelationalEvidence: false,
+      payload: 'Contracted standalone payload to optimize',
+      classification: 'diagnostic',
+    },
+    provider: 'codex',
+    componentStates: {
+      'afyx-context': { installed: true, enabled: true, healthy: true, compatible: true, authorized: true, sourceIdentity: 'test' },
+    },
+    adapters: {
+      'afyx-context': (req) => {
+        capturedRequest = req;
+        return { status: 'SUCCESS', output: 'reduced payload', contextBytes: 15 };
+      },
+    },
+  });
+
+  assert.equal(result.status, 'READY');
+  assert.equal(result.executionStatus, 'EXECUTED');
+  assert.equal(capturedRequest.payload, 'Contracted standalone payload to optimize');
+  assert.equal(capturedRequest.classification, 'diagnostic');
+  assert.equal(result.results[0].output, 'reduced payload');
+});
