@@ -54,3 +54,35 @@ On Windows, a selected, installed ACE runtime now receives an Afyx-owned on-dema
 The draft implementation covers planning defaults, interactive host default selection, IDE-only detection diagnostics, owned on-demand ACE/Forge provider skills on supported hosts, and regression expectations. Full acceptance additionally requires: provider-host integration tests, real Windows installation and restart/readback, verified Graph-to-ACE consumer wiring, parity and limitations on Linux/macOS, preservation of explicit user-level disabled settings, and proof of recovery/fallback. Until those checks pass, report **PARTIAL / NOT_RUN**, never `FULLY_INTEGRATED` or `RELEASE_READY`.
 
 This contract complements the existing Afyx component registry and ProviderAdapter/v1; it must not introduce a second installer or orchestrator.
+
+## Acceptance status mapping (AFYX-130 & AFYX-131)
+
+### AFYX-130: Native Installer and Updater
+- **Implemented and tested (Windows Alpha):**
+  - Clean 7-component standalone installation and executable lifecycle (`AfyxSetup.exe`).
+  - Automated component discovery, verification (`--verify`), and idempotent re-run without mutation.
+  - Safe uninstallation preserving user/foreign configuration.
+  - Hermetic contract preflight enforcing mandatory capability schemas.
+  - Multi-candidate Graph archive release cache resolution and clean commit-tree fallback.
+- **Implemented but untested:**
+  - In-place auto-updater background service trigger during live active user sessions.
+  - Edge-case rollback from corrupted in-flight native file locks on Windows.
+- **Missing implementation:**
+  - Automated binary signature verification / Authenticode code-signing (marked `UNSIGNED_ALPHA_CANDIDATE`).
+  - Cross-platform native updater parity for macOS/Linux packages.
+- **Platform-dependent / Externally blocked:**
+  - Official release distribution channel and CDN publishing (blocked by release gate & spending limit governance).
+
+### AFYX-131: Release Packaging and UI Surface
+- **Implemented and tested (Windows Alpha):**
+  - Midnight Circuit TUI Dashboard and step progress indicators (`scripts/lib/AfyxTerminal.psm1`).
+  - Adaptive wide/narrow terminal layouts (40-col and 80-col) with bounded text wrapping.
+  - Interactive keyboard navigation, multi-choice component selection, and cancellation without mutation (`OperationCanceledException`).
+  - Plain-text and `NO_COLOR` graceful fallback modes.
+  - Single-binary packaging (`AfyxSetup.exe` with embedded clean zip payload).
+- **Implemented but untested:**
+  - High-DPI and legacy conhost visual edge-case inspection.
+- **Missing implementation:**
+  - Native GUI packaging (MSI / AppX / GUI wizard).
+- **Platform-dependent / Externally blocked:**
+  - Real human Windows Terminal visual acceptance gate: **NOT TESTED** in automated headless execution harness.

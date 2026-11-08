@@ -592,8 +592,13 @@ if ($providerMcpRequested -and -not $nodeCommand) { throw 'Node.js is required f
 if (-not (Get-Command git -ErrorAction SilentlyContinue)) { throw 'Git is required for Afyx source validation and lifecycle updates.' }
 
 if ($graphAction -ne 'skip') {
-    $graphReleaseZip = Join-Path $packageRoot "afyx-graph\release\afyx-graph-v$($graphMetadata.product_version)-win32-x64.zip"
-    $hasReleaseCache = Test-Path -LiteralPath $graphReleaseZip -PathType Leaf
+    $graphReleaseCandidates = @(
+        (Join-Path $packageRoot 'afyx-graph\engine\release\afyx-graph-win32-x64.zip'),
+        (Join-Path $packageRoot "afyx-graph\engine\release\afyx-graph-v$($graphMetadata.product_version)-win32-x64.zip"),
+        (Join-Path $packageRoot "afyx-graph\release\afyx-graph-v$($graphMetadata.product_version)-win32-x64.zip"),
+        (Join-Path $packageRoot 'afyx-graph\release\afyx-graph-win32-x64.zip')
+    )
+    $hasReleaseCache = [bool](@($graphReleaseCandidates | Where-Object { Test-Path -LiteralPath $_ -PathType Leaf }).Count)
     if (-not $hasReleaseCache) {
         $gitCmd = Get-Command git -ErrorAction SilentlyContinue
         $tarCmd = Get-Command tar -ErrorAction SilentlyContinue
