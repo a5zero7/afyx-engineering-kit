@@ -2,7 +2,8 @@
 /** Canonical Afyx Graph artifact identity shared by Windows and POSIX lifecycle scripts. */
 import { createHash } from 'node:crypto';
 import { readFileSync, writeFileSync, readdirSync } from 'node:fs';
-import { basename, join } from 'node:path';
+import { basename, join, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 const UNKNOWN = 'UNKNOWN';
 
@@ -115,61 +116,63 @@ function verifyReleaseManifest(manifestFile, archiveFile, metadataFile) {
   return { status: 'VERIFIED', sourceRevision: identity.sourceRevision, target: identity.target, archiveSha256: entry.sha256 };
 }
 
-try {
-  const command = process.argv[2];
-  const file = argument('--metadata');
-  if (command === 'create-release-manifest') {
-    const directory = requireValue(argument('--directory'), '--directory');
-    const output = requireValue(argument('--output'), '--output');
-    const manifest = releaseManifest(directory, {
-      revision: argument('--revision'), version: argument('--version'), tag: argument('--tag'),
-    });
-    writeMetadata(output, manifest);
-    console.log(JSON.stringify(manifest));
-  } else if (command === 'verify-release-manifest') {
-    console.log(JSON.stringify(verifyReleaseManifest(
-      requireValue(argument('--manifest'), '--manifest'),
-      requireValue(argument('--archive'), '--archive'),
-      requireValue(file, '--metadata'),
-    )));
-  } else if (command === 'stamp') {
-    const stamped = stampArtifact(readMetadata(file), {
-      target: requireValue(argument('--target'), '--target'),
-      revision: argument('--revision', UNKNOWN),
-      extractionVersion: requireValue(argument('--extraction-version'), '--extraction-version'),
-    });
-    writeMetadata(file, stamped);
-    console.log(JSON.stringify(artifactIdentity(stamped)));
-  } else if (command === 'inspect') {
-    const identity = artifactIdentity(readMetadata(file));
-    const requested = argument('--requested-revision', UNKNOWN);
-    console.log(JSON.stringify({ ...identity, revisionStatus: revisionStatus(identity, requested) }));
-  } else if (command === 'require-revision') {
-    const identity = artifactIdentity(readMetadata(file));
-    const requested = requireValue(argument('--requested-revision'), '--requested-revision');
-    const status = revisionStatus(identity, requested);
-    console.log(JSON.stringify({ ...identity, revisionStatus: status }));
-    if (status !== 'MATCH') process.exitCode = status === 'REVISION_MISMATCH' ? 3 : 4;
-  } else if (command === 'record-install') {
-    const metadata = readMetadata(file);
-    const archive = requireValue(argument('--archive'), '--archive');
-    const requested = argument('--requested-revision', UNKNOWN);
-    const updated = {
-      ...metadata,
-      artifact_provenance: requireValue(argument('--provenance'), '--provenance'),
-      archive_sha256: sha256(archive),
-      requested_checkout_revision: revision(requested),
-      revision_status: revisionStatus(artifactIdentity(metadata), requested),
-      release_manifest_status: argument('--release-manifest-status', 'MISSING'),
-      publisher_authenticity: argument('--publisher-authenticity', 'UNVERIFIED'),
-      build_provenance: argument('--build-provenance', 'UNVERIFIED'),
-    };
-    writeMetadata(file, updated);
-    console.log(JSON.stringify(artifactIdentity(updated)));
-  } else {
-    throw new Error('usage: afyx-graph-artifact.mjs create-release-manifest|verify-release-manifest|stamp|inspect|require-revision|record-install [options]');
+if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  try {
+    const command = process.argv[2];
+    const file = argument('--metadata');
+    if (command === 'create-release-manifest') {
+      const directory = requireValue(argument('--directory'), '--directory');
+      const output = requireValue(argument('--output'), '--output');
+      const manifest = releaseManifest(directory, {
+        revision: argument('--revision'), version: argument('--version'), tag: argument('--tag'),
+      });
+      writeMetadata(output, manifest);
+      console.log(JSON.stringify(manifest));
+    } else if (command === 'verify-release-manifest') {
+      console.log(JSON.stringify(verifyReleaseManifest(
+        requireValue(argument('--manifest'), '--manifest'),
+        requireValue(argument('--archive'), '--archive'),
+        requireValue(file, '--metadata'),
+      )));
+    } else if (command === 'stamp') {
+      const stamped = stampArtifact(readMetadata(file), {
+        target: requireValue(argument('--target'), '--target'),
+        revision: argument('--revision', UNKNOWN),
+        extractionVersion: requireValue(argument('--extraction-version'), '--extraction-version'),
+      });
+      writeMetadata(file, stamped);
+      console.log(JSON.stringify(artifactIdentity(stamped)));
+    } else if (command === 'inspect') {
+      const identity = artifactIdentity(readMetadata(file));
+      const requested = argument('--requested-revision', UNKNOWN);
+      console.log(JSON.stringify({ ...identity, revisionStatus: revisionStatus(identity, requested) }));
+    } else if (command === 'require-revision') {
+      const identity = artifactIdentity(readMetadata(file));
+      const requested = requireValue(argument('--requested-revision'), '--requested-revision');
+      const status = revisionStatus(identity, requested);
+      console.log(JSON.stringify({ ...identity, revisionStatus: status }));
+      if (status !== 'MATCH') process.exitCode = status === 'REVISION_MISMATCH' ? 3 : 4;
+    } else if (command === 'record-install') {
+      const metadata = readMetadata(file);
+      const archive = requireValue(argument('--archive'), '--archive');
+      const requested = argument('--requested-revision', UNKNOWN);
+      const updated = {
+        ...metadata,
+        artifact_provenance: requireValue(argument('--provenance'), '--provenance'),
+        archive_sha256: sha256(archive),
+        requested_checkout_revision: revision(requested),
+        revision_status: revisionStatus(artifactIdentity(metadata), requested),
+        release_manifest_status: argument('--release-manifest-status', 'MISSING'),
+        publisher_authenticity: argument('--publisher-authenticity', 'UNVERIFIED'),
+        build_provenance: argument('--build-provenance', 'UNVERIFIED'),
+      };
+      writeMetadata(file, updated);
+      console.log(JSON.stringify(artifactIdentity(updated)));
+    } else {
+      throw new Error('usage: afyx-graph-artifact.mjs create-release-manifest|verify-release-manifest|stamp|inspect|require-revision|record-install [options]');
+    }
+  } catch (error) {
+    console.error(`[artifact] ${error instanceof Error ? error.message : String(error)}`);
+    process.exitCode = 1;
   }
-} catch (error) {
-  console.error(`[artifact] ${error instanceof Error ? error.message : String(error)}`);
-  process.exitCode = 1;
 }

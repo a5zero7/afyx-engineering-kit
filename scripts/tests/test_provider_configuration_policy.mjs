@@ -400,6 +400,66 @@ lines.on('line', (line) => {
     assert.ok(res5.detail.includes('Failed to parse TOML'));
   });
 
+  // 6d. TOML Numeric Semantics: Exact Float & Large Integer Precision
+  test('validates exact float precision and large integer semantics without conflation', () => {
+    // 1. Float equivalent representations accepted: 1.0 vs 1e0
+    const floatBase = Buffer.from('float_val = 1.0\n');
+    const floatEquiv = Buffer.from('float_val = 1e0\n');
+    const resFloatEquiv = validateUnrelatedPreserved({
+      format: 'toml',
+      beforeBytes: floatBase,
+      afterBytes: floatEquiv,
+      server: 'afyx_graph',
+    });
+    assert.equal(resFloatEquiv.preserved, true, '1.0 and 1e0 must be accepted as numerically equivalent');
+
+    // 2. Float subtle change detected: 0.0 vs 1e-13 (must not be ignored by 1e-12 tolerance)
+    const zeroFloat = Buffer.from('threshold = 0.0\n');
+    const tinyFloat = Buffer.from('threshold = 1e-13\n');
+    const resTinyFloat = validateUnrelatedPreserved({
+      format: 'toml',
+      beforeBytes: zeroFloat,
+      afterBytes: tinyFloat,
+      server: 'afyx_graph',
+    });
+    assert.equal(resTinyFloat.preserved, false, '0.0 to 1e-13 must be detected as genuine mutation');
+    assert.equal(resTinyFloat.code, 'UNRELATED_KEY_VALUE_MUTATED');
+
+    // 3. Large integer precision: 9007199254740992 vs 9007199254740993 (beyond Number.MAX_SAFE_INTEGER)
+    const bigInt1 = Buffer.from('seq = 9007199254740992\n');
+    const bigInt2 = Buffer.from('seq = 9007199254740993\n');
+    const resBigIntMut = validateUnrelatedPreserved({
+      format: 'toml',
+      beforeBytes: bigInt1,
+      afterBytes: bigInt2,
+      server: 'afyx_graph',
+    });
+    assert.equal(resBigIntMut.preserved, false, 'Difference between 9007199254740992 and 9007199254740993 must be detected');
+    assert.equal(resBigIntMut.code, 'UNRELATED_KEY_VALUE_MUTATED');
+
+    // 4. Large integer identical preservation accepted without BigInt serialization error
+    const bigIntIdentical = Buffer.from('seq = 9007199254740992\n[mcp_servers.afyx_graph]\ncommand = "node"\n');
+    const resBigIntSame = validateUnrelatedPreserved({
+      format: 'toml',
+      beforeBytes: bigInt1,
+      afterBytes: bigIntIdentical,
+      server: 'afyx_graph',
+    });
+    assert.equal(resBigIntSame.preserved, true, 'Large integer identical value must be preserved without error');
+
+    // 5. Type-aware preservation: boolean true vs number 1 must not be conflated
+    const boolVal = Buffer.from('setting = true\n');
+    const numVal = Buffer.from('setting = 1\n');
+    const resTypeConflate = validateUnrelatedPreserved({
+      format: 'toml',
+      beforeBytes: boolVal,
+      afterBytes: numVal,
+      server: 'afyx_graph',
+    });
+    assert.equal(resTypeConflate.preserved, false, 'Boolean true and number 1 must not be conflated');
+    assert.equal(resTypeConflate.code, 'UNRELATED_KEY_VALUE_MUTATED');
+  });
+
   // 7. Normalization vs Destructive Loss Validation (JSON)
   test('distinguishes harmless JSON normalization from destructive setting loss', () => {
     const before = Buffer.from(JSON.stringify({

@@ -640,18 +640,26 @@ export function parseToml(input) {
     if (raw === '-inf') return -Infinity;
     if (raw === 'nan' || raw === '+nan' || raw === '-nan') return NaN;
 
+    function parseInteger(cleanStr) {
+      const bi = BigInt(cleanStr);
+      if (bi >= BigInt(Number.MIN_SAFE_INTEGER) && bi <= BigInt(Number.MAX_SAFE_INTEGER)) {
+        return Number(bi);
+      }
+      return bi;
+    }
+
     if (/^0x[0-9a-fA-F](_?[0-9a-fA-F])*$/.test(raw)) {
-      return parseInt(raw.replace(/_/g, ''), 16);
+      return parseInteger(raw.replace(/_/g, ''));
     }
     if (/^0o[0-7](_?[0-7])*$/.test(raw)) {
-      return parseInt(raw.slice(2).replace(/_/g, ''), 8);
+      return parseInteger(raw.replace(/_/g, ''));
     }
     if (/^0b[01](_?[01])*$/.test(raw)) {
-      return parseInt(raw.slice(2).replace(/_/g, ''), 2);
+      return parseInteger(raw.replace(/_/g, ''));
     }
 
     if (/^[+-]?(?:0|[1-9](?:_?\d)*)$/.test(raw)) {
-      return parseInt(raw.replace(/_/g, ''), 10);
+      return parseInteger(raw.replace(/_/g, ''));
     }
     if (/^[+-]?(?:0|[1-9](?:_?\d)*)(?:\.\d(?:_?\d)*)?(?:[eE][+-]?\d(?:_?\d)*)?$/.test(raw) ||
         /^[+-]?0\.\d(?:_?\d)*(?:[eE][+-]?\d(?:_?\d)*)?$/.test(raw)) {
@@ -762,6 +770,31 @@ export function parseToml(input) {
 }
 
 /**
+ * Safely clones a configuration object supporting primitives, BigInt, arrays, and plain objects.
+ */
+export function cloneConfig(val) {
+  if (val === null || typeof val !== 'object') return val;
+  if (Array.isArray(val)) return val.map(cloneConfig);
+  const result = {};
+  for (const [k, v] of Object.entries(val)) {
+    result[k] = cloneConfig(v);
+  }
+  return result;
+}
+
+/**
+ * Formats values safely for diagnostics without throwing on BigInt.
+ */
+function formatValue(v) {
+  if (typeof v === 'bigint') return v.toString();
+  try {
+    return JSON.stringify(v);
+  } catch {
+    return String(v);
+  }
+}
+
+/**
  * Recursively diffs two configuration objects and reports missing tables, missing keys,
  * mutated key paths, and unexpectedly injected settings.
  */
@@ -778,12 +811,29 @@ export function diffConfigObjects(before, after) {
 
   function valuesEqual(a, b) {
     if (a === b) return true;
+
+    // Both are BigInt
+    if (typeof a === 'bigint' && typeof b === 'bigint') {
+      return a === b;
+    }
+
+    // Mathematical integer comparison between BigInt and safe integer Number
+    if (typeof a === 'bigint' && typeof b === 'number') {
+      return Number.isSafeInteger(b) && a === BigInt(b);
+    }
+    if (typeof a === 'number' && typeof b === 'bigint') {
+      return Number.isSafeInteger(a) && BigInt(a) === b;
+    }
+
+    // Both are Number (floats and safe integers)
     if (typeof a === 'number' && typeof b === 'number') {
       if (Number.isNaN(a) && Number.isNaN(b)) return true;
-      if (Math.abs(a - b) < 1e-12) return true;
-      return false;
+      return Object.is(a, b) || a === b;
     }
+
+    // Unrelated types must not be conflated
     if (a === null || b === null || typeof a !== typeof b) return false;
+
     if (Array.isArray(a)) {
       if (!Array.isArray(b) || a.length !== b.length) return false;
       for (let i = 0; i < a.length; i++) {
@@ -791,6 +841,7 @@ export function diffConfigObjects(before, after) {
       }
       return true;
     }
+
     if (isObject(a)) {
       if (!isObject(b)) return false;
       const keysA = Object.keys(a);
@@ -802,6 +853,7 @@ export function diffConfigObjects(before, after) {
       }
       return true;
     }
+
     return false;
   }
 
@@ -863,7 +915,7 @@ export function diffConfigObjects(before, after) {
  */
 function cleanTargetServer(obj, server) {
   if (!obj || typeof obj !== 'object') return obj;
-  const clone = JSON.parse(JSON.stringify(obj));
+  const clone = cloneConfig(obj);
 
   if (clone.mcp_servers && typeof clone.mcp_servers === 'object' && !Array.isArray(clone.mcp_servers)) {
     delete clone.mcp_servers[server];
@@ -1088,7 +1140,7 @@ export function validateUnrelatedPreserved({
       if (diff.mutatedKeys.length > 0) {
         const first = diff.mutatedKeys[0];
         code = 'UNRELATED_KEY_VALUE_MUTATED';
-        detail = `UNRELATED_KEY_VALUE_MUTATED: Setting at "${first.path}" was changed from ${JSON.stringify(first.before)} to ${JSON.stringify(first.after)}`;
+        detail = `UNRELATED_KEY_VALUE_MUTATED: Setting at "${first.path}" was changed from ${formatValue(first.before)} to ${formatValue(first.after)}`;
       } else if (diff.missingKeys.length > 0) {
         const first = diff.missingKeys[0];
         code = 'UNRELATED_KEY_DELETED';
