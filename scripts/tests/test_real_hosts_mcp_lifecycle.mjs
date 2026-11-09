@@ -458,12 +458,12 @@ describe('AFYX Native Provider MCP Lifecycle & Universal Interoperability Suite'
   // ==========================================
   // CODEX VS CODE L3 TEST SURFACE
   // ==========================================
-  test('Codex VS Code Extension: Inspect L3 agent-mediated test surface availability', () => {
+  test('Codex VS Code Extension: Inspect L3 agent-mediated test surface availability', (t) => {
     const isWin = process.platform === 'win32';
     const checkCmd = isWin ? 'where.exe' : 'which';
     const hasCode = spawnSync(checkCmd, ['code'], { encoding: 'utf8' }).status === 0;
     if (!hasCode) {
-      assert.ok(true, 'VS Code is not installed on host — status: L3_NOT_TESTED');
+      t.skip('VS Code is not installed on host — status: L3_NOT_TESTED');
       return;
     }
 
@@ -474,33 +474,30 @@ describe('AFYX Native Provider MCP Lifecycle & Universal Interoperability Suite'
 
     // Explicitly identify the installed openai.chatgpt extension providing Codex agent functionality
     const chatgptExt = lines.find((l) => l.toLowerCase().startsWith('openai.chatgpt@'));
+    assert.ok(chatgptExt, 'openai.chatgpt extension (Codex coding agent) must be present in VS Code');
+
+    // Codex audio extension is optional
     const audioExt = lines.find((l) => l.toLowerCase().startsWith('openai.codex-audio@'));
 
-    assert.ok(chatgptExt, 'openai.chatgpt extension (Codex coding agent) must be present in VS Code');
-    assert.ok(audioExt, 'openai.codex-audio extension must be present in VS Code');
-
     // Distinguish:
-    // 1. Extension presence: openai.chatgpt@26.51021.22027 confirmed installed
+    // 1. Extension presence: openai.chatgpt confirmed installed
     // 2. Running Codex backend: CLI 0.167.0 available; background app-server daemon socket is not running in background
     // 3. MCP registration: afyx_graph successfully registered in ~/.codex/config.toml
     // 4. Actual IDE-mediated tool execution: Extension UI is interactive webview only, exposing no headless automation surface
-    const classification = 'L3_NOT_VERIFIED';
-    const limitation = 'Interactive GUI session required; openai.chatgpt exposes no headless automation test surface';
-
-    assert.equal(classification, 'L3_NOT_VERIFIED');
-    assert.ok(limitation.length > 0);
+    // Unavailable GUI L3 surface must NOT be counted as executed PASS; mark as skipped/L3_NOT_VERIFIED
+    t.skip('L3_NOT_VERIFIED: Interactive GUI session required; openai.chatgpt exposes no headless automation test surface');
   });
 
   // ==========================================
   // CLAUDE CODE (P2)
   // ==========================================
-  test('Claude Code P2: Check host availability and report status honestly', () => {
+  test('Claude Code P2: Check host availability and report status honestly', (t) => {
     const checkCmd = process.platform === 'win32' ? 'where' : 'which';
     const checkRes = spawnSync(checkCmd, ['claude'], { encoding: 'utf8' });
     const isInstalled = checkRes.status === 0;
 
     if (!isInstalled) {
-      assert.ok(true, 'Claude Code is not installed on host — status: NOT TESTED (as designed)');
+      t.skip('Claude Code is not installed on host — status: NOT TESTED (as designed)');
     } else {
       assert.ok(true, 'Claude Code is installed on host');
     }
