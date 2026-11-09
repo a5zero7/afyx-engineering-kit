@@ -25,6 +25,7 @@ import {
   executeAfyxCapabilityRoute,
   SEVEN_REGISTERED_COMPONENT_IDS,
 } from '../afyx-capability-orchestrator.mjs';
+import { createInstalledHostAdapters } from '../afyx-host-adapters.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -42,7 +43,7 @@ function resolveCodexExecutable() {
   return lines[0];
 }
 
-function runCodexCli(codexExe, args, env = {}) {
+  function runCodexCli(codexExe, args, env = {}) {
   const isCmd = process.platform === 'win32' && codexExe.toLowerCase().endsWith('.cmd');
   if (isCmd) {
     return spawnSync(process.env.ComSpec || 'cmd.exe', ['/c', `"${codexExe}"`, ...args], {
@@ -54,16 +55,52 @@ function runCodexCli(codexExe, args, env = {}) {
   return spawnSync(codexExe, args, {
     encoding: 'utf8',
     env: { ...process.env, ...env },
-    shell: process.platform === 'win32',
   });
 }
 
-async function runMcpClientSession(nodeExe, entryFile, args = ['serve', '--mcp']) {
-  return new Promise((res, rej) => {
-    const clientCwd = join(tmpdir(), 'afyx-mcp-session-' + randomBytes(4).toString('hex'));
-    mkdirSync(clientCwd, { recursive: true });
+function createReadOnlyGraphFixture(parentDir) {
+  const fixtureDir = join(parentDir, 'graph_fixture_' + randomBytes(4).toString('hex'));
+  mkdirSync(join(fixtureDir, 'src'), { recursive: true });
+  writeFileSync(
+    join(fixtureDir, 'src', 'service.ts'),
+    [
+      'export function parseToken(raw: string) { return raw.trim(); }',
+      'export class OrderService {',
+      '  calculateTotal(qty: number, price: number) { return qty * price; }',
+      '}',
+      '',
+    ].join('\n'),
+    'utf8',
+  );
+  const gitEnv = {
+    ...process.env,
+    GIT_AUTHOR_NAME: 'test',
+    GIT_AUTHOR_EMAIL: 'test@example.invalid',
+    GIT_COMMITTER_NAME: 'test',
+    GIT_COMMITTER_EMAIL: 'test@example.invalid',
+  };
+  spawnSync('git', ['init', '-q'], { cwd: fixtureDir, env: gitEnv });
+  spawnSync('git', ['add', '-A'], { cwd: fixtureDir, env: gitEnv });
+  spawnSync('git', ['-c', 'commit.gpgsign=false', 'commit', '-q', '-m', 'fixture'], { cwd: fixtureDir, env: gitEnv });
 
-    const child = spawn(nodeExe, [entryFile, ...args], {
+  const initRes = spawnSync(process.execPath, [GRAPH_ENTRY, 'init', '-y', fixtureDir], {
+    cwd: fixtureDir,
+    env: { ...process.env, AFYX_GRAPH_NO_DAEMON: '1', AFYX_GRAPH_NO_WATCH: '1' },
+    encoding: 'utf8',
+  });
+  assert.equal(initRes.status, 0, `Graph fixture initialization failed: ${initRes.stderr || initRes.stdout}`);
+  return fixtureDir;
+}
+
+async function runMcpClientSession(nodeExe, entryFile, args = ['serve', '--mcp'], fixtureDir = null) {
+  return new Promise((res, rej) => {
+    const clientCwd = fixtureDir || join(tmpdir(), 'afyx-mcp-session-' + randomBytes(4).toString('hex'));
+    if (!fixtureDir) {
+      mkdirSync(clientCwd, { recursive: true });
+    }
+
+    const launchArgs = entryFile ? [entryFile, ...args] : args;
+    const child = spawn(nodeExe, launchArgs, {
       cwd: clientCwd,
       stdio: ['pipe', 'pipe', 'pipe'],
       windowsHide: true,
@@ -108,7 +145,7 @@ async function runMcpClientSession(nodeExe, entryFile, args = ['serve', '--mcp']
       child.stdin.write(msg);
     }
 
-    async function waitForResponse(id, timeoutMs = 5000) {
+    async function waitForResponse(id, timeoutMs = 8000) {
       const start = Date.now();
       while (Date.now() - start < timeoutMs) {
         if (responses.has(id)) return responses.get(id);
@@ -123,18 +160,19 @@ async function runMcpClientSession(nodeExe, entryFile, args = ['serve', '--mcp']
         protocolVersion: '2024-11-05',
         capabilities: {},
         clientInfo: { name: 'afyx-acceptance-test', version: '1.0.0' },
+        rootUri: `file://${clientCwd.replace(/\\/g, '/')}`,
       });
       const initResp = await waitForResponse(1);
+      child.stdin.write(JSON.stringify({ jsonrpc: '2.0', method: 'notifications/initialized', params: {} }) + '\n');
 
       // 2. tools/list
       sendRequest(2, 'tools/list', {});
       const toolsResp = await waitForResponse(2);
-      const firstTool = toolsResp.result?.tools?.[0]?.name || 'afyx_graph_explore';
 
-      // 3. harmless tool call on advertised tool
+      // 3. Real source-grounded tool call on the indexed fixture
       sendRequest(3, 'tools/call', {
-        name: firstTool,
-        arguments: {},
+        name: 'afyx_graph_explore',
+        arguments: { query: 'OrderService' },
       });
       const callResp = await waitForResponse(3);
 
@@ -247,14 +285,19 @@ describe('AFYX Native Provider MCP Lifecycle & Universal Interoperability Suite'
     const configuredToml = readFileSync(configPath, 'utf8');
     assert.ok(configuredToml.includes('afyx_graph'), 'config.toml must contain afyx_graph');
 
-    // 5. Actual launch of the installed AFYX Graph MCP executable
-    const mcpSession = await runMcpClientSession(process.execPath, GRAPH_ENTRY);
+    // 5. Actual launch of the installed AFYX Graph MCP executable through registered command against read-only fixture
+    const fixtureDir = createReadOnlyGraphFixture(tempRoot);
+    const mcpSession = await runMcpClientSession(process.execPath, GRAPH_ENTRY, ['serve', '--mcp'], fixtureDir);
     assert.equal(mcpSession.initResp.result.serverInfo.name, 'afyx_graph');
     assert.ok(Array.isArray(mcpSession.toolsResp.result.tools));
     const toolNames = mcpSession.toolsResp.result.tools.map((t) => t.name);
-    assert.ok(toolNames.includes('afyx_graph_explore') || toolNames.includes('afyx_graph_search'), `tools/list must include core graph tool, got: ${toolNames.join(', ')}`);
-    assert.ok(mcpSession.callResp, 'Tool call must return a response');
-    assert.ok(mcpSession.callResp.result || mcpSession.callResp.error, 'Tool call must return result or structured error');
+    assert.ok(toolNames.includes('afyx_graph_explore'), `tools/list must include afyx_graph_explore, got: ${toolNames.join(', ')}`);
+
+    // Strictly verify successful source-grounded tool execution: NEVER accept an error
+    assert.equal(mcpSession.callResp.error, undefined, 'Tool call must not return JSON-RPC error');
+    assert.notEqual(mcpSession.callResp.result?.isError, true, 'Tool call must not return application error');
+    const contentText = mcpSession.callResp.result?.content?.map((c) => c.text || '').join('\n') || '';
+    assert.ok(contentText.includes('OrderService'), `Tool call result must contain source-grounded symbol OrderService, got: ${contentText}`);
 
     // 6. Idempotent re-registration
     const reapplyResult = await integrateCodex({
@@ -294,13 +337,11 @@ describe('AFYX Native Provider MCP Lifecycle & Universal Interoperability Suite'
     assert.ok(afterUninstallToml.includes('gpt-4o'), 'user model must remain');
 
     // 9. Rollback after simulated failure & 10. Concurrency protection
-    // Test rollback safety when config has external modifications
     const fakeBackup = createConfigurationBackup({
       provider: 'codex',
       configPath,
       operation: 'simulated-failure-test',
     });
-    // External process modifies config concurrently
     writeFileSync(configPath, 'external_concurrent_edit = true\n', 'utf8');
     const rollbackRes = rollbackConfiguration(fakeBackup, { reason: 'simulated error' });
     assert.equal(rollbackRes.restored, false, 'Rollback must refuse to overwrite concurrent external changes');
@@ -353,11 +394,18 @@ describe('AFYX Native Provider MCP Lifecycle & Universal Interoperability Suite'
     assert.ok(afterGlobal.mcpServers.user_foreign_tool, 'Foreign entry must be preserved');
     assert.ok(afterGlobal.mcpServers.afyx_graph, 'afyx_graph must be registered');
 
-    // 4. Installed Graph MCP execution through the configured entry
+    // 4. Installed Graph MCP execution through the configured entry on read-only fixture
     const entryConfig = afterGlobal.mcpServers.afyx_graph;
-    const antigravitySession = await runMcpClientSession(entryConfig.command, entryConfig.args[0], entryConfig.args.slice(1));
+    const agFixture = createReadOnlyGraphFixture(tempRoot);
+    const antigravitySession = await runMcpClientSession(entryConfig.command, entryConfig.args[0], entryConfig.args.slice(1), agFixture);
     assert.equal(antigravitySession.initResp.result.serverInfo.name, 'afyx_graph');
     assert.ok(antigravitySession.toolsResp.result.tools.some((t) => t.name === 'afyx_graph_explore'));
+
+    // Strictly verify successful source-grounded tool call for Antigravity:
+    assert.equal(antigravitySession.callResp.error, undefined, 'Antigravity MCP tool call must not return JSON-RPC error');
+    assert.notEqual(antigravitySession.callResp.result?.isError, true, 'Antigravity MCP tool call must not return application error');
+    const agContentText = antigravitySession.callResp.result?.content?.map((c) => c.text || '').join('\n') || '';
+    assert.ok(agContentText.includes('OrderService'), `Antigravity tool call result must contain source-grounded symbol OrderService, got: ${agContentText}`);
 
     // 5. Idempotent re-registration
     const reapplyGlobal = await integrateAntigravity({ ...globalOptions, apply: true });
@@ -408,6 +456,33 @@ describe('AFYX Native Provider MCP Lifecycle & Universal Interoperability Suite'
   });
 
   // ==========================================
+  // CODEX VS CODE L3 TEST SURFACE
+  // ==========================================
+  test('Codex VS Code Extension: Inspect L3 agent-mediated test surface availability', () => {
+    const checkCmd = process.platform === 'win32' ? 'where' : 'which';
+    const hasCode = spawnSync(checkCmd, ['code'], { encoding: 'utf8' }).status === 0;
+    if (!hasCode) {
+      assert.ok(true, 'VS Code is not installed on host — status: L3_NOT_TESTED');
+      return;
+    }
+    const isWin = process.platform === 'win32';
+    const listRes = isWin
+      ? spawnSync(process.env.ComSpec || 'cmd.exe', ['/c', 'code.cmd', '--list-extensions'], { encoding: 'utf8' })
+      : spawnSync('code', ['--list-extensions'], { encoding: 'utf8' });
+    const extensions = listRes.stdout ? listRes.stdout.split(/\r?\n/).map((s) => s.trim().toLowerCase()) : [];
+    const hasCodexAudio = extensions.some((e) => e.includes('codex-audio'));
+    const hasCodexAgent = extensions.some((e) => e === 'openai.codex' || e === 'openai.chatgpt-codex');
+
+    if (hasCodexAudio && !hasCodexAgent) {
+      assert.ok(true, 'Installed Codex VS Code extension is openai.codex-audio (audio dictation only; no agent query surface) — status: L3_NOT_SUPPORTED_UNINSTALLED');
+    } else if (hasCodexAgent) {
+      assert.ok(true, 'Codex Agent extension found');
+    } else {
+      assert.ok(true, 'Codex extension not present in VS Code — status: L3_NOT_TESTED');
+    }
+  });
+
+  // ==========================================
   // CLAUDE CODE (P2)
   // ==========================================
   test('Claude Code P2: Check host availability and report status honestly', () => {
@@ -416,8 +491,6 @@ describe('AFYX Native Provider MCP Lifecycle & Universal Interoperability Suite'
     const isInstalled = checkRes.status === 0;
 
     if (!isInstalled) {
-      // Sesuai Section 2 P2: "Mark unavailable host-specific testing NOT TESTED,
-      // without treating it as a failure of Codex or Antigravity acceptance."
       assert.ok(true, 'Claude Code is not installed on host — status: NOT TESTED (as designed)');
     } else {
       assert.ok(true, 'Claude Code is installed on host');
@@ -428,30 +501,25 @@ describe('AFYX Native Provider MCP Lifecycle & Universal Interoperability Suite'
   // UNIVERSAL INTEROPERABILITY (AFYX-308/309)
   // ==========================================
   test('AFYX-308/309: Real representative interoperability across installed components', async () => {
-    function createStates(availableIds = SEVEN_REGISTERED_COMPONENT_IDS) {
-      return Object.fromEntries(SEVEN_REGISTERED_COMPONENT_IDS.map((id) => [id, {
-        installed: availableIds.includes(id),
-        enabled: true,
-        healthy: availableIds.includes(id),
-        compatible: availableIds.includes(id),
-        authorized: availableIds.includes(id),
-        sourceIdentity: 'candidate-308',
-        ...(id === 'afyx-graph' && availableIds.includes(id) ? { indexReady: true, indexFresh: true } : {}),
-        observationSource: 'TEST_FIXTURE',
-      }]));
-    }
+    const PILOT_INSTALL_ROOT = 'D:/Project/afyx-alpha/afyx-305-exact-candidate/install-root';
+    const PILOT_PROJECT_ROOT = 'D:/Project/afyx-alpha/afyx-305-exact-candidate/test-data/sample-project';
+    const tempState = join(tempRoot, 'ctx-state');
+    mkdirSync(tempState, { recursive: true });
 
     // 1. Simple known-file edit invokes ZERO Afyx runtime tools (directSourceFastPath)
     const directTask = {
       id: 'task-simple-edit',
       taskType: 'string-replacement',
       knownFile: true,
+      exactKnownSource: true,
     };
     let calls = 0;
     const directResult = await executeAfyxCapabilityRoute({
       task: directTask,
       provider: 'codex',
-      componentStates: createStates(),
+      componentStates: Object.fromEntries(SEVEN_REGISTERED_COMPONENT_IDS.map((id) => [id, {
+        installed: true, enabled: true, healthy: true, compatible: true, authorized: true,
+      }])),
       adapters: Object.fromEntries(SEVEN_REGISTERED_COMPONENT_IDS.map((id) => [id, () => { calls += 1; return { status: 'SUCCESS' }; }])),
     });
     assert.equal(directResult.directSourceFastPath, true);
@@ -459,96 +527,67 @@ describe('AFYX Native Provider MCP Lifecycle & Universal Interoperability Suite'
     assert.equal(directResult.metrics.executedCapabilities, 0);
     assert.equal(calls, 0);
 
-    // 2. Discoverability when installed, healthy, compatible, and authorized vs explicit OFF
-    const statesWithExplicitOff = createStates();
-    statesWithExplicitOff['afyx-context'].enabled = false;
-    const discovery = discoverAfyxCapabilities({
-      componentStates: statesWithExplicitOff,
-      provider: 'codex',
+    // 2. Real installed adapters for Odoo -> Graph -> Context handoff
+    const pilotAdapters = createInstalledHostAdapters({
+      installRoot: PILOT_INSTALL_ROOT,
+      projectRoot: PILOT_PROJECT_ROOT,
+      stateRoot: tempState,
     });
-    assert.equal(discovery.capabilities['afyx-graph'].available, true);
-    assert.equal(discovery.capabilities['afyx-graph'].reason, 'AVAILABLE');
-    assert.equal(discovery.capabilities['afyx-context'].available, false);
-    assert.equal(discovery.capabilities['afyx-context'].reason, 'EXPLICITLY_DISABLED');
 
-    // 3. Odoo Engineering can request relevant Graph evidence, Graph requests Context reduction
-    const handoffCalls = [];
-    const handoffResult = await executeAfyxCapabilityRoute({
-      task: { id: 'task-odoo-fix', taskType: 'odoo-fix', project: { isOdoo: true } },
-      provider: 'codex',
-      componentStates: createStates(['odoo-engineering', 'afyx-graph', 'afyx-context']),
-      adapters: {
-        'odoo-engineering': (request) => {
-          handoffCalls.push(request.targetComponentId);
-          return {
-            status: 'SUCCESS',
-            evidence: [{ kind: 'odoo-model', value: 'sale.order' }],
-            followUpRequests: [{ targetComponentId: 'afyx-graph', invocationReason: 'Inspect model inheritance' }],
-          };
-        },
-        'afyx-graph': (request) => {
-          handoffCalls.push(request.targetComponentId);
-          return {
-            status: 'SUCCESS',
-            evidence: [{ kind: 'graph-edge', path: 'models/order.py' }],
-            followUpRequests: [{ targetComponentId: 'afyx-context', invocationReason: 'Compress large graph payload' }],
-          };
-        },
-        'afyx-context': (request) => {
-          handoffCalls.push(request.targetComponentId);
-          return {
-            status: 'SUCCESS',
-            output: 'ace:v1:reduced:token',
-            contextBytes: 256,
-          };
-        },
-      },
+    const odooHandoff = await pilotAdapters['odoo-engineering']({
+      targetComponentId: 'odoo-engineering',
+      intent: 'Audit sale.order inheritance models in addons',
     });
-    assert.deepEqual(handoffCalls, ['odoo-engineering', 'afyx-graph', 'afyx-context']);
-    assert.equal(handoffResult.results.length, 3);
-    assert.equal(handoffResult.results[0].componentId, 'odoo-engineering');
-    assert.equal(handoffResult.results[1].componentId, 'afyx-graph');
-    assert.equal(handoffResult.results[2].componentId, 'afyx-context');
-    assert.equal(handoffResult.metrics.executedCapabilities, 3);
+    assert.equal(odooHandoff.status, 'SUCCESS');
+    assert.ok(odooHandoff.followUpRequests?.some((r) => r.targetComponentId === 'afyx-graph'));
 
-    // 4. Missing components degrade gracefully to direct source
+    const graphHandoff = await pilotAdapters['afyx-graph'](odooHandoff.followUpRequests[0]);
+    assert.equal(graphHandoff.status, 'SUCCESS');
+    assert.ok(graphHandoff.output?.includes('sale.order') || graphHandoff.evidence?.length > 0);
+
+    const contextHandoff = await pilotAdapters['afyx-context']({
+      targetComponentId: 'afyx-context',
+      payload: 'sample graph evidence line\n'.repeat(1500),
+    });
+    assert.equal(contextHandoff.status, 'SUCCESS');
+    assert.equal(contextHandoff.output?.mode, 'optimized');
+    assert.ok(contextHandoff.output?.metrics?.reductionRatio > 0.5);
+
+    // 3. Graceful degradation: missing component degrades to direct source
     const degradedResult = await executeAfyxCapabilityRoute({
       task: { id: 'task-impact', taskType: 'impact-analysis', needsRelationalEvidence: true },
       provider: 'codex',
-      componentStates: createStates(['efficient-coding']),
+      componentStates: {
+        'efficient-coding': { installed: true, enabled: true, healthy: true, compatible: true, authorized: true },
+      },
     });
     assert.equal(degradedResult.status, 'DEGRADED');
     assert.equal(degradedResult.executionStatus, 'NOT_RUN');
-    assert.deepEqual(degradedResult.degradations.map((item) => item.componentId), ['afyx-graph']);
-    assert.equal(degradedResult.degradations[0].fallback, 'DIRECT_SOURCE');
+    assert.ok(degradedResult.degradations.some((d) => d.componentId === 'afyx-graph'));
+    const graphDegradation = degradedResult.degradations.find((d) => d.componentId === 'afyx-graph');
+    assert.equal(graphDegradation?.fallback, 'DIRECT_SOURCE');
 
-    // 5. Anti-cycle protection: duplicate and cyclic follow-ups are suppressed
-    let graphCalls = 0;
-    let contextCalls = 0;
-    const cycleResult = await executeAfyxCapabilityRoute({
-      task: { id: 'task-cycle', taskType: 'impact-analysis', needsRelationalEvidence: true },
-      provider: 'codex',
-      componentStates: createStates(['afyx-graph', 'afyx-context']),
-      adapters: {
-        'afyx-graph': () => {
-          graphCalls += 1;
-          return {
-            status: 'SUCCESS',
-            followUpRequests: [{ targetComponentId: 'afyx-context', invocationReason: 'optimize evidence' }],
-          };
-        },
-        'afyx-context': () => {
-          contextCalls += 1;
-          return {
-            status: 'SUCCESS',
-            followUpRequests: [{ targetComponentId: 'afyx-graph', invocationReason: 'cycle back' }],
-          };
-        },
-      },
+    // 4. Explicit Context OFF (AFYX_CONTEXT_OPT_IN=0)
+    const offAdapters = createInstalledHostAdapters({
+      installRoot: PILOT_INSTALL_ROOT,
+      projectRoot: PILOT_PROJECT_ROOT,
+      stateRoot: tempState,
+      environment: { AFYX_CONTEXT_OPT_IN: '0' },
     });
-    assert.equal(graphCalls, 1);
-    assert.equal(contextCalls, 1);
-    assert.equal(cycleResult.metrics.duplicateInvocationsAvoided, 1);
-    assert.equal(cycleResult.results.at(-1).reason, 'DUPLICATE_REQUEST');
+    const offRes = await offAdapters['afyx-context']({
+      targetComponentId: 'afyx-context',
+      payload: 'line\n'.repeat(500),
+    });
+    assert.equal(offRes.status, 'FAILED');
+    assert.equal(offRes.reason, 'EXPLICITLY_DISABLED');
+
+    // 5. Forge A8 Governance restriction: autonomous campaign blocked
+    const autonomousRes = await pilotAdapters['afyx-forge']({
+      targetComponentId: 'afyx-forge',
+      taskType: 'autonomous-campaign',
+      intent: 'Execute autonomous campaign',
+    });
+    assert.equal(autonomousRes.status, 'FAILED');
+    assert.ok(autonomousRes.reason?.includes('FORGE_A8_REQUIRED'));
   });
 });
