@@ -86,7 +86,8 @@ if [[ "$state" == 'NOT INSTALLED' ]] && { "$update" || "$repair"; }; then
   printf '%s\n' 'Update/repair requires an existing Afyx Context runtime.' >&2
   exit 1
 fi
-revision="$(git -C "$PACKAGE_ROOT" rev-parse HEAD 2>/dev/null || true)"
+revision=""
+if [[ -e "$PACKAGE_ROOT/.git" ]]; then revision="$(git -C "$PACKAGE_ROOT" rev-parse HEAD 2>/dev/null || true)"; fi
 if [[ ! "$revision" =~ ^[0-9a-f]{40}$ && -f "$PACKAGE_ROOT/.afyx-source-revision" ]]; then
   revision="$(tr -d '\r\n' < "$PACKAGE_ROOT/.afyx-source-revision")"
 fi

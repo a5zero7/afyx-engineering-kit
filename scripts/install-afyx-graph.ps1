@@ -89,6 +89,7 @@ function Assert-HostRuntime {
 }
 
 function Get-SourceRevision {
+  if (-not (Test-Path -LiteralPath (Join-Path $kitRoot '.git'))) { return $null }
     $git = Get-Command git -ErrorAction SilentlyContinue
     if (-not $git) { return $null }
     & $git.Source -C $kitRoot rev-parse --is-inside-work-tree *> $null
@@ -103,6 +104,12 @@ function Get-SourceRevision {
 function Get-RequestedRevision {
     $source = Get-SourceRevision
     if ($source) { return $source.Commit }
+  $marker = Join-Path $kitRoot '.afyx-source-revision'
+  if (Test-Path -LiteralPath $marker -PathType Leaf) {
+    $revision = (Get-Content -Raw -LiteralPath $marker -Encoding utf8).Trim()
+    if ($revision -notmatch '^[0-9a-f]{40}$') { throw 'Packaged source revision marker is invalid.' }
+    return $revision
+  }
     return $null
 }
 

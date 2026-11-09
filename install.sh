@@ -343,7 +343,7 @@ if "$antigravity_detected"; then printf '[REQUIRED] Antigravity host: detected\n
 if command -v node >/dev/null 2>&1; then printf '[COMPONENT_REQUIRED:Afyx Graph] Node.js >=22.5.0: %s\n' "$(node --version)"; else printf '[COMPONENT_REQUIRED:Afyx Graph] Node.js >=22.5.0: MISSING — install from https://nodejs.org/\n'; fi
 if command -v npm >/dev/null 2>&1; then printf '[BUILD_ONLY:Afyx Graph] npm: %s\n' "$(npm --version)"; else printf '[BUILD_ONLY:Afyx Graph] npm: MISSING — needed only for automatic local fallback\n'; fi
 printf '[COMPONENT_REQUIRED:Afyx Graph] Archive/checksum: tar + SHA-256 tool required\n'
-if command -v git >/dev/null 2>&1 && git -C "$PACKAGE_ROOT" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+if [ -e "$PACKAGE_ROOT/.git" ] && command -v git >/dev/null 2>&1 && git -C "$PACKAGE_ROOT" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
   graph_channel="$(sed -n 's/^[[:space:]]*"releaseChannel"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$PACKAGE_ROOT/afyx-graph/engine/scripts/distribution-product.json" | head -n 1)"
   printf 'Source: branch=%s; commit=%s; channel=%s\n' "$(git -C "$PACKAGE_ROOT" branch --show-current)" "$(git -C "$PACKAGE_ROOT" rev-parse HEAD)" "$graph_channel"
 fi

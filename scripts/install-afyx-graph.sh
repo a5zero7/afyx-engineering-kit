@@ -49,8 +49,12 @@ json_value() {
 
 VERSION="$(json_value product_version)"
 CHANNEL="$(sed -n 's/^[[:space:]]*"releaseChannel"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$DISTRIBUTION_PRODUCT" | head -n 1)"
-if command -v git >/dev/null 2>&1 && git -C "$PACKAGE_ROOT" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+if [ -e "$PACKAGE_ROOT/.git" ] && command -v git >/dev/null 2>&1 && git -C "$PACKAGE_ROOT" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
   requested_revision="$(git -C "$PACKAGE_ROOT" rev-parse HEAD 2>/dev/null || printf UNKNOWN)"
+elif [ -f "$PACKAGE_ROOT/.afyx-source-revision" ]; then
+  requested_revision="$(cat "$PACKAGE_ROOT/.afyx-source-revision")"
+  case "$requested_revision" in *[!0-9a-f]*|'') printf 'Packaged source revision marker is invalid.\n' >&2; exit 1 ;; esac
+  [ "${#requested_revision}" -eq 40 ] || { printf 'Packaged source revision marker is invalid.\n' >&2; exit 1; }
 fi
 
 node_version() {
@@ -83,7 +87,7 @@ build_local_archive() {
   require_host_runtime
   command -v npm >/dev/null 2>&1 || { printf 'BUILD_ONLY: npm was not found on PATH. It is required only because no verified release artifact was available.\n' >&2; return 1; }
   command -v git >/dev/null 2>&1 || { printf 'BUILD_ONLY: Git is required to validate the local source revision.\n' >&2; return 1; }
-  git -C "$PACKAGE_ROOT" rev-parse --is-inside-work-tree >/dev/null 2>&1 || { printf 'BUILD_ONLY: local fallback requires a validated Git checkout.\n' >&2; return 1; }
+  [ -e "$PACKAGE_ROOT/.git" ] && git -C "$PACKAGE_ROOT" rev-parse --is-inside-work-tree >/dev/null 2>&1 || { printf 'BUILD_ONLY: local fallback requires a validated Git checkout.\n' >&2; return 1; }
   source_revision="$(git -C "$PACKAGE_ROOT" rev-parse HEAD)"
   local branch dirty engine release
   branch="$(git -C "$PACKAGE_ROOT" branch --show-current)"

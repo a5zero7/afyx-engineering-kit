@@ -83,12 +83,15 @@ $controlPlan = if ($Preset) { Get-AfyxControlPlan -Preset $Preset -CustomCompone
 
 Show-AfyxBanner -Terminal $terminal -Subtitle 'Readiness Verification | Midnight Circuit'
 $gitSource = Get-Command git -ErrorAction SilentlyContinue
-if ($gitSource) {
+if ($gitSource -and (Test-Path -LiteralPath (Join-Path $PSScriptRoot '.git'))) {
     $sourceCommit = (& git -C $PSScriptRoot rev-parse HEAD 2>$null) -join ''
     $sourceBranch = (& git -C $PSScriptRoot branch --show-current 2>$null) -join ''
     if (-not $sourceBranch) { $sourceBranch = 'DETACHED' }
     $sourceDirty = [bool]((& git -C $PSScriptRoot status --porcelain 2>$null) -join '')
     Write-Result $(if ($sourceDirty) { 'WARN' } else { 'OK' }) 'Source identity' "branch=$sourceBranch; commit=$sourceCommit; dirty=$sourceDirty"
+} elseif (Test-Path -LiteralPath (Join-Path $PSScriptRoot '.afyx-source-revision') -PathType Leaf) {
+  $sourceCommit = (Get-Content -Raw -LiteralPath (Join-Path $PSScriptRoot '.afyx-source-revision')).Trim()
+  Write-Result $(if ($sourceCommit -match '^[0-9a-f]{40}$') { 'OK' } else { 'FAIL' }) 'Source identity' "branch=PACKAGED; commit=$sourceCommit; dirty=False"
 }
 foreach ($providerRecord in (Get-AfyxProviderRegistry)) {
     Write-Result 'INFO' "Provider adapter: $($providerRecord.name)" "primary=$($providerRecord.primary); ownership=$($providerRecord.ownership_class); capabilities=$($providerRecord.capabilities); policy=$($providerRecord.configuration_policy)"

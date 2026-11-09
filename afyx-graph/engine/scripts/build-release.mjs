@@ -5,13 +5,13 @@ import {
   copyFileSync,
   existsSync,
   mkdirSync,
-  renameSync,
   rmSync,
   writeFileSync,
 } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { verifyEngineDistribution } from './distribution-contract.mjs';
+import { safeMove } from './safe-move.mjs';
 import { releaseStamp, RELEASE_STAMP, sourceDigest, verifyReleaseReady } from './release-readiness.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -58,18 +58,6 @@ try {
     'utf8',
   );
   verifyEngineDistribution(stage);
-
-  function safeMove(from, to) {
-    try {
-      renameSync(from, to);
-    } catch (err) {
-      if (process.platform === 'win32' && err?.code === 'EPERM') {
-        const ps = spawnSync('powershell.exe', ['-NoProfile', '-Command', `Move-Item -LiteralPath '${from}' -Destination '${to}' -Force`], { windowsHide: true });
-        if (ps.status === 0 && existsSync(to)) return;
-      }
-      throw err;
-    }
-  }
 
   let movedOld = false;
   try {

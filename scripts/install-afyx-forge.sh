@@ -102,7 +102,7 @@ resolve_source_revision() {
     printf '\n'
     return 0
   fi
-  if command -v git >/dev/null 2>&1; then
+  if [[ -e "$PACKAGE_ROOT/.git" ]] && command -v git >/dev/null 2>&1; then
     local rev
     rev="$(git -C "$PACKAGE_ROOT" rev-parse HEAD 2>/dev/null || true)"
     if [[ -n "$rev" ]]; then
@@ -118,7 +118,7 @@ resolve_source_provenance() {
     printf '%s\n' 'RELEASE_CANDIDATE_SNAPSHOT'
     return 0
   fi
-  if command -v git >/dev/null 2>&1 && git -C "$PACKAGE_ROOT" rev-parse HEAD >/dev/null 2>&1; then
+  if [[ -e "$PACKAGE_ROOT/.git" ]] && command -v git >/dev/null 2>&1 && git -C "$PACKAGE_ROOT" rev-parse HEAD >/dev/null 2>&1; then
     local dirty
     dirty="$(git -C "$PACKAGE_ROOT" status --porcelain -- afyx-forge 2>/dev/null || true)"
     if [[ -n "$dirty" ]]; then

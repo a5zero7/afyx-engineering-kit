@@ -102,7 +102,7 @@ if ($state -eq 'HEALTHY' -and -not ($Update -or $Repair)) { Write-Host 'Afyx Con
 if ($state -eq 'NOT INSTALLED' -and ($Update -or $Repair)) { throw 'Update/repair requires an existing Afyx Context runtime.' }
 if ($WhatIfPreference) { Write-Host "WhatIf: would stage and install Afyx Context at $RuntimeRoot"; exit 0 }
 
-$revision = (& git -C $packageRoot rev-parse HEAD 2>$null) -join ''
+$revision = if (Test-Path -LiteralPath (Join-Path $packageRoot '.git')) { (& git -C $packageRoot rev-parse HEAD 2>$null) -join '' } else { '' }
 $fromPackageMarker = $false
 if (-not $revision -or $revision -notmatch '^[0-9a-f]{40}$') {
     $revFile = Join-Path $packageRoot '.afyx-source-revision'

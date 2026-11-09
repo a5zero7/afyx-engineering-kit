@@ -463,9 +463,10 @@ Write-AfyxStatus -Status $(if ($claudeCommandDetected) { 'HEALTHY' } else { 'SKI
 Write-AfyxStatus -Status $(if ($nodeVersion) { 'HEALTHY' } else { 'BLOCKED' }) -Name 'Node.js >=22.5.0 [COMPONENT_REQUIRED:Graph/Context]' -Detail $(if ($nodeVersion) { $nodeVersion } else { 'missing; install from https://nodejs.org/ before selecting Graph or Context' }) -Terminal $terminal
 Write-AfyxStatus -Status $(if ($npmVersion) { 'HEALTHY' } else { 'SKIPPED' }) -Name 'npm [BUILD_ONLY:Afyx Graph]' -Detail $(if ($npmVersion) { $npmVersion } else { 'missing; needed only for automatic local fallback' }) -Terminal $terminal
 Write-AfyxStatus -Status HEALTHY -Name 'Archive/checksum [COMPONENT_REQUIRED:Afyx Graph]' -Detail 'Expand-Archive + Get-FileHash available' -Terminal $terminal
-$sourceBranch = if ($gitVersion) { (& git -C $packageRoot branch --show-current 2>$null) -join '' } else { 'unavailable' }
-$sourceCommit = if ($gitVersion) { (& git -C $packageRoot rev-parse HEAD 2>$null) -join '' } else { 'unavailable' }
-$sourceDirty = if ($gitVersion) { [bool]((& git -C $packageRoot status --porcelain 2>$null) -join '') } else { $false }
+$sourceIsCheckout = $gitVersion -and (Test-Path -LiteralPath (Join-Path $packageRoot '.git'))
+$sourceBranch = if ($sourceIsCheckout) { (& git -C $packageRoot branch --show-current 2>$null) -join '' } else { 'PACKAGED' }
+$sourceCommit = if ($sourceIsCheckout) { (& git -C $packageRoot rev-parse HEAD 2>$null) -join '' } elseif (Test-Path -LiteralPath (Join-Path $packageRoot '.afyx-source-revision') -PathType Leaf) { (Get-Content -Raw -LiteralPath (Join-Path $packageRoot '.afyx-source-revision')).Trim() } else { 'unavailable' }
+$sourceDirty = if ($sourceIsCheckout) { [bool]((& git -C $packageRoot status --porcelain 2>$null) -join '') } else { $false }
 if (-not $sourceBranch) { $sourceBranch = 'DETACHED' }
 Write-AfyxStatus -Status $(if ($sourceDirty) { 'WARNING' } else { 'HEALTHY' }) -Name 'Source identity' -Detail "branch=$sourceBranch; commit=$sourceCommit; dirty=$sourceDirty; channel=$graphReleaseChannel" -Terminal $terminal
 Write-AfyxSection -Title 'Provider Plan' -Terminal $terminal
@@ -606,7 +607,7 @@ if ($graphAction -ne 'skip') {
         if (-not (Test-Path -LiteralPath $enginePackage -PathType Leaf)) {
             throw "Afyx Graph installation is BLOCKED: release cache is absent and source engine is missing at $enginePackage."
         }
-        if (-not $gitCmd -or -not $tarCmd) {
+      if (-not $sourceIsCheckout -or -not $gitCmd -or -not $tarCmd) {
             throw "Afyx Graph installation is BLOCKED: Git and tar are required for clean source staging when building from local repository."
         }
         $gitStatus = & $gitCmd.Source -C $packageRoot status --porcelain -- afyx-graph 2>$null

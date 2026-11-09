@@ -63,8 +63,8 @@ if ($Offline -and -not $SkipSelfUpdate) {
         Write-Error 'Git executable not found. Self-update cannot be performed. Re-run with -SkipSelfUpdate only if using the current checkout intentionally.'
         exit 1
     }
-    & git -C $root rev-parse --is-inside-work-tree *> $null
-    if ($LASTEXITCODE -ne 0) {
+  if (Test-Path -LiteralPath (Join-Path $root '.git')) { & git -C $root rev-parse --is-inside-work-tree *> $null }
+  if (-not (Test-Path -LiteralPath (Join-Path $root '.git')) -or $LASTEXITCODE -ne 0) {
         Write-Warning 'Self-update unavailable: source directory is not a Git repository. Continuing with current source.'
     } else {
         $status = & git -C $root status --porcelain
