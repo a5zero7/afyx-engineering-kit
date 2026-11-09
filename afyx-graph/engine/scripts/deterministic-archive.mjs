@@ -45,11 +45,13 @@ function collectFiles(source) {
       if (stats.isSymbolicLink()) throw new Error(`archive source must not contain symlinks: ${absolute}`);
       if (stats.isDirectory()) pending.push(absolute);
       else if (stats.isFile()) {
-        const path = `${rootName}/${relative(root, absolute).split(sep).join('/')}`;
+        const bundlePath = relative(root, absolute).split(sep).join('/');
+        const path = `${rootName}/${bundlePath}`;
+        const launcher = bundlePath === 'bin/afyx-graph' || bundlePath === 'lib/dist/bin/afyx-graph.js';
         files.push({
           path,
           bytes: readFileSync(absolute),
-          mode: (stats.mode & 0o111) === 0 ? 0o644 : 0o755,
+          mode: launcher || (stats.mode & 0o111) !== 0 ? 0o755 : 0o644,
         });
       } else throw new Error(`archive source contains an unsupported entry: ${absolute}`);
     }

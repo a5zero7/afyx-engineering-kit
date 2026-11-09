@@ -13,6 +13,11 @@ import { basename, dirname, extname, isAbsolute, relative, resolve } from 'node:
 import { homedir } from 'node:os';
 import { spawnSync } from 'node:child_process';
 import { probeMcp } from './afyx-mcp-integration.mjs';
+import {
+  createConfigurationBackup,
+  updateKnownState,
+  rollbackConfiguration,
+} from './afyx-provider-backup.mjs';
 
 const MAX_DIAGNOSTIC = 2_000;
 
@@ -418,9 +423,12 @@ export async function integrateClaude(options) {
       return { ...result, status: 'BLOCKED', reason: 'UNOWNED_ENTRY', detail: 'Matching but unowned entry was preserved.' };
     }
     if (!options.apply) return { ...result, status: 'CONFIGURED', detail: 'Removal is planned but not consented.' };
-    const configBefore = snapshot(inspection.paths.config);
+    const backup = createConfigurationBackup({
+      provider: 'claude',
+      configPath: inspection.paths.config,
+      operation: 'claude-mcp-remove',
+    });
     const markerBefore = snapshot(inspection.paths.ownership);
-    let configKnown = configBefore;
     let markerKnown = markerBefore;
     try {
       if (inspection.actual) {
@@ -428,7 +436,7 @@ export async function integrateClaude(options) {
           claudeRun(options, ['mcp', 'remove', inspection.server, '--scope', inspection.paths.nativeScope]),
           'Claude Code MCP removal',
         );
-        configKnown = snapshot(inspection.paths.config);
+        updateKnownState(backup);
       }
       removeClaim(inspection);
       markerKnown = snapshot(inspection.paths.ownership);
@@ -442,15 +450,15 @@ export async function integrateClaude(options) {
       }
       return { ...result, status: 'UNAVAILABLE', changed: true, detail: 'Owned Claude Code entry removed; unrelated configuration preserved.' };
     } catch (error) {
-      const configRestored = restoreGuarded(inspection.paths.config, configBefore, configKnown);
+      const rollback = rollbackConfiguration(backup, { reason: error instanceof Error ? error.message : String(error) });
       const markerRestored = restoreGuarded(inspection.paths.ownership, markerBefore, markerKnown);
-      const restored = configRestored && markerRestored;
+      const restored = rollback.restored && markerRestored;
       return {
         ...result,
         status: 'BLOCKED',
         changed: !restored,
-        reason: restored ? 'ROLLBACK_COMPLETED' : 'ROLLBACK_INCOMPLETE',
-        detail: `${error instanceof Error ? error.message : String(error)}${restored ? '' : ' Exact-byte rollback was refused because provider state changed outside the last known Afyx mutation.'}`,
+        reason: rollback.conflict ? 'CONCURRENT_MODIFICATION_DETECTED' : (restored ? 'ROLLBACK_COMPLETED' : 'ROLLBACK_INCOMPLETE'),
+        detail: `${error instanceof Error ? error.message : String(error)}${restored ? ' (configuration restored safely)' : (rollback.conflict ? '; ' + rollback.reason : '; rollback was incomplete')}`,
       };
     }
   }
@@ -462,9 +470,12 @@ export async function integrateClaude(options) {
   });
   if (!probe.ok) return { ...result, status: 'BLOCKED', reason: 'MCP_HANDSHAKE_FAILED', detail: probe.detail };
   if (['MCP_NOT_CONFIGURED', 'MCP_STALE_OWNED'].includes(inspection.state)) {
-    const configBefore = snapshot(inspection.paths.config);
+    const backup = createConfigurationBackup({
+      provider: 'claude',
+      configPath: inspection.paths.config,
+      operation: 'claude-mcp-register',
+    });
     const markerBefore = snapshot(inspection.paths.ownership);
-    let configKnown = configBefore;
     let markerKnown = markerBefore;
     try {
       if (inspection.state === 'MCP_STALE_OWNED') {
@@ -472,13 +483,13 @@ export async function integrateClaude(options) {
           claudeRun(options, ['mcp', 'remove', inspection.server, '--scope', inspection.paths.nativeScope]),
           'Claude Code stale MCP removal',
         );
-        configKnown = snapshot(inspection.paths.config);
+        updateKnownState(backup);
       }
       requireClaudeSuccess(
         claudeRun(options, ['mcp', 'add-json', inspection.server, JSON.stringify(inspection.expected), '--scope', inspection.paths.nativeScope]),
         'Claude Code MCP registration',
       );
-      configKnown = snapshot(inspection.paths.config);
+      updateKnownState(backup);
       writeClaim(inspection);
       markerKnown = snapshot(inspection.paths.ownership);
       const after = inspectClaude(options);
@@ -489,15 +500,15 @@ export async function integrateClaude(options) {
       result.changed = true;
       inspection = after;
     } catch (error) {
-      const configRestored = restoreGuarded(inspection.paths.config, configBefore, configKnown);
+      const rollback = rollbackConfiguration(backup, { reason: error instanceof Error ? error.message : String(error) });
       const markerRestored = restoreGuarded(inspection.paths.ownership, markerBefore, markerKnown);
-      const restored = configRestored && markerRestored;
+      const restored = rollback.restored && markerRestored;
       return {
         ...result,
         status: 'BLOCKED',
         changed: !restored,
-        reason: restored ? 'ROLLBACK_COMPLETED' : 'ROLLBACK_INCOMPLETE',
-        detail: `${error instanceof Error ? error.message : String(error)}${restored ? '' : ' Exact-byte rollback was refused because provider state changed outside the last known Afyx mutation.'}`,
+        reason: rollback.conflict ? 'CONCURRENT_MODIFICATION_DETECTED' : (restored ? 'ROLLBACK_COMPLETED' : 'ROLLBACK_INCOMPLETE'),
+        detail: `${error instanceof Error ? error.message : String(error)}${restored ? ' (configuration restored safely)' : (rollback.conflict ? '; ' + rollback.reason : '; rollback was incomplete')}`,
       };
     }
   }

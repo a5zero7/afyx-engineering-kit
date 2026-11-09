@@ -5,6 +5,13 @@ import { basename, dirname, extname, isAbsolute, join, normalize, relative, reso
 import { spawn, spawnSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
+import {
+  createConfigurationBackup,
+  updateKnownState,
+  rollbackConfiguration,
+  validateUnrelatedPreserved,
+  readFileBytes,
+} from './afyx-provider-backup.mjs';
 
 function argument(name, fallback = '') {
   const index = process.argv.indexOf(name);
@@ -149,26 +156,22 @@ function readExisting(codex, codexHome, providerTimeoutMs, server = 'afyx_graph'
 
 function backupConfig(codexHome) {
   const config = resolve(codexHome, 'config.toml');
-  if (!existsSync(config)) return { config, backup: null, existed: false, before: null, expected: null };
-  const backup = `${config}.afyx-backup`;
-  const before = readFileSync(config);
-  copyFileSync(config, backup);
-  return { config, backup, existed: true, before, expected: before };
+  return createConfigurationBackup({
+    provider: 'codex',
+    configPath: config,
+    operation: 'codex-mcp',
+  });
 }
 
 function restoreBackup(backup) {
-  if (!backup || !sameBytes(fileBytes(backup.config), backup.expected)) return false;
-  if (backup.existed) {
-    copyFileSync(backup.backup, backup.config);
-    rmSync(backup.backup, { force: true });
-  } else {
-    rmSync(backup.config, { force: true });
-  }
-  return sameBytes(fileBytes(backup.config), backup.before);
+  if (!backup) return false;
+  const res = rollbackConfiguration(backup);
+  return Boolean(res.restored);
 }
 
 function removeBackup(backup) {
-  if (backup?.backup) rmSync(backup.backup, { force: true });
+  // Retain recovery backup according to universal configuration management policy.
+  // Backups are preserved outside the repository with retention limits.
 }
 
 function fileBytes(file) {
@@ -181,7 +184,7 @@ function sameBytes(left, right) {
 }
 
 function markBackupState(backup) {
-  if (backup) backup.expected = fileBytes(backup.config);
+  if (backup) updateKnownState(backup);
 }
 
 function restoreFileGuarded(file, before, expected) {
@@ -411,19 +414,31 @@ export async function integrate(options) {
       else rmSync(ownership.file, { force: true });
       markerExpected = fileBytes(ownership.file);
       removeBackup(backup);
+      const afterBytes = readFileBytes(backup.configPath);
+      const unrelatedValidation = validateUnrelatedPreserved({
+        format: 'toml',
+        beforeBytes: backup.originalBytes,
+        afterBytes,
+        server,
+      });
+      if (!unrelatedValidation.preserved) {
+        throw new Error(`Codex CLI altered unrelated configuration during removal: ${unrelatedValidation.detail}`);
+      }
       result.mcp = 'MCP_NOT_CONFIGURED';
       result.changed = true;
       result.reason = '';
-      result.detail = 'Owned Codex MCP entry removed; unrelated configuration preserved.';
+      result.detail = `Owned Codex MCP entry removed; unrelated configuration preserved.${unrelatedValidation.normalized ? ' (provider-native TOML normalization verified)' : ''}`;
       return result;
     } catch (error) {
-      const configRestored = restoreBackup(backup);
+      const rollback = rollbackConfiguration(backup, { reason: error instanceof Error ? error.message : String(error) });
       const markerRestored = restoreFileGuarded(ownership.file, markerBefore, markerExpected);
-      const restored = configRestored && markerRestored;
+      const restored = rollback.restored && markerRestored;
       result.mcp = 'MCP_BLOCKED';
       result.changed = !restored;
-      result.reason = restored ? 'MCP_REMOVAL_FAILED' : 'ROLLBACK_INCOMPLETE';
-      result.detail = `Codex MCP removal failed${restored ? ' and configuration was restored' : '; exact-byte rollback was refused because provider state changed outside the last known Afyx mutation'}: ${error instanceof Error ? error.message : String(error)}`;
+      result.reason = rollback.conflict
+        ? 'CONCURRENT_MODIFICATION_DETECTED'
+        : (restored ? 'MCP_REMOVAL_FAILED' : 'ROLLBACK_INCOMPLETE');
+      result.detail = `Codex MCP removal failed${restored ? ' and configuration was restored' : (rollback.conflict ? '; ' + rollback.reason : '; rollback was incomplete')}: ${error instanceof Error ? error.message : String(error)}`;
       return result;
     }
   }
@@ -461,16 +476,28 @@ export async function integrate(options) {
       writeOwnership(ownership);
       ownershipExpected = fileBytes(ownership.file);
       removeBackup(backup);
+      const afterBytes = readFileBytes(backup.configPath);
+      const unrelatedValidation = validateUnrelatedPreserved({
+        format: 'toml',
+        beforeBytes: backup.originalBytes,
+        afterBytes,
+        server,
+      });
+      if (!unrelatedValidation.preserved) {
+        throw new Error(`Codex CLI altered unrelated configuration during registration: ${unrelatedValidation.detail}`);
+      }
     } catch (error) {
-      const configRestored = restoreBackup(backup);
+      const rollback = rollbackConfiguration(backup, { reason: error instanceof Error ? error.message : String(error) });
       const ownershipRestored = restoreFileGuarded(ownership.file, ownershipBefore, ownershipExpected);
-      const restored = configRestored && ownershipRestored;
+      const restored = rollback.restored && ownershipRestored;
       result.mcp = 'MCP_BLOCKED';
       result.changed = !restored;
-      result.reason = restored
-        ? (error instanceof McpIntegrationError ? error.reason : 'MCP_REGISTRATION_FAILED')
-        : 'ROLLBACK_INCOMPLETE';
-      result.detail = `Graph runtime is installed; MCP registration failed${restored ? ' and configuration was restored' : '; exact-byte rollback was refused because provider state changed outside the last known Afyx mutation'}: ${error instanceof Error ? error.message : String(error)}`;
+      result.reason = rollback.conflict
+        ? 'CONCURRENT_MODIFICATION_DETECTED'
+        : (restored
+          ? (error instanceof McpIntegrationError ? error.reason : 'MCP_REGISTRATION_FAILED')
+          : 'ROLLBACK_INCOMPLETE');
+      result.detail = `Graph runtime is installed; MCP registration failed${restored ? ' and configuration was restored' : (rollback.conflict ? '; ' + rollback.reason : '; rollback was incomplete')}: ${error instanceof Error ? error.message : String(error)}`;
       return result;
     }
   }

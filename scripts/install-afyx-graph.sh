@@ -277,10 +277,10 @@ if [[ -z "$archive_path" ]]; then
   else
     if [[ "$offline" != true ]] && command -v curl >/dev/null 2>&1; then
       archive_path="$transaction/$asset"
-      url="https://github.com/a5zero7/afyx-codex-engineering-kit/releases/download/afyx-graph-v$VERSION/$asset"
+      url="https://github.com/a5zero7/afyx-engineering-kit/releases/download/afyx-graph-v$VERSION/$asset"
       if curl -fsSL "$url" -o "$archive_path" &&
-         curl -fsSL "https://github.com/a5zero7/afyx-codex-engineering-kit/releases/download/afyx-graph-v$VERSION/SHA256SUMS" -o "$transaction/SHA256SUMS" &&
-         curl -fsSL "https://github.com/a5zero7/afyx-codex-engineering-kit/releases/download/afyx-graph-v$VERSION/RELEASE-MANIFEST.json" -o "$transaction/RELEASE-MANIFEST.json"; then
+         curl -fsSL "https://github.com/a5zero7/afyx-engineering-kit/releases/download/afyx-graph-v$VERSION/SHA256SUMS" -o "$transaction/SHA256SUMS" &&
+         curl -fsSL "https://github.com/a5zero7/afyx-engineering-kit/releases/download/afyx-graph-v$VERSION/RELEASE-MANIFEST.json" -o "$transaction/RELEASE-MANIFEST.json"; then
         artifact_source=github-release
         if ! archive_checksum_valid "$archive_path" || ! archive_bundle_identity_valid "$archive_path" || ! read_archive_identity "$archive_path"; then
           printf 'Downloaded release artifact failed integrity or identity validation; trying bounded local build fallback.\n' >&2
@@ -355,7 +355,7 @@ elif [[ "$artifact_source" == github-release ]]; then
   exit 1
 fi
 if [[ "$artifact_source" == github-release ]] && command -v gh >/dev/null 2>&1; then
-  gh attestation verify "$archive_path" --repo a5zero7/afyx-codex-engineering-kit >/dev/null 2>&1 || {
+  gh attestation verify "$archive_path" --repo a5zero7/afyx-engineering-kit >/dev/null 2>&1 || {
     printf 'GitHub publisher/build attestation verification failed.\n' >&2; exit 1;
   }
   publisher_authenticity=GITHUB_ATTESTED

@@ -17,6 +17,11 @@ import { fileURLToPath } from 'node:url';
 import { integrate as integrateCodex, probeMcp } from './afyx-mcp-integration.mjs';
 import { inspectClaude, integrateClaude } from './afyx-claude-integration.mjs';
 import {
+  createConfigurationBackup,
+  updateKnownState,
+  rollbackConfiguration,
+} from './afyx-provider-backup.mjs';
+import {
   discoverProviderCapabilities,
   negotiateProviderCapabilities,
 } from './afyx-integration-contracts.mjs';
@@ -228,9 +233,12 @@ export async function integrateAntigravity(options) {
     if (inspection.state === 'MCP_NOT_CONFIGURED') return { ...result, status: 'UNAVAILABLE', detail: 'No provider entry is configured.' };
     if (!inspection.owned) return { ...result, status: 'BLOCKED', reason: 'UNOWNED_ENTRY', detail: 'Matching but unowned entry was preserved.' };
     if (!options.apply) return { ...result, status: 'CONFIGURED', detail: 'Removal is planned but not consented.' };
-    const configBefore = snapshot(inspection.paths.config);
+    const backup = createConfigurationBackup({
+      provider: 'antigravity',
+      configPath: inspection.paths.config,
+      operation: 'antigravity-mcp-remove',
+    });
     const markerBefore = snapshot(inspection.ownership);
-    let configKnown = configBefore;
     let markerKnown = markerBefore;
     try {
       delete inspection.document.mcpServers[inspection.server];
@@ -240,7 +248,7 @@ export async function integrateAntigravity(options) {
         if (Object.keys(inspection.marker.entries).length === 0) delete inspection.marker.entries;
       }
       atomicJson(inspection.paths.config, inspection.document);
-      configKnown = snapshot(inspection.paths.config);
+      updateKnownState(backup);
       if (inspection.marker.entries) atomicJson(inspection.ownership, inspection.marker);
       else rmSync(inspection.ownership, { force: true });
       markerKnown = snapshot(inspection.ownership);
@@ -248,15 +256,15 @@ export async function integrateAntigravity(options) {
       if (after.state !== 'MCP_NOT_CONFIGURED') throw new Error('Provider removal read-back failed.');
       return { ...result, status: 'UNAVAILABLE', changed: true, detail: 'Owned provider entry removed; unrelated configuration preserved.' };
     } catch (error) {
-      const configRestored = restoreGuarded(inspection.paths.config, configBefore, configKnown);
+      const rollback = rollbackConfiguration(backup, { reason: error instanceof Error ? error.message : String(error) });
       const markerRestored = restoreGuarded(inspection.ownership, markerBefore, markerKnown);
-      const restored = configRestored && markerRestored;
+      const restored = rollback.restored && markerRestored;
       return {
         ...result,
         status: 'BLOCKED',
         changed: !restored,
-        reason: restored ? 'ROLLBACK_COMPLETED' : 'ROLLBACK_INCOMPLETE',
-        detail: `${error instanceof Error ? error.message : String(error)}${restored ? '' : ' Exact-byte rollback was refused because provider state changed outside the last known Afyx mutation.'}`,
+        reason: rollback.conflict ? 'CONCURRENT_MODIFICATION_DETECTED' : (restored ? 'ROLLBACK_COMPLETED' : 'ROLLBACK_INCOMPLETE'),
+        detail: `${error instanceof Error ? error.message : String(error)}${restored ? ' (configuration restored safely)' : (rollback.conflict ? '; ' + rollback.reason : '; rollback was incomplete')}`,
       };
     }
   }
@@ -271,9 +279,12 @@ export async function integrateAntigravity(options) {
   });
   if (!probe.ok) return { ...result, status: 'BLOCKED', reason: 'MCP_HANDSHAKE_FAILED', detail: probe.detail };
   if (options.apply && ['MCP_NOT_CONFIGURED', 'MCP_STALE_OWNED'].includes(inspection.state)) {
-    const configBefore = snapshot(inspection.paths.config);
+    const backup = createConfigurationBackup({
+      provider: 'antigravity',
+      configPath: inspection.paths.config,
+      operation: 'antigravity-mcp-register',
+    });
     const markerBefore = snapshot(inspection.ownership);
-    let configKnown = configBefore;
     let markerKnown = markerBefore;
     try {
       inspection.document.mcpServers ||= {};
@@ -286,22 +297,22 @@ export async function integrateAntigravity(options) {
         entry: inspection.expected,
       };
       atomicJson(inspection.paths.config, inspection.document);
-      configKnown = snapshot(inspection.paths.config);
+      updateKnownState(backup);
       atomicJson(inspection.ownership, inspection.marker);
       markerKnown = snapshot(inspection.ownership);
       const after = inspectAntigravity(options);
       if (after.state !== 'MCP_CONFIGURED' || !after.owned) throw new Error('Provider configuration read-back failed.');
       result.changed = true;
     } catch (error) {
-      const configRestored = restoreGuarded(inspection.paths.config, configBefore, configKnown);
+      const rollback = rollbackConfiguration(backup, { reason: error instanceof Error ? error.message : String(error) });
       const markerRestored = restoreGuarded(inspection.ownership, markerBefore, markerKnown);
-      const restored = configRestored && markerRestored;
+      const restored = rollback.restored && markerRestored;
       return {
         ...result,
         status: 'BLOCKED',
         changed: !restored,
-        reason: restored ? 'ROLLBACK_COMPLETED' : 'ROLLBACK_INCOMPLETE',
-        detail: `${error instanceof Error ? error.message : String(error)}${restored ? '' : ' Exact-byte rollback was refused because provider state changed outside the last known Afyx mutation.'}`,
+        reason: rollback.conflict ? 'CONCURRENT_MODIFICATION_DETECTED' : (restored ? 'ROLLBACK_COMPLETED' : 'ROLLBACK_INCOMPLETE'),
+        detail: `${error instanceof Error ? error.message : String(error)}${restored ? ' (configuration restored safely)' : (rollback.conflict ? '; ' + rollback.reason : '; rollback was incomplete')}`,
       };
     }
   }

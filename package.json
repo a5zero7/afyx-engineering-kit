@@ -11,9 +11,11 @@
     "node": ">=22.5.0"
   },
   "scripts": {
+    "prepack": "node scripts/prepare-g6-package.mjs",
     "test": "node --test scripts/tests/test_npm_installer.mjs"
   },
   "files": [
+    ".afyx-source-revision",
     "bin/",
     "scripts/",
     "skills/",
@@ -21,7 +23,9 @@
     "afyx-forge/",
     "afyx-graph/afyx-graph.json",
     "afyx-graph/engine/release/afyx-graph-win32-x64.zip",
+    "afyx-graph/engine/release/afyx-graph-linux-x64.tar.gz",
     "afyx-graph/engine/release/SHA256SUMS",
+    "afyx-graph/engine/release/RELEASE-MANIFEST.json",
     "afyx-graph/engine/scripts/distribution-product.json",
     "afyx-graph/engine/scripts/distribution-contract.mjs",
     "tools/",

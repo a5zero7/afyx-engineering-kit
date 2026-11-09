@@ -57,6 +57,20 @@ describe('deterministic distribution archives', () => {
     expect(digest(firstArchive)).toBe(digest(secondArchive));
   });
 
+  it.each(['win32-x64', 'linux-x64'])('normalizes launcher modes for %s', (target) => {
+    const files = ['metadata.json', 'bin/afyx-graph', 'lib/dist/bin/afyx-graph.js'];
+    const executable = fixture(files, new Date('2020-01-01T00:00:00Z'));
+    const nonExecutable = fixture(files, new Date('2020-01-01T00:00:00Z'));
+    chmodSync(join(executable, 'lib', 'dist', 'bin', 'afyx-graph.js'), 0o755);
+    chmodSync(join(nonExecutable, 'bin', 'afyx-graph'), 0o644);
+    const extension = target === 'win32-x64' ? 'zip' : 'tar.gz';
+    const first = join(executable, '..', `exec-${target}.${extension}`);
+    const second = join(nonExecutable, '..', `noexec-${target}.${extension}`);
+    createDeterministicArchive({ source: executable, target, output: first });
+    createDeterministicArchive({ source: nonExecutable, target, output: second });
+    expect(digest(first)).toBe(digest(second));
+  });
+
   it.skipIf(process.platform === 'win32')('fails closed when staged content contains a symlink', () => {
     const root = fixture(['metadata.json'], new Date('2020-01-01T00:00:00Z'));
     symlinkSync(join(root, 'metadata.json'), join(root, 'linked-metadata.json'));

@@ -87,8 +87,15 @@ if [[ "$state" == 'NOT INSTALLED' ]] && { "$update" || "$repair"; }; then
   exit 1
 fi
 revision="$(git -C "$PACKAGE_ROOT" rev-parse HEAD 2>/dev/null || true)"
+if [[ ! "$revision" =~ ^[0-9a-f]{40}$ && -f "$PACKAGE_ROOT/.afyx-source-revision" ]]; then
+  revision="$(tr -d '\r\n' < "$PACKAGE_ROOT/.afyx-source-revision")"
+fi
 [[ "$revision" =~ ^[0-9a-f]{40}$ ]] || { printf '%s\n' 'Exact Git source revision is required to install Afyx Context.' >&2; exit 1; }
-provenance=LOCAL_SOURCE_CLEAN; [[ -n "$(git -C "$PACKAGE_ROOT" status --porcelain --untracked-files=no)" ]] && provenance=LOCAL_SOURCE_DIRTY
+provenance=RELEASE_CANDIDATE_SNAPSHOT
+if [[ ! -f "$PACKAGE_ROOT/.afyx-source-revision" ]]; then
+  provenance=LOCAL_SOURCE_CLEAN
+  [[ -n "$(git -C "$PACKAGE_ROOT" status --porcelain --untracked-files=no)" ]] && provenance=LOCAL_SOURCE_DIRTY
+fi
 parent="$(dirname "$runtime_root")"; mkdir -p -- "$parent"
 prepared="$(mktemp -d "$parent/.afyx-context-stage.XXXXXX")"; swapped=false
 cleanup() {

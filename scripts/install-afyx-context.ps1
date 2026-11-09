@@ -103,15 +103,17 @@ if ($state -eq 'NOT INSTALLED' -and ($Update -or $Repair)) { throw 'Update/repai
 if ($WhatIfPreference) { Write-Host "WhatIf: would stage and install Afyx Context at $RuntimeRoot"; exit 0 }
 
 $revision = (& git -C $packageRoot rev-parse HEAD 2>$null) -join ''
+$fromPackageMarker = $false
 if (-not $revision -or $revision -notmatch '^[0-9a-f]{40}$') {
     $revFile = Join-Path $packageRoot '.afyx-source-revision'
     if (Test-Path -LiteralPath $revFile -PathType Leaf) {
         $revision = (Get-Content -Raw -LiteralPath $revFile -Encoding utf8).Trim()
+    $fromPackageMarker = $true
     }
 }
 if ($revision -notmatch '^[0-9a-f]{40}$') { throw 'Exact Git source revision is required to install Afyx Context.' }
-$dirty = (& git -C $packageRoot status --porcelain --untracked-files=no 2>$null) -join ''
-$provenance = if ($dirty) { 'LOCAL_SOURCE_DIRTY' } else { 'LOCAL_SOURCE_CLEAN' }
+$dirty = if ($fromPackageMarker) { '' } else { (& git -C $packageRoot status --porcelain --untracked-files=no 2>$null) -join '' }
+$provenance = if ($fromPackageMarker) { 'RELEASE_CANDIDATE_SNAPSHOT' } elseif ($dirty) { 'LOCAL_SOURCE_DIRTY' } else { 'LOCAL_SOURCE_CLEAN' }
 $parent = Split-Path -Parent $RuntimeRoot
 New-Item -ItemType Directory -Force -Path $parent | Out-Null
 $prepared = Join-Path $parent ".afyx-context-stage-$([guid]::NewGuid().ToString('N'))"

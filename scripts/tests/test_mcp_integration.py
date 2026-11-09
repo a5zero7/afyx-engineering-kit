@@ -17,7 +17,9 @@ HELPER = ROOT / "scripts/afyx-mcp-integration.mjs"
 
 
 def codex_path() -> str | None:
-    return shutil.which("codex.exe") if os.name == "nt" else shutil.which("codex")
+    if os.name == "nt":
+        return shutil.which("codex.cmd") or shutil.which("codex.exe") or shutil.which("codex")
+    return shutil.which("codex")
 
 
 def fake_server(path: Path, healthy: bool = True) -> None:
