@@ -1,5 +1,7 @@
 # AFYX Alpha Stabilization — Evidence-First Execution Preflight
 
+This preflight records the 2026-10-27 Alpha baseline. Its former workspace path is historical; current development uses registered worktrees under `D:\Project\workspace\afyx-engineering-kit`.
+
 **Status:** PREPARATION IMPLEMENTED; REAL PILOT `NOT_RUN`; COMBINED ACCEPTANCE `BLOCKED`
 
 **Authority:** [AFYX_V1_MASTER_ROADMAP.md](AFYX_V1_MASTER_ROADMAP.md), 2026-10-27 expanded v1 finalization contract.

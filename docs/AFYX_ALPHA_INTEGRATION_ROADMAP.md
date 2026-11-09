@@ -11,6 +11,8 @@ This plan makes Graph, Afyx Engineering Expert, and Forge work executable agains
 
 ### Workspace boundary (applies to T01-T12)
 
+The path below records the original T01-T12 workspace contract as historical evidence. Current development uses the `afyx-engineering-kit` repository and its registered worktrees under `D:\Project\workspace\afyx-engineering-kit`; do not use the former path as a live instruction.
+
 `D:\Project\workspace\afyx-codex-engineering-kit` is the canonical and exclusive development repository. All source changes, fixes, benchmarks, development tests, documentation, versioning, commits, builds, and release preparation for T01-T12 originate there.
 
 `D:\Project\afyx-alpha` is an installation/update acceptance environment only. It may be used for clean installation, upgrade to a newly produced candidate, installed identity/provenance verification, and post-install smoke or acceptance checks. It must not be used to develop or patch source, commit changes, run source benchmarks, build artifacts, or prepare releases. A defect found there is reproduced and fixed in the canonical repository, rebuilt from that repository, and only then reinstalled or updated in the Alpha environment for acceptance. This filesystem boundary does not alter any task scope, dependency, acceptance gate, or historical evidence below.

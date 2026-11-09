@@ -90,6 +90,16 @@ class ForgeSyntheticImageTests(unittest.TestCase):
         self.assertEqual(text.count("FROM "), 1)
         self.assertNotIn("latest", text)
 
+    def test_containerfile_rejects_legacy_source_label(self) -> None:
+        original = fixture.CONTAINERFILE.read_text("utf-8")
+        self.assertIn("https://github.com/a5zero7/afyx-engineering-kit", original)
+        legacy = original.replace(
+            "https://github.com/a5zero7/afyx-engineering-kit",
+            "https://github.com/a5zero7/afyx-codex-engineering-kit",
+        )
+        with self.assertRaises(fixture.FixtureBuildError):
+            fixture.validate_containerfile(legacy)
+
     def test_containerfile_drift_is_rejected(self) -> None:
         original = fixture.CONTAINERFILE.read_text("utf-8")
         for changed in (

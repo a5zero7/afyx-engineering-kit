@@ -25,7 +25,7 @@ env:
   ALPHA_EXTRACTION_VERSION: "28"
   ALPHA_RELEASE_ID: afyx-graph-v1.0.0-technical-alpha.3b8360c
   RELEASE_ARTIFACT_NAME: afyx-graph-technical-alpha-3b8360c-${{ github.run_id }}-${{ github.run_attempt }}
-  SIGNER_WORKFLOW: a5zero7/afyx-codex-engineering-kit/.github/workflows/graph-alpha-build-attest.yml
+  SIGNER_WORKFLOW: a5zero7/afyx-engineering-kit/.github/workflows/graph-alpha-build-attest.yml
 
 jobs:
   build:

@@ -19,7 +19,7 @@ SHA256 = re.compile(r"^[0-9a-f]{64}$")
 REASON = re.compile(r"^[A-Z][A-Z0-9_]{2,79}$")
 REF = re.compile(
     r"^(?:urn:afyx:evidence:[0-9a-f]{64}|"
-    r"https://github\.com/a5zero7/afyx-codex-engineering-kit/actions/runs/[0-9]+)$"
+    r"https://github\.com/a5zero7/(?:afyx-engineering-kit|afyx-codex-engineering-kit)/actions/runs/[0-9]+)$"
 )
 STATUSES = frozenset(("PASS", "FAIL", "NOT_RUN", "BLOCKED"))
 # Order is dependency order. Every gate is release-blocking in the expanded v1

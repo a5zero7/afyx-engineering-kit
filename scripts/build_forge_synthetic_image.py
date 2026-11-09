@@ -32,7 +32,7 @@ APPROVED_CONTAINERFILE_INSTRUCTIONS = (
     'LABEL org.opencontainers.image.title="Afyx Forge public synthetic cell" '
     'org.opencontainers.image.version="1" '
     'org.opencontainers.image.source="https://github.com/a5zero7/'
-    'afyx-codex-engineering-kit"',
+    'afyx-engineering-kit"',
     "COPY --chown=65532:65532 --chmod=0555 forge-synthetic-cell "
     "/opt/afyx/bin/forge-synthetic-cell",
     "USER 65532:65532",

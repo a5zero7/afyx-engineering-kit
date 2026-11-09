@@ -129,6 +129,19 @@ class AlphaAcceptanceTests(unittest.TestCase):
         data["gates"][0]["evidence"] = [evidence]
         self.assert_blocked(data, "INVALID_EVIDENCE_REFERENCE")
 
+    def test_github_evidence_repositories_are_strict(self):
+        for repository in ("afyx-engineering-kit", "afyx-codex-engineering-kit"):
+            reference = f"https://github.com/a5zero7/{repository}/actions/runs/12345"
+            with self.subTest(repository=repository):
+                self.assertIsNotNone(mod.REF.fullmatch(reference))
+        for reference in (
+            "https://github.com/other/afyx-engineering-kit/actions/runs/12345",
+            "https://github.com/a5zero7/foreign/actions/runs/12345",
+            "https://github.com/a5zero7/afyx-engineering-kit/actions/runs/12345/extra",
+        ):
+            with self.subTest(reference=reference):
+                self.assertIsNone(mod.REF.fullmatch(reference))
+
     def test_cli_reports_blocked_and_require_review_ready_exits_3(self):
         normal = subprocess.run([sys.executable, str(SCRIPT)], capture_output=True, text=True)
         self.assertEqual(normal.returncode, 0, normal.stderr)
