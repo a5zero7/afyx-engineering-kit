@@ -261,6 +261,145 @@ lines.on('line', (line) => {
     assert.ok(destructResult.missingTables.includes('unrelated_table'));
   });
 
+  // 6b. TOML Semantic Hardening: Positive Normalization Acceptance
+  test('validates semantic preservation under TOML normalization (positive tests)', () => {
+    const fixtureBefore = Buffer.from(
+      '# Baseline configuration\n' +
+      'future_unknown_key = "value"\n' +
+      'counter = 1000\n' +
+      '\n' +
+      '[custom_unrelated_table]\n' +
+      'enabled = true\n' +
+      'threshold = 1.0\n' +
+      '\n' +
+      '[mcp_servers.headroom]\n' +
+      'url = "http://127.0.0.1:9999"\n'
+    );
+
+    // Normalized after:
+    // - single-quoted vs double-quoted strings
+    // - numeric equivalence: 1.0 vs +1.000, 1000 vs 1_000
+    // - table reordering (custom_unrelated_table reordered before mcp_servers)
+    // - harmless whitespace, CRLF, and comments
+    // - afyx-owned entry added under mcp_servers
+    const normalizedAfter = Buffer.from(
+      '\r\n# Harmless provider header comment\r\n' +
+      'future_unknown_key = \'value\'\r\n' +
+      'counter = 1_000\r\n' +
+      '\r\n' +
+      '[custom_unrelated_table]\r\n' +
+      'threshold = +1.000\r\n' +
+      'enabled = true\r\n' +
+      '\r\n' +
+      '[mcp_servers.headroom]\r\n' +
+      'url = \'http://127.0.0.1:9999\'\r\n' +
+      '\r\n' +
+      '[mcp_servers.afyx_graph]\r\n' +
+      'command = "node"\r\n'
+    );
+
+    const result = validateUnrelatedPreserved({
+      format: 'toml',
+      beforeBytes: fixtureBefore,
+      afterBytes: normalizedAfter,
+      server: 'afyx_graph',
+    });
+
+    assert.equal(result.preserved, true, 'Equivalent quotes, numbers, whitespace and reordering must be accepted');
+    assert.equal(result.normalized, true);
+    assert.equal(result.code, 'PRESERVED');
+    assert.equal(result.missingKeys.length, 0);
+    assert.equal(result.missingTables.length, 0);
+    assert.equal(result.mutatedKeys.length, 0);
+  });
+
+  // 6c. TOML Semantic Hardening: Negative Failure Mode Detection
+  test('detects semantic TOML mutations and reports precise diagnostics (negative tests)', () => {
+    const fixtureBefore = Buffer.from(
+      'future_unknown_key = "value"\n' +
+      '\n' +
+      '[custom_unrelated_table]\n' +
+      'enabled = true\n' +
+      'threshold = 1.0\n' +
+      '\n' +
+      '[mcp_servers.headroom]\n' +
+      'url = "http://127.0.0.1:9999"\n'
+    );
+
+    // 1. future_unknown_key changed from "value" to "changed"
+    const neg1 = Buffer.from(
+      'future_unknown_key = "changed"\n\n[custom_unrelated_table]\nenabled = true\nthreshold = 1.0\n\n[mcp_servers.headroom]\nurl = "http://127.0.0.1:9999"\n\n[mcp_servers.afyx_graph]\ncommand = "node"\n'
+    );
+    const res1 = validateUnrelatedPreserved({
+      format: 'toml',
+      beforeBytes: fixtureBefore,
+      afterBytes: neg1,
+      server: 'afyx_graph',
+    });
+    assert.equal(res1.preserved, false, 'Mutated key value must be detected');
+    assert.equal(res1.code, 'UNRELATED_KEY_VALUE_MUTATED');
+    assert.ok(res1.mutatedKeys.some((m) => m.path === 'future_unknown_key'));
+    assert.ok(res1.detail.includes('UNRELATED_KEY_VALUE_MUTATED'));
+    assert.ok(res1.detail.includes('future_unknown_key'));
+
+    // 2. Unrelated key deleted
+    const neg2 = Buffer.from(
+      '[custom_unrelated_table]\nenabled = true\nthreshold = 1.0\n\n[mcp_servers.headroom]\nurl = "http://127.0.0.1:9999"\n\n[mcp_servers.afyx_graph]\ncommand = "node"\n'
+    );
+    const res2 = validateUnrelatedPreserved({
+      format: 'toml',
+      beforeBytes: fixtureBefore,
+      afterBytes: neg2,
+      server: 'afyx_graph',
+    });
+    assert.equal(res2.preserved, false, 'Deleted unrelated key must be detected');
+    assert.equal(res2.code, 'UNRELATED_KEY_DELETED');
+    assert.ok(res2.missingKeys.includes('future_unknown_key'));
+    assert.ok(res2.detail.includes('UNRELATED_KEY_DELETED'));
+
+    // 3. Value inside [custom_unrelated_table] changed
+    const neg3 = Buffer.from(
+      'future_unknown_key = "value"\n\n[custom_unrelated_table]\nenabled = true\nthreshold = 2.5\n\n[mcp_servers.headroom]\nurl = "http://127.0.0.1:9999"\n\n[mcp_servers.afyx_graph]\ncommand = "node"\n'
+    );
+    const res3 = validateUnrelatedPreserved({
+      format: 'toml',
+      beforeBytes: fixtureBefore,
+      afterBytes: neg3,
+      server: 'afyx_graph',
+    });
+    assert.equal(res3.preserved, false, 'Changed value in unrelated table must be detected');
+    assert.equal(res3.code, 'UNRELATED_KEY_VALUE_MUTATED');
+    assert.ok(res3.mutatedKeys.some((m) => m.path === 'custom_unrelated_table.threshold'));
+    assert.ok(res3.detail.includes('UNRELATED_KEY_VALUE_MUTATED'));
+
+    // 4. Existing foreign MCP entry modified
+    const neg4 = Buffer.from(
+      'future_unknown_key = "value"\n\n[custom_unrelated_table]\nenabled = true\nthreshold = 1.0\n\n[mcp_servers.headroom]\nurl = "http://127.0.0.1:8888"\n\n[mcp_servers.afyx_graph]\ncommand = "node"\n'
+    );
+    const res4 = validateUnrelatedPreserved({
+      format: 'toml',
+      beforeBytes: fixtureBefore,
+      afterBytes: neg4,
+      server: 'afyx_graph',
+    });
+    assert.equal(res4.preserved, false, 'Modified foreign MCP entry must be detected');
+    assert.equal(res4.code, 'UNRELATED_KEY_VALUE_MUTATED');
+    assert.ok(res4.mutatedKeys.some((m) => m.path === 'mcp_servers.headroom.url'));
+    assert.ok(res4.detail.includes('UNRELATED_KEY_VALUE_MUTATED'));
+
+    // 5. Unsupported or invalid TOML cannot be verified and fails closed
+    const neg5 = Buffer.from('future_unknown_key = "value"\ninvalid = [ unclosed array\n');
+    const res5 = validateUnrelatedPreserved({
+      format: 'toml',
+      beforeBytes: fixtureBefore,
+      afterBytes: neg5,
+      server: 'afyx_graph',
+    });
+    assert.equal(res5.preserved, false, 'Invalid TOML must fail closed');
+    assert.equal(res5.code, 'INVALID_TOML');
+    assert.ok(res5.detail.includes('Failed to parse TOML'));
+  });
+
   // 7. Normalization vs Destructive Loss Validation (JSON)
   test('distinguishes harmless JSON normalization from destructive setting loss', () => {
     const before = Buffer.from(JSON.stringify({
