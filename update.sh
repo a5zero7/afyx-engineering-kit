@@ -58,7 +58,7 @@ else
 fi
 
 set +e
-"$root/install.sh" --update-installed "${args[@]}"
+bash "$root/install.sh" --update-installed "${args[@]}"
 installer_exit_code=$?
 set -e
 if ((installer_exit_code != 0)); then exit "$installer_exit_code"; fi

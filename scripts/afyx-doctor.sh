@@ -96,7 +96,7 @@ if [[ -n "$python_version" ]]; then line OK 'Python' "$python_version (optional:
 line OK 'Bash' "${BASH_VERSION:-unknown} ($(afyx_platform))"
 
 printf '\nPROJECT\n'
-project_json="$("$script_dir/afyx-project.sh" --path "$project_path" --format json)"
+project_json="$(bash "$script_dir/afyx-project.sh" --path "$project_path" --format json)"
 jget() { printf '%s' "$project_json" | grep -Eo "\"$1\":(\"[^\"]*\"|[^,}]*)" | head -n 1 | sed -E "s/^\"$1\"://; s/^\"//; s/\"$//"; }
 project_root="$(jget project_root)"
 printf '     Root: %s (%s)\n' "$project_root" "$(jget root_evidence)"

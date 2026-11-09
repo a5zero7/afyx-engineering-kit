@@ -208,7 +208,7 @@ case "$AFYX_STATE" in
   'NOT INSTALLED') result INFO 'Afyx Forge Core' 'not installed (optional; selectable via custom preset)' ;;
   HEALTHY)
     forge_cli="$AFYX_PATH/bin/afyx-forge"
-    if "$PACKAGE_ROOT/scripts/install-afyx-forge.sh" --runtime-root "$AFYX_PATH" --verify >/dev/null 2>&1 && forge_reported="$("$forge_cli" --version 2>/dev/null)" && [[ "$forge_reported" == *"$AFYX_VERSION"* ]] && "$forge_cli" doctor >/dev/null 2>&1; then
+    if bash "$PACKAGE_ROOT/scripts/install-afyx-forge.sh" --runtime-root "$AFYX_PATH" --verify >/dev/null 2>&1 && forge_reported="$("$forge_cli" --version 2>/dev/null)" && [[ "$forge_reported" == *"$AFYX_VERSION"* ]] && "$forge_cli" doctor >/dev/null 2>&1; then
       result OK 'Afyx Forge Core' "$forge_reported; integrity and executable verification passed; A8 gate remains EVALUATION_GATED"
     else result FAIL 'Afyx Forge Core' 'metadata is healthy but integrity or executable verification failed'; core_failure=true; fi
     ;;

@@ -125,7 +125,7 @@ if [[ -e "$graph_root" ]]; then
     case "$answer" in [yY]|[yY][eE][sS]) remove_afyx_graph=true ;; esac
   fi
   if "$remove_afyx_graph"; then
-    if "$dry_run"; then printf '+ scripts/install-afyx-graph.sh --uninstall\n'; else "$root/scripts/install-afyx-graph.sh" --uninstall; fi
+    if "$dry_run"; then printf '+ scripts/install-afyx-graph.sh --uninstall\n'; else bash "$root/scripts/install-afyx-graph.sh" --uninstall; fi
   else printf 'Afyx Graph: kept\n'; fi
 fi
 if "$remove_afyx_context"; then
@@ -144,8 +144,8 @@ if "$remove_afyx_context"; then
       (skills_root="$context_skill_root"; afyx_remove_skill afyx-context "$context_skill_target" afyx)
     fi
   done
-  if "$dry_run"; then "$root/scripts/install-afyx-context.sh" --runtime-root "$context_root" --validate-only
-  else "$root/scripts/install-afyx-context.sh" --runtime-root "$context_root" --uninstall; fi
+  if "$dry_run"; then bash "$root/scripts/install-afyx-context.sh" --runtime-root "$context_root" --validate-only
+  else bash "$root/scripts/install-afyx-context.sh" --runtime-root "$context_root" --uninstall; fi
 elif [[ -e "$context_root" ]]; then printf 'Afyx Context Engine: kept\n'; fi
 if "$remove_afyx_forge"; then
   for forge_skill_root in "$skills_root" ${additional_skill_roots[@]+"${additional_skill_roots[@]}"}; do
@@ -161,7 +161,7 @@ if "$remove_afyx_forge"; then
       (skills_root="$forge_skill_root"; afyx_remove_skill afyx-forge "$forge_skill_target" afyx)
     fi
   done
-  if "$dry_run"; then "$root/scripts/install-afyx-forge.sh" --runtime-root "$forge_root" --validate-only
-  else "$root/scripts/install-afyx-forge.sh" --runtime-root "$forge_root" --uninstall; fi
+  if "$dry_run"; then bash "$root/scripts/install-afyx-forge.sh" --runtime-root "$forge_root" --validate-only
+  else bash "$root/scripts/install-afyx-forge.sh" --runtime-root "$forge_root" --uninstall; fi
 elif [[ -e "$forge_root" ]]; then printf 'Afyx Forge Core: kept\n'; fi
 printf 'ACE user state, project indexes, external software, and Codex configuration were not changed.\n'

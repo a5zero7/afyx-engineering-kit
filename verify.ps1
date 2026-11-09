@@ -18,6 +18,7 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 $coreFailure = $false
+$configuredProviders = @()
 $codexHome = if ($env:CODEX_HOME) { $env:CODEX_HOME } else { Join-Path $env:USERPROFILE '.codex' }
 $configPath = Join-Path $codexHome 'config.toml'
 $graphRoot = if ($env:AFYX_GRAPH_RUNTIME_ROOT) { $env:AFYX_GRAPH_RUNTIME_ROOT } else { Join-Path $env:USERPROFILE '.afyx\graph' }
@@ -109,6 +110,7 @@ if ($Provider.Count) {
         $providerJson = (& $nodeCommand.Source @providerArguments) -join ''
         try {
             $providerResult = $providerJson | ConvertFrom-AfyxJson -Depth 20
+            $configuredProviders = @($providerResult.providers | Where-Object { $_.status -in @('READY', 'CONFIGURED', 'CONFIGURED_RESTART_REQUIRED') })
             foreach ($providerEntry in $providerResult.providers) {
                 $level = if ($providerEntry.status -in @('READY', 'CONFIGURED', 'CONFIGURED_RESTART_REQUIRED')) { 'OK' } elseif ($providerEntry.status -in @('BLOCKED', 'INCOMPATIBLE')) { 'FAIL' } else { 'INFO' }
                 Write-Result $level "$($providerEntry.provider) MCP" "$($providerEntry.status): $($providerEntry.detail)"
@@ -122,6 +124,7 @@ if ($controlPlan) {
     foreach ($item in $controlPlan.Components) {
         if ($item.Drift -eq 'IN_SYNC') { Write-Result 'OK' "Plan/$($item.Id)" 'IN_SYNC' }
         elseif ($item.Drift -eq 'NOT_APPLICABLE' -or -not $item.Desired) { Write-Result 'INFO' "Plan/$($item.Id)" "$($item.Drift); preserved" }
+        elseif ($item.Id -eq 'codex-usage-tracking' -and $item.Drift -eq 'MISSING') { Write-Result 'INFO' "Plan/$($item.Id)" 'optional; explicit installation was not requested' }
         else { Write-Result 'FAIL' "Plan/$($item.Id)" "$($item.Drift); ownership=$($item.ActualOwnership); repair=$($item.Repair)"; $coreFailure = $true }
     }
 }
@@ -151,6 +154,8 @@ if ($controlPlan -and $Provider.Count) {
             $ownerState = Get-AfyxSkillOwnership -Target $target -Component $id -ExpectedOwner 'afyx'
             if ($ownerState -eq 'AFYX_OWNED_UNMODIFIED') {
                 Write-Result 'OK' "Provider companion/$id" "$root; ownership verified; invocation remains on demand"
+            } elseif ($ownerState -eq 'NOT_INSTALLED' -and $configuredProviders.Count -eq 0) {
+                Write-Result 'INFO' "Provider companion/$id" "$root; provider integration is not configured"
             } else {
                 Write-Result 'FAIL' "Provider companion/$id" "$root; ownership=$ownerState; expected an Afyx-owned skill for the selected runtime"
                 $coreFailure = $true

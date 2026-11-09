@@ -438,7 +438,7 @@ if [[ "$graph_action" != skip ]]; then
   "$allow_dirty_source" && graph_args+=(--allow-dirty-source)
   if "$skip_graph_mcp" || "$skip_provider_configuration" || [[ ",$provider_list," != *,codex,* ]]; then graph_args+=(--skip-mcp); else graph_args+=(--configure-mcp); fi
   "$dry_run" && graph_args+=(--validate-only)
-  "$PACKAGE_ROOT/scripts/install-afyx-graph.sh" "${graph_args[@]}"
+  bash "$PACKAGE_ROOT/scripts/install-afyx-graph.sh" "${graph_args[@]}"
   graph_result="$graph_action"
 fi
 
@@ -459,7 +459,7 @@ if [[ "$context_action" != skip ]]; then
   [[ "$context_action" == update ]] && context_args+=(--update)
   [[ "$context_action" == repair ]] && context_args+=(--repair)
   "$dry_run" && context_args+=(--validate-only)
-  "$PACKAGE_ROOT/scripts/install-afyx-context.sh" "${context_args[@]}"
+  bash "$PACKAGE_ROOT/scripts/install-afyx-context.sh" "${context_args[@]}"
   context_result="$context_action"
 fi
 
@@ -502,7 +502,7 @@ if [[ "$forge_action" != skip ]]; then
   [[ "$forge_action" == update ]] && forge_args+=(--update)
   [[ "$forge_action" == repair ]] && forge_args+=(--repair)
   "$dry_run" && forge_args+=(--validate-only)
-  "$PACKAGE_ROOT/scripts/install-afyx-forge.sh" "${forge_args[@]}"
+  bash "$PACKAGE_ROOT/scripts/install-afyx-forge.sh" "${forge_args[@]}"
   forge_result="$forge_action"
 fi
 
