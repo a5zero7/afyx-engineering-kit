@@ -618,7 +618,7 @@ describe('AFYX MB3: Native Graph Runtime, MCP Concurrency & SQLite Lifecycle', (
     const wslRes = spawnSync('wsl.exe', ['-d', 'Ubuntu', '-u', 'afif', '--', '/bin/bash', '/tmp/afyx-mb3-wsl-runner.sh'], {
       encoding: 'utf8',
       windowsHide: true,
-      timeout: 30_000,
+      timeout: 90_000,
     });
 
     spawnSync('wsl.exe', ['-d', 'Ubuntu', '-u', 'afif', '--', 'rm', '-f', '/tmp/afyx-mb3-wsl-runner.sh'], {

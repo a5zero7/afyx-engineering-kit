@@ -59,17 +59,33 @@ try {
   );
   verifyEngineDistribution(stage);
 
+  function safeMove(from, to) {
+    try {
+      renameSync(from, to);
+    } catch (err) {
+      if (process.platform === 'win32' && err?.code === 'EPERM') {
+        const ps = spawnSync('powershell.exe', ['-NoProfile', '-Command', `Move-Item -LiteralPath '${from}' -Destination '${to}' -Force`], { windowsHide: true });
+        if (ps.status === 0 && existsSync(to)) return;
+      }
+      throw err;
+    }
+  }
+
   let movedOld = false;
   try {
     if (existsSync(dist)) {
-      renameSync(dist, backup);
+      safeMove(dist, backup);
       movedOld = true;
     }
-    renameSync(stageDist, dist);
+    safeMove(stageDist, dist);
     verifyReleaseReady(root);
   } catch (error) {
-    if (existsSync(dist)) renameSync(dist, stageDist);
-    if (movedOld && existsSync(backup)) renameSync(backup, dist);
+    if (existsSync(dist)) {
+      try { safeMove(dist, stageDist); } catch {}
+    }
+    if (movedOld && existsSync(backup)) {
+      try { safeMove(backup, dist); } catch {}
+    }
     throw error;
   }
   if (movedOld) rmSync(backup, { recursive: true, force: false });
