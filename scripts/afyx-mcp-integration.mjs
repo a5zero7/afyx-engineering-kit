@@ -56,7 +56,7 @@ export function classifyEntry(existing, expected) {
     ? transport.type === 'stdio' && args.length === expectedArgs.length
       && args.every((value, index) => normalized(value) === normalized(expectedArgs[index]))
     : transport.type === 'stdio' && args.length === 3
-      && /(?:^|[\\/])lib[\\/]dist[\\/]bin[\\/]afyx-graph\.js$/i.test(String(args[0]))
+      && /(?:^|[\\/])(?:lib|engine)[\\/]dist[\\/]bin[\\/]afyx-graph\.js$/i.test(String(args[0]))
       && args[1] === 'serve' && args[2] === '--mcp';
   if (!afyxShape) return 'MCP_BLOCKED';
   if (nodeMatches && (explicitArgs || normalized(args[0]) === normalized(expected.entry))) return 'MCP_CONFIGURED';

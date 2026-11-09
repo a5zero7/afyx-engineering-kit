@@ -310,6 +310,50 @@ console.log(JSON.stringify({{planned,unknown}}));"""
         self.assertFalse(second["providers"][0]["changed"])
         self.assertEqual(second["providers"][0]["status"], "CONFIGURED_RESTART_REQUIRED")
 
+    def test_owned_entry_remains_owned_after_native_property_reordering(self) -> None:
+        self.run_helper("--scope", "global", "--apply")
+        config = self.gemini / "config/mcp_config.json"
+        document = json.loads(config.read_text(encoding="utf-8"))
+        entry = document["mcpServers"]["afyx_graph"]
+        document["mcpServers"]["afyx_graph"] = {
+            "args": entry["args"],
+            "command": entry["command"],
+        }
+        config.write_text(json.dumps(document), encoding="utf-8")
+
+        removed = self.run_helper("--scope", "global", "--apply", "--uninstall")
+        self.assertTrue(removed["providers"][0]["changed"])
+        self.assertNotIn(
+            "afyx_graph",
+            json.loads(config.read_text(encoding="utf-8")).get("mcpServers", {}),
+        )
+
+    def test_explicit_native_off_blocks_apply_but_owned_uninstall_remains_safe(self) -> None:
+        self.run_helper("--scope", "global", "--apply")
+        config = self.gemini / "config/mcp_config.json"
+        document = json.loads(config.read_text(encoding="utf-8"))
+        entry = document["mcpServers"]["afyx_graph"]
+        document["mcpServers"]["afyx_graph"] = {
+            "args": entry["args"],
+            "command": entry["command"],
+            "disabled": True,
+        }
+        config.write_text(json.dumps(document), encoding="utf-8")
+        disabled_bytes = config.read_bytes()
+
+        blocked = self.run_helper("--scope", "global", "--apply", expected=2)
+        self.assertEqual(blocked["providers"][0]["state"], "MCP_DISABLED_OWNED")
+        self.assertEqual(blocked["providers"][0]["reason"], "EXPLICITLY_DISABLED")
+        self.assertFalse(blocked["providers"][0]["changed"])
+        self.assertEqual(config.read_bytes(), disabled_bytes)
+
+        removed = self.run_helper("--scope", "global", "--apply", "--uninstall")
+        self.assertTrue(removed["providers"][0]["changed"])
+        self.assertNotIn(
+            "afyx_graph",
+            json.loads(config.read_text(encoding="utf-8")).get("mcpServers", {}),
+        )
+
     def test_workspace_preserves_unrelated_config_and_uninstalls_only_owned_entry(self) -> None:
         config = self.workspace / ".agents/mcp_config.json"
         config.parent.mkdir(parents=True)

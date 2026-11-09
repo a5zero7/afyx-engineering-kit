@@ -7,14 +7,17 @@ import json
 import os
 import shutil
 import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
 
+ROOT = Path(__file__).resolve().parents[2]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
 from scripts.tests.test_claude_provider_integration import fake_claude, fake_server
 
-
-ROOT = Path(__file__).resolve().parents[2]
 HELPER = ROOT / "scripts/afyx-provider-integration.mjs"
 
 
