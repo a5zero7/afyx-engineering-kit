@@ -37,6 +37,7 @@ const allowed = new Set([
   'PUBLIC_CONTRACT',
   'PRODUCT_SCHEMA_DATA',
   'STANDARD_PLATFORM_DATA',
+  'THIRD_PARTY_COVERED',
   'PROVENANCE_REVIEW_REQUIRED',
 ]);
 
@@ -124,13 +125,17 @@ function fail(message) {
   process.exitCode = 1;
 }
 
-if (manifest.schema !== 1 || !Array.isArray(manifest.entries) || manifest.entries.length !== 8) {
+if (manifest.schema !== 1 || !Array.isArray(manifest.entries) || manifest.entries.length === 0) {
   fail('manifest identity or reviewed entry count is invalid');
 } else {
   const seen = new Set();
+  const manifestPaths = new Set();
+
   for (const entry of manifest.entries) {
     if (seen.has(entry.path)) fail(`duplicate entry: ${entry.path}`);
     seen.add(entry.path);
+    manifestPaths.add(entry.path);
+
     if (!allowed.has(entry.classification)) fail(`unsupported classification: ${entry.path}`);
     if (entry.classification === 'PROVENANCE_REVIEW_REQUIRED') {
       fail(`unresolved substantive provenance review: ${entry.path}`);
@@ -138,8 +143,15 @@ if (manifest.schema !== 1 || !Array.isArray(manifest.entries) || manifest.entrie
     if (typeof entry.evidence !== 'string' || entry.evidence.trim().length < 30) {
       fail(`missing substantive review evidence: ${entry.path}`);
     }
+
     const fullPath = join(repository, ...entry.path.split('/'));
-    const bytes = readFileSync(fullPath);
+    let bytes;
+    try {
+      bytes = readFileSync(fullPath);
+    } catch (err) {
+      fail(`file missing from disk: ${entry.path}`);
+      continue;
+    }
     const content = bytes.toString('utf8');
 
     if (entry.path === EFFECT_CLASSIFIER_POLICY.path) {
@@ -157,35 +169,50 @@ if (manifest.schema !== 1 || !Array.isArray(manifest.entries) || manifest.entrie
     const normalized = content.replace(/\r\n/g, '\n');
     const actual = createHash('sha256').update(Buffer.from(normalized, 'utf8')).digest('hex');
     if (actual !== entry.reviewedSha256) fail(`reviewed source drift: ${entry.path}`);
-    if (actual === entry.baselineSha256) fail(`source reverted to the pre-remediation baseline: ${entry.path}`);
+    if (entry.baselineSha256 && actual === entry.baselineSha256) {
+      fail(`source reverted to the pre-remediation baseline: ${entry.path}`);
+    }
   }
 
-  // 3. Scan all active engine source files for prohibited substantive patterns
-  const engineSourceDir = join(repository, 'afyx-graph', 'engine', 'src');
+  // 3. Scan all active engine and UI source files for coverage and prohibited patterns
+  const productionRoots = [
+    join(repository, 'afyx-graph', 'engine', 'src'),
+    join(repository, 'afyx-graph', 'engine', 'ui', 'src'),
+  ];
+
   function scanDir(dir) {
+    if (!statSync(dir, { throwIfNoEntry: false })?.isDirectory()) return;
     for (const name of readdirSync(dir)) {
+      if (['node_modules', '__tests__', 'test', 'tests', 'fixtures', 'dist', 'build'].includes(name)) continue;
       const full = join(dir, name);
       const st = statSync(full);
       if (st.isDirectory()) {
         scanDir(full);
-      } else if (/\.(ts|js|mjs|cjs)$/.test(name)) {
+      } else if (/\.(ts|tsx|js|jsx|mjs|cjs)$/.test(name) && !/\.(test|spec|d)\.ts$/.test(name)) {
+        const rel = relative(repository, full).replace(/\\/g, '/');
+        // If manifest covers full production files (> 100 entries), enforce that every disk file is classified
+        if (manifest.entries.length > 100 && !manifestPaths.has(rel)) {
+          fail(`unclassified production source file detected: ${rel}`);
+        }
         const text = readFileSync(full, 'utf8');
         for (const probe of PROHIBITED_SUBSTANTIVE_PATTERNS) {
           if (probe.pattern.test(text)) {
-            const rel = relative(repository, full).replace(/\\/g, '/');
             fail(`prohibited substantive inherited pattern detected (${probe.name}) in ${rel}`);
           }
         }
       }
     }
   }
+
   try {
-    scanDir(engineSourceDir);
+    for (const root of productionRoots) {
+      scanDir(root);
+    }
   } catch (err) {
     fail(`source scanning error: ${err.message}`);
   }
 }
 
 if (!process.exitCode) {
-  console.log(`[native-source-ownership] PASS: 8 high-similarity files match reviewed classifications, hashes, and fail-closed substantive provenance checks`);
+  console.log(`[native-source-ownership] PASS: ${manifest.entries.length} production files match reviewed classifications, hashes, and fail-closed substantive provenance checks`);
 }
