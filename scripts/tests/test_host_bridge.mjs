@@ -118,7 +118,7 @@ test('generic file inventory uses Graph files while Odoo impact keeps declaratio
     })['afyx-graph'];
     const generic = await graph({ taskType: 'impact-analysis', intent: 'inventory source files' });
     assert.equal(generic.status, 'SUCCESS');
-    assert.match(generic.output, /^files\|--format\|tree\|--max-depth\|3\|--path\|/);
+    assert.match(generic.output, /^files\|--format\|tree\|--max-depth\|2\|--path\|/);
     assert.equal(generic.evidence[0].command, 'files');
     assert.doesNotMatch(generic.output, /sale\.order/);
 

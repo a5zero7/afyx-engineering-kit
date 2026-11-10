@@ -211,7 +211,7 @@ export function createInstalledHostAdapters({
       if (isInventory) {
         runArgs = [graphEntrypoint, 'inventory', '_inherit', 'sale.order', '--path', resolvedProjectRoot];
       } else if (isFileInventory) {
-        runArgs = [graphEntrypoint, 'files', '--format', 'tree', '--max-depth', '3', '--path', resolvedProjectRoot];
+        runArgs = [graphEntrypoint, 'files', '--format', 'tree', '--max-depth', '2', '--path', resolvedProjectRoot];
       } else {
         const queryTerm = request.intent?.replace(/[^a-zA-Z0-9_]/g, ' ').trim() || 'OrderService';
         runArgs = [graphEntrypoint, 'explore', queryTerm, '--path', resolvedProjectRoot];
