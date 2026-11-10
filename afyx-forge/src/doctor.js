@@ -71,6 +71,8 @@ export function runDoctor() {
   const evaluationGate = {
     gate: 'A8_FORMAL_CAMPAIGN',
     status: 'EVALUATION_GATED (0/36 NOT_RUN)',
+    localDecision: 'GO_OWNER_APPROVED_LOCAL_SCOPE',
+    formalCampaign: 'WAIVED_BY_OWNER_NOT_RUN',
     autonomousExecutionAllowed: false,
     uncontrolledModelCost: false,
     runtimeMode: 'ASSISTIVE_GUIDANCE_ONLY',

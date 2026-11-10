@@ -51,6 +51,8 @@ Fix invoice rounding in src/invoice.js.
     assert.equal(result.executionPlan.status, 'PROPOSED_NOT_EXECUTED');
     assert.equal(result.executionBudget.status, 'RECOMMENDED_NOT_ENFORCED');
     assert.equal(result.executionBudget.observedProviderTokens, null);
+    assert.match(result.boundedExecution.governanceGateA8, /GO_OWNER_APPROVED_LOCAL_SCOPE/);
+    assert.match(result.boundedExecution.governanceGateA8, /WAIVED_NOT_RUN/);
   });
 
   it('uses smaller budgets for surgical work than cross-module or security work', () => {
@@ -97,6 +99,7 @@ Fix invoice rounding in src/invoice.js.
     assert.equal(result.executionPlan.status, 'REFUSED_NOT_EXECUTED');
     assert.deepEqual(result.executionPlan.steps, []);
     assert.equal(result.executionBudget.observedToolCalls, 0);
+    assert.match(result.boundedExecution.governanceGateA8, /GO_OWNER_APPROVED_LOCAL_SCOPE/);
   });
 
   it('repeats deterministically with fixed timestamp and explicit environment', () => {

@@ -313,7 +313,7 @@ switch ($forge.State) {
             if ($LASTEXITCODE -ne 0 -or $reported -notmatch [regex]::Escape([string]$forge.Version)) { throw 'version mismatch' }
             $doctorOut = (& $forgeCli doctor 2>$null) -join ' '
             if ($LASTEXITCODE -ne 0) { throw 'doctor command failed' }
-            Write-Result 'OK' 'Afyx Forge Core' "$reported; integrity and executable verification passed; A8 gate remains EVALUATION_GATED"
+            Write-Result 'OK' 'Afyx Forge Core' "$reported; integrity and executable verification passed; local A8 GO owner-approved, formal 0/36 waived"
         } catch { Write-Result 'FAIL' 'Afyx Forge Core' "metadata is healthy but executable verification failed: $($_.Exception.Message)"; $coreFailure = $true }
     }
     default { Write-Result 'WARN' 'Afyx Forge Core' "$($forge.State): $($forge.Detail) (optional)" }

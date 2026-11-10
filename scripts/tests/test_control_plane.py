@@ -123,6 +123,32 @@ class ControlPlaneContractTests(unittest.TestCase):
             return self.lifecycle("update", "-SkipSelfUpdate", "-Preset", preset, "-SkipGraphMcp")
         return self.lifecycle("update", "--skip-self-update", "--preset", preset, "--skip-graph-mcp")
 
+    @unittest.skipIf(WINDOWS, "Bash provider-availability behavior is exercised on Unix")
+    def test_unix_verify_skips_absent_codex_without_skipping_kit_health(self) -> None:
+        self.install_preset()
+        self.env["PATH"] = "/usr/bin:/bin"
+        if shutil.which("codex", path=self.env["PATH"]):
+            self.skipTest("Sanitized Unix PATH still contains Codex")
+        verified = self.verify_preset()
+        self.assertIn("[SKIP] Codex CLI — PROVIDER_NOT_INSTALLED", verified.stdout)
+        self.assertIn("[OK] Core readiness", verified.stdout)
+
+    @unittest.skipIf(WINDOWS, "Bash provider-availability behavior is exercised on Unix")
+    def test_unix_verify_checks_installed_codex(self) -> None:
+        self.install_preset()
+        verified = self.verify_preset()
+        self.assertIn("[OK] Codex CLI", verified.stdout)
+        self.assertIn("[OK] Core readiness", verified.stdout)
+
+    @unittest.skipIf(WINDOWS, "Bash provider-availability behavior is exercised on Unix")
+    def test_unix_verify_rejects_broken_installed_codex(self) -> None:
+        self.install_preset()
+        codex_stub = self.fake_bin / "codex"
+        codex_stub.write_text("#!/bin/sh\nexit 9\n", encoding="utf-8")
+        verified = self.verify_preset(expected=1)
+        self.assertIn("[FAIL] Codex CLI — version command failed", verified.stdout)
+        self.assertIn("[FAIL] Core readiness", verified.stdout)
+
     def test_registry_presets_and_ownership_boundaries(self) -> None:
         contract = json.loads((ROOT / "scripts/components.json").read_text(encoding="utf-8"))
         self.assertEqual(contract["default_provider"], "codex")

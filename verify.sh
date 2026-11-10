@@ -130,11 +130,10 @@ codex_detected=false
 if command -v codex >/dev/null 2>&1; then
   codex_detected=true
   if version="$(codex --version 2>/dev/null)"; then result OK 'Codex CLI' "$version"; else result FAIL 'Codex CLI' 'version command failed'; core_failure=true; fi
-else result INFO 'Codex CLI' 'not found'; fi
+else result SKIP 'Codex CLI' 'PROVIDER_NOT_INSTALLED'; fi
 extension_detected=false
 for extension in "$HOME"/.vscode/extensions/openai.chatgpt-*; do [[ -d "$extension" ]] && { extension_detected=true; break; }; done
 if "$extension_detected"; then result OK 'VS Code extension' 'detected'; else result INFO 'VS Code extension' 'not detected'; fi
-if ! "$codex_detected" && ! "$extension_detected"; then core_failure=true; fi
 
 required_skill_ids='efficient-coding odoo-engineering'
 if [[ -n "$preset" ]]; then
@@ -171,15 +170,32 @@ case "$AFYX_STATE" in
   INVALID) result WARN 'Afyx Graph' 'invalid metadata (optional)' ;;
   *) result WARN 'Afyx Graph' "state $AFYX_STATE: $AFYX_DETAIL (optional)" ;;
 esac
-if [[ "$AFYX_STATE" == HEALTHY ]] && command -v node >/dev/null 2>&1 && command -v codex >/dev/null 2>&1; then
+if [[ "$AFYX_STATE" == HEALTHY ]] && command -v node >/dev/null 2>&1 && "$codex_detected"; then
   set +e
   integration_json="$(node "$PACKAGE_ROOT/scripts/afyx-mcp-integration.mjs" --node "$(command -v node)" --entry "$AFYX_PATH/current/lib/dist/bin/afyx-graph.js" --codex "$(command -v codex)" --codex-home "$codex_home" 2>/dev/null)"
   set -e
   integration_state="$(printf '%s' "$integration_json" | sed -n 's/.*"mcp":"\([^"]*\)".*/\1/p')"
   integration_detail="$(printf '%s' "$integration_json" | sed -n 's/.*"detail":"\([^"]*\)".*/\1/p')"
-  case "$integration_state" in MCP_REACHABLE) level=OK ;; MCP_NOT_CONFIGURED) level=INFO ;; *) level=WARN ;; esac
+  case "$integration_state" in
+    MCP_REACHABLE) level=OK ;;
+    MCP_NOT_CONFIGURED)
+      level=INFO
+      if [[ -n "$preset" ]] && afyx_component_desired afyx-graph "$preset" "$custom_component_list" "$provider_list"; then level=FAIL; core_failure=true; fi
+      ;;
+    *) level=FAIL; core_failure=true ;;
+  esac
   result "$level" 'Afyx Graph MCP' "${integration_state:-MCP_BLOCKED}: ${integration_detail:-integration status unavailable}"
-elif ! command -v codex >/dev/null 2>&1; then result INFO 'Afyx Graph MCP' 'MCP_BLOCKED: Codex CLI unavailable'
+elif [[ "$AFYX_STATE" == HEALTHY ]] && command -v node >/dev/null 2>&1; then
+  result SKIP 'Codex Graph MCP registration' 'PROVIDER_NOT_INSTALLED'
+  if graph_probe="$(AFYX_PROBE_MODULE="$PACKAGE_ROOT/scripts/afyx-mcp-integration.mjs" AFYX_PROBE_ENTRY="$AFYX_PATH/current/lib/dist/bin/afyx-graph.js" node --input-type=module -e '
+    import { pathToFileURL } from "node:url";
+    const { probeMcp } = await import(pathToFileURL(process.env.AFYX_PROBE_MODULE).href);
+    const result = await probeMcp(process.execPath, process.env.AFYX_PROBE_ENTRY);
+    console.log(result.detail);
+    if (!result.ok) process.exitCode = 1;
+  ' 2>&1)"; then
+    result OK 'Afyx Graph MCP' "$graph_probe; direct standalone handshake"
+  else result FAIL 'Afyx Graph MCP' "direct standalone handshake failed: $graph_probe"; core_failure=true; fi
 elif [[ "$AFYX_STATE" != HEALTHY ]]; then result INFO 'Afyx Graph MCP' 'MCP_BLOCKED: Graph runtime unavailable'
 else result INFO 'Afyx Graph MCP' 'MCP_NOT_CONFIGURED'; fi
 if [[ ",$provider_list," == *,antigravity,* && "$AFYX_STATE" == HEALTHY ]] && command -v node >/dev/null 2>&1; then
@@ -209,13 +225,15 @@ case "$AFYX_STATE" in
   HEALTHY)
     forge_cli="$AFYX_PATH/bin/afyx-forge"
     if bash "$PACKAGE_ROOT/scripts/install-afyx-forge.sh" --runtime-root "$AFYX_PATH" --verify >/dev/null 2>&1 && forge_reported="$("$forge_cli" --version 2>/dev/null)" && [[ "$forge_reported" == *"$AFYX_VERSION"* ]] && "$forge_cli" doctor >/dev/null 2>&1; then
-      result OK 'Afyx Forge Core' "$forge_reported; integrity and executable verification passed; A8 gate remains EVALUATION_GATED"
+      result OK 'Afyx Forge Core' "$forge_reported; integrity and executable verification passed; local A8 GO owner-approved, formal 0/36 waived"
     else result FAIL 'Afyx Forge Core' 'metadata is healthy but integrity or executable verification failed'; core_failure=true; fi
     ;;
   *) result WARN 'Afyx Forge Core' "$AFYX_STATE: $AFYX_DETAIL (optional)" ;;
 esac
 result INFO 'Usage Tracking' 'not installed; Windows-only runtime'
-if [[ -f "$config" ]]; then result OK 'Codex config' 'read-only check completed'; else result WARN 'Codex config' 'not found; optional MCP entries unavailable'; fi
+if ! "$codex_detected"; then result SKIP 'Codex config' 'PROVIDER_NOT_INSTALLED'
+elif [[ -f "$config" ]]; then result OK 'Codex config' 'read-only check completed'
+else result WARN 'Codex config' 'not found; optional MCP entries unavailable'; fi
 
 if "$core_failure"; then result FAIL 'Core readiness'; exit 1; fi
 result OK 'Core readiness' 'ready; optional enhancement warnings do not affect this result'

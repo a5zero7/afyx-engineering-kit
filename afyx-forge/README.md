@@ -94,6 +94,8 @@ source-grounded review.
 
 ## Governance and known limits
 
+**MB8.1 owner decision (2026-11-10):** A8 is GO for the local-first, assistive Forge Planner and adaptive guidance architecture. The Project Owner waived the formal 36-cell campaign for this scoped decision; its result remains `0/36 NOT_RUN`. Autonomous execution is not authorized, provider token savings are not measured, and public npm publication is deferred. Historical campaign requirements remain recorded in `evals/forge/`.
+
 **Important distinction:** Forge Core Alpha is **not** the formal Forge
 B0–B5 benchmark campaign under `evals/forge/`.
 
@@ -102,8 +104,8 @@ B0–B5 benchmark campaign under `evals/forge/`.
 | Forge Core CLI/API and deterministic guidance | Implemented as Technical Alpha v0.1.0 |
 | Standalone ordinary task planning | Available; examine output against the task |
 | Autonomous source mutation or tool execution | Not provided |
-| Formal benchmark campaign | `0/36 NOT_RUN` |
-| Forge A8 architecture decision | No GO |
+| Formal benchmark campaign | `0/36 NOT_RUN`; waived by owner for local-first scope |
+| Forge A8 architecture decision | `GO_OWNER_APPROVED_LOCAL_SCOPE` |
 | Full Forge A12 / Stable v1 acceptance | Not claimed |
 
 The presence of a plan, a passing unit test, or successful Kit CI must not be

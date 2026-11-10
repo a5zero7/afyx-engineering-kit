@@ -1,5 +1,7 @@
 # Afyx v1 Master Roadmap
 
+> **MB8.1 decision, 2026-11-10:** Project Owner approved A8 **GO** for the local-first Forge Planner and adaptive assistive guidance architecture. The prior formal 36-cell campaign remains `0/36 NOT_RUN` and was waived for this scoped decision; historical requirements and evidence below remain unchanged. MB8 benchmark evidence is limited to five local classification/latency fixtures. Autonomous source mutation is not authorized, provider token savings are unmeasured, and public npm publication is deferred. This decision does not assert Stable v1 release acceptance.
+
 Status: **V1 FINALIZATION ACTIVE — unified Alpha source promoted; expanded v1 acceptance pending**
 Canonical since: **2026-10-03**  
 Contract revision: **2026-10-27 (v1 finalization rebaseline)**

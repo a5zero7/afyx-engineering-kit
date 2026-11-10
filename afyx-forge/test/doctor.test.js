@@ -15,6 +15,8 @@ describe('Afyx Forge Core — Doctor Diagnostic', () => {
     // Governance gate verification
     assert.equal(doc.governance.gate, 'A8_FORMAL_CAMPAIGN');
     assert.ok(doc.governance.status.includes('EVALUATION_GATED'));
+    assert.equal(doc.governance.localDecision, 'GO_OWNER_APPROVED_LOCAL_SCOPE');
+    assert.equal(doc.governance.formalCampaign, 'WAIVED_BY_OWNER_NOT_RUN');
     assert.equal(doc.governance.autonomousExecutionAllowed, false);
     assert.equal(doc.governance.uncontrolledModelCost, false);
     assert.equal(doc.governance.runtimeMode, 'ASSISTIVE_GUIDANCE_ONLY');

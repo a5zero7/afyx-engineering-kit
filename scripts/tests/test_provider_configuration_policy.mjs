@@ -17,6 +17,7 @@ import {
   rollbackConfiguration,
   restoreFromBackup,
   validateUnrelatedPreserved,
+  parseToml,
   listProviderBackups,
   sha256,
 } from '../afyx-provider-backup.mjs';
@@ -314,6 +315,39 @@ lines.on('line', (line) => {
   });
 
   // 6c. TOML Semantic Hardening: Negative Failure Mode Detection
+  test('preserves foreign MCP semantics through normalized add, update, and uninstall snapshots', () => {
+    const foreign = [
+      "model = 'fixture-model'",
+      '[features]',
+      'review = true',
+      '[mcp_servers.foreign_debug]',
+      "command = 'node'",
+      "args = ['server.mjs', '--read-only']",
+      'enabled = false',
+      '[mcp_servers.foreign_debug.env]',
+      "FIXTURE_REF = 'credential-reference-only'",
+      '[mcp_servers.foreign_http]',
+      "url = 'http://127.0.0.1:9999/mcp'",
+      '',
+    ].join('\n');
+    const registered = foreign.replaceAll("'", '"').replaceAll('\n', '\r\n')
+      + '[mcp_servers.afyx_graph]\r\ncommand = "node"\r\nargs = ["graph-v1.js", "serve", "--mcp"]\r\n';
+    const updated = registered.replace('graph-v1.js', 'graph-v2.js');
+    const removed = foreign.replaceAll("'", '"').replaceAll('\n', '\r\n');
+    const expected = parseToml(foreign);
+    for (const [phase, content] of [['register', registered], ['update', updated], ['uninstall', removed]]) {
+      const actual = parseToml(content);
+      delete actual.mcp_servers?.afyx_graph;
+      assert.deepEqual(actual, expected, `${phase}: only AFYX-owned entry may differ`);
+      const result = validateUnrelatedPreserved({ format: 'toml', beforeBytes: Buffer.from(foreign), afterBytes: Buffer.from(content) });
+      assert.equal(result.preserved, true, `${phase}: ${result.detail}`);
+    }
+    const mutated = updated.replace('credential-reference-only', 'wrong-reference');
+    const recovery = validateUnrelatedPreserved({ format: 'toml', beforeBytes: Buffer.from(foreign), afterBytes: Buffer.from(mutated) });
+    assert.equal(recovery.preserved, false, 'rollback must reject changed foreign environment values');
+    assert.ok(recovery.mutatedKeys.some((item) => item.path === 'mcp_servers.foreign_debug.env.FIXTURE_REF'));
+  });
+
   test('detects semantic TOML mutations and reports precise diagnostics (negative tests)', () => {
     const fixtureBefore = Buffer.from(
       'future_unknown_key = "value"\n' +

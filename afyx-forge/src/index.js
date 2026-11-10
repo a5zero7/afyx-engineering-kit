@@ -109,7 +109,7 @@ export function createForgePlan(options = {}) {
         autonomousCodeExecution: false,
         uncontrolledModelInvocation: false,
         privilegeElevationAllowed: false,
-        governanceGateA8: 'EVALUATION_GATED (0/36 NOT_RUN)',
+        governanceGateA8: 'GO_OWNER_APPROVED_LOCAL_SCOPE (formal 0/36 WAIVED_NOT_RUN)',
       },
       requirements,
       executionPlan: { status: 'REFUSED_NOT_EXECUTED', steps: [], completionCriteria: [], stoppingCondition: 'Unsafe request refused.' },
@@ -166,7 +166,7 @@ export function createForgePlan(options = {}) {
       autonomousCodeExecution: false,
       uncontrolledModelInvocation: false,
       privilegeElevationAllowed: false,
-      governanceGateA8: 'EVALUATION_GATED (0/36 NOT_RUN)',
+      governanceGateA8: 'GO_OWNER_APPROVED_LOCAL_SCOPE (formal 0/36 WAIVED_NOT_RUN)',
     },
     status: 'PLANNED',
   };

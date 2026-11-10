@@ -2,7 +2,8 @@
 
 **Status:** TECHNICAL ALPHA  
 **Contract Version:** `afyx-forge-plan/v1`  
-**Governance State:** Formal Campaign A8 remains `EVALUATION_GATED (0/36 NOT_RUN)`  
+**Governance State:** Local A8 `GO_OWNER_APPROVED_LOCAL_SCOPE`; formal campaign `0/36 NOT_RUN`, waived by Project Owner for this decision
+
 **Runtime Mode:** `ASSISTIVE_GUIDANCE_ONLY`  
 
 ---
@@ -71,7 +72,7 @@ afyx-forge plan --task-file ./task.md --format markdown --output ./plan.md
 | :--- | :--- | :--- |
 | **Tujuan Utama** | Panduan rekayasa harian & kebijakan adaptif | Evaluasi benchmark komparatif 36-sel B0–B5 |
 | **Model Eksekusi** | Deterministik, zero model invocation cost | Model-driven benchmark cells |
-| **Status Tata Kelola** | **DELIVERED & OPERATIONAL (Alpha)** | **EVALUATION_GATED (0/36 NOT_RUN)** |
+| **Status Tata Kelola** | **A8 GO, disetujui Owner untuk cakupan lokal dan assistive** | **0/36 NOT_RUN; waived untuk keputusan lokal** |
 | **Eksekusi Kode Otonom** | **DILARANG (Assistive guidance only)** | Memerlukan lingkungan isolasi formal |
 | **Ketergantungan Graph** | Opsional (fallback direct-source) | Opsional per kandidat |
 | **Ketergantungan Context** | Opsional, discoverable on-demand bila sehat; explicit OFF dihormati, Graph MCP interception tetap terpisah | Evaluated baseline |
