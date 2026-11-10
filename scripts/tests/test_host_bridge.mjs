@@ -16,6 +16,7 @@ import {
   AFYX_HOST_BRIDGE_CONTRACT,
   invokeHostWorkflow,
 } from '../afyx-host-bridge.mjs';
+import { createInstalledHostAdapters } from '../afyx-host-adapters.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const HOST_BRIDGE = resolve(HERE, '..', 'afyx-host-bridge.mjs');
@@ -102,6 +103,33 @@ function installContext(fx) {
     `import(${JSON.stringify(pathToFileURL(resolve(HERE, '..', '..', 'afyx-context', 'src', 'cli.js')).href)});\n`,
   );
 }
+
+test('generic file inventory uses Graph files while Odoo impact keeps declaration inventory', async () => {
+  const fx = fixture();
+  try {
+    installGraph(fx);
+    write(
+      join(fx.installRoot, 'graph', 'current', 'lib', 'dist', 'bin', 'afyx-graph.js'),
+      'process.stdout.write(process.argv.slice(2).join("|"));\n',
+    );
+    const graph = createInstalledHostAdapters({
+      installRoot: fx.installRoot,
+      projectRoot: fx.projectRoot,
+    })['afyx-graph'];
+    const generic = await graph({ taskType: 'impact-analysis', intent: 'inventory source files' });
+    assert.equal(generic.status, 'SUCCESS');
+    assert.match(generic.output, /^files\|--format\|tree\|--max-depth\|3\|--path\|/);
+    assert.equal(generic.evidence[0].command, 'files');
+    assert.doesNotMatch(generic.output, /sale\.order/);
+
+    const odoo = await graph({ taskType: 'odoo-impact-analysis', intent: 'inventory Odoo inheritance' });
+    assert.equal(odoo.status, 'SUCCESS');
+    assert.match(odoo.output, /^inventory\|_inherit\|sale\.order\|--path\|/);
+    assert.equal(odoo.evidence[0].command, 'inventory');
+  } finally {
+    fx.cleanup();
+  }
+});
 
 test('host bridge API: direct-source negative case executes 0 tool calls with DIRECT_SOURCE status', async () => {
   const fx = fixture();

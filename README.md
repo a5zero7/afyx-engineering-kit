@@ -138,6 +138,27 @@ This is a CI checkpoint, **not** independent installed-product or Stable v1 acce
 See [Product Vision](docs/PRODUCT_VISION.md) for the maintained product contract
 and [Component Guide](docs/COMPONENTS.md) for capability and limitation details.
 
+## Install AFYX Engineering Kit — Windows & WSL2
+
+Install Node.js 22.5 or newer and use the prebuilt Alpha tarball from the
+[v0.1.0-alpha.2 GitHub prerelease](https://github.com/a5zero7/afyx-engineering-kit/releases/tag/v0.1.0-alpha.2).
+The same command works in PowerShell and WSL2 Bash from any directory:
+
+```bash
+npm exec --yes --package="https://github.com/a5zero7/afyx-engineering-kit/releases/download/v0.1.0-alpha.2/afyx-engineering-kit-0.1.0-alpha.2.tgz" -- afyx-engineering-kit install --preset full --no-build-fallback --non-interactive --skip-provider-configuration
+```
+
+`full` installs the prebuilt Graph runtime, Context, Forge, and applicable
+skills. Provider configuration is skipped by the example; select a supported
+provider explicitly when you are ready to register its MCP integration. Verify
+the installation with the same `npm exec --package=... --` prefix followed by
+`afyx-engineering-kit verify --preset full`. Run `afyx-engineering-kit update`
+with that prefix for an ownership-aware update, or `afyx-engineering-kit uninstall`
+with an explicit component to remove it. See the [installation guide](docs/INSTALLATION.md)
+for provider selection, recovery, and platform limits. This Alpha is not on the
+public npm registry, so bare `npx afyx-engineering-kit` is not a public install
+command.
+
 ## Quick start
 
 ### Prerequisites

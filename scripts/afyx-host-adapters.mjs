@@ -204,11 +204,14 @@ export function createInstalledHostAdapters({
       }
 
       const intent = String(request.intent || '').toLowerCase();
-      const isInventory = intent.includes('inventory') || request.taskType === 'odoo-impact-analysis';
+      const isInventory = request.taskType === 'odoo-impact-analysis';
+      const isFileInventory = !isInventory && intent.includes('inventory');
 
       let runArgs = [];
       if (isInventory) {
         runArgs = [graphEntrypoint, 'inventory', '_inherit', 'sale.order', '--path', resolvedProjectRoot];
+      } else if (isFileInventory) {
+        runArgs = [graphEntrypoint, 'files', '--format', 'tree', '--max-depth', '3', '--path', resolvedProjectRoot];
       } else {
         const queryTerm = request.intent?.replace(/[^a-zA-Z0-9_]/g, ' ').trim() || 'OrderService';
         runArgs = [graphEntrypoint, 'explore', queryTerm, '--path', resolvedProjectRoot];
@@ -254,14 +257,14 @@ export function createInstalledHostAdapters({
         });
       }
 
-      const structuredEvidence = extractGraphEvidence(stdout, isInventory, resolvedProjectRoot);
+      const structuredEvidence = isFileInventory ? [] : extractGraphEvidence(stdout, isInventory, resolvedProjectRoot);
 
       return {
         status: 'SUCCESS',
         output: stdout,
         contextBytes: outputBytes,
         evidence: [
-          { kind: 'graph-tool', command: isInventory ? 'inventory' : 'explore' },
+          { kind: 'graph-tool', command: isInventory ? 'inventory' : (isFileInventory ? 'files' : 'explore') },
           { kind: 'graph-source-root', path: graphIndexRoot ?? resolvedProjectRoot },
           ...structuredEvidence,
         ],

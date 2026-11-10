@@ -4,29 +4,37 @@ This guide covers supported Kit onboarding on native Windows, Linux, and macOS,
 plus standalone Graph and ACE development. Preview first: installation changes
 only selected Afyx-owned destinations, but those changes are real.
 
-## Quickstart: Universal Cross-Platform npm CLI Installer
+## Install AFYX Engineering Kit — Windows & WSL2
 
-The canonical, single-command installation method across Windows, Linux, and macOS is via `npx`:
+Requires Node.js 22.5 or newer, npm, and Git. The Alpha package is distributed
+as a prebuilt tarball in the [v0.1.0-alpha.2 GitHub prerelease](https://github.com/a5zero7/afyx-engineering-kit/releases/tag/v0.1.0-alpha.2).
+From any PowerShell or WSL2 Bash directory, use the release asset directly:
 
 ```bash
-# Recommended installation with default provider configuration
-npx afyx-engineering-kit install --preset recommended
-
-# Preview actions first (dry-run)
-npx afyx-engineering-kit install --preset full --dry-run
-
-# Run diagnostics and system prerequisites check
-npx afyx-engineering-kit doctor
-
-# Verify installed components and health
-npx afyx-engineering-kit verify --preset recommended
-
-# Update installed components to latest revision
-npx afyx-engineering-kit update
-
-# Safely uninstall a specific component
-npx afyx-engineering-kit uninstall --component afyx-engineering-expert
+npm exec --yes --package="https://github.com/a5zero7/afyx-engineering-kit/releases/download/v0.1.0-alpha.2/afyx-engineering-kit-0.1.0-alpha.2.tgz" -- afyx-engineering-kit install --preset full --no-build-fallback --non-interactive --skip-provider-configuration
 ```
+
+The example keeps provider settings untouched. To configure an AI coding host,
+repeat `install` with an explicit supported `--provider` and scope after checking
+its native host prerequisites. Verify with the same `npm exec --package=... --`
+prefix followed by `afyx-engineering-kit verify --preset full`. The same prefix
+supports `doctor`, `update`, and selective `uninstall --component <id>`; preview
+changes with `--dry-run` where supported. Keep the exact tarball URL when updating
+so the installed source revision remains identifiable. Graph uses the bundled
+Windows or Linux archive; no consumer source build is needed. Context remains
+optional and respects explicit OFF. Forge provides assistive planning only.
+
+Bare `npx afyx-engineering-kit` depends on a public npm registry package that
+is not available for this Alpha. The GitHub Release tarball is the supported
+public route; local `file:` tarballs are for recovery and development only.
+
+On WSL2, keep the isolated profile, npm cache, installed Graph runtime, and
+Graph state on the Linux filesystem (for example under `/home`), even when
+working with source under `/mnt/d`. An MB9 test profile entirely under `/mnt/d`
+needed about 15.3 seconds for MCP initialization and exceeded the verifier's
+15-second limit; the same package installed under the Linux filesystem passed
+verification and initialized MCP in about 0.15 seconds. This Alpha does not
+promise that WSL2 runtime profiles on Windows-mounted drives pass that limit.
 
 The universal CLI package `afyx-engineering-kit` is a thin, zero-dependency Node.js wrapper that detects the host platform:
 - On **Windows**: delegates transparently to native PowerShell (`install.ps1`, `verify.ps1`, `scripts/afyx-doctor.ps1`, `update.ps1`, `uninstall.ps1`) using `pwsh` (or `powershell.exe`).
@@ -41,10 +49,11 @@ The universal npm package bundles runtime source code and definitions for 6 core
 - **Engines**: `afyx-context` (Context Engine) and `afyx-forge` (Forge Core) (fully bundled Node.js runtimes).
 - **Tools**: `tools/codex-usage` and provider adapters (fully bundled).
 
-For **Afyx Graph** (`preset full`):
-- Graph is an optional component requiring a platform-specific binary or pre-installed runtime root (`--graph-runtime-root`).
-- When installing from an extracted npm tarball where platform archives are unbundled, the backend installer validates archive presence before staging and gracefully falls back to local build if npm and build dependencies are present.
-- Running `update` from an npm package distribution updates installed components directly from bundled assets without requiring a git checkout.
+For **Afyx Graph** (`preset full`), the Windows and Linux release archives
+are included in this GitHub tarball. The installer validates archive integrity
+and installs the matching runtime without building source. An explicit
+`--graph-runtime-root` selects a different owned destination. `update` reuses
+the packaged component assets without requiring a Git checkout.
 
 ## Requirements
 
