@@ -6,11 +6,9 @@ only selected Afyx-owned destinations, but those changes are real.
 
 ## Install AFYX Engineering Kit — Windows & WSL2
 
-Requires Node.js 22.5 or newer, npm, and Git. This command is prepared for the
-[v0.1.0-alpha.2 GitHub prerelease](https://github.com/a5zero7/afyx-engineering-kit/releases/tag/v0.1.0-alpha.2),
-but the repository is currently private and the public asset is **not yet available**.
-After public availability is verified, use the release asset from any PowerShell
-or WSL2 Bash directory:
+Requires Node.js 22.5 or newer, npm, and Git. The prebuilt tarball is distributed
+through the [v0.1.0-alpha.2 GitHub prerelease](https://github.com/a5zero7/afyx-engineering-kit/releases/tag/v0.1.0-alpha.2).
+Use the release asset from any PowerShell or WSL2 Bash directory:
 
 ```bash
 npm exec --yes --package="https://github.com/a5zero7/afyx-engineering-kit/releases/download/v0.1.0-alpha.2/afyx-engineering-kit-0.1.0-alpha.2.tgz" -- afyx-engineering-kit install --preset full --no-build-fallback --non-interactive --skip-provider-configuration
@@ -28,7 +26,7 @@ optional and respects explicit OFF. Forge provides assistive planning only.
 
 Bare `npx afyx-engineering-kit` depends on a public npm registry package that
 is not available for this Alpha. The GitHub Release tarball is the supported
-planned public route; local `file:` tarballs are for recovery and development only.
+public route; local `file:` tarballs are for recovery and development only.
 
 On WSL2, keep the isolated profile, npm cache, installed Graph runtime, and
 Graph state on the Linux filesystem (for example under `/home`), even when
