@@ -371,7 +371,7 @@ describe('AFYX-302 Odoo agent MCP-session routing mock', () => {
     return resolveAfyxToolFamilyRoute({ intent, capability, candidates, allowExternalFallback });
   }
   test('native AFYX Graph wins over a permitted external MCP', () => {
-    const result = run([target('codegraph', 'EXTERNAL'), target('afyx-graph', 'AFYX')], true);
+    const result = run([target('external-graph', 'EXTERNAL'), target('afyx-graph', 'AFYX')], true);
     assert.equal(result.route, 'AFYX');
     assert.equal(result.toolId, 'afyx-graph');
     assert.equal(result.surface, 'mcp');
@@ -382,8 +382,8 @@ describe('AFYX-302 Odoo agent MCP-session routing mock', () => {
     assert.equal(run(candidates, false).route, 'DIRECT_SOURCE');
   });
   test('disabled external MCP cannot silently fall back through disabled CLI', () => {
-    const candidates = [target('codegraph', 'EXTERNAL', 'mcp', { enabled: false }),
-      target('codegraph', 'EXTERNAL', 'cli', { authorized: false })];
+    const candidates = [target('external-graph', 'EXTERNAL', 'mcp', { enabled: false }),
+      target('external-graph', 'EXTERNAL', 'cli', { authorized: false })];
     assert.equal(run(candidates, true).route, 'DIRECT_SOURCE');
   });
   test('exact-source Odoo request avoids Graph overhead', () => {
@@ -391,5 +391,26 @@ describe('AFYX-302 Odoo agent MCP-session routing mock', () => {
   });
   test('non-Graph Odoo capability prefers eligible AFYX Context', () => {
     assert.equal(run([target('afyx-context', 'AFYX', 'mcp', { capabilities: ['context'] })], false, 'capability', 'context').toolId, 'afyx-context');
+  });
+  test('Odoo MCP mock dispatches only the selected authorized tool', () => {
+    const calls = [];
+    const dispatch = (decision, payload) => {
+      if (!['AFYX', 'EXTERNAL'].includes(decision.route)) return null;
+      const call = { toolId: decision.toolId, surface: decision.surface, payload };
+      calls.push(call);
+      return call;
+    };
+    const native = run([target('external-graph', 'EXTERNAL'), target('afyx-graph', 'AFYX')], true);
+    assert.deepEqual(dispatch(native, request), { toolId: 'afyx-graph', surface: 'mcp', payload: request });
+    const fallback = run([target('afyx-graph', 'AFYX', 'mcp', { healthy: false }), target('external-graph', 'EXTERNAL')], true);
+    assert.equal(dispatch(fallback, request).toolId, 'external-graph');
+    const contextRequest = { ...request, capability: 'context' };
+    const context = run([target('afyx-context', 'AFYX', 'mcp', { capabilities: ['context'] })], false, 'capability', 'context');
+    assert.deepEqual(dispatch(context, contextRequest), { toolId: 'afyx-context', surface: 'mcp', payload: contextRequest });
+    const denied = run([target('external-graph', 'EXTERNAL', 'mcp', { enabled: false })], true);
+    assert.equal(dispatch(denied, request), null);
+    const exactSource = run([target('afyx-graph', 'AFYX')], false, 'exact-source');
+    assert.equal(dispatch(exactSource, request), null);
+    assert.deepEqual(calls.map(({ toolId }) => toolId), ['afyx-graph', 'external-graph', 'afyx-context']);
   });
 });
