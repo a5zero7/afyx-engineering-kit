@@ -42,7 +42,7 @@ export const COMMAND_ALLOWED_OPTIONS = {
     'preset', 'provider', 'providerScope', 'workspaceRoot', 'skillsRoot',
     'contextRuntimeRoot', 'forgeRuntimeRoot', 'graphRuntimeRoot',
     'customComponents', 'componentActions',
-    'dryRun', 'validateOnly', 'force', 'offline', 'noBuildFallback',
+    'dryRun', 'validateOnly', 'force', 'allowDowngrade', 'offline', 'noBuildFallback',
     'skipProviderConfiguration', 'nonInteractive'
   ]),
   verify: new Set([
@@ -57,7 +57,7 @@ export const COMMAND_ALLOWED_OPTIONS = {
     'preset', 'provider', 'providerScope', 'workspaceRoot', 'skillsRoot',
     'contextRuntimeRoot', 'forgeRuntimeRoot', 'graphRuntimeRoot',
     'customComponents', 'componentActions',
-    'dryRun', 'offline', 'noBuildFallback', 'skipProviderConfiguration',
+    'dryRun', 'allowDowngrade', 'offline', 'noBuildFallback', 'skipProviderConfiguration',
     'skipSelfUpdate', 'nonInteractive'
   ]),
   uninstall: new Set([
@@ -104,6 +104,7 @@ Options:
   --dry-run, --what-if, -n        Preview planned changes without modifying system
   --validate-only                 Check prerequisites and component status without mutating
   --force                         Force adoption or replacement where supported
+  --allow-downgrade               Allow replacing a higher-version installation with this package
   --offline                       Disable network requests during installation
   --no-build-fallback             Fail if pre-packaged binary archive is unavailable
   --non-interactive, -y, --yes    Bypass interactive confirmations
@@ -188,6 +189,8 @@ export function parseCliArgs(rawArgs) {
       if (recordOption('validateOnly', arg)) result.options.validateOnly = true;
     } else if (arg === '--force') {
       if (recordOption('force', arg)) result.options.force = true;
+    } else if (arg === '--allow-downgrade') {
+      if (recordOption('allowDowngrade', arg)) result.options.allowDowngrade = true;
     } else if (arg === '--offline') {
       if (recordOption('offline', arg)) result.options.offline = true;
     } else if (arg === '--no-build-fallback') {
@@ -332,6 +335,7 @@ export function buildSubprocessCall(command, options = {}, platform = process.pl
 
     if (effectiveOptions.validateOnly && command === 'install') psArgs.push('-ValidateOnly');
     if (effectiveOptions.force && command === 'install') psArgs.push('-Force');
+    if (effectiveOptions.allowDowngrade && (command === 'install' || command === 'update')) psArgs.push('-AllowDowngrade');
     if (effectiveOptions.offline && (command === 'install' || command === 'update')) psArgs.push('-Offline');
     if (effectiveOptions.noBuildFallback && (command === 'install' || command === 'update')) psArgs.push('-NoBuildFallback');
     if (effectiveOptions.skipProviderConfiguration && (command === 'install' || command === 'update')) psArgs.push('-SkipProviderConfiguration');
@@ -397,6 +401,7 @@ export function buildSubprocessCall(command, options = {}, platform = process.pl
   }
   if (effectiveOptions.validateOnly && command === 'install') shArgs.push('--validate-only');
   if (effectiveOptions.force && command === 'install') shArgs.push('--force');
+  if (effectiveOptions.allowDowngrade && (command === 'install' || command === 'update')) shArgs.push('--allow-downgrade');
   if (effectiveOptions.offline && (command === 'install' || command === 'update')) shArgs.push('--offline');
   if (effectiveOptions.noBuildFallback && (command === 'install' || command === 'update')) shArgs.push('--no-build-fallback');
   if (effectiveOptions.skipProviderConfiguration && (command === 'install' || command === 'update')) shArgs.push('--skip-provider-configuration');

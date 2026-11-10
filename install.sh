@@ -21,6 +21,7 @@ custom_component_list=
 offline=false
 no_build_fallback=false
 allow_dirty_source=false
+allow_downgrade=false
 skip_graph_mcp=false
 provider_list=codex
 provider_explicit=false
@@ -46,6 +47,7 @@ while (($#)); do
     --offline) offline=true; shift ;;
     --no-build-fallback) no_build_fallback=true; shift ;;
     --allow-dirty-source) allow_dirty_source=true; shift ;;
+    --allow-downgrade) allow_downgrade=true; shift ;;
     --skip-graph-mcp) skip_graph_mcp=true; shift ;;
     --provider) (($# >= 2)) || { printf '%s\n' '--provider requires a value.' >&2; exit 2; }; provider_list="$2"; provider_explicit=true; shift 2 ;;
     --provider-scope) (($# >= 2)) || { printf '%s\n' '--provider-scope requires a value.' >&2; exit 2; }; provider_scope="$2"; shift 2 ;;
@@ -175,7 +177,10 @@ component_action() {
     elif [[ "$AFYX_REPAIR" == BLOCKED ]]; then printf '%s drift is %s with actual ownership %s; automatic takeover is forbidden.\n' "$label" "$AFYX_DRIFT" "$AFYX_ACTUAL_OWNERSHIP" >&2; return 2
     elif [[ "$AFYX_REPAIR" == INSTALL ]]; then action=install
     elif [[ "$AFYX_REPAIR" == REPAIR ]]; then action=repair
-    elif [[ "$state" == HEALTHY && -n "$available" && -n "$installed" ]] && version_lt "$installed" "$available"; then action=update
+    elif [[ "$state" == HEALTHY && -n "$available" && -n "$installed" ]]; then
+      if version_lt "$installed" "$available"; then action=update
+      elif version_lt "$available" "$installed" && { "$allow_downgrade" || "$force"; }; then action=repair
+      else action=skip; fi
     else action=skip; fi
   elif "$force"; then
     if [[ "$state" == UNKNOWN ]]; then printf '%s ownership is unknown; --force cannot take ownership.\n' "$label" >&2; return 2
@@ -184,7 +189,10 @@ component_action() {
     else action=update; fi
   elif "$update_installed"; then
     if [[ "$state" == INCOMPLETE || "$state" == INVALID || "$state" == DRIFTED ]]; then action=repair
-    elif [[ "$state" == HEALTHY && -n "$available" && -n "$installed" ]] && version_lt "$installed" "$available"; then action=update
+    elif [[ "$state" == HEALTHY && -n "$available" && -n "$installed" ]]; then
+      if version_lt "$installed" "$available"; then action=update
+      elif version_lt "$available" "$installed" && "$allow_downgrade"; then action=repair
+      else action=skip; fi
     else action=skip; fi
   elif ! "$interactive" || "$dry_run"; then action=skip
   elif [[ "$state" == 'NOT INSTALLED' ]]; then

@@ -10,6 +10,7 @@ param(
     [switch]$Offline,
     [switch]$NoBuildFallback,
     [switch]$AllowDirtySource,
+    [switch]$AllowDowngrade,
     [switch]$InstallUsageTracker,
     [switch]$SkipUsageTracker,
     [switch]$SkipGraphMcp,
@@ -267,17 +268,29 @@ function Get-ComponentAction([string]$Id, [string]$Label) {
         elseif ($planItem.Repair -eq 'REPAIR') { $action = 'repair' }
         else {
             $available = Get-AvailableVersion $Id
-            $action = if ($state.State -eq 'HEALTHY' -and $available -and (Compare-AfyxVersion $state.Version $available) -lt 0) { 'update' } else { 'skip' }
+            if ($state.State -eq 'HEALTHY' -and $available) {
+                $comp = Compare-AfyxVersion $state.Version $available
+                if ($comp -lt 0) { $action = 'update' }
+                elseif ($comp -gt 0 -and ($AllowDowngrade -or $Force)) { $action = 'downgrade' }
+                else { $action = 'skip' }
+            } else { $action = 'skip' }
         }
     }
     elseif ($Force) {
         if ($state.State -eq 'UNKNOWN') { throw "$Label ownership is unknown; -Force cannot take ownership." }
-        $action = if ($state.State -eq 'NOT INSTALLED') { 'install' } elseif ($state.State -in @('INCOMPLETE', 'INVALID', 'DRIFTED')) { 'repair' } else { 'update' }
+        $action = if ($state.State -eq 'NOT INSTALLED') { 'install' }
+            elseif ($state.State -in @('INCOMPLETE', 'INVALID', 'DRIFTED')) { 'repair' }
+            elseif ($available -and (Compare-AfyxVersion $state.Version $available) -gt 0) { 'downgrade' }
+            else { 'update' }
     } elseif ($UpdateInstalled) {
         $available = Get-AvailableVersion $Id
         if ($state.State -in @('INCOMPLETE', 'INVALID', 'DRIFTED')) { $action = 'repair' }
-        elseif ($state.State -eq 'HEALTHY' -and $available -and (Compare-AfyxVersion $state.Version $available) -lt 0) { $action = 'update' }
-        else { $action = 'skip' }
+        elseif ($state.State -eq 'HEALTHY' -and $available) {
+            $comp = Compare-AfyxVersion $state.Version $available
+            if ($comp -lt 0) { $action = 'update' }
+            elseif ($comp -gt 0 -and $AllowDowngrade) { $action = 'downgrade' }
+            else { $action = 'skip' }
+        } else { $action = 'skip' }
     } elseif ($WhatIfPreference -or $env:CI -or -not $terminal.Interactive) { $action = 'skip' }
     else {
         $available = Get-AvailableVersion $Id
@@ -300,7 +313,7 @@ function Get-ComponentAction([string]$Id, [string]$Label) {
     if ($action -eq 'blocked') { return $action }
     $allowed = switch ($state.State) {
         'NOT INSTALLED' { @('install', 'skip') }
-        'HEALTHY' { @('update', 'adopt', 'skip') }
+        'HEALTHY' { @('update', 'downgrade', 'repair', 'adopt', 'skip') }
         { $_ -in @('INCOMPLETE', 'INVALID', 'DRIFTED') } { @('repair', 'skip') }
         'UNKNOWN' { @('adopt', 'skip') }
         default { @('skip') }
@@ -761,7 +774,7 @@ foreach ($component in $skillDefinitions) {
     if ($action -eq 'skip') { $summary[$component.Name] = 'skipped'; continue }
     Write-AfyxStatus -Status INFO -Name $component.Name -Detail "$action in progress" -Terminal $terminal
     if ($action -eq 'adopt') { $summary[$component.Name] = Adopt-LegacySkillSafely $component.Id $component.Name $component.Target }
-    else { $summary[$component.Name] = Install-ManagedSkillSafely $component.Id $component.Name $component.Source $component.Target ($action -in @('update', 'repair')) }
+    else { $summary[$component.Name] = Install-ManagedSkillSafely $component.Id $component.Name $component.Source $component.Target ($action -in @('update', 'repair', 'downgrade')) }
     if (-not $WhatIfPreference) { $changesApplied = $true }
 }
 foreach ($additionalRoot in $additionalSkillRoots) {
@@ -854,7 +867,7 @@ else {
     Write-AfyxStatus -Status INFO -Name 'Afyx Context Engine' -Detail "$contextAction in progress; task-based enablement available; Graph consumer registration still requires integration support" -Terminal $terminal
     $contextArguments = @{ RuntimeRoot = $ContextRuntimeRoot }
     if ($contextAction -eq 'update') { $contextArguments.Update = $true }
-    elseif ($contextAction -eq 'repair') { $contextArguments.Repair = $true }
+    elseif ($contextAction -in @('repair', 'downgrade')) { $contextArguments.Repair = $true }
     if (-not (Invoke-AfyxInstallStage -Stage 'Afyx Context Engine' -Description "$contextAction runtime" -Action { & $contextInstaller -Confirm:$false -WhatIf:$WhatIfPreference @contextArguments })) { throw 'Afyx Context installation failed.' }
     $summary['Afyx Context Engine'] = $contextAction
     if (-not $WhatIfPreference) { $changesApplied = $true }
@@ -892,7 +905,7 @@ else {
     Write-AfyxStatus -Status INFO -Name 'Afyx Forge Core' -Detail "$forgeAction in progress; Guidance Alpha mode active" -Terminal $terminal
     $forgeArguments = @{ RuntimeRoot = $ForgeRuntimeRoot }
     if ($forgeAction -eq 'update') { $forgeArguments.Update = $true }
-    elseif ($forgeAction -eq 'repair') { $forgeArguments.Repair = $true }
+    elseif ($forgeAction -in @('repair', 'downgrade')) { $forgeArguments.Repair = $true }
     if (-not (Invoke-AfyxInstallStage -Stage 'Afyx Forge Core' -Description "$forgeAction runtime" -Action { & $forgeInstaller -Confirm:$false -WhatIf:$WhatIfPreference @forgeArguments })) { throw 'Afyx Forge Core installation failed.' }
     $summary['Afyx Forge Core'] = $forgeAction
     if (-not $WhatIfPreference) { $changesApplied = $true }

@@ -181,6 +181,22 @@ export function resolveModularRuntimeActivation(options = {}) {
     });
   }
 
+  // Disabled Provider Check: Fail closed if provider is explicitly unauthorized or disabled by host
+  const isProviderDisabled = targetProvider !== null && (
+    hostAuthorizations[targetProvider] === false ||
+    hostAuthorizations.providers?.[targetProvider] === false ||
+    hostAuthorizations.enabledProviders?.[targetProvider] === false
+  );
+
+  if (isProviderDisabled) {
+    runtimeStatus = 'BLOCKED';
+    diagnostics.push({
+      code: 'HOST_NOT_AUTHORIZED',
+      severity: 'ERROR',
+      message: `Target provider '${targetProvider}' is explicitly disabled or not authorized by the host. Failed closed without mutation or execution.`,
+    });
+  }
+
   // Forge production gating enforcement (A8)
   const isForgeRequested = task.taskType === 'forge-evaluation' ||
     task.requestedComponent === 'afyx-forge' ||
