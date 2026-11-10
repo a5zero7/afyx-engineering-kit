@@ -70,4 +70,39 @@ describe('T05 (AFYX-200): Windows & WSL2 Linux Cross-Platform Portability', () =
     assert.ok(resolveCaseInsensitive('Efficient-Coding'));
     assert.ok(resolveCaseInsensitive('AFYX-GRAPH'));
   });
+  test('symlink alias and cyclic project link resolve without an unbounded walk', (t) => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'afyx-symlink-'));
+    try {
+      const project = path.join(root, 'Odoo Project');
+      const alias = path.join(root, 'project-link');
+      fs.mkdirSync(path.join(project, 'addons'), { recursive: true });
+      fs.writeFileSync(path.join(project, 'addons', 'sample.py'), 'name = "test"\\n');
+      try {
+        fs.symlinkSync(project, alias, process.platform === 'win32' ? 'junction' : 'dir');
+      } catch (error) {
+        if (['EPERM','EACCES','ENOTSUP','EOPNOTSUPP'].includes(error.code)) {
+          t.skip('Symlinks are not permitted on this host: ' + error.code); return;
+        }
+        throw error;
+      }
+      assert.equal(fs.realpathSync.native(alias), fs.realpathSync.native(project));
+      assert.equal(fs.readFileSync(path.join(alias, 'addons', 'sample.py'), 'utf8'), 'name = "test"\\n');
+      const loop = path.join(project, 'addons', 'self');
+      fs.symlinkSync(project, loop, process.platform === 'win32' ? 'junction' : 'dir');
+      const visited = new Set();
+      const traverse = (dir) => {
+        const resolved = fs.realpathSync.native(dir);
+        if (visited.has(resolved)) return;
+        visited.add(resolved);
+        for (const item of fs.readdirSync(dir, { withFileTypes: true })) {
+          const next = path.join(dir, item.name);
+          if (item.isDirectory() || (item.isSymbolicLink() && fs.statSync(next).isDirectory())) traverse(next);
+        }
+      };
+      traverse(alias);
+      assert.equal(visited.size, 2, 'project and addons should only be traversed once');
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+    }
+  });
 });

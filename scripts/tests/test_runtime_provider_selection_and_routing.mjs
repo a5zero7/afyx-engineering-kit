@@ -355,3 +355,41 @@ describe('T03 (AFYX-302): AFYX-First Runtime Routing & Policy Enforcement', () =
     assert.equal(decision.reason, 'NO_AUTHORIZED_COMPATIBLE_TOOL');
   });
 });
+
+describe('AFYX-302 Odoo agent MCP-session routing mock', () => {
+  const request = Object.freeze({ source: 'odoo-agent', transport: 'mcp', workspace: 'fixtures/odoo17',
+    file: 'addons/sale/models/sale_order.py', intent: 'capability', capability: 'code-graph' });
+  const target = (id, ownership, surface = 'mcp', state = {}) => ({
+    id, ownership, surface, capabilities: ['code-graph'],
+    installed: true, enabled: true, reachable: true, healthy: true,
+    authorized: true, compatible: true, fresh: true, ...state,
+  });
+  function run(candidates, allowExternalFallback = false, intent = request.intent, capability = request.capability) {
+    assert.equal(request.source, 'odoo-agent');
+    assert.equal(request.transport, 'mcp');
+    assert.match(request.file, /addons\/sale\/models\/sale_order\.py$/);
+    return resolveAfyxToolFamilyRoute({ intent, capability, candidates, allowExternalFallback });
+  }
+  test('native AFYX Graph wins over a permitted external MCP', () => {
+    const result = run([target('codegraph', 'EXTERNAL'), target('afyx-graph', 'AFYX')], true);
+    assert.equal(result.route, 'AFYX');
+    assert.equal(result.toolId, 'afyx-graph');
+    assert.equal(result.surface, 'mcp');
+  });
+  test('unhealthy native uses external only with explicit authorization', () => {
+    const candidates = [target('afyx-graph', 'AFYX', 'mcp', { healthy: false }), target('external-graph', 'EXTERNAL')];
+    assert.equal(run(candidates, true).route, 'EXTERNAL');
+    assert.equal(run(candidates, false).route, 'DIRECT_SOURCE');
+  });
+  test('disabled external MCP cannot silently fall back through disabled CLI', () => {
+    const candidates = [target('codegraph', 'EXTERNAL', 'mcp', { enabled: false }),
+      target('codegraph', 'EXTERNAL', 'cli', { authorized: false })];
+    assert.equal(run(candidates, true).route, 'DIRECT_SOURCE');
+  });
+  test('exact-source Odoo request avoids Graph overhead', () => {
+    assert.equal(run([target('afyx-graph', 'AFYX')], false, 'exact-source').reason, 'EXACT_SOURCE');
+  });
+  test('non-Graph Odoo capability prefers eligible AFYX Context', () => {
+    assert.equal(run([target('afyx-context', 'AFYX', 'mcp', { capabilities: ['context'] })], false, 'capability', 'context').toolId, 'afyx-context');
+  });
+});

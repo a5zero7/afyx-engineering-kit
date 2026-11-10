@@ -486,7 +486,15 @@ function Read-AfyxConfirmation {
         [pscustomobject]@{ Id = 'yes'; Label = 'Apply this plan'; Detail = 'Mutation is explicitly authorized'; Enabled = $true },
         [pscustomobject]@{ Id = 'no'; Label = 'Cancel'; Detail = 'No configuration changes'; Enabled = $true }
     )
-    return (Read-AfyxSingleChoice -Prompt $Prompt -Options $options -DefaultId 'no' -Terminal $Terminal -ReadKey $ReadKey -ReadLine $ReadLine -NoRender:$NoRender) -eq 'yes'
+    # Text-only / redirected prompt: accept Y/N explicitly while retaining numbered and Enter behavior.
+    $sourceLine = if ($ReadLine) { $ReadLine } else { { Read-Host 'Selection' } }
+    $mappedLine = {
+        $answer = ([string](& $sourceLine)).Trim()
+        if ($answer -match '^(?i:y|yes)$') { return '1' }
+        if ($answer -match '^(?i:n|no)$') { return '2' }
+        return $answer
+    }.GetNewClosure()
+    return (Read-AfyxSingleChoice -Prompt $Prompt -Options $options -DefaultId 'no' -Terminal $Terminal -ReadKey $ReadKey -ReadLine $mappedLine -NoRender:$NoRender) -eq 'yes'
 }
 
 function Show-AfyxReceipt {
