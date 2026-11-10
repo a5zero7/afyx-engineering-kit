@@ -140,9 +140,10 @@ and [Component Guide](docs/COMPONENTS.md) for capability and limitation details.
 
 ## Install AFYX Engineering Kit — Windows & WSL2
 
-Install Node.js 22.5 or newer and use the prebuilt Alpha tarball from the
-[v0.1.0-alpha.2 GitHub prerelease](https://github.com/a5zero7/afyx-engineering-kit/releases/tag/v0.1.0-alpha.2).
-The same command works in PowerShell and WSL2 Bash from any directory:
+Install Node.js 22.5 or newer. The following command is prepared for the
+[v0.1.0-alpha.2 GitHub prerelease](https://github.com/a5zero7/afyx-engineering-kit/releases/tag/v0.1.0-alpha.2),
+but the repository is currently private and the public asset is **not yet available**.
+Use it only after the release asset is published and publicly accessible:
 
 ```bash
 npm exec --yes --package="https://github.com/a5zero7/afyx-engineering-kit/releases/download/v0.1.0-alpha.2/afyx-engineering-kit-0.1.0-alpha.2.tgz" -- afyx-engineering-kit install --preset full --no-build-fallback --non-interactive --skip-provider-configuration
