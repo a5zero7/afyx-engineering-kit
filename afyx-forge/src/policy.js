@@ -26,7 +26,8 @@ export const EXECUTION_MODES = Object.freeze({
  */
 export function deriveAdaptivePolicy(classification, environment = {}) {
   const { primaryCategory, riskLevel, frameworks = [], referencedFiles = [] } = classification;
-  const { hasGraph = false, hasContext = false, contextOptIn = true } = environment;
+  const { hasGraph = false, hasContext = false, contextOptIn = true,
+    graphOptIn = true, expertOptIn = true, providerSupported = true } = environment;
 
   // 1. Determine Execution Mode
   let executionMode = EXECUTION_MODES.DIRECT_MINIMAL;
@@ -54,7 +55,13 @@ export function deriveAdaptivePolicy(classification, environment = {}) {
     referencedFiles.length >= 3;
 
   if (isCrossModuleOrInheritance) {
-    if (hasGraph) {
+    if (providerSupported === false) {
+      graphRouting = 'BYPASS_PROVIDER_UNSUPPORTED';
+      graphRoutingReason = 'The selected provider does not support the required Afyx Graph surface.';
+    } else if (graphOptIn === false) {
+      graphRouting = 'BYPASS_USER_DISABLED';
+      graphRoutingReason = 'Afyx Graph explicitly disabled by the user.';
+    } else if (hasGraph) {
       graphRouting = 'RECOMMENDED';
       graphRoutingReason = 'Cross-module relationships or framework inheritance identified; Afyx Graph exploration recommended.';
     } else {
@@ -68,6 +75,7 @@ export function deriveAdaptivePolicy(classification, environment = {}) {
   // not evidence that a Context operation was executed for this task.
   let contextEngine = 'NOT_AVAILABLE';
   if (contextOptIn === false) contextEngine = 'BYPASS_USER_DISABLED';
+  else if (providerSupported === false) contextEngine = 'BYPASS_PROVIDER_UNSUPPORTED';
   else if (hasContext) contextEngine = 'ACTIVE';
 
   // 4. Expert Cooperation
@@ -82,8 +90,16 @@ export function deriveAdaptivePolicy(classification, environment = {}) {
     expertEngagement = 'Afyx Engineering Expert: Solutions Architect role';
   }
 
+  if (expertOptIn === false) expertEngagement = 'BYPASS_USER_DISABLED';
+  else if (providerSupported === false) expertEngagement = 'BYPASS_PROVIDER_UNSUPPORTED';
+  const executionDirective = executionMode === EXECUTION_MODES.DIRECT_MINIMAL
+    ? (primaryCategory === TASK_CATEGORIES.KNOWN_FILE_BUG ? 'SURGICAL_KNOWN_FILE' : 'DIRECT_SIMPLE')
+    : executionMode === EXECUTION_MODES.FOCUSED_INVESTIGATION ? 'FOCUSED_DIAGNOSIS'
+      : executionMode === EXECUTION_MODES.STRUCTURAL_GRAPH_AWARE ? 'CROSS_FILE'
+        : executionMode === EXECUTION_MODES.DOMAIN_SPECIALIST ? 'DOMAIN_AWARE' : 'HIGH_RISK';
   return {
     executionMode,
+    executionDirective,
     graphRouting,
     graphRoutingReason,
     contextEngine,

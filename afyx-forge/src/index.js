@@ -8,6 +8,7 @@ import { classifyTask } from './classifier.js';
 import { deriveAdaptivePolicy } from './policy.js';
 import { generateGuidance } from './guidance.js';
 import { runDoctor } from './doctor.js';
+import { extractRequirementIntelligence, buildExecutionPlan, recommendExecutionBudget } from './planning.js';
 
 export const FORGE_CORE_VERSION = '0.1.0';
 
@@ -19,9 +20,16 @@ export const FORGE_CORE_VERSION = '0.1.0';
  * @param {string} [options.taskFile]
  * @param {string} [options.format='json'] 'json' | 'markdown'
  * @param {object} [options.environment]
+ * @param {string} [options.timestamp] Fixed timestamp for reproducible output
  * @returns {object|string} The plan according to the requested format
  */
 export function createForgePlan(options = {}) {
+  if (options.taskText !== undefined && typeof options.taskText !== 'string') {
+    throw new TypeError('taskText must be a string.');
+  }
+  if (options.timestamp !== undefined && (typeof options.timestamp !== 'string' || !Number.isFinite(Date.parse(options.timestamp)))) {
+    throw new TypeError('timestamp must be an ISO-compatible date string.');
+  }
   let content = options.taskText || '';
   let taskTitle = 'Engineering Task';
 
@@ -37,6 +45,7 @@ export function createForgePlan(options = {}) {
   if (!content.trim()) {
     throw new Error('Task content cannot be empty. Provide taskText or a valid taskFile.');
   }
+  if (content.length > 65_536) throw new Error('Task content exceeds the bounded 65536-character limit.');
 
   // Extract a brief title from the first non-empty line
   const firstLine = content.trim().split(/\r?\n/)[0].replace(/^[#\s\-_*]+/, '').trim();
@@ -44,23 +53,32 @@ export function createForgePlan(options = {}) {
     taskTitle = firstLine;
   }
 
-  // Diagnostics check if environment not supplied
-  const doc = runDoctor();
+  // Caller-supplied capability facts avoid a redundant host scan. Unknown
+  // capabilities are still discovered through the existing doctor.
+  const supplied = options.environment ?? {};
+  for (const key of ['hasGraph', 'hasContext', 'contextOptIn', 'graphOptIn', 'expertOptIn', 'providerSupported']) {
+    if (supplied[key] !== undefined && typeof supplied[key] !== 'boolean') {
+      throw new TypeError(`environment.${key} must be boolean.`);
+    }
+  }
+  const doc = supplied.hasGraph === undefined || supplied.hasContext === undefined ? runDoctor() : null;
   const env = {
-    hasGraph: doc.afyxComponents.afyxGraph === 'HEALTHY',
-    hasContext: doc.afyxComponents.afyxContext.startsWith('HEALTHY'),
+    hasGraph: doc?.afyxComponents.afyxGraph === 'HEALTHY',
+    hasContext: doc?.afyxComponents.afyxContext.startsWith('HEALTHY'),
     contextOptIn: process.env.AFYX_CONTEXT_OPT_IN !== '0',
-    ...options.environment,
+    ...supplied,
   };
 
   const classification = classifyTask(content);
+  const requirements = extractRequirementIntelligence(content, classification);
+  const timestamp = options.timestamp ?? new Date().toISOString();
 
   // If safety check fails, return refused plan
   if (classification.status === 'REFUSED_UNSAFE') {
     const refusedResult = {
       contract: 'afyx-forge-plan/v1',
       version: FORGE_CORE_VERSION,
-      timestamp: new Date().toISOString(),
+      timestamp,
       taskSummary: {
         title: taskTitle,
         observedComplexity: classification.observedComplexity,
@@ -75,6 +93,7 @@ export function createForgePlan(options = {}) {
       },
       adaptivePolicy: {
         executionMode: 'SECURITY_DEFENSE_IN_DEPTH',
+        executionDirective: 'HIGH_RISK',
         graphRouting: 'BYPASS',
         graphRoutingReason: 'Task refused due to unsafe directive; no tooling invoked.',
         contextEngine: 'BYPASS_TASK_REFUSED',
@@ -92,6 +111,9 @@ export function createForgePlan(options = {}) {
         privilegeElevationAllowed: false,
         governanceGateA8: 'EVALUATION_GATED (0/36 NOT_RUN)',
       },
+      requirements,
+      executionPlan: { status: 'REFUSED_NOT_EXECUTED', steps: [], completionCriteria: [], stoppingCondition: 'Unsafe request refused.' },
+      executionBudget: { status: 'REFUSED_NOT_EXECUTED', observedToolCalls: 0, observedProviderTokens: null },
       status: 'REFUSED_UNSAFE',
       refusalReason: classification.refusalReason,
     };
@@ -104,11 +126,13 @@ export function createForgePlan(options = {}) {
 
   const policy = deriveAdaptivePolicy(classification, env);
   const guidance = generateGuidance(classification, policy, content);
+  const executionPlan = buildExecutionPlan(requirements, classification, policy);
+  const executionBudget = recommendExecutionBudget(policy);
 
   const planResult = {
     contract: 'afyx-forge-plan/v1',
     version: FORGE_CORE_VERSION,
-    timestamp: new Date().toISOString(),
+    timestamp,
     taskSummary: {
       title: taskTitle,
       observedComplexity: classification.observedComplexity,
@@ -123,6 +147,7 @@ export function createForgePlan(options = {}) {
     },
     adaptivePolicy: {
       executionMode: policy.executionMode,
+      executionDirective: policy.executionDirective,
       graphRouting: policy.graphRouting,
       graphRoutingReason: policy.graphRoutingReason,
       contextEngine: policy.contextEngine,
@@ -134,6 +159,9 @@ export function createForgePlan(options = {}) {
       validationScope: guidance.validationScope,
       completionCriteria: guidance.completionCriteria,
     },
+    requirements,
+    executionPlan,
+    executionBudget,
     boundedExecution: {
       autonomousCodeExecution: false,
       uncontrolledModelInvocation: false,
@@ -214,7 +242,19 @@ export function formatPlanAsMarkdown(plan) {
   }
   md += `\n`;
 
-  md += `## 4. Governance & Trust Boundary\n`;
+  md += `## 4. Request-grounded Requirements\n`;
+  md += `- **Objective:** ${plan.requirements.objective || 'Not explicitly stated'}\n`;
+  for (const item of plan.requirements.functionalRequirements) md += `- **Requirement:** ${item}\n`;
+  for (const item of plan.requirements.constraints) md += `- **Constraint:** ${item}\n`;
+  for (const item of plan.requirements.acceptanceCriteria) md += `- **Acceptance:** ${item}\n`;
+  md += `\n## 5. Proposed Execution Plan\n`;
+  for (const step of plan.executionPlan.steps) md += `- **${step.id}:** ${step.action}\n`;
+  md += `- **Stop:** ${plan.executionPlan.stoppingCondition}\n`;
+  md += `\n## 6. Recommended Budget\n`;
+  md += `- **Tool-call ceiling:** ${plan.executionBudget.toolCallCeiling}; **retry ceiling:** ${plan.executionBudget.retryCeiling}\n`;
+  md += `- **Investigation depth:** ${plan.executionBudget.investigationDepth}; **validation:** ${plan.executionBudget.validationIntensity}\n`;
+  md += `- **Status:** ${plan.executionBudget.status}; provider tokens not measured\n\n`;
+  md += `## 7. Governance & Trust Boundary\n`;
   md += `- **Autonomous Code Execution:** \`${plan.boundedExecution.autonomousCodeExecution}\`\n`;
   md += `- **Uncontrolled Model Invocation:** \`${plan.boundedExecution.uncontrolledModelInvocation}\`\n`;
   md += `- **Campaign Governance:** \`${plan.boundedExecution.governanceGateA8}\`\n`;

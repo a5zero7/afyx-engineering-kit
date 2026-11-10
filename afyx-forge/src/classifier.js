@@ -61,7 +61,7 @@ const CROSS_MODULE_PATTERNS = [
 ];
 
 const UNKNOWN_DEFECT_PATTERNS = [
-  /\b(?:diagnos|investigat|unknown\s+(?:cause|defect|bug)|reproduc|intermittent|root[\s_-]cause|flaky|traceback|stacktrace)\b/i,
+  /\b(?:diagnos\w*|investigat\w*|unknown\s+(?:cause|defect|bug)|reproduc\w*|intermittent|root[\s_-]cause|flaky|traceback|stacktrace)\b/i,
 ];
 
 const SIMPLE_PATTERNS = [

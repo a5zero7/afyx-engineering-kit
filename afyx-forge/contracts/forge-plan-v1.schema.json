@@ -68,14 +68,15 @@
             "SECURITY_DEFENSE_IN_DEPTH"
           ]
         },
+        "executionDirective": { "type": "string", "enum": ["DIRECT_SIMPLE", "SURGICAL_KNOWN_FILE", "FOCUSED_DIAGNOSIS", "CROSS_FILE", "DOMAIN_AWARE", "HIGH_RISK"] },
         "graphRouting": {
           "type": "string",
-          "enum": ["BYPASS", "RECOMMENDED", "NOT_AVAILABLE"]
+          "enum": ["BYPASS", "RECOMMENDED", "NOT_AVAILABLE", "BYPASS_USER_DISABLED", "BYPASS_PROVIDER_UNSUPPORTED"]
         },
         "graphRoutingReason": { "type": "string" },
         "contextEngine": {
           "type": "string",
-          "enum": ["BYPASS_DEFAULT_OFF", "EXPLICIT_OPT_IN_REQUIRED", "ACTIVE"]
+          "enum": ["BYPASS_DEFAULT_OFF", "EXPLICIT_OPT_IN_REQUIRED", "ACTIVE", "NOT_AVAILABLE", "BYPASS_USER_DISABLED", "BYPASS_PROVIDER_UNSUPPORTED", "BYPASS_TASK_REFUSED"]
         },
         "expertEngagement": { "type": "string" }
       }
@@ -100,6 +101,50 @@
         },
         "validationScope": { "type": "array", "items": { "type": "string" } },
         "completionCriteria": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "requirements": {
+      "type": "object",
+      "required": ["objective", "functionalRequirements", "affectedFiles", "constraints", "dependencies", "unknownAssumptions", "acceptanceCriteria", "scopeBoundaries", "riskLevel", "evidenceStatus"],
+      "properties": {
+        "objective": { "type": "string" },
+        "riskLevel": { "type": "string" },
+        "evidenceStatus": { "const": "REQUEST_TEXT_ONLY" },
+        "functionalRequirements": { "type": "array", "items": { "type": "string" } },
+        "affectedFiles": { "type": "array", "items": { "type": "string" } },
+        "affectedComponents": { "type": "array", "items": { "type": "string" } },
+        "constraints": { "type": "array", "items": { "type": "string" } },
+        "dependencies": { "type": "array", "items": { "type": "string" } },
+        "assumptions": { "type": "array", "items": { "type": "string" } },
+        "unknownAssumptions": { "type": "array", "items": { "type": "string" } },
+        "acceptanceCriteria": { "type": "array", "items": { "type": "string" } },
+        "scopeBoundaries": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "executionPlan": {
+      "type": "object",
+      "required": ["status", "steps", "completionCriteria", "stoppingCondition"],
+      "properties": {
+        "status": { "type": "string", "enum": ["PROPOSED_NOT_EXECUTED", "REFUSED_NOT_EXECUTED"] },
+        "steps": { "type": "array", "items": { "type": "object", "required": ["id", "dependsOn", "action"] } },
+        "completionCriteria": { "type": "array", "items": { "type": "string" } },
+        "stoppingCondition": { "type": "string" }
+      }
+    },
+    "executionBudget": {
+      "type": "object",
+      "required": ["status", "observedToolCalls", "observedProviderTokens"],
+      "properties": {
+        "status": { "type": "string", "enum": ["RECOMMENDED_NOT_ENFORCED", "REFUSED_NOT_EXECUTED"] },
+        "investigationDepth": { "type": "integer", "minimum": 1 },
+        "toolCallCeiling": { "type": "integer", "minimum": 1 },
+        "retryCeiling": { "type": "integer", "minimum": 0 },
+        "elapsedTimeCeilingMs": { "type": "integer", "minimum": 1 },
+        "validationIntensity": { "type": "string" },
+        "contextGuideline": { "type": "string" },
+        "observedToolCalls": { "type": ["integer", "null"] },
+        "observedProviderTokens": { "type": ["integer", "null"] },
+        "escalation": { "type": "string" }
       }
     },
     "boundedExecution": {
