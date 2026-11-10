@@ -40,21 +40,21 @@ describe('search behavior contract', () => {
         expect(actual[name]).toEqual(golden[name]);
         return;
       }
-      // The current Graph language registry has one intentional additive
-      // entry (CSV). The historical golden stays immutable: prove the new
+      // The current Graph language registry has three intentional additive
+      // entries (CSV, Shell, PowerShell). The historical golden stays immutable:
+      // prove the new
       // behavior exactly, then compare every pre-existing entry unchanged.
       const parsed = actual[name] as Array<{
         kinds: string[]; languages: string[]; nameFilters: string[];
         pathFilters: string[]; text: string;
       }>;
-      const added = {
-        kinds: [], languages: ['csv'], nameFilters: [],
-        pathFilters: [], text: 'sample',
-      };
-      const additions = parsed.filter((entry) => entry.languages.length === 1 && entry.languages[0] === 'csv');
-      expect(additions).toEqual([added]);
-      expect(parsed.length).toBe(golden[name]!.length + 1);
-      expect(parsed.filter((entry) => entry !== additions[0])).toEqual(golden[name]);
+      const addedLanguages = ['csv', 'shell', 'powershell'];
+      const additions = parsed.filter((entry) => entry.languages.length === 1 && addedLanguages.includes(entry.languages[0]!));
+      expect(additions).toEqual(addedLanguages.map((language) => ({
+        kinds: [], languages: [language], nameFilters: [], pathFilters: [], text: 'sample',
+      })));
+      expect(parsed.length).toBe(golden[name]!.length + addedLanguages.length);
+      expect(parsed.filter((entry) => !additions.includes(entry))).toEqual(golden[name]);
     });
   }
 

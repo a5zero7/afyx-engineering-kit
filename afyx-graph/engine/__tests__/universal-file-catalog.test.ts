@@ -53,18 +53,15 @@ describe('universal file catalog foundation', () => {
     expect(files.get('src/empty.ts')).toMatchObject({
       language: 'typescript', indexingLevel: 'structural',
     });
-    expect(files.has('scripts/install.ps1')).toBe(false);
-    expect(files.has('scripts/install.sh')).toBe(false);
+    expect(files.get('scripts/install.ps1')).toMatchObject({ language: 'powershell', indexingLevel: 'structural' });
+    expect(files.get('scripts/install.sh')).toMatchObject({ language: 'shell', indexingLevel: 'structural' });
     expect([...files.keys()].some((file) => file.startsWith('evaluator-private/'))).toBe(false);
 
     expect(first.filesMetadataIndexed).toBe(2);
     expect(first.filesContentIndexed).toBe(0);
-    expect(first.filesStructurallyIndexed).toBe(2);
+    expect(first.filesStructurallyIndexed).toBe(4);
     expect(first.filesSkipped).toBe(0);
-    expect(first.topUnsupportedExtensions).toEqual(expect.arrayContaining([
-      expect.objectContaining({ ext: '.ps1', count: 1 }),
-      expect.objectContaining({ ext: '.sh', count: 1 }),
-    ]));
+    expect(first.topUnsupportedExtensions).toBeUndefined();
     expect(graph.searchNodes('catalogPositive').length).toBeGreaterThan(0);
     for (const token of [
       'privateMarkdownToken', 'privateJsonToken', 'unsupportedPowerShellToken',
@@ -114,7 +111,7 @@ describe('universal file catalog foundation', () => {
       structural: result.filesStructurallyIndexed,
     });
     expect(accounting(repeated)).toEqual(accounting(rebuilt));
-    expect(accounting(repeated)).toMatchObject({ metadata: 2, content: 0, structural: 2 });
+    expect(accounting(repeated)).toMatchObject({ metadata: 2, content: 0, structural: 4 });
   });
 
   it('classifies a successful zero-symbol structural parse by parser capability, not node count', () => {

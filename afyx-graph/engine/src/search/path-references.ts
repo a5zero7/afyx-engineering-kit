@@ -121,7 +121,10 @@ function createPathCatalog(paths: readonly string[]): PathCatalog {
       if (exact !== undefined) return { matches: [exact], ambiguous: false };
 
       const segments = span.split('/').filter(Boolean);
-      for (let removed = 0; removed < Math.min(segments.length, MAX_SUFFIX_DROPS); removed++) {
+      // PowerShell path requests have a direct-source fallback with ignore and
+      // containment checks. Do not rebind one to an unrelated basename.
+      const maxDrops = DIRECT_SOURCE_BASENAME.test(span) ? segments.length - 1 : segments.length;
+      for (let removed = 0; removed < Math.min(maxDrops, MAX_SUFFIX_DROPS); removed++) {
         const suffix = segments.slice(removed).join('/');
         if (!suffix) break;
         const ending = `/${suffix}`;
@@ -189,7 +192,10 @@ export function extractQueryPaths(
     examined++;
 
     const { matches, ambiguous } = catalog.resolve(normalized.toLowerCase(), maxMatches);
-    if (matches.length > 0) {
+    if (matches.length > 1 && DIRECT_SOURCE_BASENAME.test(normalized)) {
+      consumed.add(at);
+      if (unresolved.length < MAX_REPORTED_UNRESOLVED) unresolved.push(normalized);
+    } else if (matches.length > 0) {
       consumed.add(at);
       pin(matches);
     } else if (ambiguous || isUnambiguouslyPath(normalized)) {

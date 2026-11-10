@@ -2358,6 +2358,9 @@ remains part of the roadmap record. Completion requires grounded Graph results,
 negative and regression coverage, local package installation on Windows and
 WSL2, and verified delivery to `origin/dev`; source presence alone is not
 acceptance of those tickets or of the wider Track C scope.
+The new PowerShell index also requires a narrow correction to existing Explore
+path resolution: ignored qualified paths must not bind to a visible basename,
+and explicit source reads must retain their bounded provenance label.
 
 Goal:
 

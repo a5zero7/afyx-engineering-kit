@@ -1064,7 +1064,7 @@
     {
       "path": "afyx-graph/engine/src/mcp/exact-file-retrieval.ts",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "b448ac81c63331b2e8f373e12f1d3178c5d23d0a9d224bcd1e17c9acd2c1855a",
+      "reviewedSha256": "3343049b027414984151b75f945a4c71462cd3dd19e91253a9e633dcaec867de",
       "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
     },
     {
@@ -1088,7 +1088,7 @@
     {
       "path": "afyx-graph/engine/src/mcp/explore-tool.ts",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "ddf1ad8498c47cbc24269d212d100a0eca6998778e70c1c0a629d4a2011b014c",
+      "reviewedSha256": "3e1e34f6feb29880be221cc5151cf0794b95374ef302790cf5ffbcc460a9b083",
       "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
     },
     {
@@ -1720,7 +1720,7 @@
     {
       "path": "afyx-graph/engine/src/search/path-references.ts",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "a1a10e9937335c4a4f0341550fed08e7dc9a09415a01f0b6c209e8dc604f5cdc",
+      "reviewedSha256": "3481a1552760050d3d4e4b20615b7d038a488ee0ddd28c18ed263a9c33917ad1",
       "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
     },
     {

@@ -98,7 +98,7 @@ describe('path pinning (fix 1)', () => {
   });
 });
 
-describe('exact unindexed source retrieval (AFYX-260)', () => {
+describe('exact PowerShell source retrieval (AFYX-260)', () => {
   it('returns bounded direct-source evidence for a root PowerShell path instead of a semantic decoy', async () => {
     const out = await explore('Windows installer flow beginning at install.ps1 with Resolve-Archive staging rollback verification');
     expect(out).toContain('**Exact-file retrieval**');
@@ -107,6 +107,12 @@ describe('exact unindexed source retrieval (AFYX-260)', () => {
     expect(out).toContain('scripts/install-afyx-graph.ps1');
     expect(out).not.toContain('installer-decoy.ts');
     expect(out).toContain('not graph-derived nodes, edges, call relationships');
+  });
+
+  it('keeps relational PowerShell queries on the semantic Graph path', async () => {
+    const out = await explore('callers of Resolve-Archive in install.ps1');
+    expect(out).toContain('**Exploration:');
+    expect(out).not.toContain('**Exact-file retrieval**');
   });
 
   it.each([

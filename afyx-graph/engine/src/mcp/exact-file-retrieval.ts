@@ -1,4 +1,4 @@
-/** Bounded direct-source fallback for explicitly named, unindexed files. */
+/** Bounded direct-source retrieval for explicitly named PowerShell files. */
 import * as fs from 'fs';
 import * as path from 'path';
 import { buildScopeIgnore, type ScopeIgnore } from '../extraction';
@@ -65,7 +65,7 @@ function findByBasename(root: string, basename: string, ignore: ScopeIgnore): st
 }
 
 /**
- * Resolve only path-shaped spans that failed the semantic index catalog.
+ * Resolve explicitly named PowerShell paths, including files in the index.
  * Contents are served solely for a small source allowlist; no graph facts are
  * inferred from them and all reads retain the normal ignore/containment gates.
  */
@@ -157,7 +157,7 @@ export function renderExactFileResolution(
   const lines = ['**Exact-file retrieval**', ''];
   if (resolution.direct.length > 0) {
     lines.push(
-      'Afyx Graph does not semantically index PowerShell source. The sections below are **bounded direct-source inspection**, not graph-derived nodes, edges, call relationships, or semantic certainty.',
+      'These sections are **bounded direct-source inspection**, not graph-derived nodes, edges, call relationships, or semantic certainty. PowerShell files may also have separate structural facts in the index.',
       '',
     );
     for (const target of resolution.direct) {

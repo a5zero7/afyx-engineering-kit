@@ -1526,6 +1526,15 @@ class ExploreTool {
         ));
       }
     }
+    // An explicit PowerShell file request keeps the bounded source-reading
+    // contract; relational requests use its semantic index below.
+    if (pinnedFiles.length === 1 && /\.(?:ps1|psm1|psd1)$/i.test(pinnedFiles[0]!) &&
+        !/\b(?:callers?|callees?|dependencies|depends|impact|relations?|symbols?)\b/i.test(rawQuery)) {
+      const exactFile = resolveExactUnindexedFiles(projectRoot, pinnedFiles);
+      return textToolResult(renderExactFileResolution(
+        exactFile, (source, firstLine) => this.host.numberSourceLines(source, firstLine),
+      ));
+    }
     const pinnedSet = new Set(pinnedFiles);
     const pinnedOrder = new Map(pinnedFiles.map((p, i) => [p, i]));
 
