@@ -169,19 +169,43 @@ describe('afyx-graph ui server', () => {
     });
 
     it('falls back to the next free port when the preferred one is taken', async () => {
-      const blocker = http.createServer(() => {});
-      await new Promise<void>((resolve) => blocker.listen(0, '127.0.0.1', resolve));
-      const taken = (blocker.address() as { port: number }).port;
-
-      const second = await startUiServer({ projectRoot, viewerDir, port: taken });
+      let blocker: http.Server | undefined;
+      let taken = 0;
+      // An OS-assigned port can border a Windows excluded range. Verify its
+      // successor before using the pair as a fallback fixture.
+      for (let attempt = 0; attempt < 10; attempt++) {
+        const candidate = http.createServer(() => {});
+        await new Promise<void>((resolve) => candidate.listen(0, '127.0.0.1', resolve));
+        const port = (candidate.address() as { port: number }).port;
+        const probe = http.createServer();
+        let nextFree = false;
+        try {
+          nextFree = port < 65535 && await new Promise<boolean>((resolve, reject) => {
+            probe.once('error', (error: NodeJS.ErrnoException) => {
+              if (error.code === 'EACCES' || error.code === 'EADDRINUSE') resolve(false);
+              else reject(error);
+            });
+            probe.listen(port + 1, '127.0.0.1', () => resolve(true));
+          });
+        } catch (error) {
+          await new Promise<void>((resolve) => candidate.close(() => resolve()));
+          throw error;
+        }
+        if (probe.listening) await new Promise<void>((resolve) => probe.close(() => resolve()));
+        if (nextFree) { blocker = candidate; taken = port; break; }
+        await new Promise<void>((resolve) => candidate.close(() => resolve()));
+      }
+      if (!blocker) throw new Error('Could not reserve a port with a free successor for the fallback test.');
+      let second: UiServerHandle | undefined;
       try {
+        second = await startUiServer({ projectRoot, viewerDir, port: taken });
         expect(second.port).not.toBe(taken);
         expect(second.port).toBeGreaterThan(taken);
         // …and it actually works on the port it landed on.
         const res = await request(second.port, '/');
         expect(res.status).toBe(200);
       } finally {
-        await second.close();
+        await second?.close();
         await new Promise<void>((resolve) => blocker.close(() => resolve()));
       }
     });
