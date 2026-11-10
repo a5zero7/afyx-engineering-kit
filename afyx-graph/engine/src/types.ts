@@ -122,6 +122,8 @@ export const LANGUAGES = [
   'json',
   'csv',
   'unknown',
+  'shell',
+  'powershell',
 ] as const;
 
 export type Language = (typeof LANGUAGES)[number];

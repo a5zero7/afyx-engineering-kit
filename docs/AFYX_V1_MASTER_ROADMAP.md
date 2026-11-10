@@ -2350,6 +2350,15 @@ Preserve the stable Codex integration while generalizing the core.
 
 ## Track C — Engineering Intelligence Expansion
 
+### Owner-directed MB7 fast-track (2026-11-10)
+
+AFYX-204 and AFYX-205 are prioritized for v1 development as bounded native
+Shell and PowerShell semantic extraction. Their historical Track C placement
+remains part of the roadmap record. Completion requires grounded Graph results,
+negative and regression coverage, local package installation on Windows and
+WSL2, and verified delivery to `origin/dev`; source presence alone is not
+acceptance of those tickets or of the wider Track C scope.
+
 Goal:
 
 > Expand from language-level code understanding toward repository, framework,

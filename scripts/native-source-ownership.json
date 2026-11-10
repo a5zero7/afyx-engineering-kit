@@ -2,7 +2,7 @@
   "schema": 1,
   "baselineRevision": "c4e4d8e29de239a2fcbc0db8ac65eea2276e7b00",
   "scope": "AFYX-320 comprehensive production source inventory",
-  "totalProductionFiles": 381,
+  "totalProductionFiles": 383,
   "entries": [
     {
       "path": "afyx-graph/engine/src/bin/afyx-graph.ts",
@@ -391,7 +391,7 @@
     {
       "path": "afyx-graph/engine/src/extraction/extract.ts",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "f53216b07ef2dc594083d77f1887a9bb9e2c8abd620ae4bbfca16e67175e9148",
+      "reviewedSha256": "730b18bc2a19a366fdf67af393343dada737f58c96e16267e43ea3b5bd15b04f",
       "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
     },
     {
@@ -421,7 +421,7 @@
     {
       "path": "afyx-graph/engine/src/extraction/grammars.ts",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "741337e85937c84c29183d440ac5438f1f1386c0e01739353d85041acb48aa03",
+      "reviewedSha256": "c70bb426615699acd72ab9f463f66cbf529e9692b706db42bd44ea7d278363c9",
       "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
     },
     {
@@ -499,7 +499,7 @@
     {
       "path": "afyx-graph/engine/src/extraction/native/dynamic-fact-builder.ts",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "5d2c35b99766610967c94515884c5c35f25ea8155a86240c3a20fdc2b58cdbbe",
+      "reviewedSha256": "e37d2d9c6e2e24b95f91e3c2a769706bef0617011e9206324786b78728e5ce9e",
       "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
     },
     {
@@ -545,6 +545,12 @@
       "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
     },
     {
+      "path": "afyx-graph/engine/src/extraction/native/powershell-facts.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "268d0100a4050440cb1ed69b7cd6918faaa9564ee12c661e8397f4b2e4abcf80",
+      "evidence": "AFYX native bounded static script scanner; MB7 source review and focused Graph tests validate grounded declarations and conservative relationships."
+    },
+    {
       "path": "afyx-graph/engine/src/extraction/native/python-class-assignments.ts",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
       "reviewedSha256": "b3252d4a2533cc3905705b72df766f6c8471f5fdcc254e5f72bae9f102997feb",
@@ -567,6 +573,12 @@
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
       "reviewedSha256": "2bcbad0be78ac46e0264ed209e60d210c9854877e398110603572bfe2a4c0c9a",
       "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/extraction/native/shell-facts.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "dd20028863dd1fa7bbd05ab6f68895586159c4773c704884fc10292060a40634",
+      "evidence": "AFYX native bounded static script scanner; MB7 source review and focused Graph tests validate grounded declarations and conservative relationships."
     },
     {
       "path": "afyx-graph/engine/src/extraction/native/solidity-facts.ts",
@@ -1841,7 +1853,7 @@
     {
       "path": "afyx-graph/engine/src/types.ts",
       "classification": "PUBLIC_CONTRACT",
-      "reviewedSha256": "100387933e81ee5697eb0d628fede913a47ec2605bf2ba17aa0476127bccd590",
+      "reviewedSha256": "1505d763ebbc32b3bf5a40088019044b38bfe400ec32777f4a7f4b26cf915dee",
       "evidence": "AFYX structural type definitions, contracts, and schema interfaces; pure type vocabulary."
     },
     {

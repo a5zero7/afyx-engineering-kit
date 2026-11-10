@@ -57,6 +57,25 @@ export function narrowestOwner(
     .sort((left, right) => (left.bodyEnd! - left.bodyStart!) - (right.bodyEnd! - right.bodyStart!))[0];
 }
 
+/** One interval sweep keeps owner lookup linear for large script files. */
+export function ownersByToken(
+  tokens: readonly NativeToken[], functions: readonly NativeDeclaration[]
+): Array<NativeDeclaration | undefined> {
+  const ordered = [...functions].sort((a, b) => a.bodyStart! - b.bodyStart! || b.bodyEnd! - a.bodyEnd!);
+  const owners: Array<NativeDeclaration | undefined> = new Array(tokens.length);
+  const active: NativeDeclaration[] = [];
+  let next = 0;
+  for (let index = 0; index < tokens.length; index++) {
+    while (active.length && index > active[active.length - 1]!.bodyEnd!) active.pop();
+    while (next < ordered.length && ordered[next]!.bodyStart! <= index) {
+      if (ordered[next]!.bodyEnd! >= index) active.push(ordered[next]!);
+      next++;
+    }
+    owners[index] = active[active.length - 1];
+  }
+  return owners;
+}
+
 export function nextToken(tokens: readonly NativeToken[], from: number, text: string, limit = tokens.length): number {
   for (let index = from; index < limit; index += 1) if (tokens[index]?.text === text) return index;
   return -1;

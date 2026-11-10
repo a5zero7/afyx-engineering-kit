@@ -35,6 +35,12 @@ export const EXTENSION_MAP: Record<string, Language> = {
   '.xsjslib': 'javascript',
   '.jsx': 'jsx',
   '.py': 'python',
+  '.sh': 'shell',
+  '.bash': 'shell',
+  '.zsh': 'shell',
+  '.ps1': 'powershell',
+  '.psm1': 'powershell',
+  '.psd1': 'powershell',
   '.pyw': 'python',
   '.go': 'go',
   '.rs': 'rust',
@@ -363,6 +369,8 @@ export function getLanguageDisplayName(language: Language): string {
     csv: 'CSV',
     arkts: 'ArkTS',
     unknown: 'Unknown',
+    shell: 'POSIX Shell',
+    powershell: 'PowerShell',
   };
   return names[language] || language;
 }

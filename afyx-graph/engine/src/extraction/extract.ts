@@ -20,6 +20,8 @@ import {
 } from './odoo';
 import { extractNativeFacts } from './native/fact-extractor';
 import { extractNativeCfmlFacts } from './native/cfml-facts';
+import { extractNativeShellFacts } from './native/shell-facts';
+import { extractNativePowerShellFacts } from './native/powershell-facts';
 import { getAllFrameworkResolvers, getApplicableFrameworks } from '../resolution/frameworks';
 
 const NATIVE_FACT_LANGUAGES: ReadonlySet<Language> = new Set([
@@ -39,7 +41,11 @@ export function extractFromSource(
   const fileExtension = path.extname(filePath).toLowerCase();
   let result: ExtractionResult;
 
-  if (detectedLanguage === 'cfml' || detectedLanguage === 'cfscript' || detectedLanguage === 'cfquery') {
+  if (detectedLanguage === 'shell') {
+    result = extractNativeShellFacts(filePath, source);
+  } else if (detectedLanguage === 'powershell') {
+    result = extractNativePowerShellFacts(filePath, source);
+  } else if (detectedLanguage === 'cfml' || detectedLanguage === 'cfscript' || detectedLanguage === 'cfquery') {
     result = extractNativeCfmlFacts(filePath, source, detectedLanguage);
   } else if (detectedLanguage === 'csv' || isOdooAccessCsv(filePath)) {
     result = new OdooAccessCsvExtractor(filePath, source).extract();
