@@ -16,6 +16,7 @@ param(
     [string]$GeminiHome = $(if ($env:AFYX_GEMINI_HOME) { $env:AFYX_GEMINI_HOME } else { Join-Path $env:USERPROFILE '.gemini' }),
     [string]$ClaudeHome = $(if ($env:CLAUDE_CONFIG_DIR) { $env:CLAUDE_CONFIG_DIR } else { Join-Path $env:USERPROFILE '.claude' }),
     [string]$ClaudeConfigDir = $(if ($env:CLAUDE_CONFIG_DIR) { $env:CLAUDE_CONFIG_DIR } else { '' }),
+    [string]$GraphRuntimeRoot = $(if ($env:AFYX_GRAPH_RUNTIME_ROOT) { $env:AFYX_GRAPH_RUNTIME_ROOT } else { Join-Path (Join-Path $env:USERPROFILE '.afyx') 'graph' }),
     [string]$ContextRuntimeRoot = $(if ($env:AFYX_CONTEXT_RUNTIME_ROOT) { $env:AFYX_CONTEXT_RUNTIME_ROOT } else { Join-Path $env:USERPROFILE '.afyx\context' }),
     [string]$ForgeRuntimeRoot = $(if ($env:AFYX_FORGE_RUNTIME_ROOT) { $env:AFYX_FORGE_RUNTIME_ROOT } else { Join-Path $env:USERPROFILE '.afyx\forge' }),
     [string]$AfyxInstallRoot = $(if ($env:AFYX_INSTALL_ROOT) { $env:AFYX_INSTALL_ROOT } else { Join-Path $env:USERPROFILE '.afyx' }),
@@ -58,7 +59,7 @@ Import-Module (Join-Path $PSScriptRoot 'scripts\lib\AfyxTerminal.psm1') -Force
 $providerIds = @(Get-AfyxProviderRegistry | ForEach-Object { [string]$_.provider })
 $unknownProviders = @($Provider | Where-Object { $_ -notin $providerIds })
 if ($unknownProviders.Count) { throw "Unknown provider(s): $($unknownProviders -join ', ')" }
-$componentContext = New-AfyxComponentContext -SkillsRoot $SkillsRoot -ContextRoot $ContextRuntimeRoot -ForgeRoot $ForgeRuntimeRoot
+$componentContext = New-AfyxComponentContext -SkillsRoot $SkillsRoot -GraphRoot $GraphRuntimeRoot -ContextRoot $ContextRuntimeRoot -ForgeRoot $ForgeRuntimeRoot
 $contract = @(Get-AfyxComponentContract)
 if ($RemovePromptMaster) {
     throw "Component 'prompt-master' is retired from Afyx Kit and remains externally/user managed; no changes were made."

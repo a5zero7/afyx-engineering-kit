@@ -1,7 +1,7 @@
-import { EventEmitter } from 'events';
-import { PassThrough } from 'stream';
+import { EventEmitter } from 'node:events';
+import { PassThrough } from 'node:stream';
 import { describe, expect, it, vi } from 'vitest';
-import { spawn, type ChildProcess } from 'child_process';
+import { spawn, type ChildProcess } from 'node:child_process';
 import { startWatchdogRuntime, type WatchdogRuntimeConfig } from '../src/mcp/watchdog-runtime';
 
 const config: WatchdogRuntimeConfig = {

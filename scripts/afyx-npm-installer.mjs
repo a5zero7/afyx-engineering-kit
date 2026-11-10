@@ -62,6 +62,7 @@ export const COMMAND_ALLOWED_OPTIONS = {
   ]),
   uninstall: new Set([
     'skillsRoot', 'provider', 'providerScope', 'workspaceRoot',
+    'graphRuntimeRoot', 'contextRuntimeRoot', 'forgeRuntimeRoot',
     'componentActions',
     'removeProviderConfiguration', 'removeAfyxGraph', 'removeAfyxContext', 'removeAfyxForge',
     'dryRun', 'nonInteractive'
@@ -303,6 +304,7 @@ export function buildSubprocessCall(command, options = {}, platform = process.pl
     if (effectiveOptions.skillsRoot) psArgs.push('-SkillsRoot', effectiveOptions.skillsRoot);
     if (effectiveOptions.contextRuntimeRoot) psArgs.push('-ContextRuntimeRoot', effectiveOptions.contextRuntimeRoot);
     if (effectiveOptions.forgeRuntimeRoot) psArgs.push('-ForgeRuntimeRoot', effectiveOptions.forgeRuntimeRoot);
+    if (effectiveOptions.graphRuntimeRoot && command === 'uninstall') psArgs.push('-GraphRuntimeRoot', effectiveOptions.graphRuntimeRoot);
     if (effectiveOptions.project) psArgs.push('-ProjectPath', effectiveOptions.project);
 
     if (effectiveOptions.customComponents && effectiveOptions.customComponents.length > 0) {

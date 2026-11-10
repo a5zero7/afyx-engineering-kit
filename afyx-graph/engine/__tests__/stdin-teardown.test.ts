@@ -3,8 +3,8 @@
  * orphan/busy-spin. treatStdinFailureAsShutdown is the shared guard.
  */
 import { describe, it, expect } from 'vitest';
-import { PassThrough } from 'stream';
-import * as net from 'net';
+import { PassThrough } from 'node:stream';
+import * as net from 'node:net';
 import { treatStdinFailureAsShutdown } from '../src/mcp/stdin-teardown';
 
 describe('treatStdinFailureAsShutdown (#799)', () => {

@@ -38,6 +38,14 @@ export function buildGraphBundle({ root, target, revision, outputDir }) {
   try {
     verifyReleaseReady(engineRoot);
   } catch {
+    const tscPath = join(engineRoot, 'node_modules', 'typescript', 'bin', 'tsc');
+    if (!existsSync(tscPath)) {
+      const npmCmd = process.platform === 'win32' ? 'npm.cmd' : 'npm';
+      execFileSync(npmCmd, ['ci'], {
+        cwd: engineRoot,
+        stdio: 'inherit',
+      });
+    }
     execFileSync(process.execPath, [join(engineRoot, 'scripts', 'build-release.mjs')], {
       cwd: engineRoot,
       stdio: 'inherit',

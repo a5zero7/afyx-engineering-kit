@@ -9,7 +9,7 @@
  * byte of MCP traffic; early-ppid.ts shrinks the blind window itself.
  */
 import { afterEach, describe, it, expect, vi } from 'vitest';
-import { PassThrough } from 'stream';
+import { PassThrough } from 'node:stream';
 import {
   DEFAULT_STARTUP_HANDSHAKE_TIMEOUT_MS,
   armStartupHandshakeTimeout,
