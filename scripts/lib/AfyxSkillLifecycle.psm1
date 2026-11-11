@@ -208,8 +208,26 @@ function Backup-AfyxSkill {
     $componentRoot = Join-Path (Get-AfyxBackupRoot) $Component
     New-Item -ItemType Directory -Force -Path $componentRoot | Out-Null
     $limit = if ($env:AFYX_BACKUP_LIMIT -match '^\d+$') { [int]$env:AFYX_BACKUP_LIMIT } else { 20 }
-    if (@(Get-ChildItem -LiteralPath $componentRoot -Directory -Force).Count -ge $limit) {
-        throw "Backup retention limit ($limit) reached for $Component; no historical backup was deleted."
+    if ($limit -le 0) { $limit = 20 }
+    $existing = @(Get-ChildItem -LiteralPath $componentRoot -Directory -Force)
+    if ($existing.Count -ge $limit) {
+        $eligible = @($existing | Where-Object {
+            $_.Name -match '^\d{8}-\d{6}-[\w-]+$' -and
+            -not ($_.Attributes -band [IO.FileAttributes]::ReparsePoint)
+        } | Sort-Object -Property CreationTime, LastWriteTime, Name)
+
+        $toPrune = ($existing.Count - $limit) + 1
+        $pruned = 0
+        foreach ($oldBackup in $eligible) {
+            if ($pruned -ge $toPrune) { break }
+            try {
+                Remove-Item -LiteralPath $oldBackup.FullName -Recurse -Force -ErrorAction Stop
+                $pruned++
+                Write-Verbose "Pruned historical backup: $($oldBackup.FullName)"
+            } catch {
+                Write-Warning "Could not prune historical backup $($oldBackup.FullName): $_"
+            }
+        }
     }
     $destination = Join-Path $componentRoot "$(Get-Date -Format 'yyyyMMdd-HHmmss')-$([guid]::NewGuid().ToString('N'))"
     Copy-Item -LiteralPath $Target -Destination $destination -Recurse -Force -ErrorAction Stop

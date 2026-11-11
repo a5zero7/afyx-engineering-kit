@@ -28,10 +28,12 @@ provider_explicit=false
 provider_scope=global
 workspace_root="$PWD"
 gemini_home="${AFYX_GEMINI_HOME:-$HOME/.gemini}"
+claude_home="${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
+claude_config_dir="${CLAUDE_CONFIG_DIR:-}"
 skip_provider_configuration=false
 
 usage() {
-  printf '%s\n' 'Usage: ./install.sh [--skills-root PATH] [--context-runtime-root PATH] [--forge-runtime-root PATH] [--provider codex|antigravity[,..]] [--provider-scope global|workspace] [--workspace-root PATH] [--gemini-home PATH] [--skip-provider-configuration] [--preset minimal|recommended|full|custom] [--custom-component ID] [--component ID=skip|install|update|repair|adopt] [--update-installed] [--force] [--validate-only] [--dry-run]'
+  printf '%s\n' 'Usage: ./install.sh [--skills-root PATH] [--context-runtime-root PATH] [--forge-runtime-root PATH] [--provider codex|antigravity|claude[,..]] [--provider-scope global|workspace] [--workspace-root PATH] [--gemini-home PATH] [--claude-home PATH] [--claude-config-dir PATH] [--skip-provider-configuration] [--preset minimal|recommended|full|custom] [--custom-component ID] [--component ID=skip|install|update|repair|adopt] [--update-installed] [--force] [--validate-only] [--dry-run]'
 }
 
 while (($#)); do
@@ -53,6 +55,8 @@ while (($#)); do
     --provider-scope) (($# >= 2)) || { printf '%s\n' '--provider-scope requires a value.' >&2; exit 2; }; provider_scope="$2"; shift 2 ;;
     --workspace-root) (($# >= 2)) || { printf '%s\n' '--workspace-root requires a value.' >&2; exit 2; }; workspace_root="$2"; shift 2 ;;
     --gemini-home) (($# >= 2)) || { printf '%s\n' '--gemini-home requires a value.' >&2; exit 2; }; gemini_home="$2"; shift 2 ;;
+    --claude-home) (($# >= 2)) || { printf '%s\n' '--claude-home requires a value.' >&2; exit 2; }; claude_home="$2"; shift 2 ;;
+    --claude-config-dir) (($# >= 2)) || { printf '%s\n' '--claude-config-dir requires a value.' >&2; exit 2; }; claude_config_dir="$2"; shift 2 ;;
     --skip-provider-configuration) skip_provider_configuration=true; shift ;;
     --validate-only) validate_only=true; shift ;;
     --dry-run) dry_run=true; shift ;;
@@ -65,6 +69,7 @@ if [[ "$provider_explicit" == false && -t 0 && -t 1 && -z "${CI:-}" ]]; then
   detected_providers=
   command -v codex >/dev/null 2>&1 && detected_providers=codex
   if command -v agy >/dev/null 2>&1 || command -v antigravity >/dev/null 2>&1; then detected_providers="${detected_providers:+$detected_providers,}antigravity"; fi
+  if command -v claude >/dev/null 2>&1; then detected_providers="${detected_providers:+$detected_providers,}claude"; fi
   printf 'Provider hosts detected: %s\n' "${detected_providers:-none}"
   read -r -p 'Provider selection: [A] All detected / [R] Recommended Codex / [C] Custom / [S] Skip [A]: ' provider_choice || provider_choice=
   case "$provider_choice" in
@@ -77,7 +82,7 @@ fi
 
 case "$provider_scope" in global|workspace) ;; *) printf 'Unknown provider scope: %s\n' "$provider_scope" >&2; exit 2 ;; esac
 old_ifs=$IFS; IFS=','
-for provider_id in $provider_list; do case "$provider_id" in codex|antigravity) ;; *) printf 'Unknown provider: %s\n' "$provider_id" >&2; exit 2 ;; esac; done
+for provider_id in $provider_list; do case "$provider_id" in codex|antigravity|claude) ;; *) printf 'Unknown provider: %s\n' "$provider_id" >&2; exit 2 ;; esac; done
 IFS=$old_ifs
 if [[ "$skills_root_explicit" == false && "$provider_scope" == workspace && ",$provider_list," == *,antigravity,* ]]; then
   skills_root="$workspace_root/.agents/skills"
@@ -89,6 +94,13 @@ if [[ "$provider_scope" == global && ",$provider_list," == *,antigravity,* ]]; t
   if [[ "$skills_root_explicit" == false && "$provider_list" == antigravity ]]; then skills_root="$antigravity_ide_skills"; fi
   [[ "$skills_root" == "$antigravity_ide_skills" ]] || additional_skill_roots+=("$antigravity_ide_skills")
   [[ "$skills_root" == "$antigravity_cli_skills" ]] || additional_skill_roots+=("$antigravity_cli_skills")
+fi
+if [[ "$provider_scope" == global && ",$provider_list," == *,claude,* ]]; then
+  claude_skills="$claude_home/skills"
+  [[ "$skills_root" == "$claude_skills" ]] || additional_skill_roots+=("$claude_skills")
+elif [[ "$provider_scope" == workspace && ",$provider_list," == *,claude,* ]]; then
+  claude_skills="$workspace_root/.claude/skills"
+  [[ "$skills_root" == "$claude_skills" ]] || additional_skill_roots+=("$claude_skills")
 fi
 
 printf 'Afyx Codex Engineering Kit — Linux/macOS installer (Bash)\n'
@@ -316,13 +328,30 @@ printf '\nProvider Plan\n'
 if "$skip_provider_configuration"; then printf 'Provider configuration: skipped explicitly\n'; fi
 old_ifs=$IFS; IFS=','
 for provider_id in $provider_list; do
-  if [[ "$provider_id" == codex ]]; then provider_name=Codex; command -v codex >/dev/null 2>&1 && provider_detected=true || provider_detected=false; provider_path="${CODEX_HOME:-$HOME/.codex}/config.toml"
-  else provider_name=Antigravity; { command -v agy >/dev/null 2>&1 || command -v antigravity >/dev/null 2>&1; } && provider_detected=true || provider_detected=false; [[ "$provider_scope" == workspace ]] && provider_path="$workspace_root/.agents/mcp_config.json" || provider_path="$gemini_home/config/mcp_config.json"
+  if [[ "$provider_id" == codex ]]; then
+    provider_name=Codex
+    command -v codex >/dev/null 2>&1 && provider_detected=true || provider_detected=false
+    provider_path="${CODEX_HOME:-$HOME/.codex}/config.toml"
+  elif [[ "$provider_id" == antigravity ]]; then
+    provider_name=Antigravity
+    { command -v agy >/dev/null 2>&1 || command -v antigravity >/dev/null 2>&1; } && provider_detected=true || provider_detected=false
+    [[ "$provider_scope" == workspace ]] && provider_path="$workspace_root/.agents/mcp_config.json" || provider_path="$gemini_home/config/mcp_config.json"
+  elif [[ "$provider_id" == claude ]]; then
+    provider_name="Claude Code"
+    command -v claude >/dev/null 2>&1 && provider_detected=true || provider_detected=false
+    if [[ "$provider_scope" == workspace ]]; then
+      provider_path="$workspace_root/.mcp.json"
+    else
+      provider_path="${claude_config_dir:-$HOME}/.claude.json"
+    fi
   fi
   printf '%s: detected=%s; scope=%s; planned-config=%s\n' "$provider_name" "$provider_detected" "$provider_scope" "$provider_path"
   if [[ "$provider_id" == antigravity ]]; then
     if [[ "$provider_scope" == workspace ]]; then provider_skills="$workspace_root/.agents/skills"; else provider_skills="$gemini_home/config/skills;$gemini_home/antigravity-cli/skills"; fi
     printf 'Antigravity planned skills: %s\n' "$provider_skills"
+  elif [[ "$provider_id" == claude ]]; then
+    if [[ "$provider_scope" == workspace ]]; then provider_skills="$workspace_root/.claude/skills"; else provider_skills="$claude_home/skills"; fi
+    printf 'Claude Code planned skills: %s\n' "$provider_skills"
   fi
 done
 IFS=$old_ifs
@@ -336,9 +365,26 @@ if ! "$skip_graph_mcp" && ! "$skip_provider_configuration" && [[ ",$provider_lis
     exit 1
   fi
 fi
+if ! "$skip_graph_mcp" && ! "$skip_provider_configuration" && [[ ",$provider_list," == *,claude,* ]] && command -v node >/dev/null 2>&1; then
+  set +e
+  claude_cmd="$(command -v claude || true)"
+  claude_pre_args=("$PACKAGE_ROOT/scripts/afyx-provider-integration.mjs" --providers claude --scope "$provider_scope" --workspace-root "$workspace_root" --node "$(command -v node)" --entry "$graph_root/current/lib/dist/bin/afyx-graph.js")
+  [[ -n "$claude_cmd" ]] && claude_pre_args+=(--claude "$claude_cmd")
+  [[ -n "$claude_config_dir" ]] && claude_pre_args+=(--claude-config-dir "$claude_config_dir")
+  preflight_json="$(node "${claude_pre_args[@]}" 2>/dev/null)"; preflight_exit=$?
+  set -e
+  preflight_reason="$(printf '%s' "$preflight_json" | sed -n 's/.*"reason":"\([^"]*\)".*/\1/p')"
+  if ((preflight_exit != 0)) && [[ "$preflight_reason" != GRAPH_RUNTIME_UNAVAILABLE ]]; then
+    printf 'Claude Code provider plan is blocked before mutation: %s\n' "$preflight_json" >&2
+    exit 1
+  fi
+fi
 
 codex_cli_detected=false; command -v codex >/dev/null 2>&1 && codex_cli_detected=true
 antigravity_detected=false; { command -v agy >/dev/null 2>&1 || command -v antigravity >/dev/null 2>&1; } && antigravity_detected=true
+claude_cli_detected=false; command -v claude >/dev/null 2>&1 && claude_cli_detected=true
+claude_vscode_detected=false
+for extension in "$HOME"/.vscode/extensions/anthropic.claude-code-*; do [[ -d "$extension" ]] && { claude_vscode_detected=true; break; }; done
 vscode_extension_detected=false
 for extension in "$HOME"/.vscode/extensions/openai.chatgpt-*; do [[ -d "$extension" ]] && { vscode_extension_detected=true; break; }; done
 
@@ -348,6 +394,7 @@ printf '[REQUIRED] Platform shell: Bash %s\n' "$BASH_VERSION"
 if command -v git >/dev/null 2>&1; then printf '[REQUIRED] Git: %s\n' "$(git --version)"; else printf '[REQUIRED] Git: MISSING — install Git with the documented OS package manager\n'; fi
 if "$codex_cli_detected" || "$vscode_extension_detected"; then printf '[REQUIRED] Codex host: detected\n'; else printf '[REQUIRED] Codex host: MISSING — install Codex CLI or the supported VS Code extension\n'; fi
 if "$antigravity_detected"; then printf '[REQUIRED] Antigravity host: detected\n'; else printf '[REQUIRED] Antigravity host: not detected\n'; fi
+if "$claude_cli_detected"; then printf '[REQUIRED] Claude Code host: detected (CLI)\n'; elif "$claude_vscode_detected"; then printf '[REQUIRED] Claude Code host: detected (VS Code extension; CLI required for MCP)\n'; else printf '[REQUIRED] Claude Code host: not detected\n'; fi
 if command -v node >/dev/null 2>&1; then printf '[COMPONENT_REQUIRED:Afyx Graph] Node.js >=22.5.0: %s\n' "$(node --version)"; else printf '[COMPONENT_REQUIRED:Afyx Graph] Node.js >=22.5.0: MISSING — install from https://nodejs.org/\n'; fi
 if command -v npm >/dev/null 2>&1; then printf '[BUILD_ONLY:Afyx Graph] npm: %s\n' "$(npm --version)"; else printf '[BUILD_ONLY:Afyx Graph] npm: MISSING — needed only for automatic local fallback\n'; fi
 printf '[COMPONENT_REQUIRED:Afyx Graph] Archive/checksum: tar + SHA-256 tool required\n'
@@ -384,6 +431,7 @@ fi
 
 if ! "$skip_provider_configuration" && [[ ",$provider_list," == *,codex,* ]] && ! "$codex_cli_detected" && ! "$vscode_extension_detected"; then printf 'Selected Codex provider host was not detected.\n' >&2; exit 1; fi
 if ! "$skip_provider_configuration" && [[ ",$provider_list," == *,antigravity,* ]] && ! "$antigravity_detected"; then printf 'Selected Antigravity provider host was not detected.\n' >&2; exit 1; fi
+if ! "$skip_provider_configuration" && [[ ",$provider_list," == *,claude,* ]] && ! "$claude_cli_detected"; then printf 'Selected Claude Code provider host was not detected.\n' >&2; exit 1; fi
 command -v git >/dev/null 2>&1 || { printf 'Git is required for Afyx source validation and lifecycle updates.\n' >&2; exit 1; }
 efficient_action="$(component_action efficient-coding 'Efficient Coding' "$efficient_state" "$(component_version efficient-coding)")"
 odoo_action="$(component_action odoo-engineering 'Odoo Engineering' "$odoo_state" "$(component_version odoo-engineering)")"
@@ -451,12 +499,29 @@ if [[ "$graph_action" != skip ]]; then
 fi
 
 if ! "$skip_graph_mcp" && ! "$skip_provider_configuration" && [[ ",$provider_list," == *,antigravity,* ]]; then
-  provider_args=("$PACKAGE_ROOT/scripts/afyx-provider-integration.mjs" --providers antigravity --scope "$provider_scope" --workspace-root "$workspace_root" --gemini-home "$gemini_home" --node "$(command -v node)" --entry "$graph_root/current/lib/dist/bin/afyx-graph.js")
+  node_cmd="$(command -v node || command -v node.exe || true)"
   if "$dry_run"; then printf 'Dry-run: would configure Antigravity MCP at %s scope.\n' "$provider_scope"
+  elif [[ -z "$node_cmd" ]]; then printf 'Node.js is required for Antigravity provider configuration.\n' >&2; exit 1
   elif [[ -f "$graph_root/current/lib/dist/bin/afyx-graph.js" ]]; then
-    provider_json="$(node "${provider_args[@]}" --apply)" || { printf 'Antigravity provider configuration failed: %s\n' "$provider_json" >&2; exit 1; }
+    provider_args=("$PACKAGE_ROOT/scripts/afyx-provider-integration.mjs" --providers antigravity --scope "$provider_scope" --workspace-root "$workspace_root" --gemini-home "$gemini_home" --node "$node_cmd" --entry "$graph_root/current/lib/dist/bin/afyx-graph.js")
+    provider_json="$("$node_cmd" "${provider_args[@]}" --apply)" || { printf 'Antigravity provider configuration failed: %s\n' "$provider_json" >&2; exit 1; }
     printf 'Antigravity provider: %s\n' "$(printf '%s' "$provider_json" | sed -n 's/.*"status":"\([^"]*\)".*/\1/p')"
   elif [[ "$graph_action" != skip ]]; then printf 'Installed Graph entry is unavailable for Antigravity configuration.\n' >&2; exit 1
+  fi
+fi
+
+if ! "$skip_graph_mcp" && ! "$skip_provider_configuration" && [[ ",$provider_list," == *,claude,* ]]; then
+  node_cmd="$(command -v node || command -v node.exe || true)"
+  if "$dry_run"; then printf 'Dry-run: would configure Claude Code MCP at %s scope.\n' "$provider_scope"
+  elif [[ -z "$node_cmd" ]]; then printf 'Node.js is required for Claude Code provider configuration.\n' >&2; exit 1
+  elif [[ -f "$graph_root/current/lib/dist/bin/afyx-graph.js" ]]; then
+    claude_cmd="$(command -v claude || true)"
+    claude_args=("$PACKAGE_ROOT/scripts/afyx-provider-integration.mjs" --providers claude --scope "$provider_scope" --workspace-root "$workspace_root" --node "$node_cmd" --entry "$graph_root/current/lib/dist/bin/afyx-graph.js")
+    [[ -n "$claude_cmd" ]] && claude_args+=(--claude "$claude_cmd")
+    [[ -n "$claude_config_dir" ]] && claude_args+=(--claude-config-dir "$claude_config_dir")
+    provider_json="$("$node_cmd" "${claude_args[@]}" --apply)" || { printf 'Claude Code provider configuration failed: %s\n' "$provider_json" >&2; exit 1; }
+    printf 'Claude Code provider: %s\n' "$(printf '%s' "$provider_json" | sed -n 's/.*"status":"\([^"]*\)".*/\1/p')"
+  elif [[ "$graph_action" != skip ]]; then printf 'Installed Graph entry is unavailable for Claude Code configuration.\n' >&2; exit 1
   fi
 fi
 

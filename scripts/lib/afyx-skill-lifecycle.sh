@@ -145,14 +145,30 @@ EOF
 }
 
 afyx_backup_skill() {
-  local component="$1" target="$2" destination count
+  local component="$1" target="$2" destination count limit to_prune pruned
   mkdir -p "$afyx_backup_root/$component" || return 1
-  count="$(find "$afyx_backup_root/$component" -mindepth 1 -maxdepth 1 -type d 2>/dev/null | wc -l | tr -d ' ')"
-  if [[ "$count" -ge "$afyx_backup_limit" ]]; then
-    printf 'Backup retention limit (%s) reached for %s; no historical backup was deleted.\n' "$afyx_backup_limit" "$component" >&2
-    return 1
+  limit="$afyx_backup_limit"
+  if [[ ! "$limit" =~ ^[0-9]+$ ]] || [[ "$limit" -le 0 ]]; then
+    limit=20
   fi
-  destination="$afyx_backup_root/$component/$(date +%Y%m%d-%H%M%S)-$$"
+
+  count="$(find "$afyx_backup_root/$component" -mindepth 1 -maxdepth 1 -type d 2>/dev/null | wc -l | tr -d ' ')"
+  if [[ "$count" -ge "$limit" ]]; then
+    to_prune=$(( count - limit + 1 ))
+    pruned=0
+    while IFS= read -r dir_path; do
+      [[ -z "$dir_path" ]] && continue
+      [[ "$pruned" -ge "$to_prune" ]] && break
+      local base_name
+      base_name="$(basename "$dir_path")"
+      if [[ ! -L "$dir_path" ]] && [[ "$base_name" =~ ^[0-9]{8}-[0-9]{6}- ]]; then
+        rm -rf -- "$dir_path" 2>/dev/null && pruned=$(( pruned + 1 ))
+      fi
+    done < <(find "$afyx_backup_root/$component" -mindepth 1 -maxdepth 1 -type d 2>/dev/null | sort)
+  fi
+  local suffix
+  suffix="${RANDOM:-$$}-$$-$(date +%N 2>/dev/null || echo 0)"
+  destination="$afyx_backup_root/$component/$(date +%Y%m%d-%H%M%S)-$suffix"
   cp -a "$target" "$destination" || return 1
   printf '%s' "$destination"
 }
