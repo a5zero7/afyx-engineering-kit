@@ -111,6 +111,14 @@ export function resolveGitRevision(root) {
     if (/^[0-9a-f]{40}$/.test(raw)) return raw;
   }
 
+  // 3. Fall back to npm lifecycle environment variable or explicit env
+  if (process.env.npm_package_gitHead && /^[0-9a-f]{40}$/.test(process.env.npm_package_gitHead)) {
+    return process.env.npm_package_gitHead;
+  }
+  if (process.env.AFYX_SOURCE_REVISION && /^[0-9a-f]{40}$/.test(process.env.AFYX_SOURCE_REVISION)) {
+    return process.env.AFYX_SOURCE_REVISION;
+  }
+
   return null;
 }
 

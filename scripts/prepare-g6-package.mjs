@@ -298,6 +298,15 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
     }
   }
 
+  // 3. Fall back to npm gitHead or AFYX_SOURCE_REVISION
+  if (!revision) {
+    if (process.env.npm_package_gitHead && /^[0-9a-f]{40}$/.test(process.env.npm_package_gitHead)) {
+      revision = process.env.npm_package_gitHead;
+    } else if (process.env.AFYX_SOURCE_REVISION && /^[0-9a-f]{40}$/.test(process.env.AFYX_SOURCE_REVISION)) {
+      revision = process.env.AFYX_SOURCE_REVISION;
+    }
+  }
+
   if (!revision || !/^[0-9a-f]{40}$/.test(revision)) {
     throw new Error('Exact Git source revision is required to prepare G6 package.');
   }
