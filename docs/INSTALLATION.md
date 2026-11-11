@@ -6,6 +6,35 @@ only selected Afyx-owned destinations, but those changes are real.
 
 ## Install AFYX Engineering Kit — Windows & WSL2
 
+### Local Developer Setup (Bare NPX Offline Resolution)
+
+When operating locally without public npm registry access, link the repository into your user-level npm global environment:
+
+Windows 11:
+```powershell
+.\scripts\link-global-dev.ps1 -Install
+.\scripts\link-global-dev.ps1 -Verify
+```
+
+WSL2:
+```bash
+./scripts/link-global-dev.sh --install
+./scripts/link-global-dev.sh --verify
+```
+
+After linking, bare `npx` resolves locally from any directory without downloading from `registry.npmjs.org`:
+
+```bash
+npx afyx-engineering-kit install --preset full --skip-provider-configuration
+```
+
+To unlink:
+```powershell
+.\scripts\link-global-dev.ps1 -Uninstall
+```
+
+### Remote Git Execution
+
 Requires Node.js 22.5 or newer, npm, and Git. You can execute or install directly from GitHub `dev`:
 
 ```bash

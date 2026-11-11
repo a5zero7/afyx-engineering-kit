@@ -140,7 +140,35 @@ and [Component Guide](docs/COMPONENTS.md) for capability and limitation details.
 
 ## Install AFYX Engineering Kit — Windows & WSL2
 
-Install Node.js 22.5 or newer. You can install AFYX directly from GitHub `dev` via `npx`:
+### Local Developer Setup (Bare NPX Resolution)
+
+For local development or offline environments where `npx afyx-engineering-kit install` must resolve without contacting public registries:
+
+Windows 11 (PowerShell 7):
+```powershell
+.\scripts\link-global-dev.ps1 -Install
+.\scripts\link-global-dev.ps1 -Verify
+```
+
+WSL2 Ubuntu (Bash):
+```bash
+./scripts/link-global-dev.sh --install
+./scripts/link-global-dev.sh --verify
+```
+
+Once linked, bare `npx` resolves locally from any directory completely offline:
+```bash
+npx afyx-engineering-kit install --preset full --skip-provider-configuration
+```
+
+To remove the link:
+```powershell
+.\scripts\link-global-dev.ps1 -Uninstall
+```
+
+### Remote Git & Release Tarball Installation
+
+Install Node.js 22.5 or newer. You can execute directly from GitHub `dev` via `npx`:
 
 ```bash
 # Direct execution via npx (GitHub dev branch)

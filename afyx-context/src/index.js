@@ -10,3 +10,16 @@ export {
   createGraphAceConsumer,
   deriveGraphAceIdentity,
 } from './graph-integration.js';
+export {
+  AfyxEngineeringMemory,
+  createEngineeringMemory,
+  MEMORY_CONTRACT_VERSION,
+  MEMORY_CATEGORIES,
+} from './memory.js';
+export {
+  DEFAULT_CONTEXT_BUDGET,
+  estimateTokens,
+  estimateBytes,
+  compressContextItems,
+  detectRedundancy,
+} from './budget.js';

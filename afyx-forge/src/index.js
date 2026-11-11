@@ -263,4 +263,11 @@ export function formatPlanAsMarkdown(plan) {
 }
 
 export { runDoctor } from './doctor.js';
+export {
+  WORKFLOW_REFINER_CONTRACT,
+  stripInstructionBoilerplate,
+  extractStructuredCriteria,
+  refineTaskDirective,
+  evaluateTaskCompletion,
+} from './workflow-refiner.js';
 
