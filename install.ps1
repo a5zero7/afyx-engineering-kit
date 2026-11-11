@@ -614,6 +614,13 @@ if ($graphAction -ne 'skip') {
     )
     $hasReleaseCache = [bool](@($graphReleaseCandidates | Where-Object { Test-Path -LiteralPath $_ -PathType Leaf }).Count)
     if (-not $hasReleaseCache) {
+        $resolverScript = Join-Path $packageRoot 'scripts\resolve-git-release-artifacts.mjs'
+        if ((Test-Path -LiteralPath $resolverScript -PathType Leaf) -and (Get-Command node -ErrorAction SilentlyContinue)) {
+            & node $resolverScript 2>$null
+            $hasReleaseCache = [bool](@($graphReleaseCandidates | Where-Object { Test-Path -LiteralPath $_ -PathType Leaf }).Count)
+        }
+    }
+    if (-not $hasReleaseCache) {
         $gitCmd = Get-Command git -ErrorAction SilentlyContinue
         $tarCmd = Get-Command tar -ErrorAction SilentlyContinue
         $enginePackage = Join-Path $packageRoot 'afyx-graph\engine\package.json'

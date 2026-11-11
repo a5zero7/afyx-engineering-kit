@@ -11,6 +11,7 @@
     "node": ">=22.5.0"
   },
   "scripts": {
+    "prepare": "node scripts/prepare-g6-package.mjs",
     "prepack": "node scripts/prepare-g6-package.mjs",
     "test": "node --test scripts/tests/test_npm_installer.mjs"
   },
