@@ -2037,7 +2037,7 @@ export class ExtractionOrchestrator {
       log('Store writer thread active');
     }
     /** Queue-depth bound for un-acked bundles (bundles hold whole node/edge arrays). */
-    const STORE_WRITER_WINDOW = 64;
+    const STORE_WRITER_WINDOW = 16;
 
     /**
      * Parse one file: on the pool when available (the promise REJECTS on a worker
@@ -2061,7 +2061,7 @@ export class ExtractionOrchestrator {
     // to the single-worker path — instead of drifting with parse timing. The
     // `completed` buffer holds at most ~windowSize out-of-order results, so memory
     // stays bounded.
-    const windowSize = pool ? Math.max(4, pool.size * 2) : 1;
+    const windowSize = pool ? Math.min(12, Math.max(4, pool.size * 2)) : 1;
     const inFlight = new Set<Promise<void>>();
     const completed = new Map<number,
       | { ok: true; filePath: string; content: string; stats: fs.Stats; result: ExtractionResult }
@@ -2166,8 +2166,18 @@ export class ExtractionOrchestrator {
             const item = completed.get(nextToStore)!;
             completed.delete(nextToStore);
             nextToStore++;
-            if (item.ok) await storeResult(item.filePath, item.content, item.stats, item.result);
-            else await recordParseFailure(item.filePath, item.content, item.stats, item.err);
+            try {
+              if (item.ok) await storeResult(item.filePath, item.content, item.stats, item.result);
+              else await recordParseFailure(item.filePath, item.content, item.stats, item.err);
+            } finally {
+              // Bound memory by immediately clearing AST nodes, edges and source content buffers
+              (item as any).content = '';
+              if ((item as any).result) {
+                (item as any).result.nodes = [];
+                (item as any).result.edges = [];
+                (item as any).result.unresolvedReferences = [];
+              }
+            }
           }
         } catch (err) {
           flushError = err;

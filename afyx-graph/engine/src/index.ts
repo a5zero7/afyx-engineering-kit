@@ -808,6 +808,10 @@ export class AfyxGraph {
             this.db.getDb().pragma('journal_mode = WAL');
           } catch { /* connection may be closing */ }
         }
+        // Free large resolution caches (knownNames, knownFiles string sets) post-index
+        try {
+          this.resolver.clearCaches();
+        } catch { /* advisory memory reclaim */ }
         this.fileLock.release();
       }
     });

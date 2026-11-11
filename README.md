@@ -140,9 +140,20 @@ and [Component Guide](docs/COMPONENTS.md) for capability and limitation details.
 
 ## Install AFYX Engineering Kit — Windows & WSL2
 
-Install Node.js 22.5 or newer. Use the prebuilt tarball from the
-[v0.1.0-alpha.2 GitHub prerelease](https://github.com/a5zero7/afyx-engineering-kit/releases/tag/v0.1.0-alpha.2)
-from any PowerShell or WSL2 Bash directory:
+Install Node.js 22.5 or newer. You can install AFYX directly from GitHub `dev` via `npx`:
+
+```bash
+# Direct execution via npx (GitHub dev branch)
+npx --yes github:a5zero7/afyx-engineering-kit#dev install --preset full --no-build-fallback --non-interactive --skip-provider-configuration
+
+# Or global installation directly from Git
+npm install -g github:a5zero7/afyx-engineering-kit#dev
+afyx-engineering-kit install --preset full --no-build-fallback --non-interactive --skip-provider-configuration
+```
+
+The Git installer automatically resolves matching precompiled Graph engine binaries from official GitHub dev snapshots, preventing consumer-side TypeScript compilation.
+
+Alternatively, use the prebuilt tarball from the [v0.1.0-alpha.2 GitHub prerelease](https://github.com/a5zero7/afyx-engineering-kit/releases/tag/v0.1.0-alpha.2):
 
 ```bash
 npm exec --yes --package="https://github.com/a5zero7/afyx-engineering-kit/releases/download/v0.1.0-alpha.2/afyx-engineering-kit-0.1.0-alpha.2.tgz" -- afyx-engineering-kit install --preset full --no-build-fallback --non-interactive --skip-provider-configuration

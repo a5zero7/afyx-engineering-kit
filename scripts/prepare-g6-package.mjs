@@ -24,6 +24,7 @@ import {
 import { verifyReleaseReady } from '../afyx-graph/engine/scripts/release-readiness.mjs';
 import { createDeterministicArchive } from '../afyx-graph/engine/scripts/deterministic-archive.mjs';
 import { stampArtifact } from './afyx-graph-artifact.mjs';
+import { resolveAndStageGitReleaseArtifacts } from './resolve-git-release-artifacts.mjs';
 
 const expected = new Map([
   ['afyx-graph-win32-x64.zip', 'win32-x64'],
@@ -303,8 +304,29 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
 
   // 3. Ensure Graph release artifacts exist and match current revision
   if (!checkGraphReleaseValid(root, revision)) {
-    console.error(`[G6 package] building Graph release artifacts for revision ${revision}...`);
-    buildGraphReleaseArtifacts(root, revision);
+    let resolvedFromRemote = false;
+    try {
+      console.error(`[G6 package] resolving precompiled Graph artifacts for revision ${revision}...`);
+      await resolveAndStageGitReleaseArtifacts(root, revision);
+      resolvedFromRemote = checkGraphReleaseValid(root, revision);
+    } catch (resolverErr) {
+      console.error(`[G6 package] remote artifact resolution notice: ${resolverErr.message}`);
+    }
+
+    if (!resolvedFromRemote) {
+      // Maintainer build vs consumer failure
+      if (process.env.AFYX_BUILD_FROM_SOURCE === '1') {
+        console.error(`[G6 package] maintainer build: building Graph release artifacts for revision ${revision}...`);
+        buildGraphReleaseArtifacts(root, revision);
+      } else {
+        throw new Error(
+          `Graph release artifacts for revision ${revision} are missing or invalid.\n` +
+          `Official precompiled binaries could not be resolved from GitHub Releases.\n` +
+          `Consumer installations do not compile Graph from source.\n` +
+          `To build artifacts locally as a maintainer, set AFYX_BUILD_FROM_SOURCE=1.`
+        );
+      }
+    }
   }
 
   console.error(`[G6 package] verified Graph archives and source revision ${prepareG6Package(root, revision)}`);

@@ -427,7 +427,7 @@
     {
       "path": "afyx-graph/engine/src/extraction/index.ts",
       "classification": "PUBLIC_API_BARREL",
-      "reviewedSha256": "8f0cdd6b7c323f91e80783ea1941729ac38d89796435176647972d4a31dd40ec",
+      "reviewedSha256": "e372612764bf3413f74ad58e03c4d915b8bebc670829096f0de84a2909dfcdd6",
       "evidence": "AFYX public module barrel export surface; exposes stable interface without independent algorithmic logic."
     },
     {
@@ -878,7 +878,7 @@
     {
       "path": "afyx-graph/engine/src/index.ts",
       "classification": "PUBLIC_API_BARREL",
-      "reviewedSha256": "0789b63c6bba037bc34ec198d65010e6e0a915cfac00400242a99cc85b51aa08",
+      "reviewedSha256": "1cc18a8fe68fd72331c478f17e4637b77e35b79b866e14428aa2dacbb70b9ead",
       "evidence": "AFYX public module barrel export surface; exposes stable interface without independent algorithmic logic."
     },
     {
