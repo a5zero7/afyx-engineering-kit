@@ -52,7 +52,7 @@ try {
         Copy-Item -LiteralPath $from -Destination (Join-Path $kitStage $item) -Recurse -Force
     }
     $stageRoot = [IO.Path]::GetFullPath($kitStage).TrimEnd([IO.Path]::DirectorySeparatorChar) + [IO.Path]::DirectorySeparatorChar
-    foreach ($relative in @('scripts\tests', 'afyx-context\test', 'afyx-context\benchmark',
+    foreach ($relative in @('scripts\tests', 'afyx-context\test', 'afyx-context\test-fixtures', 'afyx-context\benchmark',
         'afyx-forge\test', 'tools\codex-usage\tests')) {
         $target = [IO.Path]::GetFullPath((Join-Path $kitStage $relative))
         if (-not $target.StartsWith($stageRoot, [StringComparison]::OrdinalIgnoreCase)) { throw 'Unsafe staging path' }
@@ -98,7 +98,7 @@ try {
         foreach ($entryName in $required) {
             if (-not $zip.GetEntry($entryName)) { throw "Release ZIP is missing $entryName" }
         }
-        foreach ($forbidden in @('scripts/tests/', 'afyx-context/test/', 'afyx-context/benchmark/',
+        foreach ($forbidden in @('scripts/tests/', 'afyx-context/test/', 'afyx-context/test-fixtures/', 'afyx-context/benchmark/',
             'afyx-forge/test/', 'tools/codex-usage/tests/', 'afyx-graph/engine/scripts/tests/')) {
             if ($zip.Entries.FullName | Where-Object { $_.StartsWith("afyx-engineering-kit/$forbidden", [StringComparison]::OrdinalIgnoreCase) }) {
                 throw "Development fixture leaked into release ZIP: $forbidden"

@@ -1,6 +1,6 @@
 {
   "name": "afyx-engineering-kit",
-  "version": "0.1.0-alpha.4",
+  "version": "0.1.0-alpha.5",
   "description": "Universal cross-platform CLI installer and lifecycle manager for AFYX Engineering Kit",
   "type": "module",
   "main": "./bin/afyx-engineering-kit.mjs",
@@ -25,6 +25,7 @@
     "skills/",
     "afyx-context/",
     "!afyx-context/test/**",
+    "!afyx-context/test-fixtures/**",
     "!afyx-context/benchmark/**",
     "afyx-forge/",
     "!afyx-forge/test/**",

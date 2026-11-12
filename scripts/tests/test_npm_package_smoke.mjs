@@ -47,7 +47,7 @@ describe('AFYX Universal npm Package Disposable Smoke Suite', () => {
 
     cliPath = join(pkgDir, 'bin', 'afyx-engineering-kit.mjs');
     assert.ok(existsSync(cliPath), `CLI entrypoint must exist at ${cliPath}`);
-    for (const excluded of ['scripts/tests', 'afyx-context/test', 'afyx-context/benchmark', 'afyx-forge/test', 'tools/codex-usage/tests']) {
+    for (const excluded of ['scripts/tests', 'afyx-context/test', 'afyx-context/test-fixtures', 'afyx-context/benchmark', 'afyx-forge/test', 'tools/codex-usage/tests']) {
       assert.ok(!existsSync(join(pkgDir, excluded)), `Development fixture must not ship: ${excluded}`);
     }
 
