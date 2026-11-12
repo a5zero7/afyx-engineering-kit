@@ -1,6 +1,6 @@
 # Afyx Efficient Coding
 
-**Quality-first engineering workflow · Skill v1.2.1**
+**Quality-first engineering workflow · Skill v1.2.2**
 
 Efficient Coding is an independent, instruction-only Afyx skill for coding,
 debugging, refactoring, and code investigation. It prefers correctness,
@@ -49,6 +49,6 @@ claim successful tests unless they ran. Do not skip required security, schema,
 data integrity, or runtime checks just to minimize tokens. Preserve existing
 architecture and obtain authorization for out-of-scope or destructive actions.
 
-**Component status:** standalone instruction skill implemented at v1.2.1.
+**Component status:** standalone instruction skill implemented at v1.2.2.
 The Kit as a whole remains Technical Alpha on the reviewed 2026-11-05 `dev`
 baseline. See [Component Guide](../COMPONENTS.md#efficient-coding).

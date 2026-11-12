@@ -142,7 +142,7 @@ if ($wizardMode) {
     try {
         Show-AfyxStep -Current 1 -Terminal $terminal
         Write-AfyxSection -Title 'Welcome & Environment' -Terminal $terminal
-        Write-AfyxStatus -Status INFO -Name 'Afyx Forge Core' -Detail 'optional Alpha guidance component; formal A8 remains evaluation gated' -Terminal $terminal
+        Write-AfyxStatus -Status INFO -Name 'Afyx Forge Core' -Detail 'optional Alpha assistive planner; formal 36-cell eval waived/not run; autonomous execution not authorized' -Terminal $terminal
         Write-AfyxStatus -Status INFO -Name 'Afyx Context' -Detail 'optional to install; enabled by default when healthy; used only when needed' -Terminal $terminal
         $presetOptions = @(
             [pscustomobject]@{ Id = 'recommended'; Label = 'Recommended'; Detail = 'Core skills + Engineering Expert'; Enabled = $true },

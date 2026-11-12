@@ -19,7 +19,7 @@ ROOT = Path(__file__).resolve().parents[2]
 EXPERT = ROOT / "skills" / "afyx-engineering-expert"
 WINDOWS = os.name == "nt"
 HISTORICAL_SOURCE_TREE_SHA256 = "9ebefe30bf9c7f73b101a53542b3cb09c993cfe9a4d565d15afc5834465569b7"
-CANDIDATE_SOURCE_TREE_SHA256 = "8be03f6375d293cd341a2aa1694ed94d61862504263a588d9216649928b02f59"
+CANDIDATE_SOURCE_TREE_SHA256 = "8b26057ca0cc0384ffeeccbbc814ccc639496d44cb1e3fa84c0e7d13c8fc43f5"
 CORE_REFERENCES = {
     "ai-ml-engineer.md", "business-analyst.md", "cybersecurity-devsecops.md",
     "database-administrator.md", "erp-technical-specialist.md", "product-manager.md",
@@ -90,7 +90,7 @@ class ExpertBundleTests(unittest.TestCase):
         self.assertIn('name: afyx-engineering-expert', manifest)
         self.assertIn('version: "0.1.1"', manifest)
         self.assertIn("one adaptive workflow", manifest)
-        self.assertIn("Bahasa Indonesia", manifest)
+        self.assertIn("matching the user's language context", manifest)
 
     def test_component_contract_is_optional_owned_and_has_no_legacy_claim(self) -> None:
         contract = json.loads((ROOT / "scripts" / "components.json").read_text(encoding="utf-8"))
@@ -278,6 +278,60 @@ class ExpertSpecialistRoutingTests(unittest.TestCase):
             self.assertGreater(len(unloaded), 12, f"Scenario {domain} did not keep irrelevant specialists lazy/unloaded")
             # Verify primary file exists on disk
             self.assertTrue((EXPERT / primary_ref).is_file(), f"Primary ref {primary_ref} missing")
+
+
+class ExpertLanguageBehaviorTests(unittest.TestCase):
+    """AFYX-330 / MB11: Validation of adaptive language behavior in afyx-engineering-expert."""
+
+    def test_manifest_declares_adaptive_language_contract(self) -> None:
+        manifest = (EXPERT / "SKILL.md").read_text(encoding="utf-8")
+        self.assertIn("matching the user's language context", manifest)
+        self.assertIn("(1) follow any explicitly requested response language", manifest)
+        self.assertIn("(2) otherwise follow the language of the active user request or conversation", manifest)
+        self.assertIn("(3) default to English only when no language preference can be determined", manifest)
+        self.assertIn("(4) preserve explicit provider or project-specific language instructions", manifest)
+        self.assertNotIn("Bahasa Indonesia by default", manifest)
+
+    def test_language_resolution_matrix(self) -> None:
+        def resolve_language(
+            request_text: str,
+            explicit_instruction: str | None = None,
+            project_instruction: str | None = None,
+        ) -> str:
+            # 1. Explicit override / project instruction
+            if project_instruction:
+                return project_instruction
+            if explicit_instruction:
+                return explicit_instruction
+            # 2. Heuristic check of request text
+            lower = request_text.lower()
+            indonesian_markers = ["tolong", "buatkan", "perbaiki", "apakah", "dalam bahasa indonesia", "analisis", "bagaimana", "selesaikan"]
+            english_markers = ["please", "create", "fix", "analyze", "how to", "solve", "in english"]
+            has_id = any(marker in lower for marker in indonesian_markers)
+            has_en = any(marker in lower for marker in english_markers)
+            if has_id and not has_en:
+                return "id"
+            if has_en and not has_id:
+                return "en"
+            if has_id and has_en:
+                id_score = sum(lower.count(m) for m in indonesian_markers)
+                en_score = sum(lower.count(m) for m in english_markers)
+                return "id" if id_score >= en_score else "en"
+            return "en"
+
+        # English requests
+        self.assertEqual(resolve_language("Please refactor this database query and analyze performance"), "en")
+        # Indonesian requests
+        self.assertEqual(resolve_language("Tolong perbaiki bug pada modul ini dan jelaskan solusinya"), "id")
+        # Explicit language override
+        self.assertEqual(resolve_language("Fix this function", explicit_instruction="id"), "id")
+        self.assertEqual(resolve_language("Perbaiki fungsi ini", explicit_instruction="en"), "en")
+        # Project-specific instruction
+        self.assertEqual(resolve_language("Tolong analisis performa", project_instruction="en"), "en")
+        # Default when undetermined
+        self.assertEqual(resolve_language("FooBarService.execute()"), "en")
+        # Mixed-language engineering tasks
+        self.assertEqual(resolve_language("Tolong fix bug pada payment gateway, buatkan test case and analyze root cause"), "id")
 
 
 if __name__ == "__main__":

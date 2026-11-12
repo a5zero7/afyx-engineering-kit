@@ -46,7 +46,8 @@
     "uninstall.ps1",
     "uninstall.sh",
     "LICENSE",
-    "README.md"
+    "README.md",
+    "SECURITY.md"
   ],
   "author": "Afif Mifbakhul Makruf <afifbendol@gmail.com>",
   "license": "MIT",

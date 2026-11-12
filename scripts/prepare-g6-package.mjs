@@ -242,9 +242,13 @@ export function prepareG6Package(root, revision, { autoBuild = false } = {}) {
       throw new Error('Unexpected or duplicate Graph archive target');
     }
     seen.add(artifact.file);
+    const sumEntry = sums.get(artifact.file);
+    if (!sumEntry) {
+      throw new Error(`Missing SHA256SUMS entry: ${artifact.file}`);
+    }
     const digest = createHash('sha256').update(readFileSync(join(release, artifact.file))).digest('hex');
-    if (digest !== artifact.sha256 || digest !== sums.get(artifact.file)) {
-      throw new Error(`Graph archive checksum mismatch: ${artifact.file}`);
+    if (digest !== artifact.sha256 || digest !== sumEntry) {
+      throw new Error(`SHA256SUMS mismatch: ${artifact.file}`);
     }
   }
   const marker = join(root, '.afyx-source-revision');

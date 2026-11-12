@@ -160,19 +160,20 @@ Codex must use `global`, because Codex MCP configuration is user-scoped:
 ```
 
 ```bash
-./install.sh --preset full --provider codex,antigravity --provider-scope global
+./install.sh --preset full --provider codex,antigravity,claude --provider-scope global
 ./install.sh --preset full --provider antigravity --provider-scope global
 ```
 
-The Bash lifecycle currently supports Codex and Antigravity only; it does not
-claim Claude Code support or full Windows adapter parity. Antigravity workspace
+The installer and lifecycle support Codex, Antigravity, and Claude Code (supporting both
+standalone CLI and VS Code extension-only configurations). Antigravity workspace
 scope uses `.agents/skills/` and `.agents/mcp_config.json`. Global Antigravity
 scope uses `~/.gemini/config/skills/`,
 `~/.gemini/antigravity-cli/skills/`, and the shared
-`~/.gemini/config/mcp_config.json`. The installer preserves unrelated JSON and
+`~/.gemini/config/mcp_config.json`. Claude Code configuration uses `~/.claude.json` or
+workspace `.mcp.json`. The installer preserves unrelated JSON and
 refuses foreign `afyx_graph`, malformed, reparse-point, or ambiguous legacy
 configuration. A global MCP change requires restarting the host. Usage Tracking
-is Codex-only and is excluded when Antigravity is the only selected provider.
+is Codex-only and is excluded when Antigravity or Claude Code is the only selected provider.
 Note on test status: The regression suite uses hermetic mock-provider harnesses
 to validate config file serialization, schema contracts, and isolation boundaries.
 Actual live host acceptance has been verified for native Antigravity IDE and Codex CLI;

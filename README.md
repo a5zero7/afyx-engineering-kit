@@ -4,7 +4,7 @@
 
 > **Individually Reliable. Collectively Solid.**
 >
-> **Best Verified Output. Maximum Accuracy & Precision. Peak Performance. Minimum Effort.**
+> **Evidence-Led Guidance. Bounded Scopes. Strict Integrity. Reproducible Acceptance.**
 >
 > **Standalone by Design. Integrated by Contract. Activated by Need.**
 
@@ -206,8 +206,8 @@ for provider selection, recovery, and platform limits.
 
 - Git.
 - Windows PowerShell 5.1+ / PowerShell 7, or Bash 3.2+ on Linux/macOS.
-- Codex CLI or the ChatGPT/Codex VS Code extension.
-- Node.js 22.5+ when selecting Afyx Graph or ACE.
+- Supported AI coding host (Codex, Antigravity, or Claude Code; or run host-independent).
+- Node.js 22.5+ when selecting Afyx Graph, ACE, or Forge Core.
 - npm only when a local build fallback is needed.
 
 ### 1. Clone and preview
@@ -262,11 +262,12 @@ Install Recommended:
 .\install.ps1 -Preset recommended
 ```
 
-Codex remains the default host. Native provider-aware onboarding also supports
-Antigravity without changing credentials, models, or provider routing:
+Supported AI coding host integrations include Codex, Antigravity, and Claude Code
+(both standalone CLI and VS Code extension-only). Native provider-aware onboarding
+registers integrations without changing credentials, models, or host routing:
 
 ```powershell
-.\install.ps1 -Preset full -Provider codex,antigravity -ProviderScope workspace -WorkspaceRoot (Get-Location)
+.\install.ps1 -Preset full -Provider codex,antigravity,claude -ProviderScope workspace -WorkspaceRoot (Get-Location)
 ```
 
 Antigravity-only plans exclude the Codex Usage Tracking component. See the

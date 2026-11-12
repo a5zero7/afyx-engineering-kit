@@ -274,10 +274,11 @@ export async function resolveAndStageGitReleaseArtifacts(root, revision, options
         );
       }
       const sumEntry = expectedSums.get(archiveName);
+      if (!sumEntry) {
+        throw new Error(`Missing SHA256SUMS entry: ${archiveName}`);
+      }
       if (computedSha !== sumEntry) {
-        throw new Error(
-          `Checksum mismatch for ${archiveName} against SHA256SUMS: expected ${sumEntry}, got ${computedSha}`
-        );
+        throw new Error(`SHA256SUMS mismatch: ${archiveName}`);
       }
 
       writeFileSync(join(tempStage, archiveName), archiveBuf);

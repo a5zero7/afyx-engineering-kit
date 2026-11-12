@@ -16,11 +16,11 @@ All six products are first-class parts of Afyx Engineering Kit. "Core" and
 | Product | Standalone interface | Kit selection | Current boundary |
 |---|---|---|---|
 | [**Afyx Graph**](../afyx-graph/engine/README.md) | Node.js CLI, optional MCP and local viewer | `full` or explicit component | Technical Alpha; static code intelligence |
-| [**Afyx Forge**](../afyx-forge/README.md) | Node.js CLI/API with bounded policy and plans | Explicit component on Windows; dedicated standalone installer | Forge Core v0.1.0, Technical Alpha; A8 campaign pending |
-| [**Afyx Efficient Coding**](tool-guides/AFYX_EFFICIENT_CODING.md) | Agent instruction skill | `minimal`, `recommended`, `full` | v1.2.1; source-backed implementation workflow |
+| [**Afyx Forge**](../afyx-forge/README.md) | Node.js CLI/API with bounded policy and plans | `full` or explicit component | Forge Core v0.1.0, Technical Alpha; bounded assistive planner (autonomous execution not authorized) |
+| [**Afyx Efficient Coding**](tool-guides/AFYX_EFFICIENT_CODING.md) | Agent instruction skill | `minimal`, `recommended`, `full` | v1.2.2; source-backed implementation workflow |
 | [**Afyx Odoo Engineering**](tool-guides/AFYX_ODOO_ENGINEERING.md) | Version-aware agent skill | `minimal`, `recommended`, `full` | v1.2.0; references for Odoo 10–20 |
-| [**Afyx Context Engine (ACE)**](../afyx-context/README.md) | Node.js CLI/API | Explicit component only | v0.1.0, Technical Alpha; original-content recovery |
-| [**Afyx Engineering Expert**](../skills/afyx-engineering-expert/README.md) | Cross-disciplinary agent skill | `recommended`, `full` | v0.1.1; final D.6 acceptance pending |
+| [**Afyx Context Engine (ACE)**](../afyx-context/README.md) | Node.js CLI/API | `full` or explicit component | v0.1.0, Technical Alpha; original-content recovery |
+| [**Afyx Engineering Expert**](../skills/afyx-engineering-expert/README.md) | Cross-disciplinary agent skill | `recommended`, `full` | v0.1.1; adaptive guidance across 13 disciplines |
 
 ### Shared infrastructure and optional tooling
 
@@ -247,7 +247,7 @@ Owner/session mismatch and corrupt content fail closed by design.
 
 ## Efficient Coding
 
-Efficient Coding 1.2.1 is a quality-first implementation workflow:
+Efficient Coding 1.2.2 is a quality-first implementation workflow:
 `GROUND → LOCATE → REPRODUCE → CHANGE → VALIDATE → REPORT`. It routes known-file
 work directly, uses structural intelligence only when relationships matter, and
 expands validation according to risk.

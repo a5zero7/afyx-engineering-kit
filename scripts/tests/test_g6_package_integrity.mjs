@@ -33,8 +33,11 @@ test('paket sah menghasilkan penanda revisi sumber tepat', () => {
 
 test('arsip berubah ditolak sebelum penanda lain ditulis', () => {
   writeFileSync(join(release, files[0][0]), 'tampered');
-  assert.throws(() => prepareG6Package(root, revision), /checksum mismatch/);
-  writeFileSync(join(release, files[0][0]), files[0][1]);
+  try {
+    assert.throws(() => prepareG6Package(root, revision), /SHA256SUMS mismatch|checksum mismatch/);
+  } finally {
+    writeFileSync(join(release, files[0][0]), files[0][1]);
+  }
 });
 
 test('manifest dengan revisi berbeda ditolak', () => {

@@ -136,6 +136,29 @@ test('tag target mismatch and interrupted download leave no staged archives', as
   }
 });
 
+test('corrupted archive download triggers SHA256SUMS mismatch fail-closed', async () => {
+  const root = mkdtempSync(join(tmpdir(), 'afyx-resolver-corrupt-'));
+  try {
+    const sample = fixture();
+    const originalFetch = sample.fetchBuffer;
+    const tamperedFetch = async (url) => {
+      const buf = await originalFetch(url);
+      if (url.endsWith('.zip')) {
+        const tampered = Buffer.from(buf);
+        tampered[tampered.length - 1] ^= 0xff;
+        return tampered;
+      }
+      return buf;
+    };
+    await assert.rejects(
+      resolveAndStageGitReleaseArtifacts(root, revision, { fetchBuffer: tamperedFetch }),
+      /SHA256SUMS mismatch|Checksum mismatch/
+    );
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test('archive inspection rejects traversal, truncation, and symlink-style entries', () => {
   assert.equal(verifyGraphArchivePaths(tinyZip(), winName), 1);
   assert.equal(verifyGraphArchivePaths(tinyTar(), linuxName), 1);
