@@ -21,13 +21,21 @@ $kitRoot = Split-Path -Parent $PSScriptRoot
 $metadataPath = Join-Path $kitRoot 'afyx-graph\afyx-graph.json'
 $metadata = Get-Content -Raw -LiteralPath $metadataPath -Encoding utf8 | ConvertFrom-Json
 $distributionProductPath = Join-Path $kitRoot 'afyx-graph\engine\scripts\distribution-product.json'
-$releaseChannel = (Get-Content -Raw -LiteralPath $distributionProductPath -Encoding utf8 | ConvertFrom-Json).releaseChannel
-$architecture = switch ([System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString()) {
-    'Arm64' { 'arm64' }
-    'X64' { 'x64' }
-    default { throw "Unsupported Windows architecture: $_" }
+$releaseChannel = if (Test-Path -LiteralPath $distributionProductPath -PathType Leaf) {
+    (Get-Content -Raw -LiteralPath $distributionProductPath -Encoding utf8 | ConvertFrom-Json).releaseChannel
+} elseif ($metadata.PSObject.Properties['release_channel']) {
+    [string]$metadata.release_channel
+} else {
+    'technical-alpha'
 }
-$target = "win32-$architecture"
+. (Join-Path $PSScriptRoot 'lib\AfyxPlatform.ps1')
+$target = Get-AfyxGraphTarget
+if ($target -ne 'win32-x64') { throw "Afyx Graph prebuilt runtime is unavailable for $target. Minimal and Recommended Kit presets remain available; consumer source compilation is disabled." }
+$architecture = switch ($target) {
+    'win32-x64' { 'x64' }
+    'win32-arm64' { 'arm64' }
+    default { throw "Unsupported Windows architecture: $target" }
+}
 if ($target -ne 'win32-x64') { throw "Afyx Graph prebuilt runtime is unavailable for $target. Minimal and Recommended Kit presets remain available; consumer source compilation is disabled." }
 $assetName = "afyx-graph-$target.zip"
 $current = Join-Path $RuntimeRoot 'current'
@@ -105,12 +113,11 @@ function Get-SourceRevision {
 function Get-RequestedRevision {
     $source = Get-SourceRevision
     if ($source) { return $source.Commit }
-  $marker = Join-Path $kitRoot '.afyx-source-revision'
-  if (Test-Path -LiteralPath $marker -PathType Leaf) {
-    $revision = (Get-Content -Raw -LiteralPath $marker -Encoding utf8).Trim()
-    if ($revision -notmatch '^[0-9a-f]{40}$') { throw 'Packaged source revision marker is invalid.' }
-    return $revision
-  }
+    $marker = Join-Path $kitRoot '.afyx-source-revision'
+    if (Test-Path -LiteralPath $marker -PathType Leaf) {
+        $revision = (Get-Content -Raw -LiteralPath $marker -Encoding utf8).Trim()
+        if ($revision -match '^[0-9a-f]{40}$') { return $revision }
+    }
     return $null
 }
 
@@ -290,25 +297,64 @@ function Resolve-Archive {
     }
     if (-not $Offline) {
         $downloadRoot = Join-Path ([System.IO.Path]::GetTempPath()) "afyx-graph-download-$([guid]::NewGuid().ToString('N'))"
-        try {
-            New-Item -ItemType Directory -Path $downloadRoot | Out-Null
-            $download = Join-Path $downloadRoot $assetName
-            $tag = "afyx-graph-v$($metadata.product_version)"
-            $repoBase = 'https://github.com/a5zero7/afyx-engineering-kit'
-            $url = "$repoBase/releases/download/$tag/$assetName"
-            Invoke-WebRequest -UseBasicParsing -Uri $url -OutFile $download
-            Invoke-WebRequest -UseBasicParsing -Uri "$repoBase/releases/download/$tag/SHA256SUMS" -OutFile (Join-Path $downloadRoot 'SHA256SUMS')
-            Invoke-WebRequest -UseBasicParsing -Uri "$repoBase/releases/download/$tag/RELEASE-MANIFEST.json" -OutFile (Join-Path $downloadRoot 'RELEASE-MANIFEST.json')
-            Test-ArchiveChecksum -Path $download
-            Test-ArchiveBundle -Path $download
-            $identity = Get-ArchiveIdentity -Path $download -RequestedRevision $requestedRevision
-            if ($requestedRevision -and $identity.revisionStatus -ne 'MATCH') {
-                throw "Downloaded release revision is $($identity.sourceRevision), requested checkout is $requestedRevision."
-            }
-            return [pscustomobject]@{ Path = $download; Source = 'github-release'; Commit = $identity.sourceRevision; RevisionStatus = $identity.revisionStatus; BuildProvenance = 'GITHUB_RELEASE' }
-        } catch {
-            Write-Warning "Verified GitHub release unavailable ($($_.Exception.Message)); trying bounded local build fallback."
+        $candidateTags = @()
+        if ($requestedRevision) {
+            $shortSha = if ($requestedRevision.Length -ge 12) { $requestedRevision.Substring(0, 12) } else { $requestedRevision }
+            $candidateTags += "afyx-dev-$requestedRevision"
+            $candidateTags += "dev-$requestedRevision"
+            $candidateTags += "afyx-dev-$shortSha"
+            $candidateTags += "dev-$shortSha"
         }
+        $candidateTags += "afyx-graph-v$($metadata.product_version)"
+        $candidateTags += "v$($metadata.product_version)"
+        $candidateTags += "afyx-dev-snapshot"
+
+        $repoBase = 'https://github.com/a5zero7/afyx-engineering-kit'
+        $downloadedArchive = $null
+        $lastDownloadErr = $null
+
+        foreach ($tag in $candidateTags) {
+            try {
+                if (Test-Path -LiteralPath $downloadRoot) { Remove-Item -LiteralPath $downloadRoot -Recurse -Force }
+                New-Item -ItemType Directory -Path $downloadRoot | Out-Null
+                $download = Join-Path $downloadRoot $assetName
+                $sumsFile = Join-Path $downloadRoot 'SHA256SUMS'
+                $manifestFile = Join-Path $downloadRoot 'RELEASE-MANIFEST.json'
+
+                Invoke-WebRequest -UseBasicParsing -Uri "$repoBase/releases/download/$tag/RELEASE-MANIFEST.json" -OutFile $manifestFile -ErrorAction Stop
+                $manifestData = Get-Content -Raw -LiteralPath $manifestFile -Encoding utf8 | ConvertFrom-Json
+                if ($requestedRevision -and $manifestData.source_revision -ne $requestedRevision) {
+                    continue
+                }
+
+                Invoke-WebRequest -UseBasicParsing -Uri "$repoBase/releases/download/$tag/SHA256SUMS" -OutFile $sumsFile -ErrorAction Stop
+                Invoke-WebRequest -UseBasicParsing -Uri "$repoBase/releases/download/$tag/$assetName" -OutFile $download -ErrorAction Stop
+
+                Test-ArchiveChecksum -Path $download
+                Test-ArchiveBundle -Path $download
+                $identity = Get-ArchiveIdentity -Path $download -RequestedRevision $requestedRevision
+                if ($requestedRevision -and $identity.revisionStatus -ne 'MATCH') {
+                    continue
+                }
+                $downloadedArchive = [pscustomobject]@{
+                    Path = $download
+                    Source = 'github-release'
+                    Commit = $identity.sourceRevision
+                    RevisionStatus = $identity.revisionStatus
+                    BuildProvenance = 'GITHUB_RELEASE'
+                }
+                break
+            } catch {
+                $lastDownloadErr = $_
+            }
+        }
+
+        if ($downloadedArchive) {
+            return $downloadedArchive
+        }
+
+        $diag = if ($lastDownloadErr) { $lastDownloadErr.Exception.Message } else { 'No matching release tag found' }
+        Write-Warning "Verified GitHub release unavailable ($diag); trying bounded local build fallback."
     } else { Write-Host 'Offline mode: skipping GitHub release lookup.' }
     return Build-LocalArchive
 }

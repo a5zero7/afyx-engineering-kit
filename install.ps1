@@ -24,6 +24,7 @@ param(
     [switch]$SkipProviderConfiguration,
     [string]$ContextRuntimeRoot = $(if ($env:AFYX_CONTEXT_RUNTIME_ROOT) { $env:AFYX_CONTEXT_RUNTIME_ROOT } else { Join-Path $env:USERPROFILE '.afyx\context' }),
     [string]$ForgeRuntimeRoot = $(if ($env:AFYX_FORGE_RUNTIME_ROOT) { $env:AFYX_FORGE_RUNTIME_ROOT } else { Join-Path $env:USERPROFILE '.afyx\forge' }),
+    [string]$GraphRuntimeRoot = $(if ($env:AFYX_GRAPH_RUNTIME_ROOT) { $env:AFYX_GRAPH_RUNTIME_ROOT } else { Join-Path $env:USERPROFILE '.afyx\graph' }),
     [string]$AfyxInstallRoot = $(if ($env:AFYX_INSTALL_ROOT) { $env:AFYX_INSTALL_ROOT } else { Join-Path $env:USERPROFILE '.afyx' }),
     [string]$HostBridgeRuntimeRoot = $(if ($env:AFYX_HOST_BRIDGE_RUNTIME_ROOT) { $env:AFYX_HOST_BRIDGE_RUNTIME_ROOT } else { Join-Path $env:USERPROFILE '.afyx\host-bridge' })
 )
@@ -53,13 +54,14 @@ $contextCompanionSource = Join-Path $packageRoot 'skills\afyx-context'
 $forgeInstaller = Join-Path $packageRoot 'scripts\install-afyx-forge.ps1'
 $forgeMetadataPath = Join-Path $packageRoot 'afyx-forge\afyx-forge.json'
 $forgeCompanionSource = Join-Path $packageRoot 'skills\afyx-forge'
-$graphRuntimeRoot = if ($env:AFYX_GRAPH_RUNTIME_ROOT) { $env:AFYX_GRAPH_RUNTIME_ROOT } else { Join-Path $env:USERPROFILE '.afyx\graph' }
+$graphRuntimeRoot = if ($GraphRuntimeRoot) { $GraphRuntimeRoot } elseif ($env:AFYX_GRAPH_RUNTIME_ROOT) { $env:AFYX_GRAPH_RUNTIME_ROOT } else { Join-Path $env:USERPROFILE '.afyx\graph' }
 $codexHome = if ($env:CODEX_HOME) { $env:CODEX_HOME } else { Join-Path $env:USERPROFILE '.codex' }
 
 if ($InstallUsageTracker -and $SkipUsageTracker) { throw '-InstallUsageTracker and -SkipUsageTracker cannot be used together.' }
 
 # One component truth: scripts/components.json, read through the shared module.
 Import-Module (Join-Path $packageRoot 'scripts\lib\AfyxComponents.psm1') -Force
+Import-Module (Join-Path $packageRoot 'scripts\lib\AfyxPlatform.psm1') -Force
 Import-Module (Join-Path $packageRoot 'scripts\lib\AfyxSkillLifecycle.psm1') -Force -DisableNameChecking
 Import-Module (Join-Path $packageRoot 'scripts\lib\AfyxTerminal.psm1') -Force
 $terminal = New-AfyxTerminalContext
@@ -513,7 +515,7 @@ Write-AfyxSection -Title 'Prerequisite Inventory' -Terminal $terminal
 $gitVersion = try { (& git --version 2>$null) -join ' ' } catch { '' }
 $nodeVersion = try { (& node --version 2>$null) -join ' ' } catch { '' }
 $npmVersion = try { (& npm --version 2>$null) -join ' ' } catch { '' }
-Write-AfyxStatus -Status HEALTHY -Name 'OS/architecture [REQUIRED]' -Detail "$([System.Runtime.InteropServices.RuntimeInformation]::OSDescription) / $([System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture)" -Terminal $terminal
+Write-AfyxStatus -Status HEALTHY -Name 'OS/architecture [REQUIRED]' -Detail (Get-AfyxPlatformDescription) -Terminal $terminal
 Write-AfyxStatus -Status HEALTHY -Name 'Platform shell [REQUIRED]' -Detail "PowerShell $($PSVersionTable.PSVersion)" -Terminal $terminal
 Write-AfyxStatus -Status $(if ($gitVersion) { 'HEALTHY' } else { 'BLOCKED' }) -Name 'Git [REQUIRED]' -Detail $(if ($gitVersion) { $gitVersion } else { 'missing; install Git for Windows from https://git-scm.com/' }) -Terminal $terminal
 $codexRequired = 'codex' -in $Provider -or -not $Provider.Count
@@ -688,18 +690,22 @@ if ($graphAction -ne 'skip') {
         $gitCmd = Get-Command git -ErrorAction SilentlyContinue
         $tarCmd = Get-Command tar -ErrorAction SilentlyContinue
         $enginePackage = Join-Path $packageRoot 'afyx-graph\engine\package.json'
-        if (-not (Test-Path -LiteralPath $enginePackage -PathType Leaf)) {
-            throw "Afyx Graph installation is BLOCKED: release cache is absent and source engine is missing at $enginePackage."
+        if ($Offline) {
+            if (-not (Test-Path -LiteralPath $enginePackage -PathType Leaf)) {
+                throw "Afyx Graph installation is BLOCKED: release cache is absent and source engine is missing at $enginePackage."
+            }
+            if (-not $sourceIsCheckout -or -not $gitCmd -or -not $tarCmd) {
+                throw "Afyx Graph installation is BLOCKED: offline installation requires a precompiled release cache or a clean Git checkout with tar."
+            }
         }
-      if (-not $sourceIsCheckout -or -not $gitCmd -or -not $tarCmd) {
-            throw "Afyx Graph installation is BLOCKED: Git and tar are required for clean source staging when building from local repository."
-        }
-        $gitStatus = & $gitCmd.Source -C $packageRoot status --porcelain -- afyx-graph 2>$null
-        $graphSourceDirty = [bool]($gitStatus -join '')
-        if ($graphSourceDirty -and -not $AllowDirtySource) {
-            $headCommit = (& $gitCmd.Source -C $packageRoot rev-parse HEAD 2>$null).Trim()
-            if (-not $headCommit -or $headCommit -notmatch '^[0-9a-f]{7,64}$') {
-                throw "Afyx Graph installation is BLOCKED: local afyx-graph source has uncommitted changes and HEAD commit is unavailable. Commit the changes or specify -AllowDirtySource for development builds."
+        if ($sourceIsCheckout -and $gitCmd) {
+            $gitStatus = & $gitCmd.Source -C $packageRoot status --porcelain -- afyx-graph 2>$null
+            $graphSourceDirty = [bool]($gitStatus -join '')
+            if ($graphSourceDirty -and -not $AllowDirtySource) {
+                $headCommit = (& $gitCmd.Source -C $packageRoot rev-parse HEAD 2>$null).Trim()
+                if (-not $headCommit -or $headCommit -notmatch '^[0-9a-f]{7,64}$') {
+                    throw "Afyx Graph installation is BLOCKED: local afyx-graph source has uncommitted changes and HEAD commit is unavailable. Commit the changes or specify -AllowDirtySource for development builds."
+                }
             }
         }
     }

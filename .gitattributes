@@ -4,3 +4,4 @@ afyx-graph/engine/__tests__/fixtures/** text eol=lf
 /scripts/tests/fixtures/legacy-*/** text eol=lf
 /evals/forge/candidates/**/*.md text eol=lf
 /evals/forge/fixtures/**/*.py text eol=lf
+.afyx-source-revision export-subst

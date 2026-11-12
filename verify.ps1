@@ -11,8 +11,10 @@ param(
     [string]$ClaudeConfigDir = $(if ($env:CLAUDE_CONFIG_DIR) { $env:CLAUDE_CONFIG_DIR } else { '' }),
     [string]$ContextRuntimeRoot = $(if ($env:AFYX_CONTEXT_RUNTIME_ROOT) { $env:AFYX_CONTEXT_RUNTIME_ROOT } else { Join-Path $env:USERPROFILE '.afyx\context' }),
     [string]$ForgeRuntimeRoot = $(if ($env:AFYX_FORGE_RUNTIME_ROOT) { $env:AFYX_FORGE_RUNTIME_ROOT } else { Join-Path $env:USERPROFILE '.afyx\forge' }),
+    [string]$GraphRuntimeRoot = $(if ($env:AFYX_GRAPH_RUNTIME_ROOT) { $env:AFYX_GRAPH_RUNTIME_ROOT } else { Join-Path $env:USERPROFILE '.afyx\graph' }),
     [string]$AfyxInstallRoot = $(if ($env:AFYX_INSTALL_ROOT) { $env:AFYX_INSTALL_ROOT } else { Join-Path $env:USERPROFILE '.afyx' }),
-    [string]$HostBridgeRuntimeRoot = $(if ($env:AFYX_HOST_BRIDGE_RUNTIME_ROOT) { $env:AFYX_HOST_BRIDGE_RUNTIME_ROOT } else { Join-Path $env:USERPROFILE '.afyx\host-bridge' })
+    [string]$HostBridgeRuntimeRoot = $(if ($env:AFYX_HOST_BRIDGE_RUNTIME_ROOT) { $env:AFYX_HOST_BRIDGE_RUNTIME_ROOT } else { Join-Path $env:USERPROFILE '.afyx\host-bridge' }),
+    [switch]$SkipProviderConfiguration
 )
 
 Set-StrictMode -Version Latest
@@ -21,8 +23,9 @@ $coreFailure = $false
 $configuredProviders = @()
 $codexHome = if ($env:CODEX_HOME) { $env:CODEX_HOME } else { Join-Path $env:USERPROFILE '.codex' }
 $configPath = Join-Path $codexHome 'config.toml'
-$graphRoot = if ($env:AFYX_GRAPH_RUNTIME_ROOT) { $env:AFYX_GRAPH_RUNTIME_ROOT } else { Join-Path $env:USERPROFILE '.afyx\graph' }
+$graphRoot = if ($GraphRuntimeRoot) { $GraphRuntimeRoot } elseif ($env:AFYX_GRAPH_RUNTIME_ROOT) { $env:AFYX_GRAPH_RUNTIME_ROOT } else { Join-Path $env:USERPROFILE '.afyx\graph' }
 Import-Module (Join-Path $PSScriptRoot 'scripts\lib\AfyxTerminal.psm1') -Force
+Import-Module (Join-Path $PSScriptRoot 'scripts\lib\AfyxPlatform.psm1') -Force
 $terminal = New-AfyxTerminalContext
 
 function Write-Result([string]$State, [string]$Name, [string]$Detail = '') {
@@ -96,7 +99,7 @@ if ($gitSource -and (Test-Path -LiteralPath (Join-Path $PSScriptRoot '.git'))) {
 foreach ($providerRecord in (Get-AfyxProviderRegistry)) {
     Write-Result 'INFO' "Provider adapter: $($providerRecord.name)" "primary=$($providerRecord.primary); ownership=$($providerRecord.ownership_class); capabilities=$($providerRecord.capabilities); policy=$($providerRecord.configuration_policy)"
 }
-if ($Provider.Count) {
+if ($Provider.Count -and -not $SkipProviderConfiguration) {
     $nodeCommand = Get-Command node -ErrorAction SilentlyContinue
     $entry = Join-Path $graphRoot 'current\lib\dist\bin\afyx-graph.js'
     if ($nodeCommand -and (Test-Path -LiteralPath $entry -PathType Leaf)) {
@@ -169,7 +172,7 @@ if ($controlPlan -and $Provider.Count) {
 $git = Get-Command git -ErrorAction SilentlyContinue
 $node = Get-Command node -ErrorAction SilentlyContinue
 $npm = Get-Command npm -ErrorAction SilentlyContinue
-Write-Result 'OK' 'OS/architecture [REQUIRED]' "$([System.Runtime.InteropServices.RuntimeInformation]::OSDescription) / $([System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture)"
+Write-Result 'OK' 'OS/architecture [REQUIRED]' (Get-AfyxPlatformDescription)
 Write-Result 'OK' 'Platform shell [REQUIRED]' "PowerShell $($PSVersionTable.PSVersion)"
 if ($git) { Write-Result 'OK' 'Git [REQUIRED]' ((& git --version 2>$null) -join ' ') } else { Write-Result 'FAIL' 'Git [REQUIRED]' 'missing; install Git for Windows from https://git-scm.com/'; $coreFailure = $true }
 if ($node) {
@@ -371,7 +374,7 @@ if (-not $usagePresent) {
     Write-Result 'INFO' 'Codex Usage Hook trust' 'verify with /hooks'
 }
 
-if ($Provider.Count -and $node) {
+if ($Provider.Count -and $node -and -not $SkipProviderConfiguration) {
     $workflowProviders = @($Provider | Where-Object { $_ -eq 'antigravity' -or ($_ -eq 'claude' -and $ProviderScope -eq 'workspace') })
     $bridgeLifecycle = Join-Path $PSScriptRoot 'scripts\afyx-host-bridge-lifecycle.mjs'
     $bridgeJson = (& $node.Source $bridgeLifecycle '--runtime-root' $HostBridgeRuntimeRoot 2>$null) -join ''
