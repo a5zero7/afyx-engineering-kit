@@ -150,6 +150,11 @@ With Node.js 22.5 or newer, the intended public registry command is:
 npx afyx-engineering-kit install
 ```
 
+In a release containing Midnight Circuit, an interactive ANSI terminal shows
+Detect → Select → Configure → Review/Apply → Finish. Use `--ui plain` for text
+output; CI and terminals without ANSI support use the text flow automatically.
+macOS does not yet have a verified Full Graph archive.
+
 Use `--preset recommended` for core engineering skills or `--preset full`
 for the prebuilt Graph, Context, Forge, and applicable skills. `full` requires
 Windows x64 or Linux x64 for Graph. Provider configuration is optional and

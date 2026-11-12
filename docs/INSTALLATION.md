@@ -15,6 +15,15 @@ The intended public command after release clearance requires Node.js 22.5 or new
 npx afyx-engineering-kit install
 ```
 
+In a release containing Midnight Circuit, an interactive ANSI terminal shows
+**Detect → Select → Configure → Review/Apply → Finish**. Narrow terminals,
+`NO_COLOR`, piped output, and CI use the text flow. Use `--ui plain` to request
+text output or `--ui tui` to require a capable interactive terminal. Core skills
+can be installed without a provider; an explicitly requested provider must be
+available. macOS and Linux architectures without a verified Graph archive do
+not support the Full preset. `--preset` and `--non-interactive` retain the
+deterministic CLI path.
+
 Use `--preset recommended` for skills or `--preset full` on Windows x64 and
 Linux x64 for the bundled Graph runtime, Context, and Forge. Installation of
 Context or Forge does not authorize autonomous execution and respects explicit

@@ -12,6 +12,7 @@ import {
   buildSubprocessCall,
   executeSubprocess,
 } from '../scripts/afyx-npm-installer.mjs';
+import { runMidnightCircuit, terminalMode } from '../scripts/afyx-midnight-circuit.mjs';
 
 function verifyNodeRuntime() {
   const version = process.versions.node;
@@ -44,12 +45,32 @@ async function main() {
     process.exit(1);
   }
 
+  let finish;
+  if (parsed.command === 'install') {
+    const mode = terminalMode({ requested: parsed.options.ui || 'auto' });
+    const hasSelections = parsed.options.preset || parsed.options.provider || parsed.options.providerScope ||
+      parsed.options.skipProviderConfiguration || parsed.options.componentActions.length || parsed.options.customComponents.length;
+    if (parsed.options.ui === 'tui' && (hasSelections || parsed.options.nonInteractive || parsed.options.dryRun || parsed.options.validateOnly)) {
+      throw new Error('--ui tui runs the interactive installer; remove scripted selection/preview flags or use --ui plain.');
+    }
+    if (mode === 'tui' && !hasSelections &&
+        !parsed.options.nonInteractive && !parsed.options.dryRun && !parsed.options.validateOnly) {
+      const selection = await runMidnightCircuit();
+      if (!selection) { console.log('Installation canceled without changes.'); return; }
+      finish = selection.finish;
+      Object.assign(parsed.options, selection);
+      delete parsed.options.finish;
+    }
+  }
   const callInfo = buildSubprocessCall(parsed.command, parsed.options);
+  if (parsed.options.ui === 'plain') callInfo.env = { ...callInfo.env, NO_COLOR: '1' };
 
   try {
     const exitCode = await executeSubprocess(callInfo);
+    if (finish) finish(exitCode);
     process.exit(exitCode);
   } catch (err) {
+    if (finish) finish(1);
     console.error(`Failed to launch installer lifecycle subprocess (${callInfo.executable}):`, err.message);
     process.exit(1);
   }

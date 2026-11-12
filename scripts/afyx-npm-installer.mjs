@@ -43,7 +43,7 @@ export const COMMAND_ALLOWED_OPTIONS = {
     'contextRuntimeRoot', 'forgeRuntimeRoot', 'graphRuntimeRoot',
     'customComponents', 'componentActions',
     'dryRun', 'validateOnly', 'force', 'allowDowngrade', 'offline', 'noBuildFallback',
-    'skipProviderConfiguration', 'nonInteractive'
+    'skipProviderConfiguration', 'nonInteractive', 'ui'
   ]),
   verify: new Set([
     'preset', 'provider', 'providerScope', 'workspaceRoot', 'skillsRoot',
@@ -86,6 +86,7 @@ Commands:
 
 Options:
   --preset <name>                 Component preset (minimal, recommended, full, custom)
+  --ui <auto|tui|plain>           Installer terminal interface (install only)
   --provider <names>              Target AI provider host(s) (codex, antigravity, claude)
   --provider-scope <scope>        Integration scope (global, workspace)
   --workspace-root <path>         Target project workspace root for local configuration
@@ -209,6 +210,10 @@ export function parseCliArgs(rawArgs) {
       if (recordOption('removeAfyxForge', arg)) result.options.removeAfyxForge = true;
     } else if (arg === '--non-interactive' || arg === '-y' || arg === '--yes') {
       if (recordOption('nonInteractive', arg)) result.options.nonInteractive = true;
+    } else if (arg === '--ui' || arg.startsWith('--ui=')) {
+      const val = arg.includes('=') ? arg.split('=')[1] : args[++i];
+      if (!['auto', 'tui', 'plain'].includes(val)) result.errors.push('--ui requires auto, tui, or plain');
+      else if (recordOption('ui', '--ui')) result.options.ui = val;
     } else if (arg === '--preset' || arg.startsWith('--preset=')) {
       const val = arg.includes('=') ? arg.split('=')[1] : args[++i];
       if (!val) result.errors.push('--preset requires a value');
