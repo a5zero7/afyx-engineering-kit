@@ -276,6 +276,14 @@ function escapeCmdArgument(value) {
   return escaped.replace(cmdMetaCharacters, '^$1');
 }
 
+export function shouldUseClaudeCli(options) {
+  if (options.extensionOnly) return false;
+  if (options.claude !== undefined && options.claude !== null && String(options.claude).trim() !== '') {
+    return true;
+  }
+  return false;
+}
+
 function claudeRun(options, args) {
   const claude = options.claude;
   const paths = claudePaths(options);
@@ -368,25 +376,30 @@ async function verifyClaude(options, inspection, result) {
       || !entryEquivalent(inspection.effective?.entry, inspection.expected)) {
     return { ...result, status: 'BLOCKED', reason: 'MCP_CONFIGURATION_MISMATCH', detail: 'The effective Claude Code MCP entry does not match the approved Afyx Graph runtime and scope.' };
   }
-  const native = claudeRun(options, ['mcp', 'get', inspection.server]);
-  try {
-    requireClaudeSuccess(native, 'Claude Code MCP verification');
-  } catch (error) {
-    return { ...result, status: 'BLOCKED', reason: 'CLAUDE_RUNTIME_UNVERIFIED', detail: error instanceof Error ? error.message : String(error) };
-  }
-  const reported = reportedEffectiveEntry(native);
-  if (!reported) {
-    return { ...result, status: 'UNVERIFIED', reason: 'CLAUDE_EFFECTIVE_ENTRY_UNPROVEN', detail: 'Claude Code CLI succeeded but did not provide structured effective-entry identity evidence.' };
-  }
-  if (reported.name !== inspection.server || reported.scope !== inspection.paths.nativeScope
-      || !entryEquivalent(reported.entry, inspection.expected)) {
-    return { ...result, status: 'BLOCKED', reason: 'CLAUDE_EFFECTIVE_ENTRY_MISMATCH', detail: 'Claude Code CLI reported an effective entry that differs from the approved scope or runtime.' };
+  if (shouldUseClaudeCli(options)) {
+    const native = claudeRun(options, ['mcp', 'get', inspection.server]);
+    try {
+      requireClaudeSuccess(native, 'Claude Code MCP verification');
+    } catch (error) {
+      return { ...result, status: 'BLOCKED', reason: 'CLAUDE_RUNTIME_UNVERIFIED', detail: error instanceof Error ? error.message : String(error) };
+    }
+    const reported = reportedEffectiveEntry(native);
+    if (!reported) {
+      return { ...result, status: 'UNVERIFIED', reason: 'CLAUDE_EFFECTIVE_ENTRY_UNPROVEN', detail: 'Claude Code CLI succeeded but did not provide structured effective-entry identity evidence.' };
+    }
+    if (reported.name !== inspection.server || reported.scope !== inspection.paths.nativeScope
+        || !entryEquivalent(reported.entry, inspection.expected)) {
+      return { ...result, status: 'BLOCKED', reason: 'CLAUDE_EFFECTIVE_ENTRY_MISMATCH', detail: 'Claude Code CLI reported an effective entry that differs from the approved scope or runtime.' };
+    }
   }
   const probe = await probeMcp(resolve(options.node), resolve(options.entry), {
     args: launchArgs(options), tool: expectedTool(options),
   });
   if (!probe.ok) return { ...result, status: 'BLOCKED', reason: 'MCP_HANDSHAKE_FAILED', detail: probe.detail };
-  return { ...result, status: 'READY', detail: `${probe.detail} Claude Code CLI confirmed the configured server.` };
+  if (shouldUseClaudeCli(options)) {
+    return { ...result, status: 'READY', detail: `${probe.detail} Claude Code CLI confirmed the configured server.` };
+  }
+  return { ...result, status: 'READY', detail: `${probe.detail} Extension-only MCP configuration verified; server verified via handshake (extension session connects on next IDE start).` };
 }
 
 export async function integrateClaude(options) {
@@ -432,18 +445,28 @@ export async function integrateClaude(options) {
     let markerKnown = markerBefore;
     try {
       if (inspection.actual) {
-        requireClaudeSuccess(
-          claudeRun(options, ['mcp', 'remove', inspection.server, '--scope', inspection.paths.nativeScope]),
-          'Claude Code MCP removal',
-        );
-        updateKnownState(backup);
+        if (shouldUseClaudeCli(options)) {
+          requireClaudeSuccess(
+            claudeRun(options, ['mcp', 'remove', inspection.server, '--scope', inspection.paths.nativeScope]),
+            'Claude Code MCP removal',
+          );
+          updateKnownState(backup);
+        } else {
+          const doc = parseObject(inspection.paths.config);
+          if (doc.mcpServers && doc.mcpServers[inspection.server]) {
+            delete doc.mcpServers[inspection.server];
+            if (Object.keys(doc.mcpServers).length === 0) delete doc.mcpServers;
+            atomicJson(inspection.paths.config, doc);
+          }
+          updateKnownState(backup);
+        }
       }
       removeClaim(inspection);
       markerKnown = snapshot(inspection.paths.ownership);
       const after = inspectClaude(options);
       if (after.actual) throw new Error('Claude Code provider removal read-back failed.');
       if (!same(withoutAfyxServer(after.document, inspection.server), withoutAfyxServer(inspection.document, inspection.server))) {
-        throw new Error('Claude Code CLI changed unrelated configuration during removal.');
+        throw new Error('Claude Code configuration mutation changed unrelated configuration during removal.');
       }
       if (after.effective) {
         return { ...result, status: 'BLOCKED', changed: true, reason: 'EFFECTIVE_ENTRY_REMAINS', detail: `Owned ${inspection.paths.nativeScope}-scope entry was removed, but a ${after.effective.scope}-scope entry with the same name remains effective.` };
@@ -478,24 +501,32 @@ export async function integrateClaude(options) {
     const markerBefore = snapshot(inspection.paths.ownership);
     let markerKnown = markerBefore;
     try {
-      if (inspection.state === 'MCP_STALE_OWNED') {
+      if (shouldUseClaudeCli(options)) {
+        if (inspection.state === 'MCP_STALE_OWNED') {
+          requireClaudeSuccess(
+            claudeRun(options, ['mcp', 'remove', inspection.server, '--scope', inspection.paths.nativeScope]),
+            'Claude Code stale MCP removal',
+          );
+          updateKnownState(backup);
+        }
         requireClaudeSuccess(
-          claudeRun(options, ['mcp', 'remove', inspection.server, '--scope', inspection.paths.nativeScope]),
-          'Claude Code stale MCP removal',
+          claudeRun(options, ['mcp', 'add-json', inspection.server, JSON.stringify(inspection.expected), '--scope', inspection.paths.nativeScope]),
+          'Claude Code MCP registration',
         );
         updateKnownState(backup);
+      } else {
+        const doc = parseObject(inspection.paths.config);
+        doc.mcpServers = mcpServers(doc, inspection.paths.config);
+        doc.mcpServers[inspection.server] = inspection.expected;
+        atomicJson(inspection.paths.config, doc);
+        updateKnownState(backup);
       }
-      requireClaudeSuccess(
-        claudeRun(options, ['mcp', 'add-json', inspection.server, JSON.stringify(inspection.expected), '--scope', inspection.paths.nativeScope]),
-        'Claude Code MCP registration',
-      );
-      updateKnownState(backup);
       writeClaim(inspection);
       markerKnown = snapshot(inspection.paths.ownership);
       const after = inspectClaude(options);
       if (after.state !== 'MCP_CONFIGURED' || !after.owned) throw new Error('Claude Code provider configuration read-back failed.');
       if (!same(withoutAfyxServer(after.document, inspection.server), withoutAfyxServer(inspection.document, inspection.server))) {
-        throw new Error('Claude Code CLI changed unrelated configuration during registration.');
+        throw new Error('Claude Code configuration mutation changed unrelated configuration during registration.');
       }
       result.changed = true;
       inspection = after;

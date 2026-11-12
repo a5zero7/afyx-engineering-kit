@@ -1,4 +1,4 @@
-[CmdletBinding(SupportsShouldProcess)]
+﻿[CmdletBinding(SupportsShouldProcess)]
 param(
     [string]$SkillsRoot = (Join-Path $env:USERPROFILE '.agents\skills'),
     [switch]$Force,
@@ -74,6 +74,15 @@ $vscodeExtensionDetected = [bool](Get-ChildItem -Path (Join-Path $env:USERPROFIL
 # Read-only IDE discovery: distinguish an installed IDE from a usable provider CLI.
 # IDE-only installs are displayed but never silently offered unsupported MCP mutation.
 $claudeVsCodeDetected = [bool](Get-ChildItem -Path (Join-Path $env:USERPROFILE '.vscode\extensions\anthropic.claude-code-*') -Directory -ErrorAction SilentlyContinue | Select-Object -First 1)
+$claudeAvailabilityState = if ($claudeCommandDetected -and $claudeVsCodeDetected) {
+    'CLI_AND_EXTENSION'
+} elseif ($claudeCommandDetected) {
+    'CLI_AVAILABLE'
+} elseif ($claudeVsCodeDetected) {
+    'EXTENSION_ONLY'
+} else {
+    'UNAVAILABLE'
+}
 $antigravityIdeCandidates = @(
     $(if ($env:LOCALAPPDATA) { Join-Path $env:LOCALAPPDATA 'Programs\Antigravity\Antigravity.exe' }),
     $(if ($env:LOCALAPPDATA) { Join-Path $env:LOCALAPPDATA 'Programs\Google Antigravity\Antigravity.exe' }),
@@ -90,7 +99,12 @@ if ($wizardMode) {
     $providerSnapshot = @(
         "Codex: $(if ($codexCommandDetected) { 'CLI detected' } else { 'CLI unavailable' })"
         "Antigravity: $(if ($antigravityCommandDetected) { 'CLI detected' } elseif ($antigravityIdeDetected) { 'IDE only' } else { 'unavailable' })"
-        "Claude Code: $(if ($claudeCommandDetected) { 'CLI detected' } else { 'CLI unavailable' })"
+        "Claude Code: $(switch ($claudeAvailabilityState) {
+            'CLI_AND_EXTENSION' { 'CLI and extension detected' }
+            'CLI_AVAILABLE' { 'CLI detected' }
+            'EXTENSION_ONLY' { 'VS Code extension only' }
+            default { 'unavailable' }
+        })"
     )
     Enable-AfyxDashboard -Terminal $terminal -Providers $providerSnapshot
 }
@@ -130,11 +144,17 @@ if ($wizardMode) {
         Show-AfyxStep -Current 3 -Terminal $terminal
         $codexDetected = [bool]$codexCommandDetected
         $antigravityDetected = [bool]$antigravityCommandDetected
-        $claudeDetected = [bool]$claudeCommandDetected
+        $claudeDetail = switch ($claudeAvailabilityState) {
+            'CLI_AND_EXTENSION' { 'CLI and VS Code extension detected; MCP supported' }
+            'CLI_AVAILABLE' { 'native CLI detected; MCP adapter supported' }
+            'EXTENSION_ONLY' { 'VS Code extension detected — standalone CLI unavailable' }
+            default { 'not detected: claude CLI or VS Code extension' }
+        }
+        $claudeEnabled = $claudeAvailabilityState -ne 'UNAVAILABLE'
         $providerOptions = @(
             [pscustomobject]@{ Id = 'codex'; Label = 'Codex'; Detail = $(if ($codexDetected) { 'native CLI detected' } elseif ($vscodeExtensionDetected) { 'extension detected; native Codex CLI is still required for MCP configuration' } else { $codexHost.Detail }); Enabled = $codexDetected },
             [pscustomobject]@{ Id = 'antigravity'; Label = 'Antigravity'; Detail = $(if ($antigravityDetected) { 'CLI detected; MCP adapter supported' } elseif ($antigravityIdeDetected) { 'IDE detected; compatible CLI not found, MCP integration unavailable' } else { 'not detected: agy/antigravity CLI or recognized IDE path' }); Enabled = $antigravityDetected },
-            [pscustomobject]@{ Id = 'claude'; Label = 'Claude Code'; Detail = $(if ($claudeDetected) { 'CLI detected; MCP adapter supported' } elseif ($claudeVsCodeDetected) { 'VS Code extension detected; native Claude CLI required for MCP configuration' } else { 'not detected: install Claude Code CLI' }); Enabled = $claudeDetected },
+            [pscustomobject]@{ Id = 'claude'; Label = 'Claude Code'; Detail = $claudeDetail; Enabled = $claudeEnabled },
             [pscustomobject]@{ Id = 'skip'; Label = 'Skip provider configuration'; Detail = 'skills/runtimes only; no MCP registration'; Enabled = $true }
         )
         $detectedProviderDefaults = @($providerOptions | Where-Object { $_.Enabled -and $_.Id -ne 'skip' } | ForEach-Object { $_.Id })
@@ -472,7 +492,19 @@ $codexLabel = if ($codexRequired) { 'Codex host [REQUIRED]' } else { 'Codex host
 $codexDetail = if ($codexCliDetected) { "native CLI detected ($($codexHost.Command))" } elseif ($codexRequired) { "$($codexHost.Detail) A VS Code extension does not provide native MCP configuration." } elseif ($vscodeExtensionDetected) { 'VS Code extension detected; native CLI not selected' } else { 'not detected; required only when selected' }
 Write-AfyxStatus -Status $codexStatus -Name $codexLabel -Detail $codexDetail -Terminal $terminal
 Write-AfyxStatus -Status $(if ($antigravityCommandDetected) { 'HEALTHY' } else { 'SKIPPED' }) -Name 'Antigravity host' -Detail $(if ($antigravityCommandDetected) { 'compatible CLI detected' } elseif ($antigravityIdeDetected) { 'IDE detected; compatible CLI required for automatic MCP registration' } else { 'not detected; required only when selected' }) -Terminal $terminal
-Write-AfyxStatus -Status $(if ($claudeCommandDetected) { 'HEALTHY' } else { 'SKIPPED' }) -Name 'Claude Code host' -Detail $(if ($claudeCommandDetected) { 'compatible CLI detected' } elseif ($claudeVsCodeDetected) { 'VS Code extension detected; compatible CLI required for MCP registration' } else { 'not detected; required only when selected' }) -Terminal $terminal
+$claudePrereqStatus = switch ($claudeAvailabilityState) {
+    'CLI_AND_EXTENSION' { 'HEALTHY' }
+    'CLI_AVAILABLE' { 'HEALTHY' }
+    'EXTENSION_ONLY' { 'HEALTHY' }
+    default { if ('claude' -in $Provider) { 'BLOCKED' } else { 'SKIPPED' } }
+}
+$claudePrereqDetail = switch ($claudeAvailabilityState) {
+    'CLI_AND_EXTENSION' { "native CLI and VS Code extension detected ($($claudeCommandDetected.Source))" }
+    'CLI_AVAILABLE' { "native CLI detected ($($claudeCommandDetected.Source))" }
+    'EXTENSION_ONLY' { 'VS Code extension detected — standalone CLI unavailable' }
+    default { 'not detected; required only when selected' }
+}
+Write-AfyxStatus -Status $claudePrereqStatus -Name 'Claude Code host' -Detail $claudePrereqDetail -Terminal $terminal
 Write-AfyxStatus -Status $(if ($nodeVersion) { 'HEALTHY' } else { 'BLOCKED' }) -Name 'Node.js >=22.5.0 [COMPONENT_REQUIRED:Graph/Context]' -Detail $(if ($nodeVersion) { $nodeVersion } else { 'missing; install from https://nodejs.org/ before selecting Graph or Context' }) -Terminal $terminal
 Write-AfyxStatus -Status $(if ($npmVersion) { 'HEALTHY' } else { 'SKIPPED' }) -Name 'npm [BUILD_ONLY:Afyx Graph]' -Detail $(if ($npmVersion) { $npmVersion } else { 'missing; needed only for automatic local fallback' }) -Terminal $terminal
 Write-AfyxStatus -Status HEALTHY -Name 'Archive/checksum [COMPONENT_REQUIRED:Afyx Graph]' -Detail 'Expand-Archive + Get-FileHash available' -Terminal $terminal
@@ -488,7 +520,7 @@ foreach ($providerId in $Provider) {
     $providerRecord = @($providerRegistry | Where-Object { $_.provider -eq $providerId })[0]
     $detected = if ($providerId -eq 'codex') { [bool]$codexCommandDetected }
         elseif ($providerId -eq 'antigravity') { [bool]$antigravityCommandDetected }
-        else { [bool]$claudeCommandDetected }
+        else { $claudeAvailabilityState -ne 'UNAVAILABLE' }
     $configPath = if ($providerId -eq 'codex') { Join-Path $codexHome 'config.toml' }
         elseif ($providerId -eq 'antigravity' -and $ProviderScope -eq 'workspace') { Join-Path $WorkspaceRoot '.agents\mcp_config.json' }
         elseif ($providerId -eq 'antigravity') { Join-Path $GeminiHome 'config\mcp_config.json' }
@@ -522,6 +554,7 @@ function Get-AfyxProviderArguments([string]$Entry) {
         '--node', $nodeCommand.Source, '--entry', $Entry)
     if ($codexCommandDetected) { $arguments += @('--codex', $codexCommandDetected.Source) }
     if ($claudeCommandDetected) { $arguments += @('--claude', $claudeCommandDetected.Source) }
+    elseif ($claudeVsCodeDetected) { $arguments += @('--claude-extension') }
     if ($ClaudeConfigDir) { $arguments += @('--claude-config-dir', $ClaudeConfigDir) }
     return $arguments
 }
@@ -531,6 +564,7 @@ function Get-AfyxWorkflowProviderArguments([string]$Entry, [string[]]$TargetProv
         '--node', $nodeCommand.Source, '--entry', $Entry, '--server', 'afyx_workflow', '--mode', 'workflow',
         '--tool', 'afyx_workflow', '--install-root', $AfyxInstallRoot, '--authorize', 'afyx-graph,afyx-context')
     if ($claudeCommandDetected) { $arguments += @('--claude', $claudeCommandDetected.Source) }
+    elseif ($claudeVsCodeDetected) { $arguments += @('--claude-extension') }
     if ($ClaudeConfigDir) { $arguments += @('--claude-config-dir', $ClaudeConfigDir) }
     return $arguments
 }
@@ -601,7 +635,7 @@ if ($controlPlan) {
 
 if (-not $SkipProviderConfiguration -and 'codex' -in $Provider -and -not $codexCliDetected) { throw "Selected Codex MCP integration requires a native Codex CLI. $($codexHost.Detail)" }
 if (-not $SkipProviderConfiguration -and 'antigravity' -in $Provider -and -not $agyCommandDetected -and -not (Get-Command antigravity -ErrorAction SilentlyContinue)) { throw 'Selected Antigravity provider host was not detected.' }
-if (-not $SkipProviderConfiguration -and 'claude' -in $Provider -and -not $claudeCommandDetected) { throw 'Selected Claude Code provider host was not detected.' }
+if (-not $SkipProviderConfiguration -and 'claude' -in $Provider -and $claudeAvailabilityState -eq 'UNAVAILABLE') { throw 'Selected Claude Code provider host was not detected.' }
 if ($providerMcpRequested -and -not $nodeCommand) { throw 'Node.js is required for selected provider MCP configuration.' }
 if (-not (Get-Command git -ErrorAction SilentlyContinue)) { throw 'Git is required for Afyx source validation and lifecycle updates.' }
 

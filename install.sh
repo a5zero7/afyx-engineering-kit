@@ -369,7 +369,7 @@ if ! "$skip_graph_mcp" && ! "$skip_provider_configuration" && [[ ",$provider_lis
   set +e
   claude_cmd="$(command -v claude || true)"
   claude_pre_args=("$PACKAGE_ROOT/scripts/afyx-provider-integration.mjs" --providers claude --scope "$provider_scope" --workspace-root "$workspace_root" --node "$(command -v node)" --entry "$graph_root/current/lib/dist/bin/afyx-graph.js")
-  [[ -n "$claude_cmd" ]] && claude_pre_args+=(--claude "$claude_cmd")
+  if [[ -n "$claude_cmd" ]]; then claude_pre_args+=(--claude "$claude_cmd"); elif "$claude_vscode_detected"; then claude_pre_args+=(--claude-extension); fi
   [[ -n "$claude_config_dir" ]] && claude_pre_args+=(--claude-config-dir "$claude_config_dir")
   preflight_json="$(node "${claude_pre_args[@]}" 2>/dev/null)"; preflight_exit=$?
   set -e
@@ -394,7 +394,7 @@ printf '[REQUIRED] Platform shell: Bash %s\n' "$BASH_VERSION"
 if command -v git >/dev/null 2>&1; then printf '[REQUIRED] Git: %s\n' "$(git --version)"; else printf '[REQUIRED] Git: MISSING — install Git with the documented OS package manager\n'; fi
 if "$codex_cli_detected" || "$vscode_extension_detected"; then printf '[REQUIRED] Codex host: detected\n'; else printf '[REQUIRED] Codex host: MISSING — install Codex CLI or the supported VS Code extension\n'; fi
 if "$antigravity_detected"; then printf '[REQUIRED] Antigravity host: detected\n'; else printf '[REQUIRED] Antigravity host: not detected\n'; fi
-if "$claude_cli_detected"; then printf '[REQUIRED] Claude Code host: detected (CLI)\n'; elif "$claude_vscode_detected"; then printf '[REQUIRED] Claude Code host: detected (VS Code extension; CLI required for MCP)\n'; else printf '[REQUIRED] Claude Code host: not detected\n'; fi
+if "$claude_cli_detected"; then printf '[REQUIRED] Claude Code host: detected (CLI)\n'; elif "$claude_vscode_detected"; then printf '[REQUIRED] Claude Code host: detected (VS Code extension)\n'; else printf '[REQUIRED] Claude Code host: not detected\n'; fi
 if command -v node >/dev/null 2>&1; then printf '[COMPONENT_REQUIRED:Afyx Graph] Node.js >=22.5.0: %s\n' "$(node --version)"; else printf '[COMPONENT_REQUIRED:Afyx Graph] Node.js >=22.5.0: MISSING — install from https://nodejs.org/\n'; fi
 if command -v npm >/dev/null 2>&1; then printf '[BUILD_ONLY:Afyx Graph] npm: %s\n' "$(npm --version)"; else printf '[BUILD_ONLY:Afyx Graph] npm: MISSING — needed only for automatic local fallback\n'; fi
 printf '[COMPONENT_REQUIRED:Afyx Graph] Archive/checksum: tar + SHA-256 tool required\n'
@@ -431,7 +431,7 @@ fi
 
 if ! "$skip_provider_configuration" && [[ ",$provider_list," == *,codex,* ]] && ! "$codex_cli_detected" && ! "$vscode_extension_detected"; then printf 'Selected Codex provider host was not detected.\n' >&2; exit 1; fi
 if ! "$skip_provider_configuration" && [[ ",$provider_list," == *,antigravity,* ]] && ! "$antigravity_detected"; then printf 'Selected Antigravity provider host was not detected.\n' >&2; exit 1; fi
-if ! "$skip_provider_configuration" && [[ ",$provider_list," == *,claude,* ]] && ! "$claude_cli_detected"; then printf 'Selected Claude Code provider host was not detected.\n' >&2; exit 1; fi
+if ! "$skip_provider_configuration" && [[ ",$provider_list," == *,claude,* ]] && ! "$claude_cli_detected" && ! "$claude_vscode_detected"; then printf 'Selected Claude Code provider host was not detected.\n' >&2; exit 1; fi
 command -v git >/dev/null 2>&1 || { printf 'Git is required for Afyx source validation and lifecycle updates.\n' >&2; exit 1; }
 efficient_action="$(component_action efficient-coding 'Efficient Coding' "$efficient_state" "$(component_version efficient-coding)")"
 odoo_action="$(component_action odoo-engineering 'Odoo Engineering' "$odoo_state" "$(component_version odoo-engineering)")"
@@ -517,7 +517,7 @@ if ! "$skip_graph_mcp" && ! "$skip_provider_configuration" && [[ ",$provider_lis
   elif [[ -f "$graph_root/current/lib/dist/bin/afyx-graph.js" ]]; then
     claude_cmd="$(command -v claude || true)"
     claude_args=("$PACKAGE_ROOT/scripts/afyx-provider-integration.mjs" --providers claude --scope "$provider_scope" --workspace-root "$workspace_root" --node "$node_cmd" --entry "$graph_root/current/lib/dist/bin/afyx-graph.js")
-    [[ -n "$claude_cmd" ]] && claude_args+=(--claude "$claude_cmd")
+    if [[ -n "$claude_cmd" ]]; then claude_args+=(--claude "$claude_cmd"); elif "$claude_vscode_detected"; then claude_args+=(--claude-extension); fi
     [[ -n "$claude_config_dir" ]] && claude_args+=(--claude-config-dir "$claude_config_dir")
     provider_json="$("$node_cmd" "${claude_args[@]}" --apply)" || { printf 'Claude Code provider configuration failed: %s\n' "$provider_json" >&2; exit 1; }
     printf 'Claude Code provider: %s\n' "$(printf '%s' "$provider_json" | sed -n 's/.*"status":"\([^"]*\)".*/\1/p')"

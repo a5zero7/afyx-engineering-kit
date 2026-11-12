@@ -203,4 +203,164 @@ process.exit(1);\n`,
     const afterDoc = JSON.parse(readFileSync(mcpJson, 'utf8'));
     assert.equal(afterDoc.mcpServers?.afyx_graph, undefined);
   });
+
+  it('supports extension-only mode: standalone CLI absent, direct transactional MCP update, probe verify, and uninstall', async () => {
+    const { integrateClaude, inspectClaude } = await import(moduleUrl);
+
+    const claudeConfigDir = join(tempRoot, 'claude-ext-profile');
+    const workspaceRoot = join(tempRoot, 'workspace-ext');
+    mkdirSync(claudeConfigDir, { recursive: true });
+    mkdirSync(workspaceRoot, { recursive: true });
+
+    // Note: claude is undefined/omitted -> extension-only direct transactional mode
+    const extOptions = {
+      claudeConfigDir,
+      workspaceRoot,
+      node: process.execPath,
+      entry: fakeServerScript,
+      scope: 'global',
+      server: 'afyx_graph',
+      tool: 'afyx_graph_explore',
+      extensionOnly: true,
+    };
+
+    // 1. Inspect without CLI
+    const inspect1 = inspectClaude(extOptions);
+    assert.equal(inspect1.state, 'MCP_NOT_CONFIGURED');
+    assert.equal(inspect1.owned, false);
+
+    // 2. Register in extension-only mode
+    const regResult = await integrateClaude({ ...extOptions, apply: true });
+    assert.equal(regResult.status, 'READY');
+    assert.equal(regResult.changed, true);
+    assert.match(regResult.detail, /Extension-only MCP configuration verified/);
+
+    // 3. Inspect read-back
+    const inspect2 = inspectClaude(extOptions);
+    assert.equal(inspect2.state, 'MCP_CONFIGURED');
+    assert.equal(inspect2.owned, true);
+
+    // 4. Verify probe without CLI
+    const verifyResult = await integrateClaude({ ...extOptions, operation: 'verify' });
+    assert.equal(verifyResult.status, 'READY');
+    assert.match(verifyResult.detail, /Extension-only MCP configuration verified/);
+
+    // 5. Reinstall/Update in extension-only mode (idempotent when already configured)
+    const updateResult = await integrateClaude({ ...extOptions, apply: true });
+    assert.equal(updateResult.status, 'READY');
+
+    // 6. Uninstall in extension-only mode
+    const unResult = await integrateClaude({ ...extOptions, uninstall: true, apply: true });
+    assert.equal(unResult.status, 'UNAVAILABLE');
+    assert.equal(unResult.changed, true);
+
+    // Post-uninstall inspect
+    const inspect3 = inspectClaude(extOptions);
+    assert.equal(inspect3.state, 'MCP_NOT_CONFIGURED');
+  });
+
+  it('preserves foreign MCP servers and blocks unowned entries in extension-only mode', async () => {
+    const { integrateClaude, inspectClaude } = await import(moduleUrl);
+
+    const claudeConfigDir = join(tempRoot, 'claude-foreign-profile');
+    const workspaceRoot = join(tempRoot, 'workspace-foreign');
+    mkdirSync(claudeConfigDir, { recursive: true });
+    mkdirSync(workspaceRoot, { recursive: true });
+
+    const globalConfigFile = join(claudeConfigDir, '.claude.json');
+    // Pre-populate with unrelated foreign MCP server
+    writeFileSync(
+      globalConfigFile,
+      JSON.stringify({
+        customSetting: 'preserve-me',
+        mcpServers: {
+          sqlite_viewer: {
+            command: 'sqlite-server',
+            args: ['--db', 'app.db'],
+          },
+        },
+      }, null, 2),
+      'utf8'
+    );
+
+    const extOptions = {
+      claudeConfigDir,
+      workspaceRoot,
+      node: process.execPath,
+      entry: fakeServerScript,
+      scope: 'global',
+      server: 'afyx_graph',
+      tool: 'afyx_graph_explore',
+      extensionOnly: true,
+    };
+
+    // 1. Register AFYX
+    const regResult = await integrateClaude({ ...extOptions, apply: true });
+    assert.equal(regResult.status, 'READY');
+
+    // Verify foreign setting and server are intact
+    const docAfter = JSON.parse(readFileSync(globalConfigFile, 'utf8'));
+    assert.equal(docAfter.customSetting, 'preserve-me');
+    assert.deepEqual(docAfter.mcpServers.sqlite_viewer, {
+      command: 'sqlite-server',
+      args: ['--db', 'app.db'],
+    });
+    assert.ok(docAfter.mcpServers.afyx_graph);
+
+    // 2. Uninstall AFYX
+    const unResult = await integrateClaude({ ...extOptions, uninstall: true, apply: true });
+    assert.equal(unResult.status, 'UNAVAILABLE');
+
+    // Verify foreign setting and server remain after uninstall
+    const docFinal = JSON.parse(readFileSync(globalConfigFile, 'utf8'));
+    assert.equal(docFinal.customSetting, 'preserve-me');
+    assert.deepEqual(docFinal.mcpServers.sqlite_viewer, {
+      command: 'sqlite-server',
+      args: ['--db', 'app.db'],
+    });
+    assert.equal(docFinal.mcpServers.afyx_graph, undefined);
+
+    // 3. Test unowned foreign conflict
+    writeFileSync(
+      globalConfigFile,
+      JSON.stringify({
+        mcpServers: {
+          afyx_graph: { command: 'foreign-binary', args: [] },
+        },
+      }, null, 2),
+      'utf8'
+    );
+    const inspectForeign = inspectClaude(extOptions);
+    assert.equal(inspectForeign.state, 'MCP_BLOCKED');
+    const blockedResult = await integrateClaude({ ...extOptions, apply: true });
+    assert.equal(blockedResult.status, 'BLOCKED');
+    assert.equal(blockedResult.reason, 'FOREIGN_ENTRY');
+  });
+
+  it('fails closed on malformed configuration file', async () => {
+    const { integrateClaude } = await import(moduleUrl);
+
+    const claudeConfigDir = join(tempRoot, 'claude-malformed-profile');
+    const workspaceRoot = join(tempRoot, 'workspace-malformed');
+    mkdirSync(claudeConfigDir, { recursive: true });
+    mkdirSync(workspaceRoot, { recursive: true });
+
+    const globalConfigFile = join(claudeConfigDir, '.claude.json');
+    writeFileSync(globalConfigFile, '{ malformed json: not valid', 'utf8');
+
+    const extOptions = {
+      claudeConfigDir,
+      workspaceRoot,
+      node: process.execPath,
+      entry: fakeServerScript,
+      scope: 'global',
+      server: 'afyx_graph',
+      tool: 'afyx_graph_explore',
+      extensionOnly: true,
+    };
+
+    const result = await integrateClaude({ ...extOptions, apply: true });
+    assert.equal(result.status, 'BLOCKED');
+    assert.equal(result.reason, 'INSPECTION_FAILED');
+  });
 });

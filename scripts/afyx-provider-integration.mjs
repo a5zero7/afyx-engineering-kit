@@ -386,6 +386,14 @@ function defineProviderAdapter(provider, scopes, execute) {
   });
   const observeHost = (options = {}) => {
     if (options.host !== undefined) return options.host;
+    if (provider === 'claude' && (options.extensionOnly || options.claudeExtension)) {
+      return {
+        detected: true,
+        command: 'extension',
+        version: options.hostVersion ?? null,
+        evidence: 'VSCODE_EXTENSION',
+      };
+    }
     const candidate = provider === 'codex' ? options.codex
       : provider === 'claude' ? options.claude : options.antigravity;
     if (!candidate) return undefined;
@@ -699,6 +707,8 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === resolve(process.argv[1
     geminiHome: argument('--gemini-home', resolve(homedir(), '.gemini')),
     claude: argument('--claude'),
     claudeConfigDir: argument('--claude-config-dir') || undefined,
+    claudeExtension: process.argv.includes('--claude-extension'),
+    extensionOnly: process.argv.includes('--extension-only'),
     providerTimeoutMs: Number(argument('--provider-timeout-ms', '15000')),
     apply: process.argv.includes('--apply'),
     verify: process.argv.includes('--verify'),
