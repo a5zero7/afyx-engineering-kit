@@ -1,111 +1,99 @@
-﻿# package-release-zip.ps1 — Builds a release-pinned self-contained ZIP distribution
 [CmdletBinding()]
 param(
     [string]$OutputDir = (Join-Path $PSScriptRoot '..\testing\integration\release-zip'),
-    [string]$Revision = ''
+    [string]$Revision = '',
+    [string]$GraphReleaseDir = '',
+    [switch]$BuildGraphFromSource
 )
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
-
 $kitRoot = Split-Path -Parent $PSScriptRoot
-if (-not $Revision) {
-    $Revision = try { (& git -C $kitRoot rev-parse HEAD 2>$null).Trim() } catch { '' }
+$validator = Join-Path $PSScriptRoot 'validate-release-zip-graph.mjs'
+$stageDir = $null
+
+function Invoke-Required([string]$Program, [string[]]$Arguments) {
+    $global:LASTEXITCODE = 0
+    $output = & $Program @Arguments 2>&1
+    if ($LASTEXITCODE -ne 0) { throw "$Program failed ($LASTEXITCODE): $($output -join ' ')" }
+    return $output
 }
-if (-not $Revision) { $Revision = '838b5b0bf1d3413579281cbd6c5250ec767ba79d' }
 
-$pkgJson = Get-Content -Raw -LiteralPath (Join-Path $kitRoot 'package.json') | ConvertFrom-Json
-$version = $pkgJson.version
-$zipName = "afyx-engineering-kit-v$version-windows-x64.zip"
-$stageDir = Join-Path ([System.IO.Path]::GetTempPath()) ("afyx-zip-stage-" + [guid]::NewGuid().ToString('N'))
-$kitStage = Join-Path $stageDir "afyx-engineering-kit"
+if (-not $Revision) { $Revision = (Invoke-Required 'git' @('-C', $kitRoot, 'rev-parse', 'HEAD') | Select-Object -Last 1).Trim() }
+if ($Revision -cnotmatch '^[0-9a-f]{40}$') { throw 'Revision must be an exact 40-character Git commit SHA.' }
+$resolved = (Invoke-Required 'git' @('-C', $kitRoot, 'rev-parse', '--verify', "$Revision^{commit}") | Select-Object -Last 1).Trim()
+if ($resolved -cne $Revision) { throw 'Revision does not identify the selected Git commit.' }
+$head = (Invoke-Required 'git' @('-C', $kitRoot, 'rev-parse', 'HEAD') | Select-Object -Last 1).Trim()
+if ($head -cne $Revision) { throw 'Package only the current HEAD; switch to the selected immutable commit first.' }
+if (Invoke-Required 'git' @('-C', $kitRoot, 'status', '--porcelain')) { throw 'Source checkout is dirty; commit or use a clean worktree before packaging.' }
 
+if (-not $GraphReleaseDir) { $GraphReleaseDir = Join-Path $kitRoot 'afyx-graph\engine\release' }
+if ($BuildGraphFromSource) {
+    Invoke-Required 'node' @($validator, 'build', '--root', $kitRoot, '--revision', $Revision) | Out-Null
+}
+Invoke-Required 'node' @($validator, 'verify', '--release', $GraphReleaseDir, '--revision', $Revision, '--root', $kitRoot) | Out-Null
+
+$stageDir = Join-Path ([IO.Path]::GetTempPath()) ("afyx-zip-stage-" + [guid]::NewGuid().ToString('N'))
 try {
-    New-Item -ItemType Directory -Path $OutputDir -Force | Out-Null
-    New-Item -ItemType Directory -Path $kitStage -Force | Out-Null
+    $sourceDir = Join-Path $stageDir 'source'
+    $kitStage = Join-Path $stageDir 'afyx-engineering-kit'
+    [IO.Directory]::CreateDirectory($sourceDir) | Out-Null
+    [IO.Directory]::CreateDirectory($kitStage) | Out-Null
+    $sourceTar = Join-Path $stageDir 'source.tar'
+    Invoke-Required 'git' @('-C', $kitRoot, 'archive', '--format=tar', "--output=$sourceTar", $Revision) | Out-Null
+    Invoke-Required 'tar' @('-xf', $sourceTar, '-C', $sourceDir) | Out-Null
 
-    Write-Host "Staging release ZIP for revision $Revision (v$version)..."
-
-    # Copy files according to packaging contract
-    $itemsToCopy = @(
-        'bin',
-        'scripts',
-        'skills',
-        'afyx-context',
-        'afyx-forge',
-        'tools',
-        'install.ps1',
-        'install.sh',
-        'verify.ps1',
-        'verify.sh',
-        'update.ps1',
-        'update.sh',
-        'uninstall.ps1',
-        'uninstall.sh',
-        'package.json',
-        'LICENSE',
-        'README.md',
-        'SECURITY.md'
-    )
-
-    foreach ($item in $itemsToCopy) {
-        $src = Join-Path $kitRoot $item
-        $dst = Join-Path $kitStage $item
-        if (Test-Path -LiteralPath $src) {
-            Copy-Item -LiteralPath $src -Destination $dst -Recurse -Force
-        }
+    $items = @('bin', 'scripts', 'skills', 'afyx-context', 'afyx-forge', 'tools',
+        'install.ps1', 'install.sh', 'verify.ps1', 'verify.sh', 'update.ps1', 'update.sh',
+        'uninstall.ps1', 'uninstall.sh', 'package.json', 'LICENSE', 'README.md', 'SECURITY.md')
+    foreach ($item in $items) {
+        $from = Join-Path $sourceDir $item
+        if (-not (Test-Path -LiteralPath $from)) { throw "Committed source is missing required package item: $item" }
+        Copy-Item -LiteralPath $from -Destination (Join-Path $kitStage $item) -Recurse -Force
     }
-
-    # Ensure afyx-graph metadata and engine scripts / release files are staged
     $graphStage = Join-Path $kitStage 'afyx-graph'
-    New-Item -ItemType Directory -Path $graphStage -Force | Out-Null
-    Copy-Item -LiteralPath (Join-Path $kitRoot 'afyx-graph\afyx-graph.json') -Destination (Join-Path $graphStage 'afyx-graph.json') -Force
-
-    $engineScriptsSrc = Join-Path $kitRoot 'afyx-graph\engine\scripts'
-    if (Test-Path -LiteralPath $engineScriptsSrc) {
-        $engineScriptsDst = Join-Path $graphStage 'engine\scripts'
-        New-Item -ItemType Directory -Path $engineScriptsDst -Force | Out-Null
-        Copy-Item -Path (Join-Path $engineScriptsSrc '*') -Destination $engineScriptsDst -Recurse -Force
+    [IO.Directory]::CreateDirectory($graphStage) | Out-Null
+    Copy-Item -LiteralPath (Join-Path $sourceDir 'afyx-graph\afyx-graph.json') -Destination $graphStage
+    $engineStage = Join-Path $graphStage 'engine'
+    [IO.Directory]::CreateDirectory($engineStage) | Out-Null
+    Copy-Item -LiteralPath (Join-Path $sourceDir 'afyx-graph\engine\scripts') -Destination $engineStage -Recurse
+    $releaseStage = Join-Path $engineStage 'release'
+    [IO.Directory]::CreateDirectory($releaseStage) | Out-Null
+    foreach ($name in @('afyx-graph-win32-x64.zip', 'RELEASE-MANIFEST.json', 'SHA256SUMS')) {
+        Copy-Item -LiteralPath (Join-Path $GraphReleaseDir $name) -Destination $releaseStage
     }
+    [IO.File]::WriteAllText((Join-Path $kitStage '.afyx-source-revision'), "$Revision`n", [Text.UTF8Encoding]::new($false))
 
-    $engineReleaseSrc = Join-Path $kitRoot 'afyx-graph\engine\release'
-    $engineReleaseDst = Join-Path $graphStage 'engine\release'
-    New-Item -ItemType Directory -Path $engineReleaseDst -Force | Out-Null
+    $version = (Get-Content -Raw -LiteralPath (Join-Path $sourceDir 'package.json') | ConvertFrom-Json).version
+    $name = "afyx-engineering-kit-v$version-windows-x64.zip"
+    $tempZip = Join-Path $stageDir $name
+    $timestamp = [datetime]::SpecifyKind([datetime]'2020-01-01', [DateTimeKind]::Utc)
+    Get-ChildItem -LiteralPath $kitStage -Recurse -Force | ForEach-Object { $_.LastWriteTimeUtc = $timestamp }
+    (Get-Item -LiteralPath $kitStage).LastWriteTimeUtc = $timestamp
+    Add-Type -AssemblyName System.IO.Compression.FileSystem
+    [IO.Compression.ZipFile]::CreateFromDirectory($kitStage, $tempZip, [IO.Compression.CompressionLevel]::Optimal, $true)
+    $zip = [IO.Compression.ZipFile]::OpenRead($tempZip)
+    try {
+        $required = @("afyx-engineering-kit/.afyx-source-revision", "afyx-engineering-kit/install.ps1",
+            "afyx-engineering-kit/verify.ps1", "afyx-engineering-kit/afyx-graph/engine/release/afyx-graph-win32-x64.zip")
+        foreach ($entryName in $required) {
+            if (-not $zip.GetEntry($entryName)) { throw "Release ZIP is missing $entryName" }
+        }
+        $reader = [IO.StreamReader]::new($zip.GetEntry($required[0]).Open())
+        try { if ($reader.ReadToEnd().Trim() -cne $Revision) { throw 'Packed revision marker mismatch' } }
+        finally { $reader.Dispose() }
+    } finally { $zip.Dispose() }
 
-    # If engine release cache exists locally, copy it; else download from afyx-dev-snapshot
-    $winZip = Join-Path $engineReleaseSrc 'afyx-graph-win32-x64.zip'
-    if (Test-Path -LiteralPath $winZip -PathType Leaf) {
-        Copy-Item -Path (Join-Path $engineReleaseSrc '*') -Destination $engineReleaseDst -Force
-    } else {
-        Write-Host "Fetching verified release cache from afyx-dev-snapshot..."
-        $tag = 'afyx-dev-snapshot'
-        $repoBase = 'https://github.com/a5zero7/afyx-engineering-kit'
-        Invoke-WebRequest -UseBasicParsing -Uri "$repoBase/releases/download/$tag/RELEASE-MANIFEST.json" -OutFile (Join-Path $engineReleaseDst 'RELEASE-MANIFEST.json')
-        Invoke-WebRequest -UseBasicParsing -Uri "$repoBase/releases/download/$tag/SHA256SUMS" -OutFile (Join-Path $engineReleaseDst 'SHA256SUMS')
-        Invoke-WebRequest -UseBasicParsing -Uri "$repoBase/releases/download/$tag/afyx-graph-win32-x64.zip" -OutFile (Join-Path $engineReleaseDst 'afyx-graph-win32-x64.zip')
-    }
-
-    # Write .afyx-source-revision stamped with exact revision
-    Set-Content -LiteralPath (Join-Path $kitStage '.afyx-source-revision') -Value "$Revision`n" -Encoding utf8
-
-    $outZipPath = Join-Path $OutputDir $zipName
-    if (Test-Path -LiteralPath $outZipPath) { Remove-Item -LiteralPath $outZipPath -Force }
-
-    Write-Host "Compressing to $outZipPath..."
-    Compress-Archive -Path (Join-Path $kitStage '*') -DestinationPath $outZipPath -Force
-
-    $sha256 = (Get-FileHash -Algorithm SHA256 -LiteralPath $outZipPath).Hash.ToLowerInvariant()
-    Write-Host "Created Release ZIP: $outZipPath"
-    Write-Host "SHA-256: $sha256"
-
-    return [pscustomobject]@{
-        Path = $outZipPath
-        Version = $version
-        Revision = $Revision
-        Sha256 = $sha256
-    }
+    [IO.Directory]::CreateDirectory([IO.Path]::GetFullPath($OutputDir)) | Out-Null
+    $destination = Join-Path ([IO.Path]::GetFullPath($OutputDir)) $name
+    $digest = (Get-FileHash -Algorithm SHA256 -LiteralPath $tempZip).Hash.ToLowerInvariant()
+    if (Test-Path -LiteralPath $destination) {
+        $existing = (Get-FileHash -Algorithm SHA256 -LiteralPath $destination).Hash.ToLowerInvariant()
+        if ($existing -ne $digest) { throw "Destination already exists with different bytes: $destination" }
+    } else { Move-Item -LiteralPath $tempZip -Destination $destination }
+    [pscustomobject]@{ Path = $destination; Version = $version; Revision = $Revision; Sha256 = $digest }
 } finally {
-    if (Test-Path -LiteralPath $stageDir) {
-        Remove-Item -LiteralPath $stageDir -Recurse -Force -ErrorAction SilentlyContinue
+    if ($stageDir -and (Test-Path -LiteralPath $stageDir)) {
+        Remove-Item -LiteralPath $stageDir -Recurse -Force
     }
 }

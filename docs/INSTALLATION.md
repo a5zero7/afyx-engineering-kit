@@ -50,6 +50,15 @@ To unlink:
 
 ### GitHub prerelease tarball fallback
 
+The ordinary GitHub `dev.zip` is source-only for the Full preset: it does not
+bundle a revision-matched prebuilt Graph runtime. The official Windows x64
+Full ZIP is a separate immutable-commit package with a checked Graph archive
+and `.afyx-source-revision`. Until a public release URL and anonymous download
+test are recorded, use the published prerelease tarball below or a locally
+verified package. Full on Windows requires Node.js 22.5+; PowerShell 5.1 and 7
+compatibility must be verified against the exact release ZIP. ARM and macOS
+have no bundled Full Graph archive.
+
 Alternatively, use the prebuilt tarball distributed through the [v0.1.0-alpha.2 GitHub prerelease](https://github.com/a5zero7/afyx-engineering-kit/releases/tag/v0.1.0-alpha.2):
 
 ```bash

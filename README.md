@@ -185,6 +185,13 @@ To remove the link:
 
 ### GitHub prerelease tarball fallback
 
+The GitHub-generated `dev.zip` is a source snapshot. It does not include the
+revision-matched Graph runtime needed by the Full preset. A Windows x64 Full
+release ZIP is built separately from an immutable commit with a verified Graph
+archive and `.afyx-source-revision` marker. Its download link will be added
+after the public release and anonymous installation checks pass. Node.js 22.5+
+is required; Windows PowerShell 5.1 and PowerShell 7 are the intended hosts.
+
 Alternatively, use the prebuilt tarball from the [v0.1.0-alpha.2 GitHub prerelease](https://github.com/a5zero7/afyx-engineering-kit/releases/tag/v0.1.0-alpha.2):
 
 ```bash
