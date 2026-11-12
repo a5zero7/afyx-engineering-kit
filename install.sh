@@ -109,7 +109,7 @@ elif [[ "$provider_scope" == workspace && ",$provider_list," == *,claude,* ]]; t
   [[ "$skills_root" == "$claude_skills" ]] || additional_skill_roots+=("$claude_skills")
 fi
 
-printf 'Afyx Codex Engineering Kit — Linux/macOS installer (Bash)\n'
+printf 'Afyx Engineering Kit — Linux/macOS installer (Bash)\n'
 
 valid_manifest() { [[ -s "$1/SKILL.md" ]] && [[ "$(head -n 1 "$1/SKILL.md")" == '---' ]]; }
 # One component truth: scripts/components.json, read through the shared library.

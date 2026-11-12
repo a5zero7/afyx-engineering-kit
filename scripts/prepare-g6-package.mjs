@@ -263,6 +263,9 @@ export function prepareG6Package(root, revision, { autoBuild = false } = {}) {
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+  if (existsSync(join(root, '.git'))) {
+    throw new Error('Packing a Git checkout would stamp source files. Use scripts/stage-npm-release.mjs to pack an immutable commit snapshot.');
+  }
   let revision = '';
 
   // 1. In a Git repository, resolve Git HEAD first

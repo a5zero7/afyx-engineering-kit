@@ -1,6 +1,6 @@
 {
   "name": "afyx-engineering-kit",
-  "version": "0.1.0-alpha.2",
+  "version": "0.1.0-alpha.3",
   "description": "Universal cross-platform CLI installer and lifecycle manager for AFYX Engineering Kit",
   "type": "module",
   "main": "./bin/afyx-engineering-kit.mjs",
@@ -11,7 +11,6 @@
     "node": ">=22.5.0"
   },
   "scripts": {
-    "prepare": "node scripts/prepare-g6-package.mjs",
     "prepack": "node scripts/prepare-g6-package.mjs",
     "test": "node --test scripts/tests/test_npm_installer.mjs"
   },
@@ -19,9 +18,16 @@
     ".afyx-source-revision",
     "bin/",
     "scripts/",
+    "!scripts/tests/**",
+    "!scripts/native-source-ownership.json",
+    "!scripts/verify-native-source-ownership.mjs",
+    "!scripts/audit-legacy-identity.py",
     "skills/",
     "afyx-context/",
+    "!afyx-context/test/**",
+    "!afyx-context/benchmark/**",
     "afyx-forge/",
+    "!afyx-forge/test/**",
     "afyx-graph/afyx-graph.json",
     "afyx-graph/engine/release/afyx-graph-win32-x64.zip",
     "afyx-graph/engine/release/afyx-graph-linux-x64.tar.gz",
@@ -30,6 +36,7 @@
     "afyx-graph/engine/scripts/distribution-product.json",
     "afyx-graph/engine/scripts/distribution-contract.mjs",
     "tools/",
+    "!tools/codex-usage/tests/**",
     "install.ps1",
     "install.sh",
     "verify.ps1",

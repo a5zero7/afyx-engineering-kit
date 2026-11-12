@@ -192,11 +192,20 @@ $zipHash  afyx-kit-payload.zip
     Set-Content -LiteralPath $sumsFile -Value $sumsContent -Encoding utf8
 
     $manifestFile = Join-Path $OutputDir 'build-manifest.json'
+    $kitVersion = (Get-Content -Raw -LiteralPath (Join-Path $repoRoot 'package.json') | ConvertFrom-Json).version
+    function Get-StagedSkillVersion([string]$Skill) {
+        $source = Get-Content -Raw -LiteralPath (Join-Path $repoRoot "skills/$Skill/SKILL.md")
+        if ($source -notmatch '(?m)^\s*version:\s*"?([0-9]+\.[0-9]+\.[0-9]+)"?\s*$') { throw "Missing version metadata for $Skill" }
+        return $Matches[1]
+    }
+    function Get-StagedRuntimeVersion([string]$RelativePath) {
+        return (Get-Content -Raw -LiteralPath (Join-Path $repoRoot $RelativePath) | ConvertFrom-Json).version
+    }
     $buildManifest = [ordered]@{
-        product_name         = "Afyx Code Engineering Kit"
+        product_name         = "Afyx Engineering Kit"
         distribution_channel = "technical-alpha"
         package_name         = "AfyxSetup.exe"
-        package_version      = "0.1.0-alpha.1"
+        package_version      = $kitVersion
         target_platform      = "win32-x64"
         source_revision      = $currentRevision
         build_timestamp      = (Get-Date).ToString('o')
@@ -205,12 +214,12 @@ $zipHash  afyx-kit-payload.zip
         payload_size_bytes   = (Get-Item -LiteralPath $payloadZip).Length
         payload_sha256       = $zipHash
         components           = @(
-            @{ id = "efficient-coding"; name = "Afyx Efficient Coding"; type = "skill"; version = "1.2.1"; tier = "core" },
-            @{ id = "odoo-engineering"; name = "Afyx Odoo Engineering"; type = "skill"; version = "1.2.0"; tier = "core" },
-            @{ id = "afyx-engineering-expert"; name = "Afyx Engineering Expert"; type = "skill"; version = "0.1.1"; tier = "optional" },
-            @{ id = "afyx-graph"; name = "Afyx Graph"; type = "runtime"; version = "1.0.0"; tier = "optional"; activation = "on-demand" },
-            @{ id = "afyx-context"; name = "Afyx Context Engine"; type = "runtime"; version = "0.1.0"; tier = "optional"; integration_default = "OFF" },
-            @{ id = "afyx-forge"; name = "Afyx Forge Core"; type = "runtime"; version = "0.1.0"; tier = "optional"; mode = "assistive-guidance-only"; a8_gate = "EVALUATION_GATED" },
+            @{ id = "efficient-coding"; name = "Afyx Efficient Coding"; type = "skill"; version = (Get-StagedSkillVersion 'efficient-coding'); tier = "core" },
+            @{ id = "odoo-engineering"; name = "Afyx Odoo Engineering"; type = "skill"; version = (Get-StagedSkillVersion 'odoo-engineering'); tier = "core" },
+            @{ id = "afyx-engineering-expert"; name = "Afyx Engineering Expert"; type = "skill"; version = (Get-StagedSkillVersion 'afyx-engineering-expert'); tier = "optional" },
+            @{ id = "afyx-graph"; name = "Afyx Graph"; type = "runtime"; version = (Get-StagedRuntimeVersion 'afyx-graph/engine/package.json'); tier = "optional"; activation = "on-demand" },
+            @{ id = "afyx-context"; name = "Afyx Context Engine"; type = "runtime"; version = (Get-StagedRuntimeVersion 'afyx-context/package.json'); tier = "optional"; integration_default = "OFF" },
+            @{ id = "afyx-forge"; name = "Afyx Forge Core"; type = "runtime"; version = (Get-StagedRuntimeVersion 'afyx-forge/package.json'); tier = "optional"; mode = "assistive-guidance-only"; a8_gate = "EVALUATION_GATED"; assistive_planner_decision = "GO_BOUNDED_LOCAL_ASSISTIVE_PLANNER" },
             @{ id = "codex-usage-tracking"; name = "Afyx Codex Usage Tracking"; type = "toolset"; version = "1.0.0"; tier = "optional"; platform = "windows" }
         )
         governance_boundaries = @{

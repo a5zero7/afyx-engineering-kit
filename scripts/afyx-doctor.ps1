@@ -101,7 +101,15 @@ $codexVersion = Get-ToolVersion 'codex' @('--version')
 $extension = [bool](Get-ChildItem -Path (Join-Path $(if ($env:USERPROFILE) { $env:USERPROFILE } else { $env:HOME }) '.vscode\extensions\openai.chatgpt-*') -Directory -ErrorAction SilentlyContinue | Select-Object -First 1)
 if ($codexVersion) { Write-Line 'OK' 'Codex CLI' $codexVersion } else { Write-Line 'INFO' 'Codex CLI' 'not found' }
 if ($extension) { Write-Line 'OK' 'VS Code extension' 'detected' } else { Write-Line 'INFO' 'VS Code extension' 'not detected' }
-if (-not $codexVersion -and -not $extension) { Write-Line 'FAIL' 'Codex host' 'neither Codex CLI nor the ChatGPT/Codex VS Code extension was detected' }
+$antigravityVersion = Get-ToolVersion 'agy' @('--version')
+if (-not $antigravityVersion) { $antigravityVersion = Get-ToolVersion 'antigravity' @('--version') }
+$claudeVersion = Get-ToolVersion 'claude' @('--version')
+$claudeExtension = [bool](Get-ChildItem -Path (Join-Path $(if ($env:USERPROFILE) { $env:USERPROFILE } else { $env:HOME }) '.vscode\extensions\anthropic.claude-code-*') -Directory -ErrorAction SilentlyContinue | Select-Object -First 1)
+if ($antigravityVersion) { Write-Line 'OK' 'Antigravity CLI' $antigravityVersion } else { Write-Line 'INFO' 'Antigravity CLI' 'not found (optional)' }
+if ($claudeVersion -or $claudeExtension) { Write-Line 'OK' 'Claude Code host' $(if ($claudeVersion) { $claudeVersion } else { 'VS Code extension detected' }) } else { Write-Line 'INFO' 'Claude Code host' 'not found (optional)' }
+if (-not $codexVersion -and -not $extension -and -not $antigravityVersion -and -not $claudeVersion -and -not $claudeExtension) {
+    Write-Line 'INFO' 'Provider host' 'none detected; component-only installation remains supported'
+}
 $gitVersion = Get-ToolVersion 'git' @('--version')
 if ($gitVersion) { Write-Line 'OK' 'Git' $gitVersion } else { Write-Line 'WARN' 'Git' 'not found; required for source and freshness checks' }
 $pythonVersion = Get-ToolVersion 'python' @('--version')

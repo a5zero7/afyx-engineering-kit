@@ -2,7 +2,7 @@
 set -euo pipefail
 
 root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
-printf 'Afyx Codex Engineering Kit — Linux/macOS updater (Bash)\n'
+printf 'Afyx Engineering Kit — Linux/macOS updater (Bash)\n'
 skip_self_update=false
 dry_run=false
 offline=false
@@ -49,7 +49,9 @@ else
     if "$dry_run"; then
       printf 'Dry-run: skipping git pull --ff-only; repository will not be modified.\n'
     else
-      if ! git -C "$root" pull --ff-only; then
+      if ! git -C "$root" rev-parse --abbrev-ref --symbolic-full-name '@{upstream}' >/dev/null 2>&1; then
+        printf '[INFO] No upstream branch is configured; self-update skipped. Configure an upstream or use --skip-self-update intentionally.\n'
+      elif ! git -C "$root" pull --ff-only; then
         printf '[ERROR] Self-update failed; installer was not run.\n' >&2
         exit 1
       fi

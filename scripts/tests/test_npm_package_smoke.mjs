@@ -1,6 +1,6 @@
 import test, { describe, before, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { execSync, spawnSync } from 'node:child_process';
+import { execFileSync, execSync, spawnSync } from 'node:child_process';
 import { chmodSync, existsSync, mkdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
@@ -28,13 +28,13 @@ describe('AFYX Universal npm Package Disposable Smoke Suite', () => {
     tempRoot = join(tmpdir(), 'afyx-npm-smoke-test-' + randomBytes(4).toString('hex'));
     mkdirSync(tempRoot, { recursive: true });
 
-    // 1. Pack tarball
-    const packOut = execSync('npm pack --pack-destination ' + JSON.stringify(tempRoot), {
+    // 1. Pack the exact committed source in an isolated release stage.
+    const packOut = execFileSync(process.execPath, ['scripts/stage-npm-release.mjs', '--output-dir', tempRoot], {
       cwd: REPO_ROOT,
       encoding: 'utf8',
+      env: { ...process.env, AFYX_BUILD_FROM_SOURCE: '1' },
     });
-    const tarballName = packOut.trim().split(/\r?\n/).pop().trim();
-    const tarballPath = join(tempRoot, tarballName);
+    const tarballPath = JSON.parse(packOut).candidate;
     assert.ok(existsSync(tarballPath), `Tarball must exist at ${tarballPath}`);
     assert.ok(statSync(tarballPath).size > 100000, 'Tarball size must be substantial (>100KB)');
 
@@ -47,6 +47,9 @@ describe('AFYX Universal npm Package Disposable Smoke Suite', () => {
 
     cliPath = join(pkgDir, 'bin', 'afyx-engineering-kit.mjs');
     assert.ok(existsSync(cliPath), `CLI entrypoint must exist at ${cliPath}`);
+    for (const excluded of ['scripts/tests', 'afyx-context/test', 'afyx-context/benchmark', 'afyx-forge/test', 'tools/codex-usage/tests']) {
+      assert.ok(!existsSync(join(pkgDir, excluded)), `Development fixture must not ship: ${excluded}`);
+    }
 
     // Setup isolated skills root with a foreign directory
     isoSkills = join(tempRoot, 'iso-skills');

@@ -13,11 +13,11 @@ case "$(uname -s 2>/dev/null || true)" in
       exit 1
     fi
     hygiene_script="$(cd "$canonical_root/.." && pwd -P)/_afyx-admin/Test-AfyxWorkspaceHygiene.ps1"
-    if [ ! -f "$hygiene_script" ]; then
-      echo "[pre-push] FAIL: canonical Windows workspace hygiene verifier is missing: $hygiene_script" >&2
-      exit 1
+    if [ -f "$hygiene_script" ]; then
+      powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$hygiene_script" -RunSelfTests
+    else
+      echo "[pre-push] INFO: optional workspace hygiene verifier unavailable: $hygiene_script" >&2
     fi
-    powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$hygiene_script" -RunSelfTests
     ;;
 esac
 

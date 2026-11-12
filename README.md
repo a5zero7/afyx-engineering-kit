@@ -14,8 +14,9 @@ on its own or combine eligible capabilities through shared installation and
 routing contracts. The design prioritizes source evidence, permission boundaries,
 focused validation, and failure isolation over unqualified automation claims.
 
-**Status:** Technical Alpha · **Platforms:** Windows, Linux, macOS (component
-availability varies) · **Integration:** Optional and task-driven.
+**Status:** Technical Alpha · **Full runtime tested:** Windows x64 and Linux x64
+(WSL2 Ubuntu) · **macOS/ARM Full:** no bundled Graph archive; runtime untested ·
+**Integration:** Optional and task-driven.
 
 Graph, Forge, Context Engine, and Engineering Expert provide four foundational
 engineering pillars. Efficient Coding and Odoo Engineering are **equally
@@ -53,8 +54,8 @@ capability is selected only when relevant, healthy, and authorized.
 | Product | Core capability | Implementation and maturity |
 |---|---|---|
 | [**Afyx Graph**](afyx-graph/engine/README.md) | Local indexing, structural code intelligence, symbol/dependency navigation, impact and affected-test analysis, CLI and optional MCP. | **Standalone Node.js runtime · Technical Alpha**; static evidence requires runtime/test verification. |
-| [**Afyx Forge**](afyx-forge/README.md) | Deterministic task classification, engineering policies, bounded plans, and diagnostics through Forge Core; distinct evaluation infrastructure. | **Standalone Node.js CLI/API v0.1.0 · Technical Alpha**; planning only, not autonomous code changes; A8 evaluation pending. |
-| [**Afyx Efficient Coding**](docs/tool-guides/AFYX_EFFICIENT_CODING.md) | Evidence-led coding, debugging, refactoring, focused validation, and engineering reporting. | **Standalone agent skill v1.2.1 · Implemented**; guidance, not an execution engine. |
+| [**Afyx Forge**](afyx-forge/README.md) | Deterministic task classification, engineering policies, bounded plans, and diagnostics through Forge Core; distinct evaluation infrastructure. | **Standalone Node.js CLI/API v0.1.0 · Technical Alpha**; bounded local assistive planning approved, not autonomous code changes; historical 36-cell evaluation remains `NOT_RUN`. |
+| [**Afyx Efficient Coding**](docs/tool-guides/AFYX_EFFICIENT_CODING.md) | Evidence-led coding, debugging, refactoring, focused validation, and engineering reporting. | **Standalone agent skill v1.2.2 · Implemented**; guidance, not an execution engine. |
 | [**Afyx Odoo Engineering**](docs/tool-guides/AFYX_ODOO_ENGINEERING.md) | Odoo-specific ORM, views, security, module development, migration, and troubleshooting. | **Standalone agent skill v1.2.0 · Implemented**; reference coverage Odoo 10–20, with target-version verification required. |
 | [**Afyx Context Engine (ACE)**](afyx-context/README.md) | Conservative context reduction, local storage, integrity checks, and exact-original recovery. | **Standalone Node.js runtime v0.1.0 · Technical Alpha**; explicit Kit selection, no universal savings guarantee. |
 | [**Afyx Engineering Expert**](skills/afyx-engineering-expert/README.md) | Adaptive engineering guidance across 13 disciplines and six optional workflows. | **Standalone agent skill v0.1.1 · Implemented**; final D.6 substantive acceptance remains pending. |
@@ -114,15 +115,16 @@ unverified unless an artifact has an independently verified attestation.
 - Graph, the Kit lifecycle, ACE, Efficient Coding, Odoo Engineering, and
   Engineering Expert have implemented runtime or skill contracts with regression
   evidence appropriate to their respective interfaces.
-- ACE and Forge are absent from Minimal, Recommended, and Full presets and must
-  be selected explicitly. Healthy installed ACE can be discovered for eligible
-  on-demand work, respecting explicit disable, without running on every task.
+- ACE and Forge are included in the Full preset; Minimal and Recommended omit
+  them. Installation does not grant autonomous execution. Healthy installed ACE
+  is used only for eligible on-demand work and respects explicit OFF.
 - Automatic Graph–ACE MCP interception remains unproven/default OFF; optional
   consumer paths have exact-original fallback. Context measurements include
   positive and negative net results—no universal savings claim is made.
 - Forge Core has a real standalone assistive CLI/API and explicitly selectable
   runtime on supported installation paths. This is distinct from the formal Forge
-  B0–B5 evaluator campaign: its 36 cells are still `NOT_RUN` and A8 has no GO.
+  B0–B5 evaluator campaign: its 36 cells remain `NOT_RUN`; the Owner's A8 GO
+  applies only to bounded local assistive planning, never autonomous execution.
 - Engineering Expert is usable as a skill, while final D.6 substantive review is
   still outside the accepted claims.
 
@@ -139,6 +141,21 @@ See [Product Vision](docs/PRODUCT_VISION.md) for the maintained product contract
 and [Component Guide](docs/COMPONENTS.md) for capability and limitation details.
 
 ## Install AFYX Engineering Kit — Windows & WSL2
+
+### Public npm Alpha (pending release clearance)
+
+With Node.js 22.5 or newer, the intended public registry command is:
+
+```bash
+npx afyx-engineering-kit install
+```
+
+Use `--preset recommended` for core engineering skills or `--preset full`
+for the prebuilt Graph, Context, Forge, and applicable skills. `full` requires
+Windows x64 or Linux x64 for Graph. Provider configuration is optional and
+remains subject to each host's native prerequisites. Confirm the intended Alpha
+version with `npm view afyx-engineering-kit@latest version`. Until the registry
+lists a cleared release, use the GitHub prerelease tarball below.
 
 ### Local Developer Setup (Bare NPX Resolution)
 
@@ -166,20 +183,7 @@ To remove the link:
 .\scripts\link-global-dev.ps1 -Uninstall
 ```
 
-### Remote Git & Release Tarball Installation
-
-Install Node.js 22.5 or newer. You can execute directly from GitHub `dev` via `npx`:
-
-```bash
-# Direct execution via npx (GitHub dev branch)
-npx --yes github:a5zero7/afyx-engineering-kit#dev install --preset full --no-build-fallback --non-interactive --skip-provider-configuration
-
-# Or global installation directly from Git
-npm install -g github:a5zero7/afyx-engineering-kit#dev
-afyx-engineering-kit install --preset full --no-build-fallback --non-interactive --skip-provider-configuration
-```
-
-The Git installer automatically resolves matching precompiled Graph engine binaries from official GitHub dev snapshots, preventing consumer-side TypeScript compilation.
+### GitHub prerelease tarball fallback
 
 Alternatively, use the prebuilt tarball from the [v0.1.0-alpha.2 GitHub prerelease](https://github.com/a5zero7/afyx-engineering-kit/releases/tag/v0.1.0-alpha.2):
 
@@ -194,9 +198,7 @@ the installation with the same `npm exec --package=... --` prefix followed by
 `afyx-engineering-kit verify --preset full`. Run `afyx-engineering-kit update`
 with that prefix for an ownership-aware update, or `afyx-engineering-kit uninstall`
 with an explicit component to remove it. See the [installation guide](docs/INSTALLATION.md)
-for provider selection, recovery, and platform limits. This Alpha is not on the
-public npm registry, so bare `npx afyx-engineering-kit` is not a public install
-command.
+for provider selection, recovery, and platform limits.
 
 ## Quick start
 
@@ -237,11 +239,10 @@ continuing.
 |---|---|
 | `minimal` | Efficient Coding, Odoo Engineering |
 | `recommended` | Minimal + Afyx Engineering Expert |
-| `full` | Recommended + Afyx Graph + Windows-only Usage Tracking |
+| `full` | Recommended + Afyx Graph, Context, Forge, and Windows-only Usage Tracking |
 | `custom` | Only components repeated with `CustomComponent` / `--custom-component` |
 
-ACE and Forge Core are absent from implicit presets. On Windows, select
-specific runtimes explicitly; installation does not authorize autonomous
+ACE and Forge Core are included only in `full`. Installation does not authorize autonomous
 Forge execution or automatic Graph MCP interception:
 
 ```powershell

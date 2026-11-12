@@ -53,7 +53,7 @@ foreach ($specification in $ComponentAction) {
     }
 }
 
-Write-Host 'Afyx Codex Engineering Kit — Windows updater (PowerShell)'
+Write-Host 'Afyx Engineering Kit — Windows updater (PowerShell)'
 
 if ($Offline -and -not $SkipSelfUpdate) {
     Write-Host 'Offline mode: self-update skipped; using the current local source intentionally.'

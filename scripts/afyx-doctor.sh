@@ -88,7 +88,15 @@ extension_detected=false
 for extension in "$HOME"/.vscode/extensions/openai.chatgpt-*; do [[ -d "$extension" ]] && { extension_detected=true; break; }; done
 if [[ -n "$codex_version" ]]; then line OK 'Codex CLI' "$codex_version"; else line INFO 'Codex CLI' 'not found'; fi
 if "$extension_detected"; then line OK 'VS Code extension' 'detected'; else line INFO 'VS Code extension' 'not detected'; fi
-if [[ -z "$codex_version" ]] && ! "$extension_detected"; then line FAIL 'Codex host' 'neither Codex CLI nor the ChatGPT/Codex VS Code extension was detected'; fi
+antigravity_version="$(tool_version agy --version || tool_version antigravity --version || true)"
+claude_version="$(tool_version claude --version || true)"
+claude_extension=false
+for extension in "$HOME"/.vscode/extensions/anthropic.claude-code-* "$HOME"/.vscode-server/extensions/anthropic.claude-code-*; do [[ -d "$extension" ]] && { claude_extension=true; break; }; done
+if [[ -n "$antigravity_version" ]]; then line OK 'Antigravity CLI' "$antigravity_version"; else line INFO 'Antigravity CLI' 'not found (optional)'; fi
+if [[ -n "$claude_version" ]]; then line OK 'Claude Code host' "$claude_version"; elif "$claude_extension"; then line OK 'Claude Code host' 'VS Code extension detected'; else line INFO 'Claude Code host' 'not found (optional)'; fi
+if [[ -z "$codex_version" ]] && ! "$extension_detected" && [[ -z "$antigravity_version" && -z "$claude_version" ]] && ! "$claude_extension"; then
+  line INFO 'Provider host' 'none detected; component-only installation remains supported'
+fi
 git_version="$(tool_version git --version || true)"
 if [[ -n "$git_version" ]]; then line OK 'Git' "$git_version"; else line WARN 'Git' 'not found; required for source and freshness checks'; fi
 python_version="$(tool_version python3 --version || tool_version python --version || true)"

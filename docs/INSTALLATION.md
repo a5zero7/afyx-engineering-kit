@@ -1,10 +1,25 @@
 # Installation and Lifecycle Guide
 
-This guide covers supported Kit onboarding on native Windows, Linux, and macOS,
-plus standalone Graph and ACE development. Preview first: installation changes
+This guide covers tested Kit onboarding on Windows x64 and Linux x64, plus
+standalone Graph and ACE development. macOS and ARM Full runtime installation
+are unverified and have no bundled Graph archive. Preview first: installation changes
 only selected Afyx-owned destinations, but those changes are real.
 
 ## Install AFYX Engineering Kit — Windows & WSL2
+
+### Public npm Alpha (pending release clearance)
+
+The intended public command after release clearance requires Node.js 22.5 or newer:
+
+```bash
+npx afyx-engineering-kit install
+```
+
+Use `--preset recommended` for skills or `--preset full` on Windows x64 and
+Linux x64 for the bundled Graph runtime, Context, and Forge. Installation of
+Context or Forge does not authorize autonomous execution and respects explicit
+OFF. Check the registry version with `npm view afyx-engineering-kit@latest version`.
+Until a cleared release is listed, use the GitHub tarball below.
 
 ### Local Developer Setup (Bare NPX Offline Resolution)
 
@@ -33,20 +48,7 @@ To unlink:
 .\scripts\link-global-dev.ps1 -Uninstall
 ```
 
-### Remote Git Execution
-
-Requires Node.js 22.5 or newer, npm, and Git. You can execute or install directly from GitHub `dev`:
-
-```bash
-# Direct execution via npx (GitHub dev branch)
-npx --yes github:a5zero7/afyx-engineering-kit#dev install --preset full --no-build-fallback --non-interactive --skip-provider-configuration
-
-# Or global installation directly from Git
-npm install -g github:a5zero7/afyx-engineering-kit#dev
-afyx-engineering-kit install --preset full --no-build-fallback --non-interactive --skip-provider-configuration
-```
-
-The Git installer automatically resolves matching precompiled Graph engine archives via GitHub dev snapshots (`dev-<sha>` or `afyx-dev-snapshot`), ensuring consumer machines never have to build Graph from source.
+### GitHub prerelease tarball fallback
 
 Alternatively, use the prebuilt tarball distributed through the [v0.1.0-alpha.2 GitHub prerelease](https://github.com/a5zero7/afyx-engineering-kit/releases/tag/v0.1.0-alpha.2):
 
@@ -64,9 +66,8 @@ so the installed source revision remains identifiable. Graph uses the bundled
 Windows or Linux archive; no consumer source build is needed. Context remains
 optional and respects explicit OFF. Forge provides assistive planning only.
 
-Bare `npx afyx-engineering-kit` depends on a public npm registry package that
-is not available for this Alpha. The GitHub Release tarball is the supported
-public route; local `file:` tarballs are for recovery and development only.
+The GitHub Release tarball is a secondary fallback. Local `file:` tarballs remain
+for recovery and development only.
 
 On WSL2, keep the isolated profile, npm cache, installed Graph runtime, and
 Graph state on the Linux filesystem (for example under `/home`), even when
@@ -117,11 +118,12 @@ The canonical preset membership comes from
 |---|---|
 | `minimal` | `efficient-coding`, `odoo-engineering` |
 | `recommended` | Minimal + `afyx-engineering-expert` |
-| `full` | Recommended + `afyx-graph` + Windows-only `codex-usage-tracking` |
+| `full` | Recommended + `afyx-graph`, `afyx-context`, `afyx-forge`, and Windows-only `codex-usage-tracking` |
 | `custom` | Exactly the repeated explicit component IDs |
 
 On Linux/macOS, Windows-only Usage Tracking is `NOT_APPLICABLE`, not a failed
-installation. ACE (`afyx-context`) is absent from all implicit presets.
+installation. Context and Forge are installed by `full` but execute only when
+eligible and authorized; explicit OFF remains authoritative.
 Components outside the desired plan are preserved, not removed.
 
 For selected and healthy ACE installations, Forge planning and modular routing now
@@ -208,8 +210,9 @@ The Midnight Circuit interface uses Up/Down to move, Space to toggle custom
 components, Enter to continue, and Esc to cancel before mutation. It guides the
 operator through environment detection, preset/components, provider and scope,
 the authoritative desired-state plan, explicit confirmation, real lifecycle
-work, and a final receipt. Forge Core remains an optional Alpha guidance
-component; formal A8 acceptance is still gated. Afyx Context remains optional
+work, and a final receipt. Forge Core is approved only for bounded local
+assistive planning; the historical 36-cell campaign remains `NOT_RUN`, and
+autonomous execution is forbidden. Afyx Context remains optional
 to install. Healthy selected Context and Forge runtimes receive on-demand
 provider skill companions on the supported host surfaces. Context route
 planning is default-enabled, but automatic Graph MCP interception is not yet
@@ -369,8 +372,10 @@ cd afyx-engineering-kit
 ./install.sh --preset recommended
 ```
 
-The scripts remain Bash 3.2 compatible. Graph selects a `darwin-x64` or
-`darwin-arm64` artifact from the detected host architecture.
+The scripts remain Bash 3.2 compatible, but macOS installation has not been
+accepted on a real host. No Darwin Graph archive is bundled, so `full` reports
+an unsupported Graph target. Minimal and Recommended do not require Graph;
+their macOS lifecycle remains untested.
 
 ## What installation owns
 

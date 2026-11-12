@@ -28,6 +28,7 @@ $architecture = switch ([System.Runtime.InteropServices.RuntimeInformation]::OSA
     default { throw "Unsupported Windows architecture: $_" }
 }
 $target = "win32-$architecture"
+if ($target -ne 'win32-x64') { throw "Afyx Graph prebuilt runtime is unavailable for $target. Minimal and Recommended Kit presets remain available; consumer source compilation is disabled." }
 $assetName = "afyx-graph-$target.zip"
 $current = Join-Path $RuntimeRoot 'current'
 $rootMetadata = Join-Path $RuntimeRoot 'metadata.json'

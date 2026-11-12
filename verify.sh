@@ -14,12 +14,14 @@ core_failure=false
 preset=
 custom_component_list=
 provider_list=codex
+provider_explicit=false
+claude_home="${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
 provider_scope=global
 workspace_root="$PWD"
 gemini_home="${AFYX_GEMINI_HOME:-$HOME/.gemini}"
 
 usage() {
-  printf '%s\n' 'Usage: ./verify.sh [--skills-root PATH] [--context-runtime-root PATH] [--forge-runtime-root PATH] [--provider codex|antigravity[,..]] [--provider-scope global|workspace] [--workspace-root PATH] [--gemini-home PATH] [--preset minimal|recommended|full|custom] [--custom-component ID]'
+  printf '%s\n' 'Usage: ./verify.sh [--skills-root PATH] [--context-runtime-root PATH] [--forge-runtime-root PATH] [--provider codex|antigravity|claude[,..]] [--provider-scope global|workspace] [--workspace-root PATH] [--gemini-home PATH] [--claude-home PATH] [--preset minimal|recommended|full|custom] [--custom-component ID]'
 }
 
 while (($#)); do
@@ -29,22 +31,29 @@ while (($#)); do
     --forge-runtime-root) forge_root="$2"; shift 2 ;;
     --preset) preset="$2"; shift 2 ;;
     --custom-component) custom_component_list="${custom_component_list:+$custom_component_list;}$2"; shift 2 ;;
-    --provider) provider_list="$2"; shift 2 ;;
+    --provider) provider_list="$2"; provider_explicit=true; shift 2 ;;
     --provider-scope) provider_scope="$2"; shift 2 ;;
     --workspace-root) workspace_root="$2"; shift 2 ;;
     --gemini-home) gemini_home="$2"; shift 2 ;;
+    --claude-home) claude_home="$2"; shift 2 ;;
     -h|--help) usage; exit 0 ;;
     *) printf 'Unknown option: %s\n' "$1" >&2; usage >&2; exit 2 ;;
   esac
 done
 case "$provider_scope" in global|workspace) ;; *) printf 'Unknown provider scope: %s\n' "$provider_scope" >&2; exit 2 ;; esac
 old_ifs=$IFS; IFS=','
-for provider_id in $provider_list; do case "$provider_id" in codex|antigravity) ;; *) printf 'Unknown provider: %s\n' "$provider_id" >&2; exit 2 ;; esac; done
+for provider_id in $provider_list; do case "$provider_id" in codex|antigravity|claude) ;; *) printf 'Unknown provider: %s\n' "$provider_id" >&2; exit 2 ;; esac; done
 IFS=$old_ifs
 if [[ "$skills_root_explicit" == false && "$provider_scope" == workspace && ",$provider_list," == *,antigravity,* ]]; then
   skills_root="$workspace_root/.agents/skills"
 fi
 additional_skill_roots=()
+if [[ ",$provider_list," == *,claude,* ]]; then
+  claude_skills="$claude_home/skills"
+  [[ "$provider_scope" == workspace ]] && claude_skills="$workspace_root/.claude/skills"
+  if [[ "$skills_root_explicit" == false && "$provider_list" == claude ]]; then skills_root="$claude_skills"; fi
+  [[ "$skills_root" == "$claude_skills" ]] || additional_skill_roots+=("$claude_skills")
+fi
 if [[ "$provider_scope" == global && ",$provider_list," == *,antigravity,* ]]; then
   antigravity_ide_skills="$gemini_home/config/skills"
   antigravity_cli_skills="$gemini_home/antigravity-cli/skills"
@@ -89,7 +98,7 @@ verify_component_evaluate() {
   fi
 }
 
-printf 'Afyx Codex Engineering Kit — readiness verification (Linux/macOS Bash)\n'
+printf 'Afyx Engineering Kit — readiness verification (Linux/macOS Bash)\n'
 for provider_id in $(afyx_provider_ids); do
   result INFO "Provider adapter: $(afyx_provider_field "$provider_id" name)" "primary=$(afyx_provider_field "$provider_id" primary); ownership=$(afyx_provider_field "$provider_id" ownership_class); capabilities=$(afyx_provider_field "$provider_id" capabilities); policy=$(afyx_provider_field "$provider_id" configuration_policy)"
 done
@@ -110,9 +119,9 @@ for additional_root in ${additional_skill_roots[@]+"${additional_skill_roots[@]}
     desired=false
     if [[ -n "$preset" ]]; then afyx_component_desired "$component_id" "$preset" "$custom_component_list" "$provider_list" && desired=true || :; elif [[ -e "$target" ]]; then desired=true; fi
     afyx_classify_skill "$target" "$component_id" afyx
-    if [[ "$AFYX_OWNERSHIP_STATE" == AFYX_OWNED_UNMODIFIED ]]; then result OK "Antigravity skill/$component_id" "$additional_root; ownership verified"
-    elif [[ "$desired" == true ]]; then result FAIL "Antigravity skill/$component_id" "$additional_root; $AFYX_OWNERSHIP_STATE"; core_failure=true
-    else result INFO "Antigravity skill/$component_id" "$additional_root; not selected"; fi
+    if [[ "$AFYX_OWNERSHIP_STATE" == AFYX_OWNED_UNMODIFIED ]]; then result OK "Provider skill/$component_id" "$additional_root; ownership verified"
+    elif [[ "$desired" == true ]]; then result FAIL "Provider skill/$component_id" "$additional_root; $AFYX_OWNERSHIP_STATE"; core_failure=true
+    else result INFO "Provider skill/$component_id" "$additional_root; not selected"; fi
   done
 done
 case "$(uname -s)" in Darwin) verify_os=macOS ;; Linux) verify_os=Linux ;; *) verify_os="$(uname -s)"; core_failure=true ;; esac
@@ -129,11 +138,28 @@ if command -v tar >/dev/null 2>&1 && { command -v shasum >/dev/null 2>&1 || comm
 codex_detected=false
 if command -v codex >/dev/null 2>&1; then
   codex_detected=true
-  if version="$(codex --version 2>/dev/null)"; then result OK 'Codex CLI' "$version"; else result FAIL 'Codex CLI' 'version command failed'; core_failure=true; fi
+  if version="$(codex --version 2>/dev/null)"; then result OK 'Codex CLI' "$version"; elif "$provider_explicit" && [[ ",$provider_list," == *,codex,* ]]; then result FAIL 'Codex CLI' 'selected host version command failed'; core_failure=true; else result WARN 'Codex CLI' 'version command failed (not selected)'; fi
 else result SKIP 'Codex CLI' 'PROVIDER_NOT_INSTALLED'; fi
 extension_detected=false
 for extension in "$HOME"/.vscode/extensions/openai.chatgpt-*; do [[ -d "$extension" ]] && { extension_detected=true; break; }; done
 if "$extension_detected"; then result OK 'VS Code extension' 'detected'; else result INFO 'VS Code extension' 'not detected'; fi
+if "$provider_explicit"; then
+  if [[ ",$provider_list," == *,codex,* ]] && ! "$codex_detected"; then
+    result FAIL 'Codex provider' 'selected native Codex CLI is unavailable; VS Code extension alone cannot register MCP'; core_failure=true
+  fi
+  if [[ ",$provider_list," == *,antigravity,* ]]; then
+    if command -v agy >/dev/null 2>&1 || command -v antigravity >/dev/null 2>&1; then
+      result OK 'Antigravity provider' 'compatible CLI detected'
+    else result FAIL 'Antigravity provider' 'selected CLI is unavailable'; core_failure=true; fi
+  fi
+  if [[ ",$provider_list," == *,claude,* ]]; then
+    claude_extension=false
+    for extension in "$HOME"/.vscode/extensions/anthropic.claude-code-* "$HOME"/.vscode-server/extensions/anthropic.claude-code-*; do [[ -d "$extension" ]] && { claude_extension=true; break; }; done
+    if command -v claude >/dev/null 2>&1 || "$claude_extension"; then
+      result OK 'Claude Code provider' 'CLI or supported VS Code extension detected'
+    else result FAIL 'Claude Code provider' 'selected CLI and extension are unavailable'; core_failure=true; fi
+  fi
+fi
 
 required_skill_ids='efficient-coding odoo-engineering'
 if [[ -n "$preset" ]]; then

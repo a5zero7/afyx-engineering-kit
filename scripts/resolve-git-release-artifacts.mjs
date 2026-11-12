@@ -22,6 +22,7 @@ import {
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { tmpdir } from 'node:os';
+import { verifyGraphArchivePaths } from './verify-graph-archive.mjs';
 
 const CANONICAL_REPO = 'a5zero7/afyx-engineering-kit';
 const GITHUB_API_BASE = `https://api.github.com/repos/${CANONICAL_REPO}`;
@@ -34,12 +35,40 @@ const REQUIRED_ARTIFACTS = Object.freeze([
   'afyx-graph-linux-x64.tar.gz',
 ]);
 
+export function validateReleaseChecksums(manifest, sumsText, revision) {
+  const archives = REQUIRED_ARTIFACTS.filter((name) => name.endsWith('.zip') || name.endsWith('.tar.gz'));
+  if (manifest?.source_revision !== revision || !Array.isArray(manifest.artifacts) ||
+      manifest.artifacts.length !== archives.length) throw new Error('Incomplete or stale Graph release manifest');
+  const entries = new Map();
+  for (const artifact of manifest.artifacts) {
+    if (!archives.includes(artifact?.file) || entries.has(artifact.file) ||
+        !/^[0-9a-f]{64}$/i.test(artifact.sha256 || '')) {
+      throw new Error('Unsafe or duplicate Graph release manifest artifact');
+    }
+    entries.set(artifact.file, artifact.sha256.toLowerCase());
+  }
+  const sums = new Map();
+  for (const line of sumsText.trim().split(/\r?\n/)) {
+    const match = /^([0-9a-f]{64})  ([A-Za-z0-9._-]+)$/i.exec(line);
+    if (!match || !archives.includes(match[2]) || sums.has(match[2])) {
+      throw new Error('Unsafe, missing, or duplicate SHA256SUMS entry');
+    }
+    sums.set(match[2], match[1].toLowerCase());
+  }
+  for (const archive of archives) {
+    if (!entries.has(archive) || !sums.has(archive) || entries.get(archive) !== sums.get(archive)) {
+      throw new Error(`Missing or mismatched Graph checksum for ${archive}`);
+    }
+  }
+  return sums;
+}
+
 /**
  * Downloads a URL to a buffer over HTTPS with timeout and bounded retries.
  */
-async function fetchBuffer(url, { timeoutMs = 30000, maxRetries = 2, headers = {} } = {}) {
+async function fetchBuffer(url, { timeoutMs = 30000, maxAttempts = 2, headers = {} } = {}) {
   let lastError = null;
-  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeoutMs);
     try {
@@ -59,7 +88,7 @@ async function fetchBuffer(url, { timeoutMs = 30000, maxRetries = 2, headers = {
     } catch (err) {
       clearTimeout(timer);
       lastError = err;
-      if (attempt < maxRetries) {
+      if (attempt < maxAttempts) {
         await new Promise((r) => setTimeout(r, 1000 * attempt));
       }
     }
@@ -143,6 +172,14 @@ export async function resolveAndStageGitReleaseArtifacts(root, revision, options
   if (!revision || !/^[0-9a-f]{40}$/.test(revision)) {
     throw new Error(`Valid 40-character Git commit SHA is required (got: "${revision}")`);
   }
+  const fetchArtifact = options.fetchBuffer || fetchBuffer;
+  const apiBase = options.apiBase || GITHUB_API_BASE;
+  const downloadBase = options.downloadBase || GITHUB_DOWNLOAD_BASE;
+  const tagMatchesRevision = async (tag) => {
+    const raw = await fetchArtifact(`${apiBase}/commits/${encodeURIComponent(tag)}`,
+      { timeoutMs: 10000, maxAttempts: 1 });
+    return JSON.parse(raw.toString('utf8'))?.sha === revision;
+  };
 
   const releaseDir = join(root, 'afyx-graph', 'engine', 'release');
   mkdirSync(releaseDir, { recursive: true });
@@ -159,10 +196,10 @@ export async function resolveAndStageGitReleaseArtifacts(root, revision, options
 
     for (const tag of candidateTags) {
       try {
-        const manifestUrl = `${GITHUB_DOWNLOAD_BASE}/${tag}/RELEASE-MANIFEST.json`;
-        const buf = await fetchBuffer(manifestUrl, { timeoutMs: 10000, maxRetries: 1 });
+        const manifestUrl = `${downloadBase}/${tag}/RELEASE-MANIFEST.json`;
+        const buf = await fetchArtifact(manifestUrl, { timeoutMs: 10000, maxAttempts: 1 });
         const parsed = JSON.parse(buf.toString('utf8'));
-        if (parsed?.source_revision === revision) {
+        if (parsed?.source_revision === revision && await tagMatchesRevision(tag)) {
           resolvedTag = tag;
           manifestBuffer = buf;
           manifestObj = parsed;
@@ -173,17 +210,17 @@ export async function resolveAndStageGitReleaseArtifacts(root, revision, options
       }
     }
 
-    // 2. If candidate tags didn't match, query GitHub releases list API to find matching target_commitish
+    // 2. Search release assets; target_commitish is not proof of the tag's target.
     if (!resolvedTag) {
       try {
-        const releasesBuf = await fetchBuffer(`${GITHUB_API_BASE}/releases`, { timeoutMs: 15000, maxRetries: 1 });
+        const releasesBuf = await fetchArtifact(`${apiBase}/releases`, { timeoutMs: 15000, maxAttempts: 1 });
         const releases = JSON.parse(releasesBuf.toString('utf8'));
         if (Array.isArray(releases)) {
           for (const rel of releases) {
-            if (rel.target_commitish === revision) {
+            if (rel.tag_name && await tagMatchesRevision(rel.tag_name)) {
               const manifestAsset = (rel.assets || []).find((a) => a.name === 'RELEASE-MANIFEST.json');
               if (manifestAsset) {
-                const buf = await fetchBuffer(manifestAsset.browser_download_url, { timeoutMs: 10000, maxRetries: 1 });
+                const buf = await fetchArtifact(manifestAsset.browser_download_url, { timeoutMs: 10000, maxAttempts: 1 });
                 const parsed = JSON.parse(buf.toString('utf8'));
                 if (parsed?.source_revision === revision) {
                   resolvedTag = rel.tag_name;
@@ -211,24 +248,19 @@ export async function resolveAndStageGitReleaseArtifacts(root, revision, options
     writeFileSync(join(tempStage, 'RELEASE-MANIFEST.json'), manifestBuffer);
 
     // 3. Download SHA256SUMS
-    const sumsUrl = `${GITHUB_DOWNLOAD_BASE}/${resolvedTag}/SHA256SUMS`;
-    const sumsBuf = await fetchBuffer(sumsUrl);
+    const sumsUrl = `${downloadBase}/${resolvedTag}/SHA256SUMS`;
+    const sumsBuf = await fetchArtifact(sumsUrl);
     writeFileSync(join(tempStage, 'SHA256SUMS'), sumsBuf);
 
     const sumsContent = sumsBuf.toString('utf8').trim();
-    const expectedSums = new Map();
-    for (const line of sumsContent.split(/\r?\n/)) {
-      const parts = line.trim().split(/\s+/);
-      if (parts.length >= 2) {
-        expectedSums.set(parts[1], parts[0].toLowerCase());
-      }
-    }
+    const expectedSums = validateReleaseChecksums(manifestObj, sumsContent, revision);
 
     // 4. Download and verify each required archive
     const archivesToDownload = ['afyx-graph-win32-x64.zip', 'afyx-graph-linux-x64.tar.gz'];
     for (const archiveName of archivesToDownload) {
-      const archiveUrl = `${GITHUB_DOWNLOAD_BASE}/${resolvedTag}/${archiveName}`;
-      const archiveBuf = await fetchBuffer(archiveUrl, { timeoutMs: 60000 });
+      const archiveUrl = `${downloadBase}/${resolvedTag}/${archiveName}`;
+      const archiveBuf = await fetchArtifact(archiveUrl, { timeoutMs: 60000 });
+      verifyGraphArchivePaths(archiveBuf, archiveName);
 
       // Verify SHA256 against SHA256SUMS and manifest
       const computedSha = createHash('sha256').update(archiveBuf).digest('hex').toLowerCase();
@@ -242,7 +274,7 @@ export async function resolveAndStageGitReleaseArtifacts(root, revision, options
         );
       }
       const sumEntry = expectedSums.get(archiveName);
-      if (sumEntry && computedSha !== sumEntry) {
+      if (computedSha !== sumEntry) {
         throw new Error(
           `Checksum mismatch for ${archiveName} against SHA256SUMS: expected ${sumEntry}, got ${computedSha}`
         );

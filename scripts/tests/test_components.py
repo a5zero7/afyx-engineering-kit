@@ -129,7 +129,7 @@ class ComponentContractTests(unittest.TestCase):
     def test_skill_healthy_and_versioned(self) -> None:
         self.install_skill("efficient-coding")
         for shell, states in self.shells().items():
-            self.assertEqual(states["efficient-coding"], ("HEALTHY", "1.2.1"), shell)
+            self.assertEqual(states["efficient-coding"], ("HEALTHY", "1.2.2"), shell)
 
     def test_skill_incomplete_when_a_reference_is_missing(self) -> None:
         (self.install_skill("efficient-coding") / "references" / "tool-routing.md").unlink()

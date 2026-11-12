@@ -109,7 +109,7 @@ class DoctorTests(unittest.TestCase):
     def test_healthy_core_is_reported_with_versions(self) -> None:
         self.install_core()
         for shell, (_code, out) in self.doctors().items():
-            self.assertIn("[OK] Efficient Coding — 1.2.1", out, shell)
+            self.assertIn("[OK] Efficient Coding — 1.2.2", out, shell)
             self.assertIn("[OK] Odoo Engineering — 1.2.0", out, shell)
             self.assertNotIn("[FAIL] Efficient Coding", out, shell)
 
