@@ -51,12 +51,23 @@ try {
         if (-not (Test-Path -LiteralPath $from)) { throw "Committed source is missing required package item: $item" }
         Copy-Item -LiteralPath $from -Destination (Join-Path $kitStage $item) -Recurse -Force
     }
+    $stageRoot = [IO.Path]::GetFullPath($kitStage).TrimEnd([IO.Path]::DirectorySeparatorChar) + [IO.Path]::DirectorySeparatorChar
+    foreach ($relative in @('scripts\tests', 'afyx-context\test', 'afyx-context\benchmark',
+        'afyx-forge\test', 'tools\codex-usage\tests')) {
+        $target = [IO.Path]::GetFullPath((Join-Path $kitStage $relative))
+        if (-not $target.StartsWith($stageRoot, [StringComparison]::OrdinalIgnoreCase)) { throw 'Unsafe staging path' }
+        if (Test-Path -LiteralPath $target) { Remove-Item -LiteralPath $target -Recurse -Force }
+    }
     $graphStage = Join-Path $kitStage 'afyx-graph'
     [IO.Directory]::CreateDirectory($graphStage) | Out-Null
     Copy-Item -LiteralPath (Join-Path $sourceDir 'afyx-graph\afyx-graph.json') -Destination $graphStage
     $engineStage = Join-Path $graphStage 'engine'
     [IO.Directory]::CreateDirectory($engineStage) | Out-Null
-    Copy-Item -LiteralPath (Join-Path $sourceDir 'afyx-graph\engine\scripts') -Destination $engineStage -Recurse
+    $engineScripts = Join-Path $engineStage 'scripts'
+    [IO.Directory]::CreateDirectory($engineScripts) | Out-Null
+    foreach ($name in @('distribution-contract.mjs', 'distribution-product.json')) {
+        Copy-Item -LiteralPath (Join-Path $sourceDir "afyx-graph\engine\scripts\$name") -Destination $engineScripts
+    }
     $releaseStage = Join-Path $engineStage 'release'
     [IO.Directory]::CreateDirectory($releaseStage) | Out-Null
     foreach ($name in @('afyx-graph-win32-x64.zip', 'RELEASE-MANIFEST.json', 'SHA256SUMS')) {
@@ -86,6 +97,12 @@ try {
             "afyx-engineering-kit/verify.ps1", "afyx-engineering-kit/afyx-graph/engine/release/afyx-graph-win32-x64.zip")
         foreach ($entryName in $required) {
             if (-not $zip.GetEntry($entryName)) { throw "Release ZIP is missing $entryName" }
+        }
+        foreach ($forbidden in @('scripts/tests/', 'afyx-context/test/', 'afyx-context/benchmark/',
+            'afyx-forge/test/', 'tools/codex-usage/tests/', 'afyx-graph/engine/scripts/tests/')) {
+            if ($zip.Entries.FullName | Where-Object { $_.StartsWith("afyx-engineering-kit/$forbidden", [StringComparison]::OrdinalIgnoreCase) }) {
+                throw "Development fixture leaked into release ZIP: $forbidden"
+            }
         }
         $reader = [IO.StreamReader]::new($zip.GetEntry($required[0]).Open())
         try { if ($reader.ReadToEnd().Trim() -cne $Revision) { throw 'Packed revision marker mismatch' } }
