@@ -86,6 +86,17 @@ if [[ "$provider_explicit" == false && -t 0 && -t 1 && -z "${CI:-}" ]]; then
   esac
 fi
 
+# An implicit provider is optional when its host is absent. Explicit selections
+# still fail the host preflight below instead of silently skipping registration.
+if [[ "$provider_explicit" == false && "$provider_list" == codex && "$skip_provider_configuration" == false ]] &&
+   ! command -v codex >/dev/null 2>&1; then
+  codex_extension_present=false
+  for extension in "$HOME"/.vscode/extensions/openai.chatgpt-*; do
+    [[ -d "$extension" ]] && { codex_extension_present=true; break; }
+  done
+  if ! "$codex_extension_present"; then skip_provider_configuration=true; fi
+fi
+
 case "$provider_scope" in global|workspace) ;; *) printf 'Unknown provider scope: %s\n' "$provider_scope" >&2; exit 2 ;; esac
 old_ifs=$IFS; IFS=','
 for provider_id in $provider_list; do case "$provider_id" in codex|antigravity|claude) ;; *) printf 'Unknown provider: %s\n' "$provider_id" >&2; exit 2 ;; esac; done
@@ -153,6 +164,10 @@ component_version() { afyx_component_evaluate "$1"; printf '%s' "$AFYX_VERSION";
 run() { if "$dry_run"; then printf '+ '; printf '%q ' "$@"; printf '\n'; else "$@"; fi; }
 interactive=false
 if [[ -t 0 && -z "${CI:-}" ]] && ! "$dry_run"; then interactive=true; fi
+if [[ -z "$preset" && "$component_action_count" -eq 0 && "$interactive" == false &&
+      "$validate_only" == false && "$update_installed" == false && "$force" == false ]]; then
+  preset=recommended
+fi
 
 available_version() {
   case "$1" in
@@ -331,7 +346,7 @@ if [[ -n "$preset" ]]; then
   done
 fi
 printf '\nProvider Plan\n'
-if "$skip_provider_configuration"; then printf 'Provider configuration: skipped explicitly\n'; fi
+if "$skip_provider_configuration"; then printf 'Provider configuration: skipped (requested or no implicit host)\n'; fi
 old_ifs=$IFS; IFS=','
 for provider_id in $provider_list; do
   if [[ "$provider_id" == codex ]]; then
