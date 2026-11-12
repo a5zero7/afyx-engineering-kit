@@ -96,16 +96,41 @@ $explicitSelection = @(
 )
 $wizardMode = $terminal.Interactive -and -not $ValidateOnly -and -not $WhatIfPreference -and -not $env:CI -and $explicitSelection.Count -eq 0
 if ($wizardMode) {
-    $providerSnapshot = @(
-        "Codex: $(if ($codexCommandDetected) { 'CLI detected' } else { 'CLI unavailable' })"
-        "Antigravity: $(if ($antigravityCommandDetected) { 'CLI detected' } elseif ($antigravityIdeDetected) { 'IDE only' } else { 'unavailable' })"
-        "Claude Code: $(switch ($claudeAvailabilityState) {
-            'CLI_AND_EXTENSION' { 'CLI and extension detected' }
-            'CLI_AVAILABLE' { 'CLI detected' }
-            'EXTENSION_ONLY' { 'VS Code extension only' }
-            default { 'unavailable' }
-        })"
-    )
+    $inventoryNode = Get-Command node -ErrorAction SilentlyContinue
+    $providerInventory = @()
+    if ($inventoryNode) {
+        $inventoryJson = & $inventoryNode.Source (Join-Path $packageRoot 'scripts\afyx-provider-inventory.mjs')
+        if ($LASTEXITCODE -eq 0 -and $inventoryJson) {
+            $providerInventory = @($inventoryJson | ConvertFrom-Json)
+        }
+    }
+    if ($providerInventory.Count) {
+        $codexProduct = $providerInventory | Where-Object { $_.id -eq 'codex' } | Select-Object -First 1
+        $claudeProduct = $providerInventory | Where-Object { $_.id -eq 'claude' } | Select-Object -First 1
+        $antigravityProduct = $providerInventory | Where-Object { $_.id -eq 'antigravity' } | Select-Object -First 1
+        $vscodeExtensionDetected = @($codexProduct.products | Where-Object { $_.type -eq 'VS Code Extension' }).Count -gt 0
+        $claudeVsCodeDetected = @($claudeProduct.products | Where-Object { $_.type -eq 'VS Code Extension' }).Count -gt 0
+        $antigravityIdeDetected = @($antigravityProduct.products | Where-Object { $_.type -eq 'IDE/Desktop' }).Count -gt 0
+        $claudeAvailabilityState = if ($claudeCommandDetected -and $claudeVsCodeDetected) { 'CLI_AND_EXTENSION' }
+            elseif ($claudeCommandDetected) { 'CLI_AVAILABLE' }
+            elseif ($claudeVsCodeDetected) { 'EXTENSION_ONLY' }
+            else { 'UNAVAILABLE' }
+    }
+    $providerSnapshot = @()
+    foreach ($entry in @($providerInventory | Where-Object { $_.supported })) {
+        $providerSnapshot += [string]$entry.name
+        if (-not @($entry.products).Count) { $providerSnapshot += '  - Unavailable' }
+        foreach ($product in @($entry.products)) {
+            $versionLabel = if ($product.version) { " · $($product.version)" } else { '' }
+            $providerSnapshot += "  + $($product.type) · Installed$versionLabel"
+        }
+    }
+    $otherDetected = @($providerInventory | Where-Object { -not $_.supported -and $_.installed })
+    if ($otherDetected.Count) {
+        $providerSnapshot += 'OTHER DETECTED'
+        foreach ($entry in $otherDetected) { $providerSnapshot += "  - $($entry.name) · $($entry.status)" }
+    }
+    if (-not $providerSnapshot.Count) { $providerSnapshot = @('Provider inventory unavailable') }
     Enable-AfyxDashboard -Terminal $terminal -Providers $providerSnapshot
 }
 if (-not (Test-AfyxDashboard -Terminal $terminal)) {
@@ -157,6 +182,11 @@ if ($wizardMode) {
             [pscustomobject]@{ Id = 'claude'; Label = 'Claude Code'; Detail = $claudeDetail; Enabled = $claudeEnabled },
             [pscustomobject]@{ Id = 'skip'; Label = 'Skip provider configuration'; Detail = 'skills/runtimes only; no MCP registration'; Enabled = $true }
         )
+        $supportedOptions = @($providerOptions | Where-Object { $_.Id -ne 'skip' })
+        $unsupportedOptions = @($providerInventory | Where-Object { -not $_.supported -and $_.installed } | ForEach-Object {
+            [pscustomobject]@{ Id = [string]$_.id; Label = [string]$_.name; Detail = "$($_.status) · no AFYX provider configuration"; Enabled = $false }
+        })
+        $providerOptions = @($supportedOptions + $unsupportedOptions | Sort-Object -Property Label) + @($providerOptions | Where-Object { $_.Id -eq 'skip' })
         $detectedProviderDefaults = @($providerOptions | Where-Object { $_.Enabled -and $_.Id -ne 'skip' } | ForEach-Object { $_.Id })
         if (-not $detectedProviderDefaults.Count) { $detectedProviderDefaults = @('skip') }
         $providerChoice = @(Read-AfyxMultiChoice -Prompt 'Select provider integrations' -Options $providerOptions -DefaultId $detectedProviderDefaults -Terminal $terminal)

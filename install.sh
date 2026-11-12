@@ -67,10 +67,16 @@ done
 
 if [[ "$provider_explicit" == false && -t 0 && -t 1 && -z "${CI:-}" ]]; then
   detected_providers=
-  command -v codex >/dev/null 2>&1 && detected_providers=codex
-  if command -v agy >/dev/null 2>&1 || command -v antigravity >/dev/null 2>&1; then detected_providers="${detected_providers:+$detected_providers,}antigravity"; fi
-  if command -v claude >/dev/null 2>&1; then detected_providers="${detected_providers:+$detected_providers,}claude"; fi
-  printf 'Provider hosts detected: %s\n' "${detected_providers:-none}"
+  if command -v node >/dev/null 2>&1; then
+    printf 'PROVIDERS / HOST\n'
+    node "$PACKAGE_ROOT/scripts/afyx-provider-inventory.mjs" --lines
+    detected_providers="$(node "$PACKAGE_ROOT/scripts/afyx-provider-inventory.mjs" --selected)"
+  else
+    if command -v agy >/dev/null 2>&1 || command -v antigravity >/dev/null 2>&1; then detected_providers=antigravity; fi
+    if command -v claude >/dev/null 2>&1; then detected_providers="${detected_providers:+$detected_providers,}claude"; fi
+    if command -v codex >/dev/null 2>&1; then detected_providers="${detected_providers:+$detected_providers,}codex"; fi
+    printf 'Provider hosts detected: %s\n' "${detected_providers:-none}"
+  fi
   read -r -p 'Provider selection: [A] All detected / [R] Recommended Codex / [C] Custom / [S] Skip [A]: ' provider_choice || provider_choice=
   case "$provider_choice" in
     [aA]|[aA][lL][lL]) provider_list="${detected_providers:-codex}" ;;
