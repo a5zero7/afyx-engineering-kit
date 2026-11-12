@@ -71,7 +71,14 @@ try {
     Get-ChildItem -LiteralPath $kitStage -Recurse -Force | ForEach-Object { $_.LastWriteTimeUtc = $timestamp }
     (Get-Item -LiteralPath $kitStage).LastWriteTimeUtc = $timestamp
     Add-Type -AssemblyName System.IO.Compression.FileSystem
-    [IO.Compression.ZipFile]::CreateFromDirectory($kitStage, $tempZip, [IO.Compression.CompressionLevel]::Optimal, $true)
+    $writer = [IO.Compression.ZipFile]::Open($tempZip, [IO.Compression.ZipArchiveMode]::Create)
+    try {
+        foreach ($file in (Get-ChildItem -LiteralPath $kitStage -Recurse -Force -File | Sort-Object FullName)) {
+            $relative = $file.FullName.Substring($kitStage.Length).TrimStart([char[]]@('\', '/')).Replace('\', '/')
+            $entryName = "afyx-engineering-kit/$relative"
+            [IO.Compression.ZipFileExtensions]::CreateEntryFromFile($writer, $file.FullName, $entryName, [IO.Compression.CompressionLevel]::Optimal) | Out-Null
+        }
+    } finally { $writer.Dispose() }
     $zip = [IO.Compression.ZipFile]::OpenRead($tempZip)
     try {
         $required = @("afyx-engineering-kit/.afyx-source-revision", "afyx-engineering-kit/install.ps1",
