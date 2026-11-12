@@ -70,6 +70,7 @@ try {
     $timestamp = [datetime]::SpecifyKind([datetime]'2020-01-01', [DateTimeKind]::Utc)
     Get-ChildItem -LiteralPath $kitStage -Recurse -Force | ForEach-Object { $_.LastWriteTimeUtc = $timestamp }
     (Get-Item -LiteralPath $kitStage).LastWriteTimeUtc = $timestamp
+    Add-Type -AssemblyName System.IO.Compression
     Add-Type -AssemblyName System.IO.Compression.FileSystem
     $writer = [IO.Compression.ZipFile]::Open($tempZip, [IO.Compression.ZipArchiveMode]::Create)
     try {
