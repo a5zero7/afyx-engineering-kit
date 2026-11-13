@@ -85,7 +85,10 @@ describe('MCP public semantic contract', () => {
     expect(REGISTERED_TOOL_NAMES).toEqual(EXPECTED_TOOL_NAMES);
     expect(catalogMatchesRegistry(tools)).toBe(true);
     expect(createHash('sha256').update(JSON.stringify(tools)).digest('hex'))
-      .toBe('abc1da85b7fea6dd50defb57894416919ca0f8da6729e439e4a844cb5a267fe3');
+      .toBe('dc1460426607b144a50efe2f03df2d9241716a5c4b71b7723d94dd1dfcf75f2a');
+    const technicalContract = JSON.parse(JSON.stringify(tools, (key, value) => key === 'description' ? undefined : value));
+    expect(createHash('sha256').update(JSON.stringify(technicalContract)).digest('hex'))
+      .toBe('54bac2ebbf9555b85a2c2dc3ff3fdf436a9f8de2e07e94a126330a934a5a808a');
 
     delete process.env[MCP_TOOLS_ENV];
     expect(getStaticTools().map((tool) => tool.name)).toEqual(['afyx_graph_inventory', 'afyx_graph_explore']);

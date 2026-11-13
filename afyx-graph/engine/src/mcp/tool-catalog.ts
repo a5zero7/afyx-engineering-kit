@@ -54,7 +54,7 @@ export interface ToolResult {
 const projectPathProperty: PropertySchema = {
   type: 'string',
   description:
-    "Absolute path to the project to query (or any directory inside it) — afyx-graph uses the nearest .afyx-graph/ index at or above that path. Omit to use this session's default project. Pass it to query a second codebase, or when the server root has no index of its own (e.g. a monorepo where only sub-projects are indexed, so there is no default project).",
+    "Absolute path selecting an indexed project. Omission uses the server's resolved project root.",
 };
 
 const READ_ONLY_ANNOTATIONS: ToolAnnotations = {
@@ -86,25 +86,26 @@ function readOnlyTool(
 
 /**
  * Canonical public wire schema catalog for Afyx Graph MCP tools.
- * Field ordering and descriptions form the frozen MCP semantic contract.
+ * Protocol fields retain their compatibility contract. Descriptive guidance is
+ * authored for AFYX and versioned separately from technical schema constraints.
  */
 export const AFYX_MCP_TOOL_CATALOG: ToolDefinition[] = [
   readOnlyTool(
     'afyx_graph_search',
-    'Quick ranked symbol-metadata search by name. Returns bounded locations only (no code), not an exhaustive source-text or declaration inventory; truncated responses say how to widen them. Use afyx_graph_explore instead to get the actual source / understand an area in one call.',
+    "Locate indexed symbols matching a supplied name. The response contains a bounded set of ranked locations rather than every source occurrence. Request source and relationships with afyx_graph_explore; use afyx_graph_inventory for supported exhaustive declaration listings.",
     {
       query: {
         type: 'string',
-        description: 'Symbol name or partial name (e.g., "auth", "signIn", "UserService")',
+        description: "Name fragment used to rank indexed symbols; for example, session or UserService.",
       },
       kind: {
         type: 'string',
-        description: 'Filter by node kind',
+        description: "Return only symbols of this indexed node category.",
         enum: ['function', 'method', 'class', 'interface', 'type', 'variable', 'route', 'component'],
       },
       limit: {
         type: 'number',
-        description: 'Maximum displayed results (default: 10, maximum: 100). The response reports when more ranked matches exist.',
+        description: "Response location cap: 10 by default, at most 100. The response identifies additional ranked matches.",
         default: 10,
       },
       projectPath: projectPathProperty,
@@ -113,28 +114,28 @@ export const AFYX_MCP_TOOL_CATALOG: ToolDefinition[] = [
   ),
   readOnlyTool(
     'afyx_graph_inventory',
-    'Exact, bounded inventory of indexed Python class assignments with a source-grounded literal value. Use for exhaustive count/list questions such as classes declaring `_inherit = "sale.order"`; unlike ranked search, it reports total matches, pagination, index coverage, unsupported expressions, and exclusions. Static source facts do not imply the Odoo runtime registry.',
+    "Enumerate indexed class assignments for an exact assignment key and string value. Pagination and completeness are explicit in the result. Facts outside this indexed assignment model require direct source inspection.",
     {
       declaration: {
         type: 'string',
-        description: 'Exact class-assignment name, for example `_inherit` or `_name`.',
+        description: "Class assignment key to match exactly, such as _inherit or _name.",
       },
       value: {
         type: 'string',
-        description: 'Exact string literal value to enumerate, for example `sale.order`.',
+        description: "String value to match exactly, such as sale.order.",
       },
       path: {
         type: 'string',
-        description: 'Optional project-relative scope such as `addons` or `src/addons`.',
+        description: "Optional repository-relative subtree containing the declarations.",
       },
       offset: {
         type: 'number',
-        description: 'Zero-based result offset for bounded pagination (default: 0).',
+        description: "Number of matching declarations to omit before this page; starts at 0.",
         default: 0,
       },
       limit: {
         type: 'number',
-        description: 'Maximum declarations returned (default: 100, maximum: 200). A truncated page is explicitly marked incomplete.',
+        description: "Page capacity: 100 by default, at most 200. A partial page is identified as incomplete.",
         default: 100,
       },
       projectPath: projectPathProperty,
@@ -143,19 +144,19 @@ export const AFYX_MCP_TOOL_CATALOG: ToolDefinition[] = [
   ),
   readOnlyTool(
     'afyx_graph_callers',
-    'List functions that call <symbol>. For the full flow, use afyx_graph_explore.',
+    "List indexed incoming call relationships for a selected definition. A file selector resolves names shared by several definitions. The response limit bounds the displayed relationships.",
     {
       symbol: {
         type: 'string',
-        description: 'Name of the function, method, or class to find callers for',
+        description: "Indexed definition name whose incoming calls should be inspected.",
       },
       file: {
         type: 'string',
-        description: 'Narrow to the definition in this file (path or suffix) when several same-named symbols exist (e.g. one UserService per app in a monorepo)',
+        description: "Repository path or path suffix selecting the intended definition when names overlap.",
       },
       limit: {
         type: 'number',
-        description: 'Maximum number of callers to return (default: 20)',
+        description: "Upper bound on displayed incoming callers; defaults to 20.",
         default: 20,
       },
       projectPath: projectPathProperty,
@@ -164,19 +165,19 @@ export const AFYX_MCP_TOOL_CATALOG: ToolDefinition[] = [
   ),
   readOnlyTool(
     'afyx_graph_callees',
-    'List functions that <symbol> calls. For the full flow, use afyx_graph_explore.',
+    "Follow indexed outgoing call relationships from a selected definition. Supply a file selector when several definitions share the requested name.",
     {
       symbol: {
         type: 'string',
-        description: 'Name of the function, method, or class to find callees for',
+        description: "Indexed definition name whose outgoing calls should be inspected.",
       },
       file: {
         type: 'string',
-        description: 'Narrow to the definition in this file (path or suffix) when several same-named symbols exist',
+        description: "Repository path or suffix selecting one of the matching definitions.",
       },
       limit: {
         type: 'number',
-        description: 'Maximum number of callees to return (default: 20)',
+        description: "Upper bound on displayed outgoing callees; defaults to 20.",
         default: 20,
       },
       projectPath: projectPathProperty,
@@ -185,19 +186,19 @@ export const AFYX_MCP_TOOL_CATALOG: ToolDefinition[] = [
   ),
   readOnlyTool(
     'afyx_graph_impact',
-    'List symbols affected by changing <symbol>. Use before a refactor.',
+    "Trace dependency reach from a symbol when reviewing a proposed change. File selection identifies the definition, and depth bounds traversal. Interpret heuristic relationships using the evidence returned with them.",
     {
       symbol: {
         type: 'string',
-        description: 'Name of the symbol to analyze impact for',
+        description: "Starting definition for dependency impact traversal.",
       },
       file: {
         type: 'string',
-        description: 'Narrow to the definition in this file (path or suffix) when several same-named symbols exist',
+        description: "Path or suffix identifying the starting definition when its name is ambiguous.",
       },
       depth: {
         type: 'number',
-        description: 'How many levels of dependencies to traverse (default: 2)',
+        description: "Traversal distance in relationship levels; defaults to 2.",
         default: 2,
       },
       projectPath: projectPathProperty,
@@ -206,37 +207,37 @@ export const AFYX_MCP_TOOL_CATALOG: ToolDefinition[] = [
   ),
   readOnlyTool(
     'afyx_graph_node',
-    'Two modes. (1) READ A FILE — use INSTEAD of the Read tool: pass `file` (a path or basename) with no `symbol` and it returns that file\'s current on-disk source with line numbers, exactly the shape Read gives you (`<n>\\t<line>`, safe to Edit from), narrowable with `offset`/`limit` just like Read — PLUS a one-line note of which files depend on it. Same bytes as Read, faster (served from the index), with the blast radius attached. Use it whenever you would Read a source file. (2) ONE SYMBOL you can name — its location, signature, verbatim source (includeCode=true) and caller/callee trail in one call, so before changing it you see what calls it and what your edit would break. For an AMBIGUOUS name it returns EVERY matching definition\'s body in one call (so you never Read a file to find the right overload); pass `file`/`line` to pin one. Use afyx_graph_explore for several related symbols or the full flow.',
+    "Read current source by file or inspect named definitions. A file without symbol returns numbered source lines and dependent-file context; offset and limit select a window of up to 2000 lines. Symbol requests return declaration details and relationships, including multiple matching definitions unless file or line narrows the request. includeCode enables symbol source; symbolsOnly selects a structural file overview. Use afyx_graph_explore for questions spanning several symbols.",
     {
       symbol: {
         type: 'string',
-        description: 'Name of the symbol to read (symbol mode). Omit it and pass `file` alone to read a whole file like Read.',
+        description: "Definition name to inspect. Leave unset when requesting source through file alone.",
       },
       includeCode: {
         type: 'boolean',
-        description: 'Symbol mode: include the symbol\'s full body (default: false). Ignored in file mode, which always returns source unless `symbolsOnly` is set.',
+        description: "Include source text with a symbol result; defaults to false. File requests include source unless symbolsOnly is enabled.",
         default: false,
       },
       file: {
         type: 'string',
-        description: 'A file path or basename (e.g. "harness.rs", "src/auth/session.ts"). Pass it ALONE (no symbol) to READ the file like the Read tool — its full source with line numbers + which files depend on it. Or pass it WITH a symbol to disambiguate an overloaded name to the definition in this file.',
+        description: "Repository file path or basename. Without symbol this selects file reading; with symbol it selects a definition in that file.",
       },
       offset: {
         type: 'number',
-        description: 'File mode: 1-based line to start reading from, exactly like Read\'s offset. Defaults to the start of the file.',
+        description: "First requested source line, using 1-based numbering. File requests begin at line 1 when omitted.",
       },
       limit: {
         type: 'number',
-        description: 'File mode: maximum number of lines to return, exactly like Read\'s limit. Defaults to the whole file (capped at 2000 lines, like Read).',
+        description: "Maximum source lines in a file request. Omission selects the file subject to the 2000-line response bound.",
       },
       symbolsOnly: {
         type: 'boolean',
-        description: 'File mode: return just the file\'s symbol map + dependents (a cheap structural overview) instead of its source.',
+        description: "Return the selected file's indexed symbol outline and dependents instead of source text; defaults to false.",
         default: false,
       },
       line: {
         type: 'number',
-        description: 'Symbol mode only: disambiguate to the definition at/around this line (use with the file:line a trail showed you).',
+        description: "Source line used with a symbol request to select a nearby definition.",
       },
       projectPath: projectPathProperty,
     },
@@ -244,15 +245,15 @@ export const AFYX_MCP_TOOL_CATALOG: ToolDefinition[] = [
   ),
   readOnlyTool(
     'afyx_graph_explore',
-    'Ranked relational/source exploration for how code works, architecture, flow, impact, or an area being changed. Returns verbatim source of relevant symbols grouped by file in one capped call plus paths among them. It is intentionally ranked and bounded: NEVER use it as an exhaustive declaration inventory; use afyx_graph_inventory for supported exact class-assignment counts/lists, or direct source inspection when the requested fact is unsupported or index coverage is limited.',
+    "Gather relevant source excerpts and indexed relationships for a question about code structure, execution flow, or change impact. Ranking chooses what fits the response budget, so the result cannot establish exhaustive counts. Use inventory for supported assignment enumerations and direct source for facts outside index coverage.",
     {
       query: {
         type: 'string',
-        description: 'Symbol names, file names, or short code terms for ranked relational exploration. For a flow question, name the symbols spanning the flow. A natural-language question works too; exact inventory/count requests belong to afyx_graph_inventory.',
+        description: "Names, paths, code terms, or a question describing the area to investigate. Include participating symbols for a flow investigation. Exact assignment enumeration belongs in afyx_graph_inventory.",
       },
       maxFiles: {
         type: 'number',
-        description: 'Maximum number of files to include source code from (default: 12)',
+        description: "Source-file capacity for this response; defaults to 12.",
         default: 12,
       },
       projectPath: projectPathProperty,
@@ -262,37 +263,37 @@ export const AFYX_MCP_TOOL_CATALOG: ToolDefinition[] = [
   ),
   readOnlyTool(
     'afyx_graph_status',
-    'Index health check (files / nodes / edges). Skip unless debugging.',
+    "Inspect the selected project's index counts and readiness when diagnosing indexing or query problems.",
     {
       projectPath: projectPathProperty,
     },
   ),
   readOnlyTool(
     'afyx_graph_files',
-    'Indexed file tree with language + symbol counts. Faster than Glob for project layout.',
+    "Browse indexed repository paths with optional filtering, language and symbol metadata, and selectable grouping. Filesystem tools remain authoritative for paths absent from the index.",
     {
       path: {
         type: 'string',
-        description: 'Filter to files under this directory path (e.g., "src/components"). Returns all files if not specified.',
+        description: "Repository-relative directory restricting the returned file paths. Omission searches the indexed repository.",
       },
       pattern: {
         type: 'string',
-        description: 'Filter files matching this glob pattern (e.g., "*.tsx", "**/*.test.ts")',
+        description: "Glob restriction for file paths, such as *.tsx or **/*.test.ts.",
       },
       format: {
         type: 'string',
-        description: 'Output format: "tree" (hierarchical, default), "flat" (simple list), "grouped" (by language)',
+        description: "Presentation style: tree for hierarchy, flat for a list, or grouped for language groups. Defaults to tree.",
         enum: ['tree', 'flat', 'grouped'],
         default: 'tree',
       },
       includeMetadata: {
         type: 'boolean',
-        description: 'Include file metadata like language and symbol count (default: true)',
+        description: "Attach indexed language and symbol-count information; defaults to true.",
         default: true,
       },
       maxDepth: {
         type: 'number',
-        description: 'Maximum directory depth to show (default: unlimited)',
+        description: "Directory depth bound for the displayed tree. Omission leaves depth unrestricted.",
       },
       projectPath: projectPathProperty,
     },

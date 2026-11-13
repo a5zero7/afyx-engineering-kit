@@ -22,9 +22,9 @@ export function formatStaleBanner(pendingFiles: PendingFile[]): string {
     return `  - ${file.path} (edited ${elapsedMs}ms ago, ${state})`;
   });
   return [
-    '⚠️ Some files referenced below were edited since the last index sync — their afyx-graph entries may be stale:',
+    '⚠️ Potentially stale index entries: pending source edits affect these files:',
     ...entries,
-    'For accurate content of those specific files, Read them directly. The rest of this response is fresh.',
+    'Read them directly to confirm current source before applying a change. Other returned locations have no pending-file warning.',
   ].join('\n');
 }
 
@@ -45,9 +45,9 @@ export function formatStaleFooter(otherPending: PendingFile[]): string {
 /** Builds the top-level notice emitted when live file watching has halted. */
 export function formatDegradedBanner(reason: string | null): string {
   const base =
-    '⚠️ Afyx Graph auto-sync is DISABLED — live file watching stopped, so the index is ' +
-    'frozen and any file edited since then is stale here. Read files directly to confirm ' +
-    'current content before relying on it.';
+    '⚠️ Afyx Graph auto-sync is DISABLED. A live watcher is no longer reconciling ' +
+    'source edits with this index. Read files directly before trusting ' +
+    'the returned source locations.';
   return reason ? `${base}\n  Reason: ${reason}` : base;
 }
 

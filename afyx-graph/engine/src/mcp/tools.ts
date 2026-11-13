@@ -187,9 +187,7 @@ export class ToolHandler {
         visible = visible.filter((def) => TINY_REPO_TOOL_NAMES.has(def.name));
       }
       const advice =
-        ` Exploration guidance — advisory only, NOT a quota: ~${budget} focused calls ` +
-        `usually cover this project (${stats.fileCount.toLocaleString()} files indexed), ` +
-        'and extra calls are never rejected or rate-limited.';
+        ` Source-selection estimate (advisory only, NOT a quota): ${budget} focused calls for ${stats.fileCount.toLocaleString()} indexed files. Further calls remain available.`;
       return visible.map((def) =>
         def.name === 'afyx_graph_explore'
           ? { ...def, description: `${def.description}${advice}` }
@@ -283,9 +281,9 @@ export class ToolHandler {
       ]);
       if (result === 'timeout') {
         process.stderr.write(
-          `[Afyx Graph MCP] Catch-up reconcile still running after ${timeoutMs}ms; ` +
+          `[Afyx Graph MCP] Catch-up reconciliation exceeded the wait window of ${timeoutMs}ms; ` +
             'serving this tool call now and finishing the reconcile in the background. ' +
-            'Set AFYX_GRAPH_CATCHUP_GATE_TIMEOUT_MS=0 to always wait for it.\n',
+            'Use AFYX_GRAPH_CATCHUP_GATE_TIMEOUT_MS=0 when reconciliation must complete before serving.\n',
         );
       }
     } finally {
@@ -338,27 +336,23 @@ export class ToolHandler {
     );
     return (
       `Indexed sub-projects were found below it: ${displayPaths.join(', ')} — ` +
-      'pass one of them (absolute, or resolved against that directory) as projectPath.\n'
+      'Select one with projectPath; use an absolute path or resolve it from the discovery directory.\n'
     );
   }
 
   private buildMissingDefaultError(): NotIndexedError {
     const searched = this.defaultProjectHint ?? process.cwd();
-    return new NotIndexedError(
-      'No Afyx Graph project is loaded for this session.\n' +
-        `Searched for a .afyx-graph/ directory starting from: ${searched}\n` +
-        this.formatSubprojectHint() +
-        'Either the server root has no index of its own (e.g. a monorepo where only ' +
-        'sub-projects are indexed), or the MCP client launched the server outside your ' +
-        'project without reporting the workspace root. Either way, target the project ' +
-        'explicitly:\n' +
-        '  • Pass projectPath to the tool call, e.g. projectPath: "/absolute/path/to/your/project" ' +
-        '(any project that has a .afyx-graph/ — including a sub-project of a monorepo)\n' +
-        '  • Or add --path to the server\'s MCP config args: ["serve", "--mcp", "--path", "/absolute/path/to/your/project"]\n' +
-        'If a project simply has no index, use your built-in tools (Read/Grep/Glob) for THAT ' +
-        "project (the user can run 'afyx-graph init' there to enable it) — you can still query " +
-        'other indexed projects by projectPath in the same session.',
-    );
+    const guidance = [
+      'No Afyx Graph project is loaded for this session.',
+      `Root discovery started at: ${searched}`,
+      this.formatSubprojectHint().trimEnd(),
+      'The launch directory may lack an index, or the client may not have supplied its workspace root.',
+      'Pass projectPath to select an indexed project explicitly. An absolute directory avoids ambiguity; relative paths use the server root.',
+      'For a fixed server project, configure arguments such as ["serve", "--mcp", "--path", "/absolute/project"].',
+      'Use built-in tools (Read/Grep/Glob) for source that has no index. A user can prepare one with afyx-graph init.',
+      'The same session can query another indexed project by supplying its projectPath.',
+    ];
+    return new NotIndexedError(guidance.filter(Boolean).join('\n'));
   }
 
   private getAfyxGraph(projectPath?: string): AfyxGraph {
@@ -398,8 +392,8 @@ export class ToolHandler {
     try {
       if (graph.reopenIfReplaced()) {
         process.stderr.write(
-          '[Afyx Graph MCP] The index was replaced on disk (e.g. a git worktree ' +
-            'recreated at the same path); reopened the live database in place.\n',
+          '[Afyx Graph MCP] A replacement index was detected for this project root; ' +
+            'the active database connection was reopened.\n',
         );
       }
     } catch {

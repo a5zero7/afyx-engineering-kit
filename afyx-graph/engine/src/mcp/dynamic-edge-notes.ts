@@ -27,7 +27,7 @@ const EDGE_NOTE_TABLE: Record<string, Formatter> = {
   'http-client'(meta, atSuffix) {
     const endpoint = `${rawText(meta.method, 'GET')} ${rawText(meta.href)}`.trim();
     return {
-      label: `HTTP request \`${endpoint}\` — the client's call onto its own route (cross-tier)`,
+      label: `HTTP request \`${endpoint}\` — client request associated with the indexed server endpoint`,
       compact: `dynamic: HTTP ${endpoint}${atSuffix}`,
     };
   },
@@ -59,7 +59,7 @@ const EDGE_NOTE_TABLE: Record<string, Formatter> = {
   },
   'react-render'(_meta, atSuffix) {
     return {
-      label: 'React re-render — `setState` re-runs render() (dynamic dispatch)',
+      label: 'React re-render — state changes schedule a render pass (dynamic dispatch)',
       compact: `dynamic: React re-render via setState${atSuffix}`,
     };
   },
@@ -79,7 +79,7 @@ const EDGE_NOTE_TABLE: Record<string, Formatter> = {
   },
   'interface-impl'(_meta, atSuffix) {
     return {
-      label: 'interface/abstract dispatch — runs the implementation override (dynamic dispatch)',
+      label: 'interface/abstract dispatch — the selected implementation supplies the invoked body (dynamic dispatch)',
       compact: `dynamic: interface → impl${atSuffix}`,
     };
   },
@@ -100,7 +100,7 @@ const EDGE_NOTE_TABLE: Record<string, Formatter> = {
   'goframe-route'(meta, atSuffix) {
     const routeLabel = codeSpan(meta.route, 'a route');
     return {
-      label: `GoFrame route ${routeLabel} — reflective Bind → controller method (dynamic dispatch)`,
+      label: `GoFrame route ${routeLabel} — Bind registration selects this controller method (dynamic dispatch)`,
       compact: `dynamic: GoFrame route ${rawText(meta.route)}${atSuffix}`,
     };
   },

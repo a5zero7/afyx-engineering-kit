@@ -1052,8 +1052,8 @@
     {
       "path": "afyx-graph/engine/src/mcp/dynamic-edge-notes.ts",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "7eee173506e541caf576f5e3cc7ddadf2a9ae2b0cd86d5a0070580a016cd2750",
-      "evidence": "MB11.4 independent AFYX table-driven EDGE_NOTE_TABLE implementation of describeSynthesizedEdge replacing legacy chained conditionals; difflib vs historical CodeGraph MCP files yields zero matched blocks (>=3 lines)."
+      "reviewedSha256": "8a8a5b1453d5efaac777f0456031375de617868b588d1841605e55c8c4c8cca4",
+      "evidence": "MB11.4 independent AFYX table-driven EDGE_NOTE_TABLE implementation of describeSynthesizedEdge replacing legacy chained conditionals; difflib vs historical CodeGraph MCP files yields zero matched blocks (>=3 lines). MB11.4 final residual review: long historical guidance and captions were replaced with AFYX-authored prose derived from runtime requirements; only tested diagnostic labels and technical identifiers are retained. Dispatch, validation, lifecycle policy and structured relationship data are unchanged by this text remediation."
     },
     {
       "path": "afyx-graph/engine/src/mcp/early-ppid.ts",
@@ -1106,8 +1106,8 @@
     {
       "path": "afyx-graph/engine/src/mcp/freshness-notices.ts",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "0c9f5cf6ac63202c6790cf9ecbdd94931e0ef0247b0a60a5d346464f928db899",
-      "evidence": "MB11.4 independent AFYX DiskDriftMonitor (stat + SHA-256 memoization) and watcher degradation/stale banner composition helpers; difflib vs historical CodeGraph yields only 12 trivial guard/brace lines (ratio 0.0091)."
+      "reviewedSha256": "40a70af7d122d9fd301b1a1dc0153527c2c6b6eabc4b8fdbd2fb0c01f0cb298f",
+      "evidence": "MB11.4 independent AFYX DiskDriftMonitor (stat + SHA-256 memoization) and watcher degradation/stale banner composition helpers; difflib vs historical CodeGraph yields only 12 trivial guard/brace lines (ratio 0.0091). MB11.4 final residual review: long historical guidance and captions were replaced with AFYX-authored prose derived from runtime requirements; only tested diagnostic labels and technical identifiers are retained. Dispatch, validation, lifecycle policy and structured relationship data are unchanged by this text remediation."
     },
     {
       "path": "afyx-graph/engine/src/mcp/impact-tool.ts",
@@ -1238,8 +1238,8 @@
     {
       "path": "afyx-graph/engine/src/mcp/tool-catalog.ts",
       "classification": "PRODUCT_SCHEMA_DATA",
-      "reviewedSha256": "df45c7a8af61782dc62451b5b189783054b34c9988a5269e9487df5855c39e27",
-      "evidence": "MB11.4 separation of declarative AFYX MCP public wire schema catalog built via compact readOnlyTool factory; zero executable dispatch logic and preserves frozen contract SHA-256 abc1da85... verified by mcp-semantic-contract.test.ts."
+      "reviewedSha256": "6d4683ab9c08d5f3e17980ba623035b331b0c049c09ff396a37d4c2b7b42a25c",
+      "evidence": "MB11.4 final review: technical MCP schema fields are compatibility data and remain exactly equal to 7035224 after excluding descriptive text (SHA-256 54bac2ebbf9555b85a2c2dc3ff3fdf436a9f8de2e07e94a126330a934a5a808a). All 41 tool/parameter descriptions were authored from AFYX functional requirements, including replacement of inherited long guidance prose. Full catalog contract is independently frozen by mcp-semantic-contract.test.ts; no dispatch implementation is embedded here."
     },
     {
       "path": "afyx-graph/engine/src/mcp/tool-dispatch.ts",
@@ -1268,8 +1268,8 @@
     {
       "path": "afyx-graph/engine/src/mcp/tools.ts",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "287139cab1f5f9c9ead16a0b7b20356b18211c31e642849c2b83e5976651a380",
-      "evidence": "MB11.4 independent AFYX rewrite of ToolHandler orchestration (project resolution, reopenIfReplaced, catch-up barrier, allowlist, path validation, worker offload, and facade delegation to modular helpers); difflib vs CodeGraph shows zero inherited algorithmic blocks (ratio 0.0293, max 9 trivial signature/error lines)."
+      "reviewedSha256": "5a5bdc20ff42728d0e5c88ee879e31ba5e1288da75925a654059202aa390c3b7",
+      "evidence": "MB11.4 independent AFYX rewrite of ToolHandler orchestration (project resolution, reopenIfReplaced, catch-up barrier, allowlist, path validation, worker offload, and facade delegation to modular helpers); difflib vs CodeGraph shows zero inherited algorithmic blocks (ratio 0.0293, max 9 trivial signature/error lines). MB11.4 final residual review: long historical guidance and captions were replaced with AFYX-authored prose derived from runtime requirements; only tested diagnostic labels and technical identifiers are retained. Dispatch, validation, lifecycle policy and structured relationship data are unchanged by this text remediation."
     },
     {
       "path": "afyx-graph/engine/src/mcp/transport.ts",
