@@ -22,6 +22,8 @@ param(
     [string]$ClaudeHome = $(if ($env:CLAUDE_CONFIG_DIR) { $env:CLAUDE_CONFIG_DIR } else { Join-Path $env:USERPROFILE '.claude' }),
     [string]$ClaudeConfigDir = $(if ($env:CLAUDE_CONFIG_DIR) { $env:CLAUDE_CONFIG_DIR } else { '' }),
     [switch]$SkipProviderConfiguration,
+    [switch]$PlanJson,
+    [string]$ExpectedPlan = '',
     [string]$ContextRuntimeRoot = $(if ($env:AFYX_CONTEXT_RUNTIME_ROOT) { $env:AFYX_CONTEXT_RUNTIME_ROOT } else { Join-Path $env:USERPROFILE '.afyx\context' }),
     [string]$ForgeRuntimeRoot = $(if ($env:AFYX_FORGE_RUNTIME_ROOT) { $env:AFYX_FORGE_RUNTIME_ROOT } else { Join-Path $env:USERPROFILE '.afyx\forge' }),
     [string]$GraphRuntimeRoot = $(if ($env:AFYX_GRAPH_RUNTIME_ROOT) { $env:AFYX_GRAPH_RUNTIME_ROOT } else { Join-Path $env:USERPROFILE '.afyx\graph' }),
@@ -33,6 +35,7 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
 $packageRoot = $PSScriptRoot
+if (($PlanJson -or $ExpectedPlan) -and -not $Preset) { throw 'Structured planning requires an explicit preset.' }
 if ($CustomComponent.Count) {
     $CustomComponent = @($CustomComponent | ForEach-Object { $_ -split ',' } | ForEach-Object { $_.Trim() } | Where-Object { $_ })
 }
@@ -466,6 +469,60 @@ if ($controlPlan) {
     }
 }
 
+if ($PlanJson -or $ExpectedPlan) {
+    $planRows = @()
+    foreach ($component in (Get-AfyxComponentContract)) {
+        $id = [string]$component.id
+        $state = $componentStates[$id]
+        $item = @($controlPlan.Components | Where-Object { $_.Id -eq $id })[0]
+        $planRows += [ordered]@{
+            id = $id; name = [string]$component.name; type = [string]$component.type
+            currentState = [string]$state.State; desired = [bool]$item.Desired
+            backendAction = [string]$actionDecisions[$id]; target = [string]$state.Path
+            ownership = [string]$item.ActualOwnership; version = [string]$state.Version
+            availableVersion = Get-AvailableVersion $id
+            compatibility = $(if ($item.Drift -eq 'NOT_APPLICABLE') { 'NOT SUPPORTED' } else { 'SUPPORTED' })
+            detail = [string]$state.Detail
+        }
+    }
+    $configurationPaths = @()
+    if (-not $SkipProviderConfiguration) {
+        if ('codex' -in $Provider) { $configurationPaths += (Join-Path $codexHome 'config.toml') }
+        if ('antigravity' -in $Provider) { $configurationPaths += $(if ($ProviderScope -eq 'workspace') { Join-Path $WorkspaceRoot '.agents\mcp_config.json' } else { Join-Path $GeminiHome 'config\mcp_config.json' }) }
+        if ('claude' -in $Provider) { $configurationPaths += $(if ($ProviderScope -eq 'workspace') { Join-Path $WorkspaceRoot '.mcp.json' } else { Join-Path $(if ($ClaudeConfigDir) { $ClaudeConfigDir } else { $env:USERPROFILE }) '.claude.json' }) }
+    }
+    $planInput = [ordered]@{ preset = $Preset; providers = ($Provider -join ','); scope = $ProviderScope
+        configureProviders = -not [bool]$SkipProviderConfiguration; workspaceRoot = $WorkspaceRoot
+        sourceRoot = $packageRoot; platform = 'windows'; components = $planRows
+        configurationPaths = $configurationPaths; expectedFingerprint = $ExpectedPlan }
+    $planInput.blockers = @()
+    $planInput.additionalTargets = @()
+    foreach ($root in @($SkillsRoot) + @($additionalSkillRoots)) {
+        foreach ($item in @($controlPlan.Components | Where-Object { $_.Desired })) {
+            if ($item.Id -in @('efficient-coding', 'odoo-engineering', 'afyx-engineering-expert') -or
+                (-not $SkipProviderConfiguration -and $item.Id -in @('afyx-context', 'afyx-forge'))) {
+                $planInput.additionalTargets += [ordered]@{ id = $item.Id; type = 'skill'; target = (Join-Path $root $item.Id) }
+            }
+        }
+    }
+    if (-not $SkipProviderConfiguration -and $Provider.Count) {
+        $planInput.additionalTargets += [ordered]@{ id = 'afyx-host-bridge'; type = 'runtime'; target = $HostBridgeRuntimeRoot }
+    }
+    if (-not (Get-Command git -ErrorAction SilentlyContinue)) { $planInput.blockers += 'Git is required by the installer.' }
+    if (-not $SkipProviderConfiguration) {
+        if ('codex' -in $Provider -and -not ($codexCommandDetected -or $vscodeExtensionDetected)) { $planInput.blockers += 'Selected Codex host is unavailable.' }
+        if ('antigravity' -in $Provider -and -not ($antigravityCommandDetected -or $antigravityIdeDetected)) { $planInput.blockers += 'Selected Antigravity host is unavailable.' }
+        if ('claude' -in $Provider -and -not ($claudeCommandDetected -or $claudeVsCodeDetected)) { $planInput.blockers += 'Selected Claude Code host is unavailable.' }
+    }
+    $previousOutputEncoding = $OutputEncoding
+    try {
+        $OutputEncoding = [Text.UTF8Encoding]::new($false)
+        $planOutput = $planInput | ConvertTo-Json -Depth 8 -Compress | & node (Join-Path $packageRoot 'scripts\afyx-install-contract.mjs') plan
+        if ($LASTEXITCODE -ne 0) { throw 'PLAN_CHANGED or backend plan could not be created; review a new plan before applying.' }
+    } finally { $OutputEncoding = $previousOutputEncoding }
+    if ($PlanJson) { Write-Output $planOutput; return }
+}
+
 $codexCliDetected = [bool]$codexCommandDetected
 $graphMetadata = Get-Content -Raw -LiteralPath $graphMetadataPath | ConvertFrom-Json
 $distProductPath = Join-Path $packageRoot 'afyx-graph\engine\scripts\distribution-product.json'
@@ -802,6 +859,14 @@ function Invoke-AfyxInstallStage {
 
 if ($wizardMode) { Show-AfyxStep -Current 4 -Terminal $terminal }
 
+if ($ExpectedPlan) {
+    $previousOutputEncoding = $OutputEncoding
+    try {
+        $OutputEncoding = [Text.UTF8Encoding]::new($false)
+        $null = $planInput | ConvertTo-Json -Depth 8 -Compress | & node (Join-Path $packageRoot 'scripts\afyx-install-contract.mjs') plan
+        if ($LASTEXITCODE -ne 0) { throw 'PLAN_CHANGED: state changed before mutation; review a new plan.' }
+    } finally { $OutputEncoding = $previousOutputEncoding }
+}
 $summary = [ordered]@{}
 $changesApplied = $false
 $skillActions = @{}

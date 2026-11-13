@@ -14,7 +14,8 @@ param(
     [string]$GraphRuntimeRoot = $(if ($env:AFYX_GRAPH_RUNTIME_ROOT) { $env:AFYX_GRAPH_RUNTIME_ROOT } else { Join-Path $env:USERPROFILE '.afyx\graph' }),
     [string]$AfyxInstallRoot = $(if ($env:AFYX_INSTALL_ROOT) { $env:AFYX_INSTALL_ROOT } else { Join-Path $env:USERPROFILE '.afyx' }),
     [string]$HostBridgeRuntimeRoot = $(if ($env:AFYX_HOST_BRIDGE_RUNTIME_ROOT) { $env:AFYX_HOST_BRIDGE_RUNTIME_ROOT } else { Join-Path $env:USERPROFILE '.afyx\host-bridge' }),
-    [switch]$SkipProviderConfiguration
+    [switch]$SkipProviderConfiguration,
+    [switch]$ReportJson
 )
 
 Set-StrictMode -Version Latest
@@ -28,7 +29,9 @@ Import-Module (Join-Path $PSScriptRoot 'scripts\lib\AfyxTerminal.psm1') -Force
 Import-Module (Join-Path $PSScriptRoot 'scripts\lib\AfyxPlatform.psm1') -Force
 $terminal = New-AfyxTerminalContext
 
+$verificationRows = [Collections.Generic.List[object]]::new()
 function Write-Result([string]$State, [string]$Name, [string]$Detail = '') {
+    $verificationRows.Add([ordered]@{ state = $State; name = $Name; detail = $Detail })
     $status = switch ($State) {
         'OK' { 'HEALTHY' }
         'FAIL' { 'BLOCKED' }
@@ -185,9 +188,9 @@ if ($node) { Write-Result 'OK' 'Node.js [COMPONENT_REQUIRED:Afyx Context]' ((& n
 else { Write-Result 'INFO' 'Node.js [COMPONENT_REQUIRED:Afyx Context]' 'missing; required only when Afyx Context is selected' }
 if ($npm) { Write-Result 'OK' 'npm [BUILD_ONLY:Afyx Graph]' ((& npm --version 2>$null) -join ' ') } else { Write-Result 'INFO' 'npm [BUILD_ONLY:Afyx Graph]' 'missing; required only for local artifact fallback' }
 Write-Result 'OK' 'Archive/checksum [COMPONENT_REQUIRED:Afyx Graph]' 'Expand-Archive and Get-FileHash available'
-$codexRequired = 'codex' -in $Provider -or -not $Provider.Count
-$antigravityRequired = 'antigravity' -in $Provider
-$claudeRequired = 'claude' -in $Provider
+$codexRequired = -not $SkipProviderConfiguration -and ('codex' -in $Provider -or -not $Provider.Count)
+$antigravityRequired = -not $SkipProviderConfiguration -and 'antigravity' -in $Provider
+$claudeRequired = -not $SkipProviderConfiguration -and 'claude' -in $Provider
 
 $codexHost = Get-AfyxCodexHost
 $codex = if ($codexHost.State -eq 'CLI_READY') { [pscustomobject]@{ Source = $codexHost.Path } } else { $null }
@@ -410,5 +413,15 @@ if ($Provider.Count -and $node -and -not $SkipProviderConfiguration) {
     }
 }
 
-if ($coreFailure) { Write-Result 'FAIL' 'Core readiness'; exit 1 }
+function Write-VerificationContract {
+    if (-not $ReportJson) { return }
+    $previousOutputEncoding = $OutputEncoding
+    try {
+        $OutputEncoding = [Text.UTF8Encoding]::new($false)
+        ConvertTo-Json -InputObject @($verificationRows.ToArray()) -Depth 5 -Compress | & node (Join-Path $PSScriptRoot 'scripts\afyx-install-contract.mjs') verification
+        if ($LASTEXITCODE -ne 0) { throw 'Unable to serialize backend verification results.' }
+    } finally { $OutputEncoding = $previousOutputEncoding }
+}
+if ($coreFailure) { Write-Result 'FAIL' 'Core readiness'; Write-VerificationContract; exit 1 }
 Write-Result 'OK' 'Core readiness' 'ready; optional enhancement warnings do not affect this result'
+Write-VerificationContract

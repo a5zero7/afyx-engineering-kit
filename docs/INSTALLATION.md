@@ -24,6 +24,14 @@ available. macOS and Linux architectures without a verified Graph archive do
 not support the Full preset. `--preset` and `--non-interactive` retain the
 deterministic CLI path.
 
+The interactive Review screen reads the platform backend plan, including current
+state, action, target, ownership, version, and prerequisites. Changes to reviewed
+program files or provider configuration require a fresh confirmation; the backend
+also checks the plan immediately before mutation. Finish runs the backend verifier
+and exposes component versions and individual checks in a navigable receipt.
+Use Tab to focus long activity details, arrow keys to scroll, and Esc to close the
+receipt. A failed required component or verification returns a nonzero exit code.
+
 Use `--preset recommended` for skills or `--preset full` on Windows x64 and
 Linux x64 for the bundled Graph runtime, Context, and Forge. Installation of
 Context or Forge does not authorize autonomous execution and respects explicit

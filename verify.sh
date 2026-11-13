@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
+report_json=false
+verification_rows=()
 
 PACKAGE_ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 
@@ -29,6 +31,7 @@ while (($#)); do
     --skills-root) skills_root="$2"; skills_root_explicit=true; shift 2 ;;
     --context-runtime-root) context_root="$2"; shift 2 ;;
     --forge-runtime-root) forge_root="$2"; shift 2 ;;
+    --report-json) report_json=true; shift ;;
     --preset) preset="$2"; shift 2 ;;
     --custom-component) custom_component_list="${custom_component_list:+$custom_component_list;}$2"; shift 2 ;;
     --provider) provider_list="$2"; provider_explicit=true; shift 2 ;;
@@ -64,6 +67,7 @@ fi
 
 result() {
   local state="$1" label="$2" detail="${3:-}"
+  verification_rows+=("$state" "$label" "$detail")
   [[ -n "$detail" ]] && printf '[%s] %s — %s\n' "$state" "$label" "$detail" || printf '[%s] %s\n' "$state" "$label"
 }
 
@@ -261,5 +265,9 @@ if ! "$codex_detected"; then result SKIP 'Codex config' 'PROVIDER_NOT_INSTALLED'
 elif [[ -f "$config" ]]; then result OK 'Codex config' 'read-only check completed'
 else result WARN 'Codex config' 'not found; optional MCP entries unavailable'; fi
 
-if "$core_failure"; then result FAIL 'Core readiness'; exit 1; fi
+emit_verification_contract() {
+  if "$report_json"; then node "$PACKAGE_ROOT/scripts/afyx-install-contract.mjs" verification-rows "${verification_rows[@]}"; fi
+}
+if "$core_failure"; then result FAIL 'Core readiness'; emit_verification_contract; exit 1; fi
 result OK 'Core readiness' 'ready; optional enhancement warnings do not affect this result'
+emit_verification_contract

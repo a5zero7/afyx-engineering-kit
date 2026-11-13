@@ -1,7 +1,11 @@
+/**
+ * Runtime launcher and pipe heartbeat controller for the external liveness watchdog process.
+ */
 import { spawn, type ChildProcess } from 'child_process';
 import * as fs from 'fs';
 import * as os from 'os';
 import { usesExternalStateDir } from '../directory';
+import { SettlementGate } from './supervision-policy';
 
 export interface WatchdogHandle {
   stop(): void;
@@ -24,77 +28,119 @@ export interface WatchdogRuntimeDependencies {
   cwd?: string;
 }
 
-function debug(message: string): void {
+function logWatchdogDebug(message: string): void {
   if (!process.env.AFYX_GRAPH_MCP_DEBUG) return;
-  try { fs.writeSync(2, `[Afyx Graph watchdog] ${message}\n`); } catch { /* ignore */ }
+  try {
+    fs.writeSync(2, `[Afyx Graph watchdog] ${message}\n`);
+  } catch {
+    // Ignore diagnostic write failures.
+  }
 }
 
-/** Own the child process, heartbeat timer, and their idempotent teardown. */
+function buildChildEnvironment(): NodeJS.ProcessEnv | undefined {
+  if (!usesExternalStateDir()) return undefined;
+  const envCopy: NodeJS.ProcessEnv = { ...process.env, NODE_DISABLE_COMPILE_CACHE: '1' };
+  delete envCopy.NODE_COMPILE_CACHE;
+  return envCopy;
+}
+
+function detachUnreferenced(handle: unknown): void {
+  try {
+    (handle as { unref?: () => void } | null | undefined)?.unref?.();
+  } catch {
+    // Ignore handles that do not support unref().
+  }
+}
+
+/**
+ * Spawn an external Node watchdog process, establish periodic stdin heartbeats,
+ * and return an idempotent shutdown handle. Returns `null` if spawn fails or no
+ * stdin pipe is available.
+ */
 export function startWatchdogRuntime(
   config: WatchdogRuntimeConfig,
   dependencies: WatchdogRuntimeDependencies = {},
 ): WatchdogHandle | null {
-  const spawnProcess = dependencies.spawnProcess ?? spawn;
-  let childEnv: NodeJS.ProcessEnv | undefined;
-  if (usesExternalStateDir()) {
-    childEnv = { ...process.env, NODE_DISABLE_COMPILE_CACHE: '1' };
-    delete childEnv.NODE_COMPILE_CACHE;
-  }
-  let child: ChildProcess;
+  const spawnChild = dependencies.spawnProcess ?? spawn;
+  const childArgs = [
+    '-e',
+    config.childSource,
+    String(dependencies.parentPid ?? process.pid),
+    String(config.timeoutMs),
+    String(config.capMs),
+    ...config.progressPaths,
+  ];
+
+  let monitorProcess: ChildProcess;
   try {
-    child = spawnProcess(
+    monitorProcess = spawnChild(
       dependencies.executable ?? process.execPath,
-      [
-        '-e', config.childSource,
-        String(dependencies.parentPid ?? process.pid),
-        String(config.timeoutMs),
-        String(config.capMs),
-        ...config.progressPaths,
-      ],
+      childArgs,
       {
         stdio: ['pipe', 'ignore', 'inherit'],
         windowsHide: true,
         cwd: dependencies.cwd ?? os.tmpdir(),
-        env: childEnv,
+        env: buildChildEnvironment(),
       },
     );
-  } catch (error) {
-    debug(`spawn failed: ${error instanceof Error ? error.message : String(error)}`);
+  } catch (err) {
+    const reason = err instanceof Error ? err.message : String(err);
+    logWatchdogDebug(`spawn failed: ${reason}`);
     return null;
   }
 
-  const heartbeatStream = child.stdin;
-  if (!heartbeatStream) {
-    debug('child has no stdin pipe; not arming');
-    try { child.kill(); } catch { /* already gone */ }
+  const pipe = monitorProcess.stdin;
+  if (!pipe) {
+    logWatchdogDebug('child has no stdin pipe; aborting arm');
+    try {
+      monitorProcess.kill();
+    } catch {
+      // Ignore already exited child.
+    }
     return null;
   }
 
-  heartbeatStream.on('error', () => { /* child exited; writes are best effort */ });
-  child.on('error', (error) => debug(`child error: ${error.message}`));
+  pipe.on('error', () => {
+    // Heartbeat pipe breaks harmlessly when child exits.
+  });
+  monitorProcess.on('error', (err) => {
+    logWatchdogDebug(`child error: ${err.message}`);
+  });
 
-  const schedule = dependencies.setIntervalFn ?? setInterval;
-  const cancel = dependencies.clearIntervalFn ?? clearInterval;
-  const heartbeat = schedule(() => {
-    try { heartbeatStream.write('\n'); } catch { /* child already gone */ }
+  const scheduleInterval = dependencies.setIntervalFn ?? setInterval;
+  const cancelInterval = dependencies.clearIntervalFn ?? clearInterval;
+
+  const beatTimer = scheduleInterval(() => {
+    try {
+      pipe.write('\n');
+    } catch {
+      // Child already exited.
+    }
   }, config.checkMs);
-  heartbeat.unref?.();
-  child.unref();
-  try { (heartbeatStream as unknown as { unref?: () => void }).unref?.(); } catch { /* ignore */ }
 
-  debug(
-    `armed (child pid ${child.pid ?? '?'}): timeoutMs=${config.timeoutMs} ` +
-    `checkMs=${config.checkMs} progressPaths=${config.progressPaths.length}`,
+  detachUnreferenced(beatTimer);
+  detachUnreferenced(monitorProcess);
+  detachUnreferenced(pipe);
+
+  logWatchdogDebug(
+    `armed (pid=${monitorProcess.pid ?? 'unknown'}, timeoutMs=${config.timeoutMs}, checkMs=${config.checkMs}, watched=${config.progressPaths.length})`,
   );
 
-  let stopped = false;
+  const teardownGate = new SettlementGate();
   return {
     stop(): void {
-      if (stopped) return;
-      stopped = true;
-      cancel(heartbeat);
-      try { heartbeatStream.end(); } catch { /* already closed */ }
-      try { child.kill(); } catch { /* already gone */ }
+      if (!teardownGate.claim()) return;
+      cancelInterval(beatTimer);
+      try {
+        pipe.end();
+      } catch {
+        // Pipe already ended.
+      }
+      try {
+        monitorProcess.kill();
+      } catch {
+        // Process already exited.
+      }
     },
   };
 }

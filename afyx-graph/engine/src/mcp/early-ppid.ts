@@ -1,10 +1,13 @@
 /**
- * Capture the parent during module evaluation, before ordinary MCP startup.
- * Node cannot observe the spawn-to-first-JS window; startup abandonment covers
- * the case where reparenting already happened before this module ran.
+ * Initial parent process identifier sampled at module load time.
+ * Captures the launcher PID before early reparenting can alter `process.ppid`.
  */
-function captureParentPid(readParent: () => number): number {
-  return readParent();
+export function snapshotParentProcessId(
+  readPid: () => number = () => process.ppid,
+): number {
+  const pid = readPid();
+  return Number.isInteger(pid) && pid > 0 ? pid : 0;
 }
 
-export const EARLY_PPID: number = captureParentPid(() => process.ppid);
+/** Parent PID recorded when the MCP/CLI runtime evaluates this module. */
+export const EARLY_PPID: number = snapshotParentProcessId();

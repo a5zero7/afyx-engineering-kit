@@ -24,6 +24,9 @@ PATTERN = re.compile("|".join(re.escape(token) for token in FORBIDDEN_TOKENS), r
 REDACTION = "<legacy-identity>"
 SKIPPED_DIRECTORIES = {".git", "node_modules"}
 PERMITTED_CONTENT_PATHS = {
+    # Review metadata must name historical sources accurately. This file is
+    # excluded from product packages and has its own fail-closed ownership gate.
+    "scripts/native-source-ownership.json": "LEGAL_PROVENANCE",
     "docs/AFYX_INDEPENDENCE_PLAN.md": "HISTORICAL_EVIDENCE",
     "docs/AFYX_PHASE5F_THIRD_PARTY_REPLACEMENT.md": "HISTORICAL_EVIDENCE",
     "docs/AFYX_V1_MASTER_ROADMAP.md": "HISTORICAL_EVIDENCE",

@@ -1,4 +1,7 @@
-/** Pure decisions shared by process-supervision runtime adapters. */
+/**
+ * Shared supervision policies and single-shot settlement coordination for
+ * AFYX Graph background servers and watchdogs.
+ */
 
 export interface ParentSupervisionSnapshot {
   originalPpid: number;
@@ -8,61 +11,90 @@ export interface ParentSupervisionSnapshot {
   platform: NodeJS.Platform;
 }
 
-/** Preserve the platform-specific supervision precedence without owning a timer. */
+const NODE_MAX_TIMEOUT_MS = 2_147_483_647;
+
+type NumericParseRule = 'non-negative' | 'disableable' | 'positive';
+
+function parseConfiguredNumber(
+  raw: string | undefined,
+  fallback: number,
+  rule: NumericParseRule,
+): number {
+  if (raw === undefined || raw === '') return fallback;
+  const parsed = Number(raw);
+  if (!Number.isFinite(parsed)) return fallback;
+
+  if (rule === 'non-negative') {
+    return parsed < 0 ? fallback : Math.floor(parsed);
+  }
+  if (rule === 'disableable') {
+    return parsed <= 0 ? 0 : Math.min(Math.floor(parsed), NODE_MAX_TIMEOUT_MS);
+  }
+  return parsed > 0 ? Math.min(parsed, NODE_MAX_TIMEOUT_MS) : fallback;
+}
+
+/**
+ * Evaluate parent/host liveness and return a diagnostic reason when
+ * supervision authority is lost, or `null` while the parent chain is healthy.
+ */
 export function parentSupervisionLoss(snapshot: ParentSupervisionSnapshot): string | null {
-  if (snapshot.currentPpid !== snapshot.originalPpid) {
-    return `ppid ${snapshot.originalPpid} -> ${snapshot.currentPpid}`;
-  }
-  if (
-    snapshot.platform === 'win32' &&
-    snapshot.originalPpid > 1 &&
-    !snapshot.isAlive(snapshot.originalPpid)
-  ) {
-    return `parent pid ${snapshot.originalPpid} exited`;
-  }
-  if (snapshot.hostPpid !== null && !snapshot.isAlive(snapshot.hostPpid)) {
-    return `host pid ${snapshot.hostPpid} exited`;
+  const rules: Array<() => string | null> = [
+    () =>
+      snapshot.currentPpid !== snapshot.originalPpid
+        ? `ppid ${snapshot.originalPpid} -> ${snapshot.currentPpid}`
+        : null,
+    () =>
+      snapshot.platform === 'win32'
+      && snapshot.originalPpid > 1
+      && !snapshot.isAlive(snapshot.originalPpid)
+        ? `parent pid ${snapshot.originalPpid} exited`
+        : null,
+    () =>
+      snapshot.hostPpid !== null && !snapshot.isAlive(snapshot.hostPpid)
+        ? `host pid ${snapshot.hostPpid} exited`
+        : null,
+  ];
+
+  for (const evaluate of rules) {
+    const lossReason = evaluate();
+    if (lossReason !== null) return lossReason;
   }
   return null;
 }
 
-/** Missing/invalid/negative values use the fallback; zero remains an explicit disable sentinel. */
+/** Parse a polling cadence setting where `0` explicitly disables polling. */
 export function parsePollingInterval(raw: string | undefined, fallback: number): number {
-  if (raw === undefined || raw === '') return fallback;
-  const parsed = Number(raw);
-  if (!Number.isFinite(parsed) || parsed < 0) return fallback;
-  return Math.floor(parsed);
+  return parseConfiguredNumber(raw, fallback, 'non-negative');
 }
 
-/** Missing/invalid values use the fallback; non-positive values disable the deadline. */
+/** Parse a deadline setting where values `<= 0` disable monitoring (`0`). */
 export function parseDisableableDeadline(raw: string | undefined, fallback: number): number {
-  if (raw === undefined || raw === '') return fallback;
-  const parsed = Number(raw);
-  if (!Number.isFinite(parsed)) return fallback;
-  return parsed <= 0 ? 0 : Math.floor(parsed);
+  return parseConfiguredNumber(raw, fallback, 'disableable');
 }
 
-/** Missing, invalid, or non-positive values use the positive fallback. */
+/** Parse a strictly positive duration setting, falling back on invalid values. */
 export function parsePositiveDeadline(raw: string | undefined, fallback: number): number {
-  if (raw === undefined) return fallback;
-  const parsed = Number(raw);
-  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+  return parseConfiguredNumber(raw, fallback, 'positive');
 }
 
-/** Only a real process PID may identify an explicitly threaded host. */
+/** Parse a valid user-space host PID (`integer > 1`), or `null` if absent. */
 export function parseSupervisedPid(raw: string | undefined): number | null {
-  if (raw === undefined || raw === '') return null;
-  const parsed = Number(raw);
-  return Number.isInteger(parsed) && parsed > 1 ? parsed : null;
+  if (!raw) return null;
+  const candidate = Number(raw);
+  return Number.isInteger(candidate) && candidate > 1 ? candidate : null;
 }
 
-/** Small single-settlement primitive for timers and terminal event fan-in. */
+/** Coordinates one-time execution across competing asynchronous triggers. */
 export class SettlementGate {
-  private settled = false;
+  private claimed = false;
 
   claim(): boolean {
-    if (this.settled) return false;
-    this.settled = true;
+    if (this.claimed) return false;
+    this.claimed = true;
     return true;
+  }
+
+  get isSettled(): boolean {
+    return this.claimed;
   }
 }

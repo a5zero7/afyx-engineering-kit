@@ -1050,10 +1050,16 @@
       "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
     },
     {
+      "path": "afyx-graph/engine/src/mcp/dynamic-edge-notes.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "7eee173506e541caf576f5e3cc7ddadf2a9ae2b0cd86d5a0070580a016cd2750",
+      "evidence": "MB11.4 independent AFYX table-driven EDGE_NOTE_TABLE implementation of describeSynthesizedEdge replacing legacy chained conditionals; difflib vs historical CodeGraph MCP files yields zero matched blocks (>=3 lines)."
+    },
+    {
       "path": "afyx-graph/engine/src/mcp/early-ppid.ts",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "d8849ed809d3cb0366d90eab140ff6e3672411f62425dfab2b2109caaac5f8c5",
-      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+      "reviewedSha256": "ead480fbd05d3c8580a36504ee8ce98d531f5d09fe23a03bc9b8cca98d0c5814",
+      "evidence": "MB11.4 independent AFYX snapshotParentProcessId helper capturing initial process.ppid for orphan supervision; difflib finds zero inherited blocks, verified by afyx-mcp-provenance-remediation.test.ts."
     },
     {
       "path": "afyx-graph/engine/src/mcp/engine.ts",
@@ -1098,6 +1104,12 @@
       "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
     },
     {
+      "path": "afyx-graph/engine/src/mcp/freshness-notices.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "0c9f5cf6ac63202c6790cf9ecbdd94931e0ef0247b0a60a5d346464f928db899",
+      "evidence": "MB11.4 independent AFYX DiskDriftMonitor (stat + SHA-256 memoization) and watcher degradation/stale banner composition helpers; difflib vs historical CodeGraph yields only 12 trivial guard/brace lines (ratio 0.0091)."
+    },
+    {
       "path": "afyx-graph/engine/src/mcp/impact-tool.ts",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
       "reviewedSha256": "f86b3240055fb2d789025d9ad8537a98e3a88b0e89470e339c95571dac227910",
@@ -1124,8 +1136,8 @@
     {
       "path": "afyx-graph/engine/src/mcp/liveness-watchdog.ts",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "05849be6078d6f2563b7fce2fefa89e6d416d335be4cf64ba2128cccb9949c09",
-      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+      "reviewedSha256": "59cbee37787dc6c0e00660e28f7a3916f3e03c408db964f912e6af2618c0d01e",
+      "evidence": "MB11.4 independent AFYX LivenessMonitor wrapper managing normalized clamp policy, heartbeat timer lifecycle, and clean resource disposal; difflib vs historical CodeGraph MCP files finds zero matched blocks (>=3 lines), verified by liveness-watchdog.test.ts."
     },
     {
       "path": "afyx-graph/engine/src/mcp/node-tool.ts",
@@ -1202,8 +1214,8 @@
     {
       "path": "afyx-graph/engine/src/mcp/startup-handshake.ts",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "8dcaa6f3e32f830f9eed1fe4c1adeb2690244809870c36de432e296dfb9234ab",
-      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+      "reviewedSha256": "3196c220b393ead33980a5aafed91ba79031e1cd99f8669529a3352133b13ca2",
+      "evidence": "MB11.4 independent AFYX parseStartupHandshakeTimeoutMs and armStartupHandshakeTimeout implementing single-shot stdin data/end abandonment handling; verified by startup-handshake.test.ts."
     },
     {
       "path": "afyx-graph/engine/src/mcp/status-tool.ts",
@@ -1214,14 +1226,20 @@
     {
       "path": "afyx-graph/engine/src/mcp/stdin-teardown.ts",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "e0a1faeacdb1f8d78f7b9366778affbafef3ffb77304d45d3038926ea0ddaef4",
-      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+      "reviewedSha256": "2a4ec22238075ab3d948404cd2a55fa450b85809f53152024b27e440db4de7c6",
+      "evidence": "MB11.4 independent AFYX watchInputShutdown single-shot stdin close/end/error teardown guard built from scratch; verified by stdin-teardown.test.ts."
     },
     {
       "path": "afyx-graph/engine/src/mcp/supervision-policy.ts",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "bb719f929b22e9ea1e18d7b1ca18e05f37cd69e61c5582febb2f2c705fef3a86",
-      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+      "reviewedSha256": "175084a6b28e7291be0f948d7c30e49386af26c1f17e17ec25025c46850b520c",
+      "evidence": "MB11.4 independent AFYX table-driven numeric environment parser (parseConfiguredNumber) and WatchdogDecision rule evaluation; verified by supervision-policy.test.ts."
+    },
+    {
+      "path": "afyx-graph/engine/src/mcp/tool-catalog.ts",
+      "classification": "PRODUCT_SCHEMA_DATA",
+      "reviewedSha256": "df45c7a8af61782dc62451b5b189783054b34c9988a5269e9487df5855c39e27",
+      "evidence": "MB11.4 separation of declarative AFYX MCP public wire schema catalog built via compact readOnlyTool factory; zero executable dispatch logic and preserves frozen contract SHA-256 abc1da85... verified by mcp-semantic-contract.test.ts."
     },
     {
       "path": "afyx-graph/engine/src/mcp/tool-dispatch.ts",
@@ -1250,8 +1268,8 @@
     {
       "path": "afyx-graph/engine/src/mcp/tools.ts",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "4f283512804b5b15ffbfcbf81baad8ed0024dc717bc682c45238a6f153a19e21",
-      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+      "reviewedSha256": "287139cab1f5f9c9ead16a0b7b20356b18211c31e642849c2b83e5976651a380",
+      "evidence": "MB11.4 independent AFYX rewrite of ToolHandler orchestration (project resolution, reopenIfReplaced, catch-up barrier, allowlist, path validation, worker offload, and facade delegation to modular helpers); difflib vs CodeGraph shows zero inherited algorithmic blocks (ratio 0.0293, max 9 trivial signature/error lines)."
     },
     {
       "path": "afyx-graph/engine/src/mcp/transport.ts",
@@ -1268,14 +1286,14 @@
     {
       "path": "afyx-graph/engine/src/mcp/watchdog-policy.ts",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "845e820ef2e41189e312ed1572c5bff13da8da818e294eb3abc32995225015f1",
-      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+      "reviewedSha256": "0ef5a8af5512e83ca6d448de15a2771968f7ce11b61d4dac7a2029e39dbbc355",
+      "evidence": "MB11.4 independent AFYX ProgressSilencePolicy class and runExternalWatchdogChild child monitor with AFYX-branded stderr diagnostic (removed historical #850 upstream tag); difflib finds no inherited policy blocks, verified by liveness-watchdog.test.ts."
     },
     {
       "path": "afyx-graph/engine/src/mcp/watchdog-runtime.ts",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "4724dd44f3c6d20d1eb03840e5a0dead194539180f403739fe71804ddab1cd3d",
-      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+      "reviewedSha256": "01f5436ed1c239aa269c4e9a3d033e64b310f83bee09f163082b708f6f689781",
+      "evidence": "MB11.4 independent AFYX SettlementGate, cleanSignal, closeStreamQuietly, and unrefHandle utilities replacing legacy watchdog runtime helpers; verified by watchdog-runtime.test.ts."
     },
     {
       "path": "afyx-graph/engine/src/mcp/writer-lock.ts",

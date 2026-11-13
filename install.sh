@@ -31,6 +31,10 @@ gemini_home="${AFYX_GEMINI_HOME:-$HOME/.gemini}"
 claude_home="${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
 claude_config_dir="${CLAUDE_CONFIG_DIR:-}"
 skip_provider_configuration=false
+plan_json=false
+expected_plan=
+contract_plan_ready=false
+contract_plan_actions=()
 
 usage() {
   printf '%s\n' 'Usage: ./install.sh [--skills-root PATH] [--context-runtime-root PATH] [--forge-runtime-root PATH] [--provider codex|antigravity|claude[,..]] [--provider-scope global|workspace] [--workspace-root PATH] [--gemini-home PATH] [--claude-home PATH] [--claude-config-dir PATH] [--skip-provider-configuration] [--preset minimal|recommended|full|custom] [--custom-component ID] [--component ID=skip|install|update|repair|adopt] [--update-installed] [--force] [--validate-only] [--dry-run]'
@@ -58,12 +62,17 @@ while (($#)); do
     --claude-home) (($# >= 2)) || { printf '%s\n' '--claude-home requires a value.' >&2; exit 2; }; claude_home="$2"; shift 2 ;;
     --claude-config-dir) (($# >= 2)) || { printf '%s\n' '--claude-config-dir requires a value.' >&2; exit 2; }; claude_config_dir="$2"; shift 2 ;;
     --skip-provider-configuration) skip_provider_configuration=true; shift ;;
+    --plan-json) plan_json=true; shift ;;
+    --expected-plan) (($# >= 2)) || exit 2; expected_plan="$2"; shift 2 ;;
     --validate-only) validate_only=true; shift ;;
     --dry-run) dry_run=true; shift ;;
     -h|--help) usage; exit 0 ;;
     *) printf 'Unknown option: %s\n' "$1" >&2; usage >&2; exit 2 ;;
   esac
 done
+if { "$plan_json" || [[ -n "$expected_plan" ]]; } && [[ -z "$preset" ]]; then
+  printf 'Structured planning requires an explicit preset.\n' >&2; exit 2
+fi
 
 if [[ "$provider_explicit" == false && -t 0 && -t 1 && -z "${CI:-}" ]]; then
   detected_providers=
@@ -202,6 +211,12 @@ explicit_action() {
 
 component_action() {
   local id="$1" label="$2" state="$3" installed="$4" available action= answer default
+  if "$contract_plan_ready"; then
+    local contract_decision
+    for contract_decision in ${contract_plan_actions[@]+"${contract_plan_actions[@]}"}; do
+      if [[ "${contract_decision%%=*}" == "$id" ]]; then printf '%s' "${contract_decision#*=}"; return; fi
+    done
+  fi
   available="$(available_version "$id")"
   if action="$(explicit_action "$id")"; then :
   elif [[ -n "$preset" ]]; then
@@ -438,6 +453,53 @@ if "$validate_only"; then
   exit 0
 fi
 
+if "$plan_json" || [[ -n "$expected_plan" ]]; then
+  command -v node >/dev/null 2>&1 || { printf 'Node.js is required for structured planning.\n' >&2; exit 1; }
+  contract_args=(plan-rows "$preset" "$provider_list" "$provider_scope" "$([[ "$skip_provider_configuration" == true ]] && printf false || printf true)" "$workspace_root" "$PACKAGE_ROOT" "$(afyx_platform)" "$expected_plan")
+  command -v git >/dev/null 2>&1 || contract_args+=(--block 'Git is required by the installer.')
+  if ! "$skip_provider_configuration"; then
+    if [[ ",$provider_list," == *,codex,* ]] && ! "$codex_cli_detected" && ! "$vscode_extension_detected"; then contract_args+=(--block 'Selected Codex host is unavailable.'); fi
+    if [[ ",$provider_list," == *,antigravity,* ]] && ! "$antigravity_detected"; then contract_args+=(--block 'Selected Antigravity host is unavailable.'); fi
+    if [[ ",$provider_list," == *,claude,* ]] && ! "$claude_cli_detected" && ! "$claude_vscode_detected"; then contract_args+=(--block 'Selected Claude Code host is unavailable.'); fi
+  fi
+  for plan_id in $(afyx_component_ids); do
+    plan_state="$(component_state "$plan_id")"
+    afyx_component_evaluate "$plan_id"
+    plan_detail="$AFYX_DETAIL"; plan_version="$AFYX_VERSION"
+    afyx_control_classify "$plan_id" "$plan_state" "$preset" "$custom_component_list" "$provider_list"
+    plan_desired="$AFYX_DESIRED"; plan_ownership="$AFYX_ACTUAL_OWNERSHIP"
+    plan_compatibility=SUPPORTED
+    [[ "$AFYX_DRIFT" == NOT_APPLICABLE ]] && plan_compatibility='NOT SUPPORTED'
+    if [[ "$AFYX_REPAIR" == BLOCKED ]]; then plan_action=blocked
+    else plan_action="$(component_action "$plan_id" "$(afyx_component_field "$plan_id" name)" "$plan_state" "$plan_version")"; fi
+    contract_plan_actions+=("$plan_id=$plan_action")
+    contract_args+=(--component "$plan_id" "$(afyx_component_field "$plan_id" name)" "$(afyx_component_field "$plan_id" type)" "$plan_state" "$plan_desired" "$plan_action" "$(afyx_component_root "$plan_id")" "$plan_ownership" "$plan_version" "$(available_version "$plan_id")" "$plan_compatibility" "$plan_detail")
+  done
+  for plan_root in "$skills_root" ${additional_skill_roots[@]+"${additional_skill_roots[@]}"}; do
+    for plan_id in $(afyx_component_ids); do
+      afyx_component_desired "$plan_id" "$preset" "$custom_component_list" "$provider_list" || continue
+      if [[ "$(afyx_component_field "$plan_id" type)" == skill ]] ||
+         { ! "$skip_provider_configuration" && [[ "$plan_id" == afyx-context || "$plan_id" == afyx-forge ]]; }; then
+        contract_args+=(--extra-target "$plan_id" skill "$plan_root/$plan_id")
+      fi
+    done
+  done
+  if ! "$skip_provider_configuration"; then
+    [[ ",$provider_list," != *,codex,* ]] || contract_args+=(--config "${CODEX_HOME:-$HOME/.codex}/config.toml")
+    if [[ ",$provider_list," == *,antigravity,* ]]; then
+      if [[ "$provider_scope" == workspace ]]; then contract_args+=(--config "$workspace_root/.agents/mcp_config.json")
+      else contract_args+=(--config "$gemini_home/config/mcp_config.json"); fi
+    fi
+    if [[ ",$provider_list," == *,claude,* ]]; then
+      if [[ "$provider_scope" == workspace ]]; then contract_args+=(--config "$workspace_root/.mcp.json")
+      else contract_args+=(--config "${claude_config_dir:-$HOME}/.claude.json"); fi
+    fi
+  fi
+  contract_output="$(node "$PACKAGE_ROOT/scripts/afyx-install-contract.mjs" "${contract_args[@]}")" || exit $?
+  if "$plan_json"; then printf '%s\n' "$contract_output"; exit 0; fi
+  contract_plan_ready=true
+fi
+
 if [[ -n "$preset" ]]; then
   blocked_plan=
   for plan_id in $(afyx_component_ids); do
@@ -467,6 +529,9 @@ for additional_root in ${additional_skill_roots[@]+"${additional_skill_roots[@]}
     case "$AFYX_OWNERSHIP_STATE" in NOT_INSTALLED|AFYX_OWNED_UNMODIFIED|AFYX_OWNED_MODIFIED) ;; *) printf 'Provider skill plan is blocked at %s because ownership is %s.\n' "$target" "$AFYX_OWNERSHIP_STATE" >&2; exit 1 ;; esac
   done
 done
+if [[ -n "$expected_plan" ]]; then
+  node "$PACKAGE_ROOT/scripts/afyx-install-contract.mjs" "${contract_args[@]}" >/dev/null || exit $?
+fi
 run mkdir -p "$skills_root"
 efficient_result=skipped
 odoo_result=skipped

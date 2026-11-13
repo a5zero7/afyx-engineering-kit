@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import readline from 'node:readline';
 import { PACKAGE_ROOT } from './afyx-npm-installer.mjs';
+import { createBackendAdapter, summarizeExecution } from './afyx-install-backend.mjs';
 
 const stages = ['DETECT', 'SELECT', 'CONFIGURE', 'REVIEW / APPLY', 'FINISH'];
 const supported = ['antigravity', 'claude', 'codex'];
@@ -48,33 +49,51 @@ function fit(value, width) {
   return text.length > width ? `${text.slice(0, Math.max(0, width - 1))}…` : text;
 }
 
-function panel(title, lines, width) {
-  const inner = Math.max(16, width - 4);
-  const top = `┌ ${fit(title, inner)} ${'─'.repeat(Math.max(0, inner - title.length))}┐`;
-  return [top, ...lines.map((line) => `│ ${fit(line, inner).padEnd(inner)} │`), `└${'─'.repeat(inner + 2)}┘`];
+function wrapLines(lines, inner) {
+  return lines.flatMap((line) => {
+    const text = String(line).replace(/[\r\n\t]/g, ' ');
+    if (!text) return [''];
+    const chunks = [];
+    for (let index = 0; index < text.length; index += inner) chunks.push(text.slice(index, index + inner));
+    return chunks;
+  });
 }
 
-export function renderFrame({ stage = 0, providers = [], selection = [], activity = [], width = 80, hint = '' } = {}) {
+function panel(title, lines, width, limit, offset = 0) {
+  const inner = Math.max(16, width - 4);
+  const top = `┌ ${fit(title, inner)} ${'─'.repeat(Math.max(0, inner - title.length))}┐`;
+  let wrapped = wrapLines(lines, inner);
+  if (limit && wrapped.length > limit) {
+    const start = Math.max(0, Math.min(offset, wrapped.length - Math.max(1, limit - 1)));
+    const total = wrapped.length;
+    wrapped = [...wrapped.slice(start, start + Math.max(1, limit - 1)), fit(`Tab: focus activity; ↑/↓ scroll (${start + 1}/${total})`, inner)];
+  }
+  return [top, ...wrapped.map((line) => `│ ${line.padEnd(inner)} │`), `└${'─'.repeat(inner + 2)}┘`];
+}
+
+export function renderFrame({ stage = 0, providers = [], providerSummary, selection = [], activity = [], width = 80, height = 24, activityOffset = 0, hint = '' } = {}) {
   const safeWidth = Math.max(40, width);
   const stepLine = stages.map((name, index) => `${index + 1} ${name}${index === stage ? ' ●' : ''}`).join(' → ');
-  const providerLines = providers.length ? providers.flatMap((entry) => {
+  const providerLines = providerSummary || (providers.length ? providers.flatMap((entry) => {
     const products = (entry.products || []).map((product) => `${product.type}${product.version ? ` ${product.version}` : ''}`);
     const compact = `${entry.name}: ${products.join(', ') || 'not detected'}`;
     if (safeWidth < 112 && compact.length <= safeWidth - 4) return [compact];
     return [`${entry.name}: ${products.length ? 'detected' : 'not detected'}`, ...products.map((product) => `  ${product}`)];
-  }) : ['No supported provider detected'];
+  }) : ['No supported provider detected']);
   let body;
   if (safeWidth >= 112) {
     const columnWidth = Math.floor((safeWidth - 4) / 3);
-    const height = Math.max(providerLines.length, selection.length, activity.length, 3);
+    const panelLimit = Math.max(3, height - 8);
+    const pad = (lines) => [...lines, ...Array(Math.max(0, panelLimit - lines.length)).fill('')];
     const columns = [
-      panel('PROVIDERS / HOST', [...providerLines, ...Array(height - providerLines.length).fill('')], columnWidth),
-      panel('SELECTION / STATUS', [...selection, ...Array(height - selection.length).fill('')], columnWidth),
-      panel('PLAN / ACTIVITY', [...activity, ...Array(height - activity.length).fill('')], columnWidth),
+      panel('PROVIDERS / HOST', pad(providerLines), columnWidth, panelLimit),
+      panel('SELECTION / STATUS', pad(selection), columnWidth, panelLimit),
+      panel('PLAN / ACTIVITY', pad(activity), columnWidth, panelLimit, activityOffset),
     ];
     body = columns[0].map((_, index) => columns.map((column) => column[index]).join(' '));
   } else {
-    body = [panel('PROVIDERS / HOST', providerLines, safeWidth), panel('SELECTION / STATUS', selection, safeWidth), panel('PLAN / ACTIVITY', activity, safeWidth)].flatMap((lines) => [...lines, '']);
+    const activityLimit = Math.max(3, height - 14 - wrapLines(providerLines, safeWidth - 4).length - wrapLines(selection, safeWidth - 4).length);
+    body = [panel('PROVIDERS / HOST', providerLines, safeWidth), panel('SELECTION / STATUS', selection, safeWidth), panel('PLAN / ACTIVITY', activity, safeWidth, activityLimit, activityOffset)].flatMap((lines) => [...lines, '']);
   }
   return [
     'AFYX / ENGINEERING KIT',
@@ -92,9 +111,21 @@ async function choose({ input, output, frame, options, selected = 0, multiple = 
   input.resume();
   const checks = new Set();
   let cursor = selected;
+  let activityOffset = 0;
+  let activityFocus = false;
+  const tooSmall = () => (output.columns || 80) < 80 || (output.rows || 24) < 24;
   const draw = () => {
-    const rows = options.map((option, index) => `${index === cursor ? '›' : ' '} ${multiple ? checks.has(index) ? '[x]' : '[ ]' : index === cursor ? '●' : '○'} ${option.label}`);
-    const screen = frame(rows)
+    if (tooSmall()) {
+      output.write('\x1b[H\x1b[0JResize the terminal to at least 80 columns by 24 rows. Esc cancels safely.\n');
+      return;
+    }
+    const capacity = Math.max(3, Math.min(8, (output.rows || 24) - 21));
+    const start = Math.max(0, Math.min(cursor - Math.floor(capacity / 2), options.length - capacity));
+    const rows = options.slice(start, start + capacity).map((option, offset) => {
+      const index = start + offset;
+      return `${index === cursor ? '›' : ' '} ${multiple ? checks.has(index) ? '[x]' : '[ ]' : index === cursor ? '●' : '○'} ${option.label}`;
+    });
+    const screen = frame(rows, cursor, { activityOffset, activityFocus })
       .replace(/^›[^\n]*/gm, (line) => `\x1b[1;36m${line}\x1b[0m`)
       .replace(/\b(PASS|FAILED|SKIPPED|NOT SUPPORTED)\b/g, (status) => `\x1b[${status === 'PASS' ? '32' : status === 'FAILED' ? '31' : '33'}m${status}\x1b[0m`);
     output.write(`\x1b[H\x1b[0J${screen}`);
@@ -105,10 +136,14 @@ async function choose({ input, output, frame, options, selected = 0, multiple = 
       const onKey = (_text, key = {}) => {
         if (key.ctrl && key.name === 'c') { cleanup(); reject(new Error('Installer canceled (Ctrl+C).')); return; }
         if (key.name === 'escape') { cleanup(); resolve(null); return; }
-        if (key.name === 'up' || key.name === 'left' || key.name === 'k') cursor = (cursor - 1 + options.length) % options.length;
-        else if (key.name === 'down' || key.name === 'right' || key.name === 'j' || key.name === 'tab') cursor = (cursor + 1) % options.length;
+        if (tooSmall()) return;
+        if (key.name === 'tab' || key.name === 'left' || key.name === 'right') activityFocus = !activityFocus;
+        else if (activityFocus && (key.name === 'up' || key.name === 'k')) activityOffset = Math.max(0, activityOffset - 1);
+        else if (activityFocus && (key.name === 'down' || key.name === 'j')) activityOffset++;
+        else if (key.name === 'up' || key.name === 'k') { cursor = (cursor - 1 + options.length) % options.length; activityOffset = 0; }
+        else if (key.name === 'down' || key.name === 'j') { cursor = (cursor + 1) % options.length; activityOffset = 0; }
         else if (multiple && key.name === 'space') { checks.has(cursor) ? checks.delete(cursor) : checks.add(cursor); }
-        else if (key.name === 'return') { cleanup(); resolve(multiple ? [...checks].map((index) => options[index].id) : options[cursor].id); return; }
+        else if (key.name === 'return') { if (activityFocus) activityFocus = false; else { cleanup(); resolve(multiple ? [...checks].map((index) => options[index].id) : options[cursor].id); return; } }
         draw();
       };
       const onResize = () => draw();
@@ -132,16 +167,23 @@ async function choose({ input, output, frame, options, selected = 0, multiple = 
   }
 }
 
-export async function runMidnightCircuit({ input = process.stdin, output = process.stdout, pkgRoot = PACKAGE_ROOT, platform = process.platform, arch = process.arch, hosts } = {}) {
+export async function runMidnightCircuit({ input = process.stdin, output = process.stdout, pkgRoot = PACKAGE_ROOT, platform = process.platform, arch = process.arch, hosts, options = {}, backend = createBackendAdapter({ platform, pkgRoot }) } = {}) {
   const providers = hosts ?? discoverHosts(pkgRoot);
   const available = providers.filter((entry) => providerSelectable(entry, platform)).map((entry) => entry.id);
-  const frame = (stage, selection, activity, hint) => renderFrame({ stage, providers, selection, activity, width: output.columns || 80, hint });
+  const frame = (stage, selection, activity, hint, view = {}) => renderFrame({ stage, providers,
+    providerSummary: stage >= 3 ? [`Selected: ${provider.join(', ') || 'skipped'}; scope: ${scope}`] : undefined,
+    selection, activity, width: output.columns || 80, height: output.rows || 24, ...view,
+    hint: `${hint}${view.activityFocus ? ' [ACTIVITY FOCUS]' : ''}` });
   let providerMode = available.length ? 'all' : 'skip';
   let preset = 'recommended';
   let provider = [];
   let scope = 'global';
   let custom = [];
   let step = 0;
+  let reviewedPlan;
+  let reviewNotice = '';
+  const backendOptions = () => ({ ...options, preset, provider: provider.join(','), providerScope: scope,
+    customComponents: custom, skipProviderConfiguration: provider.length === 0, nonInteractive: true });
   const selectedComponents = () => presetComponents(preset, custom, pkgRoot)
     .filter((id) => id !== 'codex-usage-tracking' || (platform === 'win32' && provider.includes('codex')));
   output.write('\x1b[2J\x1b[H');
@@ -194,29 +236,93 @@ export async function runMidnightCircuit({ input = process.stdin, output = proce
       scope = chosen;
       step = 4;
     } else if (step === 4) {
-      const confirmation = await choose({ input, output, frame: (rows) => frame(3, rows, [`Preset: ${preset}`, `Components: ${selectedComponents().join(', ')}`, `Provider: ${provider.join(', ') || 'skipped'}`, `Scope: ${scope}`], 'Enter: apply  Esc: back'), options: [
-        { id: 'apply', label: 'Apply installation plan' },
-        { id: 'cancel', label: 'Cancel without changes' },
-      ] });
+      output.write(`\x1b[H\x1b[0J${frame(3, ['Reading the backend installation plan…'], ['Read-only inspection; no installation changes yet.'], '')}`);
+      reviewedPlan = await backend.plan(backendOptions());
+      const items = reviewedPlan.components;
+      const choices = items.map((item) => ({ id: item.id, label: `${item.name}: ${item.backendAction.toUpperCase()} (${item.currentState})` }));
+      choices.push({ id: 'apply', label: 'Apply exactly this reviewed plan' }, { id: 'cancel', label: 'Cancel without changes' });
+      const confirmation = await choose({ input, output, frame: (rows, cursor, view) => {
+        const item = items[cursor];
+        const details = item ? [
+          `${item.id}: current=${item.currentState}; desired=${item.desired}; action=${item.backendAction}`,
+          `Target: ${item.target}`,
+          ...(reviewedPlan.additionalTargets || []).filter((target) => target.id === item.id).map((target) => `Provider target: ${target.target}`),
+          `Ownership: ${item.ownership}; platform: ${item.compatibility}`,
+          `Version: ${item.version || 'none'} → ${item.availableVersion || 'n/a'}; ${item.detail}`,
+          `Prerequisites: ${(item.prerequisites || []).map((requirement) => requirement.key).join(', ') || 'none declared'}`,
+        ] : [reviewNotice || 'Backend state and owned files are fingerprinted before confirmation.',
+          ...(reviewedPlan.blockers || []).map((reason) => `BLOCK: ${reason}`),
+          ...items.filter((entry) => entry.desired && entry.backendAction === 'blocked').map((entry) => `BLOCK: ${entry.name}: ${entry.detail}`)];
+        return frame(3, rows, details, '↑/↓: inspect  Tab: focus activity  Enter: choose  Esc: back', view);
+      }, options: choices, selected: items.length });
       if (confirmation === null) { step = 3; continue; }
       if (confirmation === 'cancel') return null;
+      if (confirmation !== 'apply') continue;
+      if ((reviewedPlan.blockers || []).length || items.some((item) => item.desired && item.backendAction === 'blocked')) {
+        reviewNotice = 'The backend plan is BLOCKED. Resolve the displayed ownership/prerequisite issue first.';
+        continue;
+      }
+      output.write(`\x1b[H\x1b[0J${frame(3, ['Revalidating the reviewed plan…'], ['Owned program files and provider configuration must still match.'], '')}`);
+      const currentPlan = await backend.plan(backendOptions());
+      if (currentPlan.fingerprint !== reviewedPlan.fingerprint) {
+        reviewNotice = 'PLAN CHANGED: installation state changed. Inspect and confirm the updated plan.';
+        continue;
+      }
       break;
     }
   }
   output.write(`\x1b[2J\x1b[H${frame(3, ['Applying confirmed plan…'], ['Platform installer output follows.'], '')}\n`);
-  const components = selectedComponents();
-  const finish = (exitCode) => {
-    const status = (id) => components.includes(id) ? 'NOT TESTED in UI' : 'SKIPPED';
-    const activity = [
-      `Components selected: ${components.join(', ')}`,
-      `Provider: ${provider.join(', ') || 'skipped'}`,
-      `Graph MCP: ${status('afyx-graph')}`,
-      `Context: ${status('afyx-context')}`,
-      `Forge: ${status('afyx-forge')}`,
-      'Run afyx-engineering-kit verify for detailed status.',
-    ];
-    output.write(`\x1b[2J\x1b[H${frame(4, [`Installer: ${exitCode === 0 ? 'PASS' : 'FAILED'} (exit ${exitCode})`], activity, '')}\n`);
+  const finish = async (exitCode) => {
+    try {
+      output.write(`\x1b[H\x1b[0J${frame(4, ['Verifying installed components…'], [`Installer exit: ${exitCode}; awaiting backend verification.`], '')}`);
+      const actual = await backend.plan(backendOptions());
+      const verification = await backend.verify(backendOptions());
+      const result = summarizeExecution(actual, verification, exitCode, reviewedPlan);
+      const checks = verification.rows.filter((row) => /^(Afyx Graph MCP|Antigravity MCP|Claude Code MCP|Afyx workflow MCP|Provider MCP|Afyx Context Engine|Afyx Forge Core|Core readiness)$/.test(row.name));
+      const receiptChoices = [
+        ...result.components.map((item, index) => ({ id: `component:${index}`, label: `${item.name}: ${item.outcome}; ${item.version || 'n/a'}` })),
+        ...checks.map((row, index) => ({ id: `check:${index}`, label: `${row.name}: ${row.state}` })),
+        { id: 'close', label: `Finish — ${result.status}; verify exit=${verification.exitCode}` },
+      ];
+      const summary = [`Result: ${result.status}; installer exit=${exitCode}; verify exit=${verification.exitCode}`,
+        `Provider configuration: ${provider.length ? 'see backend checks' : 'SKIPPED by user'}`,
+        'Inspect component versions and backend checks with ↑/↓.',
+        result.status === 'PASS' ? 'Maintenance: use verify, update, or selective uninstall.'
+          : 'Recovery: resolve the displayed backend failures, repair the affected component, then verify.'];
+      if (input.isTTY && output.isTTY) {
+        let selected = receiptChoices.length - 1;
+        try {
+        while (true) {
+          const choice = await choose({ input, output, options: receiptChoices, selected,
+            frame: (rows, cursor, view) => {
+              let detail = summary;
+              if (cursor < result.components.length) {
+                const item = result.components[cursor];
+                const state = actual.components[cursor];
+                detail = [`${item.name}: ${item.status}; outcome=${item.outcome}; version=${item.version || 'none'}`,
+                  `Target: ${state.target}`, `Ownership: ${state.ownership}; state=${state.currentState}`, state.detail];
+              } else if (cursor < receiptChoices.length - 1) {
+                const row = checks[cursor - result.components.length];
+                detail = [`${row.name}: ${row.state}`, row.detail];
+              }
+              return frame(4, rows, detail, '↑/↓: inspect  Tab: focus activity  Enter: select  Esc: finish', view);
+            } });
+          if (choice === null || choice === 'close') break;
+          selected = receiptChoices.findIndex((item) => item.id === choice);
+        }
+        } catch (error) {
+          output.write(`\nReceipt closed: ${error.message} Verified result: ${result.status}.\n`);
+          return /Ctrl\+C|SIGTERM/.test(error.message) ? 130 : 1;
+        }
+      } else output.write(`${frame(4, result.components.map((item) => `${item.name}: ${item.status}; ${item.version || 'n/a'}`), summary, '')}\n`);
+      return result.status === 'PASS' ? 0 : 1;
+    } catch (error) {
+      output.write(`\x1b[2J\x1b[H${frame(4, ['Verification: NOT TESTED / FAILED'],
+        [`Installer exit: ${exitCode}`, error.message, 'Run verify and resolve the backend diagnostic before retrying.'], '')}\n`);
+      return 1;
+    }
   };
   return { preset, provider: provider.join(','), providerScope: scope, customComponents: custom,
-    skipProviderConfiguration: provider.length === 0, nonInteractive: true, finish };
+    skipProviderConfiguration: provider.length === 0, nonInteractive: true,
+    expectedPlan: reviewedPlan.fingerprint, finish };
 }

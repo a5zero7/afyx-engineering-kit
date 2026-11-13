@@ -10,13 +10,22 @@
  */
 
 import { existsSync, readFileSync } from 'node:fs';
-import { dirname, join, resolve } from 'node:path';
+import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawn } from 'node:child_process';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 export const PACKAGE_ROOT = resolve(__dirname, '..');
+
+export function subprocessEnvironment(executable, env = process.env) {
+  if (!/^powershell(?:\.exe)?$/i.test(basename(executable))) return env;
+  const windowsRoot = env.SystemRoot || env.SYSTEMROOT || env.windir || env.WINDIR;
+  if (!windowsRoot) return env;
+  const nativeModules = join(windowsRoot, 'System32', 'WindowsPowerShell', 'v1.0', 'Modules');
+  const modulePaths = [nativeModules, ...(env.PSModulePath || '').split(';').filter(Boolean)];
+  return { ...env, PSModulePath: [...new Set(modulePaths)].join(';') };
+}
 
 let cachedVersion = null;
 export function getPackageVersion() {
@@ -306,6 +315,9 @@ export function buildSubprocessCall(command, options = {}, platform = process.pl
     }
 
     if (effectiveOptions.preset) psArgs.push('-Preset', effectiveOptions.preset);
+    if (effectiveOptions.planJson && command === 'install') psArgs.push('-PlanJson');
+    if (effectiveOptions.expectedPlan && command === 'install') psArgs.push('-ExpectedPlan', effectiveOptions.expectedPlan);
+    if (effectiveOptions.reportJson && command === 'verify') psArgs.push('-ReportJson');
     if (effectiveOptions.provider) psArgs.push('-Provider', effectiveOptions.provider);
     if (effectiveOptions.providerScope) psArgs.push('-ProviderScope', effectiveOptions.providerScope);
     if (effectiveOptions.workspaceRoot) psArgs.push('-WorkspaceRoot', effectiveOptions.workspaceRoot);
@@ -335,7 +347,9 @@ export function buildSubprocessCall(command, options = {}, platform = process.pl
       psArgs.push('-WhatIf');
     }
     if (effectiveOptions.nonInteractive && (command === 'install' || command === 'update' || command === 'uninstall')) {
-      psArgs.push('-Confirm:$false');
+      // Windows PowerShell 5.1 -File cannot bind a string Boolean to a switch.
+      // These entrypoints use CI for prompt suppression and retain ShouldProcess.
+      env.CI = '1';
     }
 
     if (effectiveOptions.validateOnly && command === 'install') psArgs.push('-ValidateOnly');
@@ -343,7 +357,7 @@ export function buildSubprocessCall(command, options = {}, platform = process.pl
     if (effectiveOptions.allowDowngrade && (command === 'install' || command === 'update')) psArgs.push('-AllowDowngrade');
     if (effectiveOptions.offline && (command === 'install' || command === 'update')) psArgs.push('-Offline');
     if (effectiveOptions.noBuildFallback && (command === 'install' || command === 'update')) psArgs.push('-NoBuildFallback');
-    if (effectiveOptions.skipProviderConfiguration && (command === 'install' || command === 'update')) psArgs.push('-SkipProviderConfiguration');
+    if (effectiveOptions.skipProviderConfiguration && (command === 'install' || command === 'update' || command === 'verify')) psArgs.push('-SkipProviderConfiguration');
     if (effectiveOptions.skipSelfUpdate && command === 'update' && isGitRepo) psArgs.push('-SkipSelfUpdate');
     if (effectiveOptions.removeProviderConfiguration && command === 'uninstall') psArgs.push('-RemoveProviderConfiguration');
     if (effectiveOptions.removeAfyxGraph && command === 'uninstall') psArgs.push('-RemoveAfyxGraph');
@@ -382,6 +396,9 @@ export function buildSubprocessCall(command, options = {}, platform = process.pl
   }
 
   if (effectiveOptions.preset) shArgs.push('--preset', effectiveOptions.preset);
+  if (effectiveOptions.planJson && command === 'install') shArgs.push('--plan-json');
+  if (effectiveOptions.expectedPlan && command === 'install') shArgs.push('--expected-plan', effectiveOptions.expectedPlan);
+  if (effectiveOptions.reportJson && command === 'verify') shArgs.push('--report-json');
   if (effectiveOptions.provider) shArgs.push('--provider', effectiveOptions.provider);
   if (effectiveOptions.providerScope) shArgs.push('--provider-scope', effectiveOptions.providerScope);
   if (effectiveOptions.workspaceRoot) shArgs.push('--workspace-root', effectiveOptions.workspaceRoot);
@@ -450,7 +467,7 @@ export function executeSubprocess(callInfo, { onExit = null } = {}) {
         child = spawn(exe, args, {
           stdio: 'inherit',
           cwd: process.cwd(),
-          env: callInfo.env || process.env,
+          env: subprocessEnvironment(exe, callInfo.env || process.env),
         });
       } catch (err) {
         if (callInfo.fallbackExecutable && exe !== callInfo.fallbackExecutable) {

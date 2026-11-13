@@ -17,7 +17,8 @@ describe('T06 (AFYX-316): Terminal Installer UX & Preset Coverage', () => {
     assert.ok(call.args.includes('-Preset'));
     assert.ok(call.args.includes('minimal'));
     assert.ok(call.args.includes('-WhatIf'));
-    assert.ok(call.args.includes('-Confirm:$false'));
+    assert.equal(call.env.CI, '1');
+    assert.equal(call.args.includes('-Confirm:$false'), false);
   });
 
   test('Preset support: recommended preset parses and maps correctly', () => {

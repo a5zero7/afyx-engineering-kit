@@ -1,117 +1,162 @@
 /**
- * Pure main-loop silence policy. The same class is serialized into the
- * watchdog child, so tests and the isolated runtime execute one decision model.
+ * Silence evaluation policy and standalone child monitor entry point for
+ * AFYX Graph's external main-thread liveness watchdog.
+ */
+
+export type WatchdogVerdict = 'defer' | 'terminate-stalled' | 'terminate-hard-cap';
+
+interface SilenceTrackerState {
+  silentStartMs: number | null;
+  lastHealthyPollMs: number;
+  knownSignature: string;
+}
+
+/**
+ * Tracks heartbeat gaps against disk-backed progress signatures so slow synchronous
+ * storage operations can be tolerated up to an explicit hard ceiling.
  */
 export class ProgressSilencePolicy {
-  private silenceStartedAt: number | null = null;
-  private lastHealthySampleAt: number;
+  private readonly state: SilenceTrackerState;
 
   constructor(
     private readonly timeoutMs: number,
     private readonly capMs: number,
-    private baseline: string,
-    now: number,
+    initialSignature: string,
+    startedAtMs: number,
   ) {
-    this.lastHealthySampleAt = now;
+    this.state = {
+      silentStartMs: null,
+      lastHealthyPollMs: startedAtMs,
+      knownSignature: initialSignature,
+    };
   }
 
-  shouldSampleHealthyProgress(now: number): boolean {
-    return now - this.lastHealthySampleAt >= 1000;
+  /** Limit healthy-path file metadata checks to once per second. */
+  shouldSampleHealthyProgress(nowMs: number): boolean {
+    return nowMs - this.state.lastHealthyPollMs >= 1_000;
   }
 
-  heartbeat(now: number, sample?: string): void {
-    this.silenceStartedAt = null;
-    if (sample !== undefined) {
-      this.baseline = sample;
-      this.lastHealthySampleAt = now;
+  /** Clear active silence tracking on receipt of a heartbeat pulse. */
+  heartbeat(nowMs: number, currentSignature?: string): void {
+    this.state.silentStartMs = null;
+    if (currentSignature !== undefined) {
+      this.state.knownSignature = currentSignature;
+      this.state.lastHealthyPollMs = nowMs;
     }
   }
 
-  deadline(now: number, sample: string): 'defer' | 'terminate-stalled' | 'terminate-hard-cap' {
-    this.silenceStartedAt ??= now - this.timeoutMs;
-    const withinCap = now - this.silenceStartedAt < this.capMs;
-    if (sample !== this.baseline && withinCap) {
-      this.baseline = sample;
+  /** Evaluate whether a missed heartbeat deadline should defer or terminate. */
+  deadline(nowMs: number, currentSignature: string): WatchdogVerdict {
+    if (this.state.silentStartMs === null) {
+      this.state.silentStartMs = nowMs - this.timeoutMs;
+    }
+
+    const diskChanged = currentSignature !== this.state.knownSignature;
+    if (!diskChanged) {
+      return 'terminate-stalled';
+    }
+
+    const silentElapsedMs = nowMs - this.state.silentStartMs;
+    if (silentElapsedMs < this.capMs) {
+      this.state.knownSignature = currentSignature;
       return 'defer';
     }
-    return sample !== this.baseline ? 'terminate-hard-cap' : 'terminate-stalled';
+    return 'terminate-hard-cap';
   }
 }
 
-/** Self-contained entry point executed by `node -e` in the watchdog process. */
-function watchdogChildMain(): void {
-  // These globals are intentionally resolved only inside the child process.
-  const fs = require('fs') as typeof import('fs');
-  const parentPid = Number(process.argv[1]);
+/**
+ * Dependency-free child supervisor executed inside `node -e`.
+ * Reads target PID, timeout, cap, and optional progress paths from `process.argv`.
+ */
+function runExternalWatchdogChild(): void {
+  const nodeFs = require('fs') as typeof import('fs');
+  const targetPid = Number(process.argv[1]);
   const timeoutMs = Number(process.argv[2]);
-  const capMs = Number(process.argv[3]);
-  const progressPaths = process.argv.slice(4);
-  const timeoutSeconds = Math.round(timeoutMs / 1000);
+  const hardCapMs = Number(process.argv[3]);
+  const watchedPaths = process.argv.slice(4);
+  const timeoutSec = Math.round(timeoutMs / 1_000);
+  const capSec = Math.round(hardCapMs / 1_000);
 
-  const fingerprint = (): string => progressPaths.map((filePath: string) => {
+  const readArtifactSignature = (): string =>
+    watchedPaths
+      .map((targetPath: string) => {
+        try {
+          const stats = nodeFs.statSync(targetPath);
+          return `${stats.size}:${stats.mtimeMs}`;
+        } catch {
+          return 'absent';
+        }
+      })
+      .join('|');
+
+  const terminateParentProcess = (reason: 'stalled' | 'hard-cap'): never => {
+    const reasonDetail =
+      reason === 'hard-cap'
+        ? ` despite ongoing storage activity (hard cap ${capSec}s reached)`
+        : '';
+    const diagnosticLine =
+      `[${new Date().toISOString()}] [Afyx Graph] Main event loop unresponsive for ~${timeoutSec}s${reasonDetail}; ` +
+      'terminating stalled process for clean recovery. Disable via AFYX_GRAPH_NO_WATCHDOG=1.\n';
+
     try {
-      const stat = fs.statSync(filePath);
-      return `${stat.size}:${stat.mtimeMs}`;
+      nodeFs.writeSync(2, Buffer.from(diagnosticLine));
     } catch {
-      return 'missing';
+      // Standard error may already be closed when parent crashes.
     }
-  }).join(';');
-
-  const terminateParent = (hardCap: boolean): never => {
-    const suffix = hardCap
-      ? ` despite ongoing disk activity (hard cap ${Math.round(capMs / 1000)}s reached)`
-      : '';
     try {
-      fs.writeSync(
-        2,
-        Buffer.from(
-          `[${new Date().toISOString()}] [Afyx Graph] Main thread unresponsive for ~${timeoutSeconds}s${suffix}` +
-          ' — killing the wedged process so a fresh one can start (#850). ' +
-          'Disable with AFYX_GRAPH_NO_WATCHDOG=1.\n',
-        ),
-      );
-    } catch { /* stderr may already be gone */ }
-    try { process.kill(parentPid, 'SIGKILL'); } catch { /* parent already gone */ }
+      process.kill(targetPid, 'SIGKILL');
+    } catch {
+      // Parent process already terminated.
+    }
     process.exit(0);
   };
 
-  const tracksProgress = progressPaths.length > 0;
-  const progress = tracksProgress
-    ? new ProgressSilencePolicy(timeoutMs, capMs, fingerprint(), Date.now())
-    : null;
-  let deadline: ReturnType<typeof setTimeout>;
+  const progressTracker =
+    watchedPaths.length > 0
+      ? new ProgressSilencePolicy(timeoutMs, hardCapMs, readArtifactSignature(), Date.now())
+      : null;
 
-  const armDeadline = (): void => {
-    deadline = setTimeout(onDeadline, timeoutMs);
-  };
-  const onDeadline = (): void => {
-    if (progress === null) {
-      terminateParent(false);
+  let activeTimer: ReturnType<typeof setTimeout>;
+
+  const handleTimerExpired = (): void => {
+    if (progressTracker === null) {
+      terminateParentProcess('stalled');
       return;
     }
-    const now = Date.now();
-    const decision = progress.deadline(now, fingerprint());
+    const decision = progressTracker.deadline(Date.now(), readArtifactSignature());
     if (decision === 'defer') {
-      armDeadline();
+      activeTimer = setTimeout(handleTimerExpired, timeoutMs);
       return;
     }
-    terminateParent(decision === 'terminate-hard-cap');
+    terminateParentProcess(decision === 'terminate-hard-cap' ? 'hard-cap' : 'stalled');
   };
 
-  armDeadline();
+  const resetTimer = (): void => {
+    activeTimer = setTimeout(handleTimerExpired, timeoutMs);
+  };
+
+  resetTimer();
+
   process.stdin.on('data', () => {
-    const now = Date.now();
-    const sample = progress?.shouldSampleHealthyProgress(now) ? fingerprint() : undefined;
-    progress?.heartbeat(now, sample);
-    clearTimeout(deadline);
-    armDeadline();
+    if (progressTracker !== null) {
+      const timestamp = Date.now();
+      const snapshot = progressTracker.shouldSampleHealthyProgress(timestamp)
+        ? readArtifactSignature()
+        : undefined;
+      progressTracker.heartbeat(timestamp, snapshot);
+    }
+    clearTimeout(activeTimer);
+    resetTimer();
   });
-  process.stdin.on('end', () => process.exit(0));
-  process.stdin.on('error', () => process.exit(0));
+
+  const exitCleanly = (): void => process.exit(0);
+  process.stdin.on('end', exitCleanly);
+  process.stdin.on('error', exitCleanly);
   process.stdin.resume();
 }
 
-/** Build the dependency-free child program from the tested policy implementation. */
+/** Serialize policy logic and child supervisor entry point for `node -e` execution. */
 export function watchdogChildSource(): string {
-  return `${ProgressSilencePolicy.toString()}\n(${watchdogChildMain.toString()})();`;
+  return `${ProgressSilencePolicy.toString()}\n(${runExternalWatchdogChild.toString()})();`;
 }

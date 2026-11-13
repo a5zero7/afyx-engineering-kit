@@ -18,8 +18,18 @@ function fakeTerminal(keys) {
   output.isTTY = true;
   output.columns = 100;
   output.rows = 30;
-  output.write = () => {};
+  output.text = '';
+  output.write = (text) => { output.text += text; };
   return { input, output };
+}
+
+function backendFixture() {
+  const plan = { schema: 'AfyxInstallPlan/v1', fingerprint: 'fixture-plan', blockers: [], components: [{
+    id: 'efficient-coding', name: 'Efficient Coding', desired: true, backendAction: 'install',
+    currentState: 'NOT INSTALLED', target: '/isolated/skills/efficient-coding', ownership: 'NONE',
+    version: '', availableVersion: '1.2.2', compatibility: 'SUPPORTED', detail: 'not installed',
+  }] };
+  return { plan: () => plan, verify: () => ({ rows: [], exitCode: 0 }) };
 }
 
 test('terminal selection respects TTY, CI, plain output, width, and explicit TUI', () => {
@@ -75,6 +85,25 @@ test('multiple extension installations remain grouped under one provider', () =>
   assert.match(frame, /2\.1\.322/);
 });
 
+test('long backend details remain scrollable within a 24-row review screen', () => {
+  const args = { width: 80, height: 24, stage: 3, providerSummary: ['Selected: skipped'],
+    selection: ['component 1', 'component 2', 'Apply'], activity: Array.from({ length: 14 }, (_, index) => `detail-${index}`) };
+  const first = renderFrame(args);
+  const later = renderFrame({ ...args, activityOffset: 8 });
+  assert.ok(first.split('\n').length <= 24);
+  assert.match(first, /focus activity/);
+  assert.match(later, /detail-8/);
+  assert.doesNotMatch(later, /detail-0/);
+});
+
+test('a terminal resized below the supported dimensions can still cancel safely', async () => {
+  const terminal = fakeTerminal(['escape']);
+  terminal.output.columns = 60;
+  assert.equal(await runMidnightCircuit({ ...terminal, hosts: [], backend: backendFixture() }), null);
+  assert.match(terminal.output.text, /Resize the terminal/);
+  assert.equal(terminal.input.rawMode, false);
+});
+
 test('cancellation restores terminal mode before any platform installer call', async () => {
   const terminal = fakeTerminal(['escape']);
   assert.equal(await runMidnightCircuit({ ...terminal, hosts: [] }), null);
@@ -92,10 +121,42 @@ test('Ctrl+C restores terminal mode and reports cancellation', async () => {
 
 test('five-stage no-provider flow returns explicit safe backend options', async () => {
   const terminal = fakeTerminal(['return', 'return', 'return', 'return', 'return']);
-  const result = await runMidnightCircuit({ ...terminal, hosts: [] });
+  const result = await runMidnightCircuit({ ...terminal, hosts: [], backend: backendFixture() });
   assert.equal(result.preset, 'recommended');
   assert.equal(result.provider, '');
   assert.equal(result.skipProviderConfiguration, true);
   assert.equal(result.nonInteractive, true);
+  assert.equal(result.expectedPlan, 'fixture-plan');
+  assert.equal(terminal.input.rawMode, false);
+});
+
+test('a changed backend fingerprint requires a second explicit confirmation', async () => {
+  const terminal = fakeTerminal(Array(6).fill('return'));
+  const backend = backendFixture();
+  const original = backend.plan();
+  let calls = 0;
+  backend.plan = () => ({ ...original, fingerprint: ++calls === 1 ? 'old' : 'new' });
+  const result = await runMidnightCircuit({ ...terminal, hosts: [], backend });
+  assert.equal(result.expectedPlan, 'new');
+  assert.equal(calls, 4);
+});
+
+test('Finish fails when verification finds an unhealthy component despite installer exit zero', async () => {
+  const terminal = fakeTerminal(Array(5).fill('return'));
+  const backend = backendFixture();
+  const result = await runMidnightCircuit({ ...terminal, hosts: [], backend });
+  terminal.input.isTTY = false;
+  assert.equal(await result.finish(0), 1);
+});
+
+test('Finish consumes backend states and verification before offering a successful receipt', async () => {
+  const terminal = fakeTerminal(Array(6).fill('return'));
+  const backend = backendFixture();
+  const original = backend.plan();
+  const result = await runMidnightCircuit({ ...terminal, hosts: [], backend });
+  backend.plan = () => ({ ...original, components: original.components.map((item) => ({ ...item, currentState: 'HEALTHY', version: '1.2.2', ownership: 'AFYX', backendAction: 'skip' })) });
+  backend.verify = () => ({ rows: [{ name: 'Core readiness', state: 'OK', detail: 'verified' }], exitCode: 0 });
+  assert.equal(await result.finish(0), 0);
+  assert.match(terminal.output.text.replace(/\x1b\[[0-?]*[ -/]*[@-~]/g, ''), /Finish — PASS/);
   assert.equal(terminal.input.rawMode, false);
 });

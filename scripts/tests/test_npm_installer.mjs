@@ -8,12 +8,22 @@ import {
   getHelpText,
   parseCliArgs,
   buildSubprocessCall,
+  subprocessEnvironment,
   COMMAND_ALLOWED_OPTIONS,
   PACKAGE_ROOT,
 } from '../afyx-npm-installer.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
+
+test('Windows PowerShell fallback resolves native modules without changing the parent environment', () => {
+  const env = { SystemRoot: 'C:/Windows', PSModulePath: 'C:/Program Files/PowerShell/7/Modules;D:/owner-modules' };
+  const adjusted = subprocessEnvironment('powershell.exe', env);
+  assert.match(adjusted.PSModulePath.split(';')[0], /Windows[\\/]System32[\\/]WindowsPowerShell[\\/]v1\.0[\\/]Modules$/);
+  assert.ok(adjusted.PSModulePath.includes('D:/owner-modules'));
+  assert.equal(env.PSModulePath, 'C:/Program Files/PowerShell/7/Modules;D:/owner-modules');
+  assert.equal(subprocessEnvironment('pwsh', env), env);
+});
 const CLI_BIN = join(PACKAGE_ROOT, 'bin', 'afyx-engineering-kit.mjs');
 
 test('getPackageVersion returns non-empty semver string', () => {
@@ -133,7 +143,8 @@ test('buildSubprocessCall maps Windows arguments to PowerShell', () => {
   assert.ok(call.args.includes('-Preset'));
   assert.ok(call.args.includes('full'));
   assert.ok(call.args.includes('-WhatIf'));
-  assert.ok(call.args.includes('-Confirm:$false'));
+  assert.equal(call.env.CI, '1');
+  assert.equal(call.args.includes('-Confirm:$false'), false);
 });
 
 test('buildSubprocessCall handles Windows graph-runtime-root via environment variable', () => {
@@ -153,7 +164,8 @@ test('buildSubprocessCall preserves update --dry-run and --non-interactive on Wi
   }, 'win32', '/pkg');
 
   assert.ok(call.args.includes('-WhatIf'));
-  assert.ok(call.args.includes('-Confirm:$false'));
+  assert.equal(call.env.CI, '1');
+  assert.equal(call.args.includes('-Confirm:$false'), false);
   assert.ok(call.args.includes('-Preset'));
 });
 

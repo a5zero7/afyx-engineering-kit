@@ -55,7 +55,7 @@ async function main() {
     }
     if (mode === 'tui' && !hasSelections &&
         !parsed.options.nonInteractive && !parsed.options.dryRun && !parsed.options.validateOnly) {
-      const selection = await runMidnightCircuit();
+      const selection = await runMidnightCircuit({ options: parsed.options });
       if (!selection) { console.log('Installation canceled without changes.'); return; }
       finish = selection.finish;
       Object.assign(parsed.options, selection);
@@ -67,10 +67,10 @@ async function main() {
 
   try {
     const exitCode = await executeSubprocess(callInfo);
-    if (finish) finish(exitCode);
-    process.exit(exitCode);
+    const finalCode = finish ? await finish(exitCode) : exitCode;
+    process.exit(finalCode);
   } catch (err) {
-    if (finish) finish(1);
+    if (finish) await finish(1);
     console.error(`Failed to launch installer lifecycle subprocess (${callInfo.executable}):`, err.message);
     process.exit(1);
   }
