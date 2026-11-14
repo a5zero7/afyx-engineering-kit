@@ -89,6 +89,9 @@ jobs:
       - name: Validate component contract
         run: python scripts/validate-components.py
 
+      - name: Forge checkout integrity and provider verification regressions
+        run: node --test scripts/tests/test_forge_checkout_license.mjs scripts/tests/test_verify_provider_binding.mjs
+
       - name: Build Afyx Graph win32 release bundle
         shell: pwsh
         run: |
