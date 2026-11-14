@@ -45,6 +45,7 @@ function Write-Result([string]$State, [string]$Name, [string]$Detail = '') {
 Import-Module (Join-Path $PSScriptRoot 'scripts\lib\AfyxComponents.psm1') -Force
 Import-Module (Join-Path $PSScriptRoot 'scripts\lib\AfyxSkillLifecycle.psm1') -Force -DisableNameChecking
 $providerIds = @(Get-AfyxProviderRegistry | ForEach-Object { [string]$_.provider })
+$Provider = @($Provider | ForEach-Object { $_ -split ',' } | ForEach-Object { $_.Trim() } | Where-Object { $_ } | Select-Object -Unique)
 $unknownProviders = @($Provider | Where-Object { $_ -notin $providerIds })
 if ($unknownProviders.Count) { throw "Unknown provider(s): $($unknownProviders -join ', ')" }
 $providerSkillRoots = @()

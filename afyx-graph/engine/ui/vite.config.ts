@@ -28,6 +28,9 @@ export default defineConfig(({ command }) => {
       outDir,
       emptyOutDir: true,
       target: 'es2022',
+      // This viewer is one module bundle; native module loading needs no
+      // injected Vite runtime or modulepreload compatibility implementation.
+      modulePreload: { polyfill: false },
       // A localhost reader has the sources on disk already; sourcemaps would
       // double the bundle in every platform archive for no one's benefit.
       sourcemap: false,
