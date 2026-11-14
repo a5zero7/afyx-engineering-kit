@@ -152,7 +152,11 @@ describe('Sync Module', () => {
 
       it('persists an oversized skipped file so later syncs do not retry it (#1557)', async () => {
         const filePath = path.join(testDir, 'src', 'oversized.ts');
-        fs.writeFileSync(filePath, 'const value = 1;\n'.repeat(70_000));
+        // Only the size/skip contract matters here. Repeated executable declarations
+        // trigger content-dependent first-read stalls on Windows; comments keep the
+        // same 1,190,000-byte workload without that unrelated filesystem cost.
+        fs.writeFileSync(filePath, '// oversized pad\n'.repeat(70_000));
+        expect(fs.statSync(filePath).size).toBe(1_190_000);
 
         const first = await cg.sync();
         expect(first.filesAdded).toBe(1);
