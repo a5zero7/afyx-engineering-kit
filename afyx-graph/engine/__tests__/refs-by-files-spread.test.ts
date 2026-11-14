@@ -15,7 +15,9 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
+import { performance } from 'node:perf_hooks';
 import { AfyxGraph } from '../src';
+import type { DatabaseConnection } from '../src/db';
 import type { UnresolvedReference } from '../src/types';
 
 describe('unresolved-ref loads with dense result sets (#1558)', () => {
@@ -35,12 +37,14 @@ describe('unresolved-ref loads with dense result sets (#1558)', () => {
   });
 
   it('returns 200k pending refs from few files without exhausting the call stack', () => {
-    const queries = (cg as unknown as {
+    const { queries, db } = cg as unknown as {
+      db: DatabaseConnection;
       queries: {
         insertUnresolvedRefsBatch(refs: UnresolvedReference[]): void;
         getUnresolvedReferencesByFiles(paths: string[]): UnresolvedReference[];
+        getUnresolvedReferencesCount(): number;
       };
-    }).queries;
+    };
 
     const FILES = 200;
     const TOTAL = 200_000;
@@ -48,27 +52,53 @@ describe('unresolved-ref loads with dense result sets (#1558)', () => {
     // unresolved_refs.from_node_id is FK-constrained — anchor on a real node.
     const anchorId = cg.getNodesInFile('anchor.py')[0]!.id;
 
-    const batch: UnresolvedReference[] = [];
-    for (let i = 0; i < TOTAL; i++) {
-      batch.push({
-        fromNodeId: anchorId,
-        referenceName: `ref_${i}`,
-        referenceKind: 'call',
-        line: (i % 1000) + 1,
-        column: 0,
-        filePath: paths[i % FILES]!,
-        language: 'python',
-      });
-      if (batch.length === 20_000) {
-        queries.insertUnresolvedRefsBatch(batch);
-        batch.length = 0;
+    const started = performance.now();
+    const cpuBefore = process.cpuUsage();
+    const ioBefore = process.resourceUsage();
+    // Population is one fixture operation, not ten durability scenarios. Nested
+    // batch calls retain their real FK checks and bounded SQL parameter chunks,
+    // while one commit avoids repeated WAL checkpoints on Windows CI storage.
+    db.transaction(() => {
+      const batch: UnresolvedReference[] = [];
+      for (let i = 0; i < TOTAL; i++) {
+        batch.push({
+          fromNodeId: anchorId,
+          referenceName: `ref_${i}`,
+          referenceKind: 'call',
+          line: (i % 1000) + 1,
+          column: 0,
+          filePath: paths[i % FILES]!,
+          language: 'python',
+        });
+        if (batch.length === 20_000) {
+          queries.insertUnresolvedRefsBatch(batch);
+          batch.length = 0;
+        }
       }
-    }
-    if (batch.length > 0) queries.insertUnresolvedRefsBatch(batch);
+      if (batch.length > 0) queries.insertUnresolvedRefsBatch(batch);
+    });
+    const inserted = performance.now();
 
     // All 200 paths fit in ONE SQLite parameter chunk, so a single query
     // returns all 200k rows — the exact shape that blew the argument limit.
     const rows = queries.getUnresolvedReferencesByFiles(paths);
+    const queried = performance.now();
+    if (process.env.CI || process.env.AFYX_GRAPH_STRESS_METRICS) {
+      const cpu = process.cpuUsage(cpuBefore);
+      const usage = process.resourceUsage();
+      console.info('[refs-200k]', JSON.stringify({ node: process.version,
+        insertMs: inserted - started, queryMs: queried - inserted,
+        cpuMs: (cpu.user + cpu.system) / 1000, rssBytes: process.memoryUsage().rss,
+        processPeakRssBytes: usage.maxRSS * 1024,
+        readOps: usage.fsRead - ioBefore.fsRead, writeOps: usage.fsWrite - ioBefore.fsWrite }));
+    }
     expect(rows.length).toBe(TOTAL);
+    expect(new Set(rows.map((row) => row.referenceName)).size).toBe(TOTAL);
+    expect(new Set(rows.map((row) => row.filePath)).size).toBe(FILES);
+    expect(db.getDb().pragma('foreign_keys', { simple: true })).toBe(1);
+    expect(() => queries.insertUnresolvedRefsBatch([{
+      fromNodeId: 'missing-node', referenceName: 'invalid', referenceKind: 'call', line: 1, column: 0,
+    }])).toThrow(/FOREIGN KEY/i);
+    expect(queries.getUnresolvedReferencesCount()).toBe(TOTAL);
   }, 30_000);
 });
