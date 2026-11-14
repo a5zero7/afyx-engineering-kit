@@ -3,7 +3,7 @@ import { appendFileSync, mkdtempSync, readFileSync, writeFileSync } from 'node:f
 import { tmpdir } from 'node:os';
 import { stripVTControlCharacters } from 'node:util';
 import { InstallerProgress, INSTALL_PROGRESS_PREFIX } from './afyx-install-progress.mjs';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import readline from 'node:readline';
 import { PACKAGE_ROOT, getPackageVersion } from './afyx-npm-installer.mjs';
 import { createBackendAdapter, summarizeExecution } from './afyx-install-backend.mjs';
@@ -460,19 +460,26 @@ export async function runMidnightCircuit({ input = process.stdin, output = proce
       drawScreen(output, frame(4, ['Verifying installed components…'], [`Installer exit: ${exitCode}; awaiting backend verification.`], ''));
       const actual = await operation('validation', 'Inspecting installed component state', 4, (signal) => backend.plan(backendOptions(), { signal }));
       const verification = await operation('verify', 'Verifying installed components and provider configuration', 4, (signal) => backend.verify(backendOptions(), { signal }));
+      const verificationPath = join(dirname(tracePath), 'verification.json');
+      writeFileSync(verificationPath, JSON.stringify(verification, null, 2) + '\n', { mode: 0o600 });
       const result = await operation('receipt', 'Generating verified installation receipt', 4, () => summarizeExecution(actual, verification, exitCode, reviewedPlan));
-      const checks = verification.rows.filter((row) => /^(Afyx Graph MCP|Antigravity MCP|Claude Code MCP|Afyx workflow MCP|Provider MCP|Afyx Context Engine|Afyx Forge Core|Core readiness)$/.test(row.name));
+      const checks = verification.rows.filter((row) => row.state === 'FAIL' || /^(Afyx Graph MCP|Antigravity MCP|Claude Code MCP|Afyx workflow MCP|Provider MCP|Afyx Context Engine|Afyx Forge Core|Core readiness)$/.test(row.name));
+      const failedChecks = checks.filter((row) => row.state === 'FAIL' && row.name !== 'Core readiness');
       const receiptChoices = [
         ...result.components.map((item, index) => ({ id: `component:${index}`, label: `${item.name}: ${item.outcome}; ${item.version || 'n/a'}` })),
         ...checks.map((row, index) => ({ id: `check:${index}`, label: `${row.name}: ${row.state}` })),
         { id: 'close', label: `Finish — ${result.status}; verify exit=${verification.exitCode}` },
       ];
       const summary = [`Result: ${result.status}; installer exit=${exitCode}; verify exit=${verification.exitCode}`,
+        ...failedChecks.map((row) => `FAILED CHECK: ${row.name}: ${row.detail || 'Inspect the verification diagnostic.'}`),
+        ...(result.status === 'PASS' ? [] : ['Recovery: review the failed checks before making changes.',
+          'Preserve user changes; authorize prerequisite/configuration changes or repairs, then verify.']),
+        `Verification log: ${verificationPath}`,
         `Provider configuration: ${provider.length ? 'see backend checks' : 'SKIPPED by user'}`,
         `Backend log: ${tracePath}`, provider.length ? 'Provider MCP changes may require restarting the agent host.' : 'No provider registration requested.',
         'Inspect component versions and backend checks with ↑/↓.',
         result.status === 'PASS' ? 'Maintenance: use verify, update, or selective uninstall.'
-          : 'Recovery: resolve the displayed backend failures, repair the affected component, then verify.'];
+          : 'Inspect each failed readiness check and the full verification log.'];
       if (input.isTTY && output.isTTY) {
         let selected = receiptChoices.length - 1;
         try {

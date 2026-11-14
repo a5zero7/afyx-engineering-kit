@@ -265,6 +265,29 @@ test('Finish fails when verification finds an unhealthy component despite instal
   assert.equal(await result.finish(0), 1);
 });
 
+test('Finish exposes the specific failed readiness row and preserves failure despite healthy components', async () => {
+  const terminal = fakeTerminal(Array(5).fill('return'));
+  const backend = backendFixture();
+  const original = backend.plan();
+  const result = await runMidnightCircuit({ ...terminal, hosts: [], backend });
+  backend.plan = () => ({ ...original, components: original.components.map((item) => ({ ...item, currentState: 'HEALTHY' })) });
+  backend.verify = () => ({ rows: [
+    { name: 'Afyx Graph MCP', state: 'OK', detail: 'ready' },
+    { name: 'Claude Code host', state: 'FAIL', detail: 'Install the supported host before verifying again.' },
+    { name: 'Provider skill/efficient-coding', state: 'FAIL', detail: 'AFYX_OWNED_MODIFIED; preserve user changes.' },
+    { name: 'Core readiness', state: 'FAIL', detail: '' },
+  ], exitCode: 1 });
+  terminal.input.isTTY = false;
+  assert.equal(await result.finish(0), 1);
+  const text = terminal.output.text.replace(/\x1b\[[0-?]*[ -/]*[@-~]/g, '');
+  assert.match(text, /FAILED CHECK: Claude Code host/);
+  assert.match(text, /Install the supported host/);
+  assert.match(text, /AFYX_OWNED_MODIFIED/);
+  assert.match(text, /Verification log:/);
+  assert.match(text, /Preserve user changes/);
+  assert.doesNotMatch(text, /VERIFIED RECEIPT/);
+});
+
 test('Finish consumes backend states and verification before offering a successful receipt', async () => {
   const terminal = fakeTerminal(Array(6).fill('return'));
   const backend = backendFixture();

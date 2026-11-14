@@ -40,15 +40,47 @@ function Restore-AfyxInterruptedSkillTransaction {
 
 function Get-AfyxSkillDigest {
     [CmdletBinding()]
-    param([Parameter(Mandatory)][string]$Directory)
+    param([Parameter(Mandatory)][string]$Directory, [switch]$LegacyNls)
     $root = [IO.Path]::GetFullPath($Directory).TrimEnd([IO.Path]::DirectorySeparatorChar, [IO.Path]::AltDirectorySeparatorChar)
     $lines = @()
     $files = @(Get-ChildItem -LiteralPath $root -File -Recurse -Force | Where-Object {
         $_.Name -ne $script:MarkerName -and $_.FullName -notmatch '[\\/]\.git[\\/]'
-    } | Sort-Object FullName)
-    foreach ($file in $files) {
-        $relative = $file.FullName.Substring($root.Length).TrimStart('\', '/').Replace('\', '/')
-        $lines += "$(Get-FileHash -Algorithm SHA256 -LiteralPath $file.FullName | Select-Object -ExpandProperty Hash)  ./$relative"
+    })
+    [string[]]$paths = @($files | ForEach-Object { $_.FullName })
+    # Culture sorting differs between .NET Framework/NLS and .NET/ICU. New
+    # ownership digests use one stable order on both PowerShell generations.
+    $comparer = [StringComparer]::OrdinalIgnoreCase
+    if ($LegacyNls) {
+        if ($env:OS -ne 'Windows_NT') { throw 'Legacy NLS skill digests require Windows.' }
+        if (-not ('Afyx.LegacySkillPathComparer' -as [type])) {
+            Add-Type -TypeDefinition @'
+using System;
+using System.Collections.Generic;
+using System.ComponentModel;
+using System.Runtime.InteropServices;
+namespace Afyx {
+    public sealed class LegacySkillPathComparer : IComparer<string>, System.Collections.IComparer {
+        private readonly string locale;
+        public LegacySkillPathComparer(string locale) { this.locale = locale; }
+        [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+        private static extern int CompareStringEx(string locale, uint flags, string left, int leftLength,
+            string right, int rightLength, IntPtr version, IntPtr reserved, IntPtr parameter);
+        public int Compare(string left, string right) {
+            int result = CompareStringEx(locale, 1, left, -1, right, -1, IntPtr.Zero, IntPtr.Zero, IntPtr.Zero);
+            if (result == 0) throw new Win32Exception(Marshal.GetLastWin32Error());
+            return result - 2;
+        }
+        int System.Collections.IComparer.Compare(object left, object right) { return Compare((string)left, (string)right); }
+    }
+}
+'@
+        }
+        $comparer = New-Object Afyx.LegacySkillPathComparer ([Globalization.CultureInfo]::CurrentCulture.Name)
+    }
+    [Array]::Sort($paths, $comparer)
+    foreach ($file in $paths) {
+        $relative = $file.Substring($root.Length).TrimStart('\', '/').Replace('\', '/')
+        $lines += "$(Get-FileHash -Algorithm SHA256 -LiteralPath $file | Select-Object -ExpandProperty Hash)  ./$relative"
     }
     $bytes = [Text.Encoding]::UTF8.GetBytes(($lines -join "`n") + "`n")
     $sha = [Security.Cryptography.SHA256]::Create()
@@ -100,6 +132,9 @@ function Get-AfyxSkillOwnership {
         if ($ExpectedOwner -eq 'afyx') {
             if ([string]$marker.content_sha256 -notmatch '^[0-9a-f]{64}$') { return 'FOREIGN_UNPROVEN' }
             if ((Get-AfyxSkillDigest -Directory $Target) -eq $marker.content_sha256) { return 'AFYX_OWNED_UNMODIFIED' }
+            # Legacy Windows PowerShell markers remain valid only when the
+            # complete current file set exactly reproduces their NLS digest.
+            if ($env:OS -eq 'Windows_NT' -and (Get-AfyxSkillDigest -Directory $Target -LegacyNls) -eq $marker.content_sha256) { return 'AFYX_OWNED_UNMODIFIED' }
             return 'AFYX_OWNED_MODIFIED'
         }
         if (-not (Test-Path -LiteralPath (Join-Path $Target '.git'))) { return 'FOREIGN_UNPROVEN' }
@@ -127,7 +162,8 @@ function Get-AfyxLegacySkillProvenance {
         if (($item.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) { return 'UNKNOWN' }
         if ($Owner -eq 'afyx') {
             if ($LegacyContentSha256 -notmatch '^[0-9a-f]{64}$') { return 'UNKNOWN' }
-            if ((Get-AfyxSkillDigest -Directory $Target) -eq $LegacyContentSha256) { return 'MATCH' }
+            if ((Get-AfyxSkillDigest -Directory $Target) -eq $LegacyContentSha256 -or
+                ($env:OS -eq 'Windows_NT' -and (Get-AfyxSkillDigest -Directory $Target -LegacyNls) -eq $LegacyContentSha256)) { return 'MATCH' }
             $manifest = Join-Path $Target 'SKILL.md'
             if (-not (Test-Path -LiteralPath $manifest -PathType Leaf)) { return 'UNKNOWN' }
             $content = Get-Content -Raw -LiteralPath $manifest -Encoding utf8

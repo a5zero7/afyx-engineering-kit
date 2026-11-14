@@ -240,13 +240,16 @@ if ($claudeRequired) {
     if ($claude) {
         try {
             $version = (& claude --version 2>$null) -join ' '
+            if ($LASTEXITCODE -ne 0) { throw 'version command returned non-zero exit code' }
             Write-Result 'OK' 'Claude Code host' "detected ($version)"
         } catch {
             Write-Result 'FAIL' 'Claude Code host' 'version command failed'
             $coreFailure = $true
         }
+    } elseif ([bool](Get-ChildItem -Path (Join-Path $env:USERPROFILE '.vscode\extensions\anthropic.claude-code-*') -Directory -ErrorAction SilentlyContinue | Select-Object -First 1)) {
+        Write-Result 'OK' 'Claude Code host' 'supported VS Code extension detected; standalone CLI is not installed'
     } else {
-        Write-Result 'FAIL' 'Claude Code host' 'not found; install Claude Code CLI'
+        Write-Result 'FAIL' 'Claude Code host' 'not found; install Claude Code CLI or the supported Claude Code VS Code extension'
         $coreFailure = $true
     }
 }

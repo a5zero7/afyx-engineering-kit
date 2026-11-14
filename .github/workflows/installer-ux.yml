@@ -54,7 +54,7 @@ jobs:
           name: installer-npm-candidate
           path: ${{ runner.temp }}/installer-package
       - name: Focused state, binding, failure and rendering regressions
-        run: node --test scripts/tests/test_npm_installer.mjs scripts/tests/test_midnight_circuit.mjs scripts/tests/test_installer_progress.mjs scripts/tests/test_install_contract.mjs scripts/tests/test_installer_native_binding.mjs
+        run: node --test scripts/tests/test_npm_installer.mjs scripts/tests/test_midnight_circuit.mjs scripts/tests/test_installer_progress.mjs scripts/tests/test_install_contract.mjs scripts/tests/test_installer_native_binding.mjs scripts/tests/test_verify_claude_readiness.mjs scripts/tests/test_skill_digest_parity.mjs
       - name: Actual npx, PTY and native lifecycle in disposable profiles
         shell: bash
         env:
