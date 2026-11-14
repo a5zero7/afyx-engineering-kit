@@ -2373,7 +2373,7 @@
     {
       "path": "afyx-forge/src/workflow-refiner.js",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "4b2137b1f84db725d3cd508e5b3574f1cb04fd418e8d17c110ad1e914eea72a5",
+      "reviewedSha256": "40162936b3656c712d79aa5d20efa9976aa911a5a3716a76d3ff57b4c292b598",
       "evidence": "MB12 review: authored from AFYX functional requirements and existing reviewed 251f73a contracts; no upstream implementation, prompts, assets or dependency imported. Trusted-host boundaries and negative/regression tests recorded in MB12-native-consolidation-20261114-r1."
     },
     {

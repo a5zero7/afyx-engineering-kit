@@ -1,5 +1,9 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
+import { createHash } from 'node:crypto';
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { discoverProviderInventory, formatProviderInventory, selectableProviderIds } from '../afyx-provider-inventory.mjs';
 
 const inspect = (probe, platform = 'win32') => discoverProviderInventory({
@@ -76,4 +80,48 @@ test('WSL inventory rejects Windows executable paths and accepts Linux-local hos
     desktops: {}, extensions: [] }, 'linux');
   assert.equal(byId(inventory, 'codex').installed, false);
   assert.equal(byId(inventory, 'claude').installed, true);
+});
+
+test('filesystem provider discovery is read-only and never executes detected commands', (t) => {
+  const home = mkdtempSync(join(realpathSync(tmpdir()), 'afyx-provider-acceptance-'));
+  t.after(() => rmSync(home, { recursive: true }));
+  const bin = join(home, 'bin'); mkdirSync(bin);
+  for (const command of ['codex', 'cursor', 'opencode']) {
+    const path = join(bin, command + (process.platform === 'win32' ? '.cmd' : ''));
+    writeFileSync(path, process.platform === 'win32' ? '@exit /b 99\r\n' : '#!/bin/sh\nexit 99\n');
+    chmodSync(path, 0o755);
+  }
+  const extension = join(home, '.vscode', 'extensions', 'openai.chatgpt-fixture');
+  mkdirSync(extension, { recursive: true });
+  writeFileSync(join(extension, 'package.json'), JSON.stringify({ publisher: 'openai', name: 'chatgpt', version: '1.2.3' }));
+  const desktop = process.platform === 'darwin'
+    ? join(home, 'Applications', 'Antigravity.app', 'Contents', 'MacOS', 'Antigravity')
+    : join(home, 'local', 'Programs', 'Antigravity', 'Antigravity.exe');
+  mkdirSync(join(desktop, '..'), { recursive: true }); writeFileSync(desktop, 'fixture');
+  const snapshot = () => {
+    const result = {};
+    function visit(dir) {
+      for (const entry of readdirSync(dir, { withFileTypes: true })) {
+        const path = join(dir, entry.name);
+        if (entry.isDirectory()) visit(path);
+        else result[path] = createHash('sha256').update(readFileSync(path)).digest('hex');
+      }
+    }
+    visit(home); return result;
+  };
+  const before = snapshot();
+  const inventory = discoverProviderInventory({ home, env: { PATH: bin, HOME: home,
+    LOCALAPPDATA: join(home, 'local'), SystemRoot: join(home, 'absent-system') } });
+  assert.deepEqual(byId(inventory, 'codex').products.map((p) => p.type), ['CLI', 'VS Code Extension']);
+  assert.equal(byId(inventory, 'codex').products[1].version, '1.2.3');
+  for (const id of ['cursor', 'opencode']) {
+    assert.equal(byId(inventory, id).status, 'COMING SOON');
+    assert.ok(!selectableProviderIds(inventory).includes(id));
+  }
+  if (process.platform === 'win32' || process.platform === 'darwin') {
+    assert.equal(byId(inventory, 'antigravity').products[0].type, 'IDE/Desktop');
+  }
+  assert.ok(inventory.flatMap((item) => item.products).every((p) => p.configuration === 'NOT_VERIFIED'));
+  assert.deepEqual(snapshot(), before);
+  assert.equal(existsSync(join(home, '.codex', 'config.toml')), false);
 });

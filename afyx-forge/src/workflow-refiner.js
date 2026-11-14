@@ -10,7 +10,9 @@
 export const WORKFLOW_REFINER_CONTRACT = 'afyx-forge-refiner-v1';
 
 const BOILERPLATE_PATTERNS = [
-  /^\s*(?:Please\s+)?(?:act\s+as|you\s+are)\s+(?:an?\s+)?(?:senior|principal|expert|lead|staff)\s+[^.\n]+[.\n]?/gim,
+  // Strip only a complete role-title line. Free-form role instructions may
+  // contain safety/scope constraints and must remain in the refined directive.
+  /^[ \t]*(?:Please\s+)?(?:act\s+as|you\s+are)\s+(?:an?\s+)?(?:(?:senior|principal|expert|lead|staff)\s+)*(?:software engineer|security engineer|engineer|architect|developer|reviewer)(?:\s+and\s+(?:(?:senior|principal|expert|lead|staff)\s+)*(?:software engineer|security engineer|engineer|architect|developer|reviewer))*[.!]?[ \t]*\r?$/gim,
   /^\s*(?:Please\s+)?make\s+sure\s+you\s+(?:think\s+step\s+by\s+step|are\s+very\s+careful)[.\n]?/gim,
   /^\s*(?:Remember\s+to\s+)?always\s+follow\s+best\s+practices[.\n]?/gim,
   /^\s*(?:In\s+this\s+task,\s+)?we\s+need\s+to\s+carefully[.\n]?/gim,
@@ -45,26 +47,25 @@ export function extractStructuredCriteria(taskText) {
     if (!trimmed) continue;
 
     // Detect section headers
-    if (/^(?:#+\s*)?(?:acceptance\s+criteria|requirements|kriteria\s+penerimaan)/i.test(trimmed)) {
+    if (/^(?:#+\s*)?(?:acceptance\s+criteria|requirements|kriteria\s+penerimaan)\s*:?\s*$/i.test(trimmed)) {
       currentSection = 'criteria';
       continue;
-    } else if (/^(?:#+\s*)?(?:constraints|restrictions|batasan|larangan)/i.test(trimmed)) {
+    } else if (/^(?:#+\s*)?(?:constraints|restrictions|batasan|larangan)\s*:?\s*$/i.test(trimmed)) {
       currentSection = 'constraints';
       continue;
-    } else if (/^(?:#+\s*)?(?:objective|goals|tujuan|mission)/i.test(trimmed)) {
+    } else if (/^(?:#+\s*)?(?:objective|goals|tujuan|mission)\s*:?\s*$/i.test(trimmed)) {
       currentSection = 'objective';
       continue;
     }
 
     // Bullet points / numbered lists
-    const isBullet = /^[-*•]\s+|^\[[ xX]\]\s+|^\d+\.\s+/.test(trimmed);
     const content = trimmed.replace(/^[-*•]\s+|^\[[ xX]\]\s+|^\d+\.\s+/, '').trim();
 
-    if (isBullet) {
-      if (currentSection === 'criteria') {
-        criteria.push({ id: `AC-${criteria.length + 1}`, text: content });
-      } else if (currentSection === 'constraints') {
+    if (!trimmed.startsWith('#')) {
+      if (currentSection === 'constraints' || /\b(?:must\s+not|never|do\s+not|no\s+|larang|jangan|tidak\s+boleh)\b/i.test(content)) {
         constraints.push({ id: `CONST-${constraints.length + 1}`, text: content });
+      } else if (currentSection === 'criteria') {
+        criteria.push({ id: `AC-${criteria.length + 1}`, text: content });
       } else if (currentSection === 'objective') {
         objectives.push(content);
       } else {
@@ -77,10 +78,6 @@ export function extractStructuredCriteria(taskText) {
           objectives.push(content);
         }
       }
-    } else if (!trimmed.startsWith('#')) {
-      if (currentSection === 'objective' || currentSection === 'general') {
-        if (objectives.length < 3) objectives.push(trimmed);
-      }
     }
   }
 
@@ -90,7 +87,7 @@ export function extractStructuredCriteria(taskText) {
   }
 
   return {
-    objectives: objectives.slice(0, 5),
+    objectives,
     criteria,
     constraints,
   };

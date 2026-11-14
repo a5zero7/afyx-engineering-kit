@@ -11,8 +11,16 @@ function fakeTerminal(keys) {
   input.setRawMode = (enabled) => { input.rawMode = enabled; };
   input.resume = () => {};
   input.pause = () => {};
+  const sendNext = () => {
+    const name = keys.shift();
+    if (name === undefined) { input.emit('end'); return; }
+    input.emit('keypress', '', { name });
+    // Navigation keys remain in the same choose() call; Enter creates the
+    // next listener, whose newListener event schedules its own first key.
+    if (input.listenerCount('keypress')) setImmediate(sendNext);
+  };
   input.on('newListener', (name) => {
-    if (name === 'keypress') setImmediate(() => input.emit('keypress', '', { name: keys.shift() }));
+    if (name === 'keypress') setImmediate(sendNext);
   });
   const output = new EventEmitter();
   output.isTTY = true;
@@ -31,6 +39,28 @@ function backendFixture() {
   }] };
   return { plan: () => plan, verify: () => ({ rows: [], exitCode: 0 }) };
 }
+
+test('custom provider keyboard selection cannot include detected unsupported products', { timeout: 5000 }, async () => {
+  const terminal = fakeTerminal(['return', 'down', 'down', 'return', 'space', 'return', 'return', 'return', 'return']);
+  const hosts = [
+    { id: 'codex', name: 'Codex', supported: true, products: [{ type: 'CLI' }] },
+    { id: 'opencode', name: 'OpenCode', supported: false, products: [{ type: 'CLI' }] },
+  ];
+  const result = await runMidnightCircuit({ ...terminal, hosts, backend: backendFixture() });
+  assert.equal(result.provider, 'codex');
+  assert.equal(result.skipProviderConfiguration, false);
+  assert.equal(terminal.input.rawMode, false);
+});
+
+test('review activity keyboard scrolling preserves selection and requires explicit apply', { timeout: 5000 }, async () => {
+  const terminal = fakeTerminal(['return', 'return', 'return', 'return', 'tab', 'down', 'return', 'return']);
+  terminal.output.columns = 80; terminal.output.rows = 24;
+  const result = await runMidnightCircuit({ ...terminal, hosts: [], backend: backendFixture() });
+  assert.equal(result.expectedPlan, 'fixture-plan');
+  assert.equal(result.skipProviderConfiguration, true);
+  assert.match(terminal.output.text, /ACTIVITY FOCUS/);
+  assert.equal(terminal.input.rawMode, false);
+});
 
 test('terminal selection respects TTY, CI, plain output, width, and explicit TUI', () => {
   const input = { isTTY: true };
