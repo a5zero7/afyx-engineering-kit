@@ -128,7 +128,9 @@ test('domain routing selects only relevant capabilities, manual selection cannot
 
 test('installed host adapters lazily execute Context docs, bounded usage and native execution from trusted configuration', async () => {
   const install = join(root, 'install'), project = join(root, 'project'); mkdirSync(project); writeFileSync(join(project, 'README.md'), '# Native documentation\nDocument source contracts');
-  cpSync(join(repo, 'afyx-context'), join(install, 'context/current'), { recursive: true, filter: (p) => !p.includes('node_modules') });
+  mkdirSync(join(install, 'context/current'), { recursive: true });
+  cpSync(join(repo, 'afyx-context/package.json'), join(install, 'context/current/package.json'));
+  cpSync(join(repo, 'afyx-context/src'), join(install, 'context/current/dist'), { recursive: true });
   const adapters = createInstalledHostAdapters({ installRoot: install, projectRoot: project, trustedCapabilities: { usage: { events: [{ provider: 'codex', sessionId: 's1', eventId: 'e1', source: 'test-actual-event', timestamp: 100, mode: 'delta', inputTokens: 10, outputTokens: 5 }] } } });
   const docs = await adapters['afyx-context']({ taskType: 'documentation-search', payload: { query: 'documentation' } });
   assert.equal(docs.status, 'SUCCESS'); assert.ok(docs.evidence.length); assert.ok(docs.output.renderedContext.includes('Native documentation'));

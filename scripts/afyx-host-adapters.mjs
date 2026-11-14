@@ -301,7 +301,7 @@ export function createInstalledHostAdapters({
      */
     'afyx-context': async (request) => {
       if (['documentation-search', 'documentation-research', 'usage-analytics'].includes(request.taskType)) {
-        const contextModule = await import(pathToFileURL(join(resolvedInstallRoot, 'context', 'current', 'src', 'index.js')).href);
+        const contextModule = await import(pathToFileURL(join(resolvedInstallRoot, 'context', 'current', 'dist', 'index.js')).href);
         if (request.taskType === 'usage-analytics') {
           usageAnalytics ??= contextModule.createUsageAnalytics(trustedCapabilities.usage);
           for (const event of trustedCapabilities.usage?.events ?? []) usageAnalytics.record(event);
