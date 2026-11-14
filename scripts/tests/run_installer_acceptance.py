@@ -115,8 +115,8 @@ def main():
         started = time.monotonic(); terminal = TerminalProcess(command, project, env)
         case_dir = output / case; case_dir.mkdir(exist_ok=True)
         result = {"case": case, "preset": preset, "status": "RUNNING", "frames": []}; records.append(result)
-        def frame(stage, token):
-            screen = terminal.wait_for(token, history=args.plain,
+        def frame(stage, token, after=None):
+            screen = terminal.wait_for(token, history=args.plain, after=after,
                                        reject=("Finish — FAILED", "Finish - FAILED", "Verification: NOT TESTED / FAILED", "FAILED — backend plan unavailable", "FAILED - backend plan unavailable"))
             path = case_dir / f"{stage}.txt"; path.write_text(screen + "\n", encoding="utf-8")
             result["frames"].append({"stage": stage, "path": str(path), "sha256": digest(path)})
@@ -126,17 +126,20 @@ def main():
             if args.resize and not args.plain:
                 terminal.resize(90, 28); frame("01-detect-90x28", "Continue")
                 terminal.resize(120, 35); frame("01-detect-120x35", "Continue")
-            terminal.send(ENTER)
-            frame("02-select", "Skip provider integration"); terminal.send((b'' if args.legacy_navigation or args.plain else END) + ENTER)
-            terminal.wait_for("Recommended")
+            provider_marker = terminal.send(ENTER)
+            frame("02-select", "Skip provider integration", after=provider_marker)
+            preset_marker = terminal.send((b'' if args.legacy_navigation or args.plain else END) + ENTER)
+            frame("02-preset", "Choose a component preset.", after=preset_marker)
             preset_index = {"recommended": 0, "minimal": 1, "full": 2, "custom": 3}[preset]
-            terminal.send((str(preset_index + 1).encode() if args.plain else (b'' if args.legacy_navigation else HOME) + DOWN * preset_index) + ENTER)
+            configure_marker = terminal.send((str(preset_index + 1).encode() if args.plain else (b'' if args.legacy_navigation else HOME) + DOWN * preset_index) + ENTER)
             if preset == "custom":
-                terminal.wait_for("Space: toggle", history=args.plain)
-                terminal.send((b"1,2" if args.plain else b" " + DOWN + b" ") + ENTER)
-            frame("03-configure", "Global provider scope"); terminal.send(ENTER)
-            frame("04-review", "Apply exactly"); terminal.send(ENTER)
-            frame("05-finish", "Finish - PASS" if args.plain else "Finish — PASS")
+                frame("03-components", "Space: toggle components.", after=configure_marker)
+                configure_marker = terminal.send((b"1,2" if args.plain else b" " + DOWN + b" ") + ENTER)
+            frame("03-configure", "Global provider scope", after=configure_marker)
+            review_marker = terminal.send(ENTER)
+            frame("04-review", "Apply exactly", after=review_marker)
+            apply_marker = terminal.send(ENTER)
+            frame("05-finish", "Finish - PASS" if args.plain else "Finish — PASS", after=apply_marker)
             assert "verify exit=0" in (terminal.raw.decode("utf-8", "replace") if args.plain else terminal.screen()), terminal.screen()
             terminal.send(ENTER)
             deadline = time.monotonic() + 20

@@ -75,9 +75,11 @@ jobs:
             ${{ runner.temp }}/installer-acceptance/acceptance-result.json
             ${{ runner.temp }}/installer-acceptance/*/*.txt
             ${{ runner.temp }}/installer-acceptance/*/terminal.ansi
+            ${{ runner.temp }}/installer-acceptance/*/terminal-events.json
             ${{ runner.temp }}/installer-acceptance/**/backend.log
             ${{ runner.temp }}/installer-plain-acceptance/acceptance-result.json
             ${{ runner.temp }}/installer-plain-acceptance/*/*.txt
             ${{ runner.temp }}/installer-plain-acceptance/*/terminal.ansi
+            ${{ runner.temp }}/installer-plain-acceptance/*/terminal-events.json
             ${{ runner.temp }}/installer-plain-acceptance/**/backend.log
           if-no-files-found: warn

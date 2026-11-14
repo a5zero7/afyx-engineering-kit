@@ -2,6 +2,8 @@
 from __future__ import annotations
 
 import codecs
+import hashlib
+import json
 import ctypes
 import os
 import queue
@@ -18,6 +20,8 @@ class TerminalProcess:
     def __init__(self, argv, cwd, env, columns=120, rows=35):
         self.columns, self.rows = columns, rows
         self.raw = bytearray()
+        self.started = time.monotonic()
+        self.events = []
         self.output = queue.Queue()
         self.cells = [[" "] * columns for _ in range(rows)]
         self.row = self.column = 0
@@ -154,17 +158,34 @@ class TerminalProcess:
         except OSError:
             pass
 
+    def _record(self, kind, **fields):
+        if len(self.events) >= 1024:
+            raise RuntimeError("Terminal evidence event limit exceeded")
+        event = dict(kind=kind, elapsedSeconds=round(time.monotonic() - self.started, 6),
+                     outputOffset=len(self.raw), **fields)
+        self.events.append(event)
+        return event
+
     def send(self, data):
         if isinstance(data, str):
             data = data.encode("utf-8")
+        marker = len(self.raw)
+        event = self._record("input", hex=data.hex(), bytesWritten=0, completed=False,
+                             screenSha256=hashlib.sha256(self.screen().encode()).hexdigest())
         if os.name == "nt":
             from ctypes import wintypes as w
             count = w.DWORD()
             buffer = ctypes.create_string_buffer(data)
             if not self.kernel.WriteFile(self.writer, buffer, len(data), ctypes.byref(count), None):
                 raise ctypes.WinError(ctypes.get_last_error())
+            written = count.value
         else:
-            os.write(self.master, data)
+            written = os.write(self.master, data)
+        event["bytesWritten"] = written
+        if written != len(data):
+            raise OSError("Partial terminal input write")
+        event["completed"] = True
+        return marker
 
     def resize(self, columns, rows):
         if os.name == "nt":
@@ -235,12 +256,15 @@ class TerminalProcess:
     def screen(self):
         return "\n".join("".join(row).rstrip() for row in self.cells)
 
-    def wait_for(self, token, timeout=120, reject=(), history=False):
+    def wait_for(self, token, timeout=120, reject=(), history=False, after=None):
         deadline = time.monotonic() + timeout
         while time.monotonic() < deadline:
             self.pump()
             observed = self.raw.decode("utf-8", "replace") if history else self.screen()
-            if token in observed: return self.screen()
+            fresh = after is None or token in self.raw[after:].decode("utf-8", "replace")
+            if token in observed and fresh:
+                self._record("screen", token=token, after=after)
+                return self.screen()
             for failure in reject:
                 if failure in observed:
                     raise RuntimeError(f"Terminal reported {failure!r} before {token!r}:\n{self.screen()}")
@@ -251,6 +275,9 @@ class TerminalProcess:
 
     def save(self, path):
         Path(path).write_bytes(self.raw)
+        Path(path).with_name("terminal-events.json").write_text(json.dumps(dict(
+            contract="AfyxTerminalAcceptance/v1", columns=self.columns, rows=self.rows,
+            exitBeforeCleanup=self.poll(), events=self.events), indent=2) + "\n", encoding="utf-8")
 
     def close(self):
         if self.closed: return
