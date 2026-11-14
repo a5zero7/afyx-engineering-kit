@@ -142,6 +142,11 @@ test('installed host adapters lazily execute Context docs, bounded usage and nat
   const usage = await adapters['afyx-context']({ taskType: 'usage-analytics', payload: {} }); assert.equal(usage.output.totals.totalTokens, 15);
   const execution = await executeAfyxCapabilityRoute({ task: { taskType: 'cli-automation', payload: { capabilityId: 'node-version' } }, provider: 'codex', componentStates: states, adapters, environment: {} });
   assert.ok(JSON.stringify(execution).includes(process.version));
+  const invalid = await executeAfyxCapabilityRoute({ task: { taskType: 'cli-automation', payload: { capabilityId: 'unregistered-command' } }, provider: 'codex', componentStates: states, adapters, environment: {} });
+  assert.ok(!JSON.stringify(invalid).includes('COMPLETED'));
+  assert.equal(invalid.results[0].status, 'FAILED');
+  const structured = { contract: 'afyx-forge-workflow/v1', id: 'payload-fixture', steps: [{ id: 'read', capability: 'owned-read', dependsOn: [] }] };
+  assert.deepEqual(route({ taskType: 'workflow-execution', payload: structured }).requests[0].payload, structured);
 });
 
 test('new Graph manifest requires both Darwin archives, preserves schema-1 compatibility and rejects incomplete candidates', () => {

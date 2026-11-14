@@ -321,7 +321,9 @@ function makeRequest({ task, componentId, discovery, budgets, reason, hopCount =
     hopCount,
     invocationReason: reason,
     sourceIdentity: discovered.sourceIdentity,
-    payload: typeof task.payload === 'string' ? task.payload : (typeof task.text === 'string' ? task.text : (typeof task.input === 'string' ? task.input : null)),
+    // Structured task data is not host configuration or an authorization grant.
+    payload: task.payload !== null && typeof task.payload === 'object' ? task.payload
+      : typeof task.payload === 'string' ? task.payload : (typeof task.text === 'string' ? task.text : (typeof task.input === 'string' ? task.input : null)),
     classification: typeof task.classification === 'string' ? task.classification : null,
   });
 }
