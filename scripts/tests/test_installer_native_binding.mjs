@@ -35,6 +35,13 @@ for (const shell of process.platform === 'win32' ? ['powershell.exe', 'pwsh.exe'
     };
     const plan = decodeContract(run('install', { ...options, planJson: true }), 'AfyxInstallPlan/v1');
     assert.deepEqual(plan.components.filter((c) => c.desired).map((c) => c.id).sort(), ids.slice().sort());
+    if (process.platform === 'win32') {
+      const full = decodeContract(run('install', { ...options, preset: 'full', customComponents: [], planJson: true }), 'AfyxInstallPlan/v1');
+      const usage = full.components.find((component) => component.id === 'codex-usage-tracking');
+      assert.equal(usage.desired, false, 'No-provider Full must not require the Codex-only toolset');
+      assert.equal(usage.backendAction, 'skip');
+      assert.equal(full.components.find((component) => component.id === 'afyx-graph').desired, true);
+    }
     run('install', { ...options, expectedPlan: plan.fingerprint });
     const verify = decodeContract(run('verify', { ...options, reportJson: true }), 'AfyxVerification/v1');
     assert.ok(verify.rows.length > 0);

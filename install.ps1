@@ -488,7 +488,10 @@ if ($PlanJson -or $ExpectedPlan) {
         $item = @($controlPlan.Components | Where-Object { $_.Id -eq $id })[0]
         $planRows += [ordered]@{
             id = $id; name = [string]$component.name; type = [string]$component.type
-            currentState = [string]$state.State; desired = [bool]$item.Desired
+            currentState = [string]$state.State
+            # Match Resolve-ComponentAction: the Codex-only toolset is not a
+            # desired install when no Codex provider was selected or it is OFF.
+            desired = [bool]$item.Desired -and ($id -ne 'codex-usage-tracking' -or ('codex' -in $Provider -and -not $SkipUsageTracker))
             backendAction = [string]$actionDecisions[$id]; target = [string]$state.Path
             ownership = [string]$item.ActualOwnership; version = [string]$state.Version
             availableVersion = Get-AvailableVersion $id
