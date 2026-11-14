@@ -4,13 +4,16 @@ import { describe, expect, it } from 'vitest';
 import configuration from '../ui/vite.config';
 
 describe('native viewer build composition', () => {
-  it('disables the build tool modulepreload runtime while retaining native modules', () => {
-    const config = typeof configuration === 'function'
-      ? configuration({ command: 'build', mode: 'production' })
-      : configuration;
-    expect(config).not.toBeInstanceOf(Promise);
-    expect((config as { build: { modulePreload: unknown } }).build.modulePreload)
-      .toEqual({ polyfill: false });
+  it('disables the build tool modulepreload runtime while retaining native modules', async () => {
+    const previous = process.env.NODE_ENV;
+    try {
+      const config = await (typeof configuration === 'function'
+        ? configuration({ command: 'build', mode: 'production' }) : configuration);
+      expect(config.build?.modulePreload).toEqual({ polyfill: false });
+    } finally {
+      if (previous === undefined) delete process.env.NODE_ENV;
+      else process.env.NODE_ENV = previous;
+    }
     const html = readFileSync(join(import.meta.dirname, '../dist/viewer/index.html'), 'utf8');
     expect(html).toMatch(/<script\b[^>]*type="module"[^>]*src=/);
   });

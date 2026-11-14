@@ -22,6 +22,7 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 $coreFailure = $false
 $configuredProviders = @()
+$claudeCommand = Get-Command claude -ErrorAction SilentlyContinue
 $codexHome = if ($env:CODEX_HOME) { $env:CODEX_HOME } else { Join-Path $env:USERPROFILE '.codex' }
 $configPath = Join-Path $codexHome 'config.toml'
 $graphRoot = if ($GraphRuntimeRoot) { $GraphRuntimeRoot } elseif ($env:AFYX_GRAPH_RUNTIME_ROOT) { $env:AFYX_GRAPH_RUNTIME_ROOT } else { Join-Path $env:USERPROFILE '.afyx\graph' }
@@ -113,7 +114,6 @@ if ($Provider.Count -and -not $SkipProviderConfiguration) {
             '--node', $nodeCommand.Source, '--entry', $entry)
         $codexHost = Get-AfyxCodexHost
         $codexCommand = if ($codexHost.State -eq 'CLI_READY') { [pscustomobject]@{ Source = $codexHost.Path } } else { $null }
-        $claudeCommand = Get-Command claude -ErrorAction SilentlyContinue
         if ($codexCommand) { $providerArguments += @('--codex', $codexCommand.Source) }
         if ($claudeCommand) { $providerArguments += @('--claude', $claudeCommand.Source) }
         if ($ClaudeConfigDir) { $providerArguments += @('--claude-config-dir', $ClaudeConfigDir) }
