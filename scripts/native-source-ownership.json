@@ -2457,7 +2457,7 @@
     {
       "path": "scripts/afyx-security-auditor.mjs",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "4f6592df4072bc5569142a5526a44d3c4ec9b7bcd658755d9bb81d529ad4d8ed",
+      "reviewedSha256": "811991db0dd8ccdb353a556c45740526b47408634918c9dbc9128540fcb14b3b",
       "evidence": "MB12 review: authored from AFYX functional requirements and existing reviewed 251f73a contracts; no upstream implementation, prompts, assets or dependency imported. Trusted-host boundaries and negative/regression tests recorded in MB12-native-consolidation-20261114-r1."
     },
     {

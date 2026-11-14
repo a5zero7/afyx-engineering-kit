@@ -139,7 +139,11 @@ export function auditDirectory(rootDir, { failOnSeverity = null, maxFiles = 1000
   for (const value of [maxFiles, maxDepth, maxFileBytes, maxTotalBytes, maxFindings, maxDurationMs]) {
     if (!Number.isSafeInteger(value) || value < 1) throw new Error('AUDIT_INVALID_LIMIT');
   }
-  const resolvedRoot = resolve(rootDir), findings = [], diagnostics = [], visited = new Set();
+  let resolvedRoot = resolve(rootDir);
+  // macOS /var aliases (and trusted parent aliases) resolve before containment.
+  // The selected root itself must still be an ordinary directory.
+  try { if (!lstatSync(resolvedRoot).isSymbolicLink()) resolvedRoot = realpathSync(resolvedRoot); } catch { /* reported below */ }
+  const findings = [], diagnostics = [], visited = new Set();
   let scannedFilesCount = 0, totalBytes = 0;
   const started = Date.now();
   const diagnostic = (code, file = '') => { if (diagnostics.length < 100) diagnostics.push({ code, path: file }); };

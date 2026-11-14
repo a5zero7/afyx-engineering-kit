@@ -47,6 +47,11 @@ test('auditor is bounded, rejects missing roots and never traverses directory ju
   assert.equal(result.scannedFilesCount, 1); assert.equal(result.findings.length, 0); assert.equal(result.status, 'INCOMPLETE');
   assert.equal(auditDirectory(join(dir, 'foreign')).status, 'INCOMPLETE');
   assert.ok(auditDirectory(dir, { maxFileBytes: 1 }).diagnostics.some((d) => d.code === 'FILE_LIMIT'));
+  const parent = join(root, 'alias-parent'), nested = join(parent, 'nested'); mkdirSync(nested, { recursive: true });
+  writeFileSync(join(nested, 'safe.js'), 'export const safe = 1;');
+  const alias = join(root, 'system-parent-alias'); symlinkSync(parent, alias, process.platform === 'win32' ? 'junction' : 'dir');
+  assert.equal(auditDirectory(join(alias, 'nested')).status, 'PASS');
+  assert.equal(auditDirectory(alias).status, 'INCOMPLETE');
 });
 
 test('GitHub scope and schema reject mutation, arbitrary URL, secrets and traversal before transport', async () => {
