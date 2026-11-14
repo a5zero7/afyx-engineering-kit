@@ -186,5 +186,5 @@ jobs:
           set -e
           cat "$RUNNER_TEMP/macos-graph-install.log"
           test "$result" -eq 2
-          grep -F 'prebuilt runtime unavailable for darwin-' "$RUNNER_TEMP/macos-graph-install.log"
+          grep -F 'prebuilt runtime is unavailable for darwin-' "$RUNNER_TEMP/macos-graph-install.log"
           test ! -e "$AFYX_GRAPH_RUNTIME_ROOT/current"
