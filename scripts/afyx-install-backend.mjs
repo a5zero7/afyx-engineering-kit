@@ -1,31 +1,48 @@
-import { spawnSync } from 'node:child_process';
+import { spawn } from 'node:child_process';
 import { buildSubprocessCall, PACKAGE_ROOT, subprocessEnvironment } from './afyx-npm-installer.mjs';
 import { decodeContract } from './afyx-install-contract.mjs';
 
-function capture(call) {
-  const invoke = (program) => spawnSync(program, call.args, {
-    encoding: 'utf8', windowsHide: true, timeout: 300000, maxBuffer: 8 * 1024 * 1024,
-    env: subprocessEnvironment(program, { ...call.env, CI: '1', NO_COLOR: '1' }),
+function capture(call, { signal } = {}) {
+  return new Promise((resolve, reject) => {
+    const invoke = (program) => {
+      const child = spawn(program, call.args, { windowsHide: true, signal, stdio: ['ignore', 'pipe', 'pipe'],
+        env: subprocessEnvironment(program, { ...call.env, CI: '1', NO_COLOR: '1', AFYX_PLAIN_OUTPUT: '1' }) });
+      const chunks = [];
+      let bytes = 0, failed = false;
+      const timer = setTimeout(() => { failed = true; child.kill(); reject(new Error('Backend inspection exceeded 300 seconds')); }, 300_000);
+      child.on('error', (error) => {
+        failed = true; clearTimeout(timer);
+        if (error.code === 'ENOENT' && call.fallbackExecutable && program !== call.fallbackExecutable) invoke(call.fallbackExecutable);
+        else reject(error);
+      });
+      for (const stream of [child.stdout, child.stderr]) stream.on('data', (chunk) => {
+        if (failed) return;
+        bytes += chunk.length;
+        if (bytes > 8 * 1024 * 1024) { failed = true; child.kill(); clearTimeout(timer); reject(new Error('Backend inspection exceeded output limit')); }
+        else chunks.push(chunk);
+      });
+      child.on('close', (code) => {
+        clearTimeout(timer);
+        if (!failed) resolve({ exitCode: code ?? 1, output: Buffer.concat(chunks).toString('utf8') });
+      });
+    };
+    invoke(call.executable);
   });
-  let result = invoke(call.executable);
-  if (result.error?.code === 'ENOENT' && call.fallbackExecutable) result = invoke(call.fallbackExecutable);
-  if (result.error) throw result.error;
-  return { exitCode: result.status ?? 1, output: `${result.stdout || ''}\n${result.stderr || ''}` };
 }
 
 export function createBackendAdapter({ platform = process.platform, pkgRoot = PACKAGE_ROOT } = {}) {
   return {
-    plan(options) {
+    async plan(options, controls) {
       const { expectedPlan: _expectedPlan, ...query } = options;
-      const result = capture(buildSubprocessCall('install', { ...query, planJson: true, nonInteractive: true }, platform, pkgRoot));
+      const result = await capture(buildSubprocessCall('install', { ...query, planJson: true, nonInteractive: true }, platform, pkgRoot), controls);
       if (result.exitCode !== 0) throw new Error(`Backend plan failed (${result.exitCode}): ${result.output}`);
       return decodeContract(result.output, 'AfyxInstallPlan/v1');
     },
-    verify(options) {
+    async verify(options, controls) {
       const allowed = ['preset', 'provider', 'providerScope', 'workspaceRoot', 'skillsRoot',
         'contextRuntimeRoot', 'forgeRuntimeRoot', 'graphRuntimeRoot', 'customComponents', 'skipProviderConfiguration'];
       const query = Object.fromEntries(allowed.filter((key) => options[key] !== undefined).map((key) => [key, options[key]]));
-      const result = capture(buildSubprocessCall('verify', { ...query, reportJson: true }, platform, pkgRoot));
+      const result = await capture(buildSubprocessCall('verify', { ...query, reportJson: true }, platform, pkgRoot), controls);
       return { ...decodeContract(result.output, 'AfyxVerification/v1'), exitCode: result.exitCode };
     },
   };

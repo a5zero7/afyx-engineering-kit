@@ -25,6 +25,8 @@ param(
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
+$SelectedComponent = @($SelectedComponent | ForEach-Object { $_ -split ',' } | ForEach-Object { $_.Trim() } | Where-Object { $_ })
+$Provider = @($Provider | ForEach-Object { $_ -split ',' } | ForEach-Object { $_.Trim() } | Where-Object { $_ })
 
 Write-Host 'Afyx Codex Engineering Kit — Windows uninstaller (PowerShell)'
 if ($All) {

@@ -1,0 +1,80 @@
+name: Installer UX v2 native acceptance
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [dev]
+    paths: ['bin/**', 'install.*', 'uninstall.*', 'verify.*', 'scripts/**', '.github/workflows/installer-ux.yml']
+  pull_request:
+    branches: [dev]
+    paths: ['bin/**', 'install.*', 'uninstall.*', 'verify.*', 'scripts/**', '.github/workflows/installer-ux.yml']
+
+permissions:
+  contents: read
+
+jobs:
+  candidate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '24'
+      - name: Build exact-commit local npm candidate
+        env:
+          AFYX_BUILD_FROM_SOURCE: '1'
+        run: node scripts/stage-npm-release.mjs --output-dir "$RUNNER_TEMP/installer-package"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: installer-npm-candidate
+          path: ${{ runner.temp }}/installer-package/*.tgz
+          if-no-files-found: error
+
+  native:
+    needs: candidate
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: windows-latest, backend: powershell }
+          - { os: windows-latest, backend: pwsh }
+          - { os: ubuntu-latest, backend: bash }
+          - { os: macos-15, backend: bash }
+          - { os: macos-15-intel, backend: bash }
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '24'
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: installer-npm-candidate
+          path: ${{ runner.temp }}/installer-package
+      - name: Focused state, binding, failure and rendering regressions
+        run: node --test scripts/tests/test_npm_installer.mjs scripts/tests/test_midnight_circuit.mjs scripts/tests/test_installer_progress.mjs scripts/tests/test_install_backend.mjs scripts/tests/test_installer_native_binding.mjs
+      - name: Actual npx, PTY and native lifecycle in disposable profiles
+        shell: bash
+        env:
+          ACCEPTANCE_SHELL: ${{ matrix.backend }}
+        run: |
+          candidate=$(python -c 'import os,pathlib; paths=list((pathlib.Path(os.environ["RUNNER_TEMP"])/"installer-package").glob("*.tgz")); assert len(paths)==1; print(paths[0])')
+          python scripts/tests/run_installer_acceptance.py --output "$RUNNER_TEMP/installer-acceptance" --shell "$ACCEPTANCE_SHELL" --node "$(node -p 'process.execPath')" --tarball "$candidate" --npx-cli "$(npm root -g)/npm/bin/npx-cli.js" --resize
+          python scripts/tests/run_installer_acceptance.py --output "$RUNNER_TEMP/installer-plain-acceptance" --shell "$ACCEPTANCE_SHELL" --node "$(node -p 'process.execPath')" --tarball "$candidate" --npx-cli "$(npm root -g)/npm/bin/npx-cli.js" --cases minimal,custom --plain
+      - name: Preserve terminal captures and private-fixture diagnostics
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: installer-${{ matrix.os }}-${{ matrix.backend }}
+          path: |
+            ${{ runner.temp }}/installer-acceptance/acceptance-result.json
+            ${{ runner.temp }}/installer-acceptance/*/*.txt
+            ${{ runner.temp }}/installer-acceptance/*/terminal.ansi
+            ${{ runner.temp }}/installer-acceptance/**/backend.log
+            ${{ runner.temp }}/installer-plain-acceptance/acceptance-result.json
+            ${{ runner.temp }}/installer-plain-acceptance/*/*.txt
+            ${{ runner.temp }}/installer-plain-acceptance/*/terminal.ansi
+            ${{ runner.temp }}/installer-plain-acceptance/**/backend.log
+          if-no-files-found: warn

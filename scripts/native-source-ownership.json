@@ -2,7 +2,7 @@
   "schema": 1,
   "baselineRevision": "c4e4d8e29de239a2fcbc0db8ac65eea2276e7b00",
   "scope": "AFYX-320 comprehensive production source inventory",
-  "totalProductionFiles": 416,
+  "totalProductionFiles": 420,
   "entries": [
     {
       "path": "afyx-graph/engine/src/bin/afyx-graph.ts",
@@ -2505,8 +2505,32 @@
     {
       "path": "scripts/afyx-midnight-circuit.mjs",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "94972a507bef22bcdf124d7e26ea9fc6583c81471c1267cb8d42f0e5b7ffe083",
-      "evidence": "MB12 target-contract correction in existing AFYX-owned Midnight Circuit UI: derive Full eligibility from the canonical four-target catalog. No layout, third-party source, or policy bypass introduced."
+      "reviewedSha256": "9a283f758c65bbb2839ab1be8e4aa7cfc496af0c8a8827cf9cee2a8c784c12bc",
+      "evidence": "Installer UX v2: independently implemented native ANSI layout, asynchronous AFYX backend integration, bounded progress display, plain fallback and verification receipt. Reuses existing AFYX installer contracts; imports only Node built-ins and AFYX modules. No third-party source or visual asset embedded. Plain numbered menus display every option without panel clipping; regression covers long labels and final close choice."
+    },
+    {
+      "path": "scripts/afyx-install-progress.mjs",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "3af5344ced3974db1e95eb17845353a7f1a585c95112da07824efda5da6a6b16",
+      "evidence": "Installer UX v2: independently implemented AFYX progress event validation and bounded monotonic state model, using only the Node performance clock. Percentages reflect measured units; backend verification remains authoritative."
+    },
+    {
+      "path": "scripts/afyx-install-backend.mjs",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "9d08e4819282562ba1381b51cb272e392bba49325f0071b43ffa4ee80bfe753a",
+      "evidence": "Installer UX v2: reviewed existing AFYX adapter plus native asynchronous subprocess inspection, cancellation, bounded capture and existing plan/verification contracts. Uses Node child_process and AFYX modules only."
+    },
+    {
+      "path": "scripts/afyx-npm-installer.mjs",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "eb6e23b1c3d503795b7107028e2d9828edaece74151c4de9a3c27af22aeac447",
+      "evidence": "Installer UX v2: reviewed existing AFYX installer adapter plus validated catalog-based component serialization and Windows case-insensitive subprocess module-path isolation. Native argv API; no copied third-party implementation."
+    },
+    {
+      "path": "bin/afyx-engineering-kit.mjs",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "23770db74243adccfaf861e7efad87a812b5d5d2c82da2ac5764054275e50812",
+      "evidence": "Installer UX v2: reviewed AFYX executable lifecycle wiring for shared interactive wizard, backend event forwarding and actual verification. Uses existing AFYX modules and runtime APIs only."
     }
   ]
 }

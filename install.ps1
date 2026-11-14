@@ -35,6 +35,11 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
 $packageRoot = $PSScriptRoot
+Import-Module (Join-Path $packageRoot 'scripts\lib\AfyxInstallerProgress.psm1') -Force
+if ($env:AFYX_INSTALL_UI_OWNER -eq 'node') { [Console]::OutputEncoding = [Text.UTF8Encoding]::new($false) }
+if ($ComponentAction.Count) {
+    $ComponentAction = @($ComponentAction | ForEach-Object { $_ -split ',' } | ForEach-Object { $_.Trim() } | Where-Object { $_ })
+}
 if (($PlanJson -or $ExpectedPlan) -and -not $Preset) { throw 'Structured planning requires an explicit preset.' }
 if ($CustomComponent.Count) {
     $CustomComponent = @($CustomComponent | ForEach-Object { $_ -split ',' } | ForEach-Object { $_.Trim() } | Where-Object { $_ })
@@ -414,6 +419,8 @@ function Read-InstallChoice([string]$Label) {
 function Install-ManagedSkillSafely([string]$Component, [string]$Name, [string]$Source, [string]$Target, [bool]$ReplaceExisting, [string]$InstallRoot = $SkillsRoot, [bool]$AuthorizeRepair = $false) {
     if ((Test-Path -LiteralPath $Target) -and -not $ReplaceExisting) { return 'skipped' }
     if ($WhatIfPreference) { Write-Host "WhatIf: would stage and install $Name at $Target"; return 'planned' }
+    $progressOperation = "skill:$Component`:$([guid]::NewGuid().ToString('N'))"
+    Write-AfyxInstallerProgress -OperationId $progressOperation -ComponentId $Component -Phase install -State running -Message "Installing $Name"
     Assert-AfyxSkillTarget -SkillsRoot $InstallRoot -Target $Target
     $parent = Split-Path -Parent $Target
     New-Item -ItemType Directory -Force -Path $parent | Out-Null
@@ -424,6 +431,10 @@ function Install-ManagedSkillSafely([string]$Component, [string]$Name, [string]$
         $planRepair = $controlPlan -and @($controlPlan.Components | Where-Object { $_.Id -eq $Component -and $_.Repair -eq 'REPAIR' }).Count -eq 1
         $authorized = $Force -or $componentActions.ContainsKey($Component) -or $planRepair -or $AuthorizeRepair
         Install-AfyxSkillTransaction -SkillsRoot $InstallRoot -Component $Component -Name $Name -Stage $stage -Target $Target -Owner afyx -Version (Get-AfyxSkillVersion -Directory $Source) -AuthorizeUnproven:$authorized
+        Write-AfyxInstallerProgress -OperationId $progressOperation -ComponentId $Component -Phase install -State completed -Message "Installed $Name; final verification pending"
+    } catch {
+        Write-AfyxInstallerProgress -OperationId $progressOperation -ComponentId $Component -Phase install -State failed -Message "Installation failed: $Name; inspect diagnostic logs"
+        throw
     } finally {
         if (Test-Path -LiteralPath $stage) { Remove-Item -LiteralPath $stage -Recurse -Force -ErrorAction SilentlyContinue }
     }
@@ -819,11 +830,30 @@ function Invoke-AfyxInstallStage {
         [Parameter(Mandatory)][string]$Stage,
         [string]$Description = ''
     )
+    $progressComponent = switch ($Stage) {
+        'Afyx Graph' { 'afyx-graph' }
+        'Afyx Context Engine' { 'afyx-context' }
+        'Afyx Forge Core' { 'afyx-forge' }
+        'Usage Tracking' { 'codex-usage-tracking' }
+        default { '' }
+    }
+    $progressId = "runtime:$([guid]::NewGuid().ToString('N'))"
+    $progressPhase = if ($Description -match '^(update|repair|install)\b') { $Matches[1] } else { 'install' }
+    $reportProgress = { param([string]$state)
+        if ($env:AFYX_INSTALL_PROGRESS -eq '1') {
+            Write-AfyxInstallerProgress -OperationId $progressId -ComponentId $progressComponent -Phase $progressPhase -State $state -Message "$Stage - $Description"
+        }
+    }
+    & $reportProgress running
     if (-not $wizardMode -or -not $terminal.Ansi) {
-        $output = & $Action 2>&1
-        $success = [bool]$?
-        $output | Out-Host
-        return $success
+        try {
+            $global:LASTEXITCODE = 0
+            $output = & $Action 2>&1
+            $success = [bool]$? -and ($LASTEXITCODE -eq 0 -or $LASTEXITCODE -eq $null)
+            $output | Out-Host
+            & $reportProgress $(if ($success) { 'completed' } else { 'failed' })
+            return $success
+        } catch { & $reportProgress failed; throw }
     }
     $logRoot = Join-Path $AfyxInstallRoot 'logs'
     New-Item -ItemType Directory -Path $logRoot -Force | Out-Null
@@ -848,10 +878,12 @@ function Invoke-AfyxInstallStage {
         )
         $tailSummary = if ($lastLogLines.Count) { $lastLogLines[-1] } else { '' }
         $diagMsg = if ($failure) { $failure.Exception.Message } elseif ($tailSummary) { $tailSummary } else { "Process exited with code $LASTEXITCODE" }
+        & $reportProgress failed
         Write-AfyxStatus -Status FAILED -Name $Stage -Detail "$diagMsg; log: $logFile" -Terminal $terminal
         if ($failure) { throw $failure }
         else { throw "$Stage failed: $diagMsg (log: $logFile)" }
     } else {
+        & $reportProgress completed
         Write-AfyxStatus -Status HEALTHY -Name $Stage -Detail "completed successfully" -Terminal $terminal
     }
     return $success

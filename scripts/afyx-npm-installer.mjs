@@ -13,18 +13,35 @@ import { existsSync, readFileSync } from 'node:fs';
 import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawn } from 'node:child_process';
+import { StringDecoder } from 'node:string_decoder';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 export const PACKAGE_ROOT = resolve(__dirname, '..');
+const componentIds = new Set(JSON.parse(readFileSync(join(__dirname, 'components.json'), 'utf8')).components.map((entry) => entry.id));
+
+function checkedComponents(values, actions = false) {
+  if (!Array.isArray(values)) throw new Error('Component selections must be an array.');
+  for (const value of values) {
+    const match = typeof value === 'string' && (actions
+      ? /^([a-z][a-z0-9-]*)=(skip|install|update|repair|adopt)$/.exec(value)
+      : /^([a-z][a-z0-9-]*)$/.exec(value));
+    if (!match || !componentIds.has(match[1])) throw new Error(`Unknown or malformed component selection: ${String(value)}`);
+  }
+  return values;
+}
 
 export function subprocessEnvironment(executable, env = process.env) {
   if (!/^powershell(?:\.exe)?$/i.test(basename(executable))) return env;
   const windowsRoot = env.SystemRoot || env.SYSTEMROOT || env.windir || env.WINDIR;
   if (!windowsRoot) return env;
   const nativeModules = join(windowsRoot, 'System32', 'WindowsPowerShell', 'v1.0', 'Modules');
-  const modulePaths = [nativeModules, ...(env.PSModulePath || '').split(';').filter(Boolean)];
-  return { ...env, PSModulePath: [...new Set(modulePaths)].join(';') };
+  // Windows names are case-insensitive, but a spread object is not. Node sends
+  // only the first case variant to the child (some hosts use PSMODULEPATH).
+  const moduleEntries = Object.entries(env).filter(([key]) => key.toLowerCase() === 'psmodulepath');
+  const modulePaths = [nativeModules, ...moduleEntries.flatMap(([, value]) => (value || '').split(';').filter(Boolean))];
+  const childEnvironment = Object.fromEntries(Object.entries(env).filter(([key]) => key.toLowerCase() !== 'psmodulepath'));
+  return { ...childEnvironment, PSModulePath: [...new Set(modulePaths)].join(';') };
 }
 
 let cachedVersion = null;
@@ -57,7 +74,7 @@ export const COMMAND_ALLOWED_OPTIONS = {
   verify: new Set([
     'preset', 'provider', 'providerScope', 'workspaceRoot', 'skillsRoot',
     'contextRuntimeRoot', 'forgeRuntimeRoot', 'graphRuntimeRoot',
-    'customComponents'
+    'customComponents', 'skipProviderConfiguration'
   ]),
   doctor: new Set([
     'skillsRoot', 'project'
@@ -220,51 +237,51 @@ export function parseCliArgs(rawArgs) {
     } else if (arg === '--non-interactive' || arg === '-y' || arg === '--yes') {
       if (recordOption('nonInteractive', arg)) result.options.nonInteractive = true;
     } else if (arg === '--ui' || arg.startsWith('--ui=')) {
-      const val = arg.includes('=') ? arg.split('=')[1] : args[++i];
+      const val = arg.includes('=') ? arg.slice(arg.indexOf('=') + 1) : args[++i];
       if (!['auto', 'tui', 'plain'].includes(val)) result.errors.push('--ui requires auto, tui, or plain');
       else if (recordOption('ui', '--ui')) result.options.ui = val;
     } else if (arg === '--preset' || arg.startsWith('--preset=')) {
-      const val = arg.includes('=') ? arg.split('=')[1] : args[++i];
+      const val = arg.includes('=') ? arg.slice(arg.indexOf('=') + 1) : args[++i];
       if (!val) result.errors.push('--preset requires a value');
       else if (recordOption('preset', '--preset')) result.options.preset = val;
     } else if (arg === '--provider' || arg.startsWith('--provider=')) {
-      const val = arg.includes('=') ? arg.split('=')[1] : args[++i];
+      const val = arg.includes('=') ? arg.slice(arg.indexOf('=') + 1) : args[++i];
       if (!val) result.errors.push('--provider requires a value');
       else if (recordOption('provider', '--provider')) result.options.provider = val;
     } else if (arg === '--provider-scope' || arg.startsWith('--provider-scope=')) {
-      const val = arg.includes('=') ? arg.split('=')[1] : args[++i];
+      const val = arg.includes('=') ? arg.slice(arg.indexOf('=') + 1) : args[++i];
       if (!val) result.errors.push('--provider-scope requires a value');
       else if (recordOption('providerScope', '--provider-scope')) result.options.providerScope = val;
     } else if (arg === '--workspace-root' || arg.startsWith('--workspace-root=')) {
-      const val = arg.includes('=') ? arg.split('=')[1] : args[++i];
+      const val = arg.includes('=') ? arg.slice(arg.indexOf('=') + 1) : args[++i];
       if (!val) result.errors.push('--workspace-root requires a value');
       else if (recordOption('workspaceRoot', '--workspace-root')) result.options.workspaceRoot = val;
     } else if (arg === '--skills-root' || arg.startsWith('--skills-root=')) {
-      const val = arg.includes('=') ? arg.split('=')[1] : args[++i];
+      const val = arg.includes('=') ? arg.slice(arg.indexOf('=') + 1) : args[++i];
       if (!val) result.errors.push('--skills-root requires a value');
       else if (recordOption('skillsRoot', '--skills-root')) result.options.skillsRoot = val;
     } else if (arg === '--context-runtime-root' || arg.startsWith('--context-runtime-root=')) {
-      const val = arg.includes('=') ? arg.split('=')[1] : args[++i];
+      const val = arg.includes('=') ? arg.slice(arg.indexOf('=') + 1) : args[++i];
       if (!val) result.errors.push('--context-runtime-root requires a value');
       else if (recordOption('contextRuntimeRoot', '--context-runtime-root')) result.options.contextRuntimeRoot = val;
     } else if (arg === '--forge-runtime-root' || arg.startsWith('--forge-runtime-root=')) {
-      const val = arg.includes('=') ? arg.split('=')[1] : args[++i];
+      const val = arg.includes('=') ? arg.slice(arg.indexOf('=') + 1) : args[++i];
       if (!val) result.errors.push('--forge-runtime-root requires a value');
       else if (recordOption('forgeRuntimeRoot', '--forge-runtime-root')) result.options.forgeRuntimeRoot = val;
     } else if (arg === '--graph-runtime-root' || arg.startsWith('--graph-runtime-root=')) {
-      const val = arg.includes('=') ? arg.split('=')[1] : args[++i];
+      const val = arg.includes('=') ? arg.slice(arg.indexOf('=') + 1) : args[++i];
       if (!val) result.errors.push('--graph-runtime-root requires a value');
       else if (recordOption('graphRuntimeRoot', '--graph-runtime-root')) result.options.graphRuntimeRoot = val;
     } else if (arg === '--project' || arg.startsWith('--project=')) {
-      const val = arg.includes('=') ? arg.split('=')[1] : args[++i];
+      const val = arg.includes('=') ? arg.slice(arg.indexOf('=') + 1) : args[++i];
       if (!val) result.errors.push('--project requires a value');
       else if (recordOption('project', '--project')) result.options.project = val;
     } else if (arg === '--custom-component' || arg.startsWith('--custom-component=')) {
-      const val = arg.includes('=') ? arg.split('=')[1] : args[++i];
+      const val = arg.includes('=') ? arg.slice(arg.indexOf('=') + 1) : args[++i];
       if (!val) result.errors.push('--custom-component requires a value');
       else if (recordOption('customComponents', '--custom-component')) result.options.customComponents.push(val);
     } else if (arg === '--component' || arg.startsWith('--component=')) {
-      const val = arg.includes('=') ? arg.split('=')[1] : args[++i];
+      const val = arg.includes('=') ? arg.slice(arg.indexOf('=') + 1) : args[++i];
       if (!val) result.errors.push('--component requires a value');
       else if (recordOption('componentActions', '--component')) result.options.componentActions.push(val);
     } else {
@@ -297,6 +314,8 @@ export function buildSubprocessCall(command, options = {}, platform = process.pl
     isGitRepo = false;
   }
   const effectiveOptions = { ...options };
+  if (effectiveOptions.customComponents) checkedComponents(effectiveOptions.customComponents);
+  if (effectiveOptions.componentActions) checkedComponents(effectiveOptions.componentActions, command !== 'uninstall');
   if (command === 'update' && !isGitRepo && !effectiveOptions.skipSelfUpdate) {
     effectiveOptions.skipSelfUpdate = true;
   }
@@ -328,18 +347,12 @@ export function buildSubprocessCall(command, options = {}, platform = process.pl
     if (effectiveOptions.project) psArgs.push('-ProjectPath', effectiveOptions.project);
 
     if (effectiveOptions.customComponents && effectiveOptions.customComponents.length > 0) {
-      for (const comp of effectiveOptions.customComponents) {
-        psArgs.push('-CustomComponent', comp);
-      }
+      // -File binds one string per named parameter on both Windows PS 5.1 and
+      // PS 7. The native entrypoints expand this validated comma-separated list.
+      psArgs.push('-CustomComponent', effectiveOptions.customComponents.join(','));
     }
     if (effectiveOptions.componentActions && effectiveOptions.componentActions.length > 0) {
-      for (const act of effectiveOptions.componentActions) {
-        if (command === 'uninstall') {
-          psArgs.push('-Component', act);
-        } else {
-          psArgs.push('-ComponentAction', act);
-        }
-      }
+      psArgs.push(command === 'uninstall' ? '-Component' : '-ComponentAction', effectiveOptions.componentActions.join(','));
     }
 
     // SupportsShouldProcess commands (install, update, uninstall)
@@ -426,7 +439,7 @@ export function buildSubprocessCall(command, options = {}, platform = process.pl
   if (effectiveOptions.allowDowngrade && (command === 'install' || command === 'update')) shArgs.push('--allow-downgrade');
   if (effectiveOptions.offline && (command === 'install' || command === 'update')) shArgs.push('--offline');
   if (effectiveOptions.noBuildFallback && (command === 'install' || command === 'update')) shArgs.push('--no-build-fallback');
-  if (effectiveOptions.skipProviderConfiguration && (command === 'install' || command === 'update')) shArgs.push('--skip-provider-configuration');
+  if (effectiveOptions.skipProviderConfiguration && (command === 'install' || command === 'update' || command === 'verify')) shArgs.push('--skip-provider-configuration');
   if (effectiveOptions.skipSelfUpdate && command === 'update' && isGitRepo) shArgs.push('--skip-self-update');
   if (effectiveOptions.removeProviderConfiguration && command === 'uninstall') shArgs.push('--remove-provider-configuration');
   if (effectiveOptions.removeAfyxGraph && command === 'uninstall') shArgs.push('--remove-afyx-graph');
@@ -441,7 +454,7 @@ export function buildSubprocessCall(command, options = {}, platform = process.pl
   };
 }
 
-export function executeSubprocess(callInfo, { onExit = null } = {}) {
+export function executeSubprocess(callInfo, { onExit = null, onOutput = null } = {}) {
   return new Promise((resolvePromise, rejectPromise) => {
     let currentChild = null;
     let resolved = false;
@@ -465,7 +478,7 @@ export function executeSubprocess(callInfo, { onExit = null } = {}) {
       let child;
       try {
         child = spawn(exe, args, {
-          stdio: 'inherit',
+          stdio: onOutput ? ['inherit', 'pipe', 'pipe'] : 'inherit',
           cwd: process.cwd(),
           env: subprocessEnvironment(exe, callInfo.env || process.env),
         });
@@ -481,6 +494,21 @@ export function executeSubprocess(callInfo, { onExit = null } = {}) {
 
       currentChild = child;
       let hasErrored = false;
+      if (onOutput) {
+        for (const [name, stream] of [['stdout', child.stdout], ['stderr', child.stderr]]) {
+          const decoder = new StringDecoder('utf8');
+          const deliver = (text) => {
+            if (!text || hasErrored) return;
+            try { onOutput(text, name); }
+            catch (error) {
+              hasErrored = true;
+              child.kill('SIGTERM'); cleanupSignalHandlers(); rejectPromise(error);
+            }
+          };
+          stream.on('data', (bytes) => deliver(decoder.write(bytes)));
+          stream.on('end', () => deliver(decoder.end()));
+        }
+      }
 
       child.on('error', (err) => {
         hasErrored = true;

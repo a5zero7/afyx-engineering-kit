@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 report_json=false
+skip_provider_configuration=false
 verification_rows=()
 
 PACKAGE_ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
@@ -32,6 +33,7 @@ while (($#)); do
     --context-runtime-root) context_root="$2"; shift 2 ;;
     --forge-runtime-root) forge_root="$2"; shift 2 ;;
     --report-json) report_json=true; shift ;;
+    --skip-provider-configuration) skip_provider_configuration=true; shift ;;
     --preset) preset="$2"; shift 2 ;;
     --custom-component) custom_component_list="${custom_component_list:+$custom_component_list;}$2"; shift 2 ;;
     --provider) provider_list="$2"; provider_explicit=true; shift 2 ;;
@@ -147,7 +149,7 @@ else result SKIP 'Codex CLI' 'PROVIDER_NOT_INSTALLED'; fi
 extension_detected=false
 for extension in "$HOME"/.vscode/extensions/openai.chatgpt-*; do [[ -d "$extension" ]] && { extension_detected=true; break; }; done
 if "$extension_detected"; then result OK 'VS Code extension' 'detected'; else result INFO 'VS Code extension' 'not detected'; fi
-if "$provider_explicit"; then
+if "$provider_explicit" && ! "$skip_provider_configuration"; then
   if [[ ",$provider_list," == *,codex,* ]] && ! "$codex_detected"; then
     result FAIL 'Codex provider' 'selected native Codex CLI is unavailable; VS Code extension alone cannot register MCP'; core_failure=true
   fi
@@ -200,7 +202,7 @@ case "$AFYX_STATE" in
   INVALID) result WARN 'Afyx Graph' 'invalid metadata (optional)' ;;
   *) result WARN 'Afyx Graph' "state $AFYX_STATE: $AFYX_DETAIL (optional)" ;;
 esac
-if [[ "$AFYX_STATE" == HEALTHY ]] && command -v node >/dev/null 2>&1 && "$codex_detected"; then
+if [[ "$AFYX_STATE" == HEALTHY ]] && command -v node >/dev/null 2>&1 && "$codex_detected" && ! "$skip_provider_configuration"; then
   set +e
   integration_json="$(node "$PACKAGE_ROOT/scripts/afyx-mcp-integration.mjs" --node "$(command -v node)" --entry "$AFYX_PATH/current/lib/dist/bin/afyx-graph.js" --codex "$(command -v codex)" --codex-home "$codex_home" 2>/dev/null)"
   set -e
@@ -228,7 +230,7 @@ elif [[ "$AFYX_STATE" == HEALTHY ]] && command -v node >/dev/null 2>&1; then
   else result FAIL 'Afyx Graph MCP' "direct standalone handshake failed: $graph_probe"; core_failure=true; fi
 elif [[ "$AFYX_STATE" != HEALTHY ]]; then result INFO 'Afyx Graph MCP' 'MCP_BLOCKED: Graph runtime unavailable'
 else result INFO 'Afyx Graph MCP' 'MCP_NOT_CONFIGURED'; fi
-if [[ ",$provider_list," == *,antigravity,* && "$AFYX_STATE" == HEALTHY ]] && command -v node >/dev/null 2>&1; then
+if [[ ",$provider_list," == *,antigravity,* && "$AFYX_STATE" == HEALTHY ]] && command -v node >/dev/null 2>&1 && ! "$skip_provider_configuration"; then
   set +e
   provider_json="$(node "$PACKAGE_ROOT/scripts/afyx-provider-integration.mjs" --providers antigravity --scope "$provider_scope" --workspace-root "$workspace_root" --gemini-home "$gemini_home" --node "$(command -v node)" --entry "$AFYX_PATH/current/lib/dist/bin/afyx-graph.js" 2>/dev/null)"; provider_exit=$?
   set -e

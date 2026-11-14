@@ -12,7 +12,7 @@ import {
   buildSubprocessCall,
   executeSubprocess,
 } from '../scripts/afyx-npm-installer.mjs';
-import { runMidnightCircuit, terminalMode } from '../scripts/afyx-midnight-circuit.mjs';
+import { runMidnightCircuit, terminalMode, recordInstallerDiagnostic } from '../scripts/afyx-midnight-circuit.mjs';
 
 function verifyNodeRuntime() {
   const version = process.versions.node;
@@ -45,7 +45,7 @@ async function main() {
     process.exit(1);
   }
 
-  let finish;
+  let finish, onOutput, startProgress;
   if (parsed.command === 'install') {
     const mode = terminalMode({ requested: parsed.options.ui || 'auto' });
     const hasSelections = parsed.options.preset || parsed.options.provider || parsed.options.providerScope ||
@@ -53,20 +53,26 @@ async function main() {
     if (parsed.options.ui === 'tui' && (hasSelections || parsed.options.nonInteractive || parsed.options.dryRun || parsed.options.validateOnly)) {
       throw new Error('--ui tui runs the interactive installer; remove scripted selection/preview flags or use --ui plain.');
     }
-    if (mode === 'tui' && !hasSelections &&
+    if ((mode === 'tui' || (process.stdin.isTTY && process.stdout.isTTY && !process.env.CI)) && !hasSelections &&
         !parsed.options.nonInteractive && !parsed.options.dryRun && !parsed.options.validateOnly) {
-      const selection = await runMidnightCircuit({ options: parsed.options });
+      const selection = await runMidnightCircuit({ options: parsed.options, plain: mode === 'plain' });
       if (!selection) { console.log('Installation canceled without changes.'); return; }
       finish = selection.finish;
+      onOutput = selection.onOutput;
+      startProgress = selection.startProgress;
       Object.assign(parsed.options, selection);
       delete parsed.options.finish;
+      delete parsed.options.onOutput;
+      delete parsed.options.startProgress;
     }
   }
   const callInfo = buildSubprocessCall(parsed.command, parsed.options);
+  if (finish) callInfo.env = { ...callInfo.env, AFYX_INSTALL_UI_OWNER: 'node', AFYX_INSTALL_PROGRESS: '1', NO_COLOR: '1', AFYX_PLAIN_OUTPUT: '1' };
   if (parsed.options.ui === 'plain') callInfo.env = { ...callInfo.env, NO_COLOR: '1' };
 
   try {
-    const exitCode = await executeSubprocess(callInfo);
+    if (startProgress) startProgress();
+    const exitCode = await executeSubprocess(callInfo, { onOutput });
     const finalCode = finish ? await finish(exitCode) : exitCode;
     process.exit(finalCode);
   } catch (err) {
@@ -77,6 +83,8 @@ async function main() {
 }
 
 main().catch((err) => {
-  console.error('Fatal CLI execution error:', err);
+  const diagnostic = recordInstallerDiagnostic(err);
+  console.error(`Installer error: ${String(err.message || err).split('\n')[0]}\nDiagnostic log: ${diagnostic}`);
+  if (process.stdout.isTTY && !process.env.NO_COLOR && process.env.TERM !== 'dumb') process.stdout.write('\x1b[0m\x1b[?25h');
   process.exit(1);
 });

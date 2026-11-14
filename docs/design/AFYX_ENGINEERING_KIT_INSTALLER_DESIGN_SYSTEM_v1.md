@@ -1,5 +1,7 @@
 # AFYX Engineering Kit — Brand, CLI and Installer TUI Design System
 
+> Historical v1 visual concept. The canonical installer specification is now [Installer UX v2](../UX/INSTALLER_DESIGN_CONTRACT.md), with [screen flow](../UX/INSTALLER_SCREEN_FLOW.md) and [progress protocol](../UX/INSTALLER_PROGRESS_CONTRACT.md). Original concept assets remain preserved.
+
 **Status:** Design baseline v1 — approved concept; implementation and npm publication pending  
 **Jira:** [AFYX-316](https://afifbendol.atlassian.net/browse/AFYX-316)  
 **Product:** AFYX Engineering Kit (independent AFYX family product)  

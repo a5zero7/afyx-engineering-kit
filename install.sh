@@ -3,6 +3,7 @@ set -euo pipefail
 
 PACKAGE_ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 BUNDLED_EFFICIENT="$PACKAGE_ROOT/skills/efficient-coding"
+source "$PACKAGE_ROOT/scripts/lib/afyx-installer-progress.sh"
 BUNDLED_ODOO="$PACKAGE_ROOT/skills/odoo-engineering"
 BUNDLED_EXPERT="$PACKAGE_ROOT/skills/afyx-engineering-expert"
 skills_root="${CODEX_SKILLS_ROOT:-$HOME/.agents/skills}"
@@ -542,13 +543,13 @@ efficient_result=skipped
 odoo_result=skipped
 expert_result=skipped
 if [[ "$efficient_action" == adopt ]]; then efficient_result="$(adopt_legacy_skill efficient-coding 'Efficient Coding' "$efficient_target")"
-elif [[ "$efficient_action" != skip ]]; then efficient_result="$(safe_skill_install efficient-coding 'Efficient Coding' "$BUNDLED_EFFICIENT" "$efficient_target" "$([[ "$efficient_action" == install ]] && printf false || printf true)")"; fi
+elif [[ "$efficient_action" != skip ]]; then efficient_result="$(afyx_run_install_operation efficient-coding install "Installing efficient-coding" safe_skill_install efficient-coding 'Efficient Coding' "$BUNDLED_EFFICIENT" "$efficient_target" "$([[ "$efficient_action" == install ]] && printf false || printf true)")"; fi
 if [[ "$odoo_action" == adopt ]]; then odoo_result="$(adopt_legacy_skill odoo-engineering 'Odoo Engineering' "$odoo_target")"
-elif [[ "$odoo_action" != skip ]]; then odoo_result="$(safe_skill_install odoo-engineering 'Odoo Engineering' "$BUNDLED_ODOO" "$odoo_target" "$([[ "$odoo_action" == install ]] && printf false || printf true)")"; fi
+elif [[ "$odoo_action" != skip ]]; then odoo_result="$(afyx_run_install_operation odoo-engineering install "Installing odoo-engineering" safe_skill_install odoo-engineering 'Odoo Engineering' "$BUNDLED_ODOO" "$odoo_target" "$([[ "$odoo_action" == install ]] && printf false || printf true)")"; fi
 if [[ "$expert_action" == adopt ]]; then
   printf 'Afyx Engineering Expert has no trusted legacy provenance and cannot be adopted.\n' >&2
   exit 1
-elif [[ "$expert_action" != skip ]]; then expert_result="$(safe_skill_install afyx-engineering-expert 'Afyx Engineering Expert' "$BUNDLED_EXPERT" "$expert_target" "$([[ "$expert_action" == install ]] && printf false || printf true)")"; fi
+elif [[ "$expert_action" != skip ]]; then expert_result="$(afyx_run_install_operation afyx-engineering-expert install "Installing afyx-engineering-expert" safe_skill_install afyx-engineering-expert 'Afyx Engineering Expert' "$BUNDLED_EXPERT" "$expert_target" "$([[ "$expert_action" == install ]] && printf false || printf true)")"; fi
 
 replicate_provider_skill() {
   local id="$1" label="$2" source="$3" action="$4" root target replace result
@@ -568,7 +569,7 @@ replicate_provider_skill() {
         replace=true ;;
       *) printf 'Refusing to replace %s at provider skill root %s because ownership is %s.\n' "$label" "$root" "$AFYX_OWNERSHIP_STATE" >&2; exit 1 ;;
     esac
-    result="$(safe_skill_install "$id" "$label" "$source" "$target" "$replace")"
+    result="$(afyx_run_install_operation "$id" install "Installing $label for provider" safe_skill_install "$id" "$label" "$source" "$target" "$replace")"
     printf '%s [%s]: %s\n' "$label" "$root" "$result"
   done
 }
@@ -587,7 +588,7 @@ if [[ "$graph_action" != skip ]]; then
   "$allow_dirty_source" && graph_args+=(--allow-dirty-source)
   if "$skip_graph_mcp" || "$skip_provider_configuration" || [[ ",$provider_list," != *,codex,* ]]; then graph_args+=(--skip-mcp); else graph_args+=(--configure-mcp); fi
   "$dry_run" && graph_args+=(--validate-only)
-  bash "$PACKAGE_ROOT/scripts/install-afyx-graph.sh" "${graph_args[@]}"
+  afyx_run_install_operation afyx-graph "$graph_action" 'Preparing Afyx Graph runtime' bash "$PACKAGE_ROOT/scripts/install-afyx-graph.sh" "${graph_args[@]}"
   graph_result="$graph_action"
 fi
 
@@ -625,7 +626,7 @@ if [[ "$context_action" != skip ]]; then
   [[ "$context_action" == update ]] && context_args+=(--update)
   [[ "$context_action" == repair ]] && context_args+=(--repair)
   "$dry_run" && context_args+=(--validate-only)
-  bash "$PACKAGE_ROOT/scripts/install-afyx-context.sh" "${context_args[@]}"
+  afyx_run_install_operation afyx-context "$context_action" 'Preparing Afyx Context runtime' bash "$PACKAGE_ROOT/scripts/install-afyx-context.sh" "${context_args[@]}"
   context_result="$context_action"
 fi
 
@@ -668,7 +669,7 @@ if [[ "$forge_action" != skip ]]; then
   [[ "$forge_action" == update ]] && forge_args+=(--update)
   [[ "$forge_action" == repair ]] && forge_args+=(--repair)
   "$dry_run" && forge_args+=(--validate-only)
-  bash "$PACKAGE_ROOT/scripts/install-afyx-forge.sh" "${forge_args[@]}"
+  afyx_run_install_operation afyx-forge "$forge_action" 'Preparing Afyx Forge runtime' bash "$PACKAGE_ROOT/scripts/install-afyx-forge.sh" "${forge_args[@]}"
   forge_result="$forge_action"
 fi
 

@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { EventEmitter } from 'node:events';
+import { PassThrough } from 'node:stream';
 import { parseCliArgs } from '../afyx-npm-installer.mjs';
 import { presetComponents, providerSelectable, renderFrame, runMidnightCircuit, runtimeSupport, terminalMode } from '../afyx-midnight-circuit.mjs';
 
@@ -62,6 +63,88 @@ test('review activity keyboard scrolling preserves selection and requires explic
   assert.equal(terminal.input.rawMode, false);
 });
 
+test('asynchronous planning keeps feedback alive and releases animation and signal handlers on failure', async () => {
+  const terminal = fakeTerminal(['return', 'return', 'return', 'return']);
+  const before = ['SIGINT', 'SIGTERM'].map((name) => process.listenerCount(name));
+  let observedSignal;
+  await assert.rejects(runMidnightCircuit({ ...terminal, hosts: [], backend: {
+    plan: async (_, { signal }) => {
+      observedSignal = signal;
+      await new Promise((resolve) => setTimeout(resolve, 190));
+      throw new Error('Reproduced planning failure');
+    },
+  } }), /Backend plan failed/);
+  assert.ok(observedSignal instanceof AbortSignal);
+  assert.match(terminal.output.text, /INDETERMINATE/);
+  assert.match(terminal.output.text, /FAILED/);
+  assert.doesNotMatch(terminal.output.text, /VERIFIED RECEIPT/);
+  assert.equal(terminal.input.rawMode, false);
+  assert.deepEqual(['SIGINT', 'SIGTERM'].map((name) => process.listenerCount(name)), before);
+  const final = terminal.output.text;
+  await new Promise((resolve) => setTimeout(resolve, 100));
+  assert.equal(terminal.output.text, final);
+});
+
+test('stale plans require another review and can be cancelled before any apply', async () => {
+  const terminal = fakeTerminal(['return', 'return', 'return', 'return', 'return', 'down', 'return']);
+  const base = backendFixture().plan();
+  let plans = 0;
+  const result = await runMidnightCircuit({ ...terminal, hosts: [], backend: {
+    plan: async () => ({ ...base, fingerprint: ++plans === 1 ? 'old' : 'new' }),
+  } });
+  assert.equal(result, null);
+  assert.equal(plans, 3);
+  assert.match(terminal.output.text, /PLAN CHANGED/);
+  assert.doesNotMatch(terminal.output.text, /VERIFIED RECEIPT/);
+});
+
+test('malformed or completed progress cannot override failed backend verification', async () => {
+  const terminal = fakeTerminal(['return', 'return', 'return', 'return', 'return']);
+  const base = backendFixture().plan();
+  let plans = 0;
+  const candidate = await runMidnightCircuit({ ...terminal, hosts: [], backend: {
+    plan: async () => ++plans > 2 ? { ...base, components: base.components.map((item) => ({ ...item, currentState: 'HEALTHY' })) } : base,
+    verify: async () => ({ rows: [{ name: 'Core readiness', state: 'FAILED' }], exitCode: 1 }),
+  } });
+  const event = 'AFYX_PROGRESS ' + JSON.stringify({ contract: 'AfyxInstallerProgress/v1', operationId: 'test:install',
+    componentId: 'efficient-coding', phase: 'install', state: 'completed', completed: 1, total: 1, message: 'Installed' });
+  candidate.onOutput(event.slice(0, 30));
+  candidate.onOutput(event.slice(30) + '\nAFYX_PROGRESS {invalid}\n');
+  terminal.input.isTTY = false;
+  candidate.startProgress();
+  assert.equal(await candidate.finish(0), 1);
+  assert.match(terminal.output.text, /FAILED/);
+  assert.doesNotMatch(terminal.output.text, /VERIFIED RECEIPT/);
+  const final = terminal.output.text;
+  await new Promise((resolve) => setTimeout(resolve, 100));
+  assert.equal(terminal.output.text, final);
+});
+
+test('ASCII fallback contains no ANSI or unsupported glyphs and NO_COLOR presence is honored', () => {
+  const screen = renderFrame({ ascii: true, color: true, selection: ['● Selected → ready — value'], hint: '↑/↓ Tab …' });
+  assert.match(screen, /\* Selected > ready - value/);
+  assert.doesNotMatch(screen, /[^\x20-\x7e\n]/);
+  assert.equal(terminalMode({ input: { isTTY: true }, output: { isTTY: true, columns: 100, rows: 30 }, env: { NO_COLOR: '' } }), 'plain');
+});
+
+test('plain numbered menus expose every option including Finish after long component names', async () => {
+  const input = new PassThrough(); input.isTTY = true;
+  const output = new EventEmitter(); output.isTTY = true; output.columns = 80; output.rows = 24;
+  output.text = '';
+  output.write = (text) => {
+    output.text += text;
+    if (text.startsWith('Select number')) setImmediate(() => input.write('\n'));
+  };
+  const backend = backendFixture();
+  const base = backend.plan(); base.components[0].name = 'Long component '.repeat(40);
+  backend.plan = async () => base;
+  const selection = await runMidnightCircuit({ input, output, hosts: [], backend, plain: true });
+  assert.equal(await selection.finish(0), 1);
+  assert.match(output.text, /2\. Finish - FAILED/);
+  assert.doesNotMatch(output.text, /\x1b/);
+  input.destroy();
+});
+
 test('terminal selection respects TTY, CI, plain output, width, and explicit TUI', () => {
   const input = { isTTY: true };
   const output = { isTTY: true, columns: 120 };
@@ -98,10 +181,11 @@ test('provider selection distinguishes supported hosts from extension-only Antig
   assert.equal(providerSelectable({ id: 'opencode', products: [{ type: 'CLI' }] }, 'linux'), false);
 });
 
-test('wide layout has three aligned panels and narrow layout stacks them', () => {
+test('wide layout has provider/main columns and narrow layout stacks content', () => {
   const args = { stage: 2, providers: [{ name: 'Codex', products: [{ type: 'CLI' }] }], selection: ['Recommended'], activity: ['Ready'] };
   const wide = renderFrame({ ...args, width: 120 });
-  assert.match(wide, /PROVIDERS \/ HOST.*SELECTION \/ STATUS.*PLAN \/ ACTIVITY/);
+  assert.match(wide, /PROVIDERS \/ HOST.*SELECTION \/ CONFIGURATION/);
+  assert.match(wide, /RECENT ACTIVITY/);
   const narrow = renderFrame({ ...args, width: 65 });
   assert.ok(narrow.indexOf('PROVIDERS / HOST') < narrow.indexOf('SELECTION / STATUS'));
   assert.ok(narrow.indexOf('SELECTION / STATUS') < narrow.indexOf('PLAN / ACTIVITY'));
@@ -123,7 +207,7 @@ test('long backend details remain scrollable within a 24-row review screen', () 
   const first = renderFrame(args);
   const later = renderFrame({ ...args, activityOffset: 8 });
   assert.ok(first.split('\n').length <= 24);
-  assert.match(first, /focus activity/);
+  assert.match(first, /RECENT ACTIVITY/);
   assert.match(later, /detail-8/);
   assert.doesNotMatch(later, /detail-0/);
 });

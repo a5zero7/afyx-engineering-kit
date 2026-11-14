@@ -26,6 +26,28 @@ test('Windows PowerShell fallback resolves native modules without changing the p
 });
 const CLI_BIN = join(PACKAGE_ROOT, 'bin', 'afyx-engineering-kit.mjs');
 
+test('Windows PowerShell fallback consolidates case variants of the module path', () => {
+  const env = { SYSTEMROOT: 'C:/Windows', PSMODULEPATH: 'C:/Program Files/PowerShell/7/Modules;D:/owner-modules', psModulePath: 'E:/extra-modules' };
+  const adjusted = subprocessEnvironment('powershell.exe', env);
+  assert.deepEqual(Object.keys(adjusted).filter((key) => key.toLowerCase() === 'psmodulepath'), ['PSModulePath']);
+  assert.match(adjusted.PSModulePath.split(';')[0], /Windows[\\/]System32[\\/]WindowsPowerShell[\\/]v1\.0[\\/]Modules$/);
+  assert.ok(adjusted.PSModulePath.includes('D:/owner-modules'));
+  assert.ok(adjusted.PSModulePath.includes('E:/extra-modules'));
+  assert.equal(env.PSMODULEPATH, 'C:/Program Files/PowerShell/7/Modules;D:/owner-modules');
+  assert.equal(env.PSModulePath, undefined);
+});
+
+test('real Windows PowerShell can hash with an uppercase inherited module path', { skip: process.platform !== 'win32' }, () => {
+  const env = Object.fromEntries(Object.entries(process.env).map(([key, value]) => [key.toUpperCase(), value]));
+  const result = spawnSync('powershell.exe', ['-NoProfile', '-Command',
+    "$ErrorActionPreference='Stop'; (Get-FileHash -Algorithm SHA256 -LiteralPath $env:AFYX_HASH_FIXTURE).Hash"], {
+    encoding: 'utf8', timeout: 15_000,
+    env: subprocessEnvironment('powershell.exe', { ...env, AFYX_HASH_FIXTURE: fileURLToPath(import.meta.url) }),
+  });
+  assert.equal(result.status, 0, `${result.error || ''}\n${result.stdout}\n${result.stderr}`);
+  assert.match(result.stdout.trim(), /^[0-9A-F]{64}$/);
+});
+
 test('getPackageVersion returns non-empty semver string', () => {
   const version = getPackageVersion();
   assert.ok(typeof version === 'string' && version.length > 0);

@@ -20,6 +20,9 @@ param(
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
+if ($CustomComponent.Count) {
+    $CustomComponent = @($CustomComponent | ForEach-Object { $_ -split ',' } | ForEach-Object { $_.Trim() } | Where-Object { $_ })
+}
 $coreFailure = $false
 $configuredProviders = @()
 $claudeCommand = Get-Command claude -ErrorAction SilentlyContinue
