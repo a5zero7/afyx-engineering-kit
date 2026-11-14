@@ -2,7 +2,7 @@
   "schema": 1,
   "baselineRevision": "c4e4d8e29de239a2fcbc0db8ac65eea2276e7b00",
   "scope": "AFYX-320 comprehensive production source inventory",
-  "totalProductionFiles": 420,
+  "totalProductionFiles": 421,
   "entries": [
     {
       "path": "afyx-graph/engine/src/bin/afyx-graph.ts",
@@ -2531,6 +2531,12 @@
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
       "reviewedSha256": "23770db74243adccfaf861e7efad87a812b5d5d2c82da2ac5764054275e50812",
       "evidence": "Installer UX v2: reviewed AFYX executable lifecycle wiring for shared interactive wizard, backend event forwarding and actual verification. Uses existing AFYX modules and runtime APIs only."
+    },
+    {
+      "path": "scripts/afyx-install-contract.mjs",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "03e65d1b6b3bdddb85272553eaeb19db2dd7608c318932aed85e6250b233ef59",
+      "evidence": "Reviewed AFYX installer plan snapshot and fingerprint contract using Node built-ins. The CI correction canonicalizes existing directory parents for legitimate macOS filesystem aliases while preserving rejection of component-root links, escaping links, cycles, and the existing resource bounds. Positive and negative regression evidence is recorded in ci-correction-windows.log and ci-correction-wsl.log; no third-party source added."
     }
   ]
 }

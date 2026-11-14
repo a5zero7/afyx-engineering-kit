@@ -39,9 +39,12 @@ export function targetFingerprint(target, type) {
     } else throw new Error(`Unsupported component filesystem entry: ${path}`);
   };
   const root = resolve(target);
+  // Canonicalize parent aliases such as macOS /var -> /private/var, while
+  // retaining the existing rejection of a component root that is itself a link.
+  const boundary = existsSync(root) && !lstatSync(root).isSymbolicLink() ? realpathSync(root) : root;
   if (type === 'runtime') {
-    for (const name of ['metadata.json', 'integrity.sha256', 'current']) visit(join(root, name), name, root);
-  } else visit(root, '.', root);
+    for (const name of ['metadata.json', 'integrity.sha256', 'current']) visit(join(root, name), name, boundary);
+  } else visit(root, '.', boundary);
   return hash.digest('hex');
 }
 

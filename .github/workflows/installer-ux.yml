@@ -62,8 +62,10 @@ jobs:
         run: |
           python -m unittest discover -s scripts/tests -p test_installer_terminal.py -v
           candidate=$(python -c 'import os,pathlib; paths=list((pathlib.Path(os.environ["RUNNER_TEMP"])/"installer-package").glob("*.tgz")); assert len(paths)==1; print(paths[0])')
-          python scripts/tests/run_installer_acceptance.py --output "$RUNNER_TEMP/installer-acceptance" --shell "$ACCEPTANCE_SHELL" --node "$(node -p 'process.execPath')" --tarball "$candidate" --npx-cli "$(npm root -g)/npm/bin/npx-cli.js" --resize
-          python scripts/tests/run_installer_acceptance.py --output "$RUNNER_TEMP/installer-plain-acceptance" --shell "$ACCEPTANCE_SHELL" --node "$(node -p 'process.execPath')" --tarball "$candidate" --npx-cli "$(npm root -g)/npm/bin/npx-cli.js" --cases minimal,custom --plain
+          npx_cli=$(node -p 'require("node:path").resolve(require("node:path").dirname(process.execPath), process.platform === "win32" ? "node_modules/npm/bin/npx-cli.js" : "../lib/node_modules/npm/bin/npx-cli.js")')
+          test -f "$npx_cli"
+          python scripts/tests/run_installer_acceptance.py --output "$RUNNER_TEMP/installer-acceptance" --shell "$ACCEPTANCE_SHELL" --node "$(node -p 'process.execPath')" --tarball "$candidate" --npx-cli "$npx_cli" --resize
+          python scripts/tests/run_installer_acceptance.py --output "$RUNNER_TEMP/installer-plain-acceptance" --shell "$ACCEPTANCE_SHELL" --node "$(node -p 'process.execPath')" --tarball "$candidate" --npx-cli "$npx_cli" --cases minimal,custom --plain
       - name: Preserve terminal captures and private-fixture diagnostics
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02

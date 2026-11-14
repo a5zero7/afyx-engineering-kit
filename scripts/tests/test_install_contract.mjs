@@ -91,6 +91,27 @@ test('runtime snapshot follows only owned current links and rejects escapes and 
   assert.throws(() => targetFingerprint(runtime, 'runtime'), /cycle/);
 });
 
+test('parent aliases preserve owned runtime snapshots without permitting root links or escapes', (t) => {
+  const { root } = fixture(t);
+  const physical = join(root, 'physical');
+  const runtime = join(physical, 'runtime');
+  const release = join(runtime, 'releases', 'v1');
+  mkdirSync(release, { recursive: true });
+  writeFileSync(join(release, 'entry.js'), 'owned runtime');
+  const linkType = process.platform === 'win32' ? 'junction' : 'dir';
+  symlinkSync(release, join(runtime, 'current'), linkType);
+  const alias = join(root, 'parent-alias');
+  symlinkSync(physical, alias, linkType);
+  assert.equal(targetFingerprint(join(alias, 'runtime'), 'runtime'), targetFingerprint(runtime, 'runtime'));
+  const directLink = join(root, 'component-link');
+  symlinkSync(runtime, directLink, linkType);
+  assert.throws(() => targetFingerprint(directLink, 'skill'), /outside/);
+  assert.throws(() => targetFingerprint(directLink, 'runtime'), /outside/);
+  rmSync(join(runtime, 'current'));
+  symlinkSync(root, join(runtime, 'current'), linkType);
+  assert.throws(() => targetFingerprint(join(alias, 'runtime'), 'runtime'), /outside/);
+});
+
 test('structured response parsing rejects absent, duplicate, and wrong-schema contracts', () => {
   const encoded = encodeContract({ schema: 'AfyxVerification/v1', rows: [] });
   assert.deepEqual(decodeContract(`diagnostic\n${encoded}\n`, 'AfyxVerification/v1').rows, []);
