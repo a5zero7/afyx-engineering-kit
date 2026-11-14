@@ -136,12 +136,8 @@ class LifecycleContractTests(unittest.TestCase):
                 env["AFYX_GRAPH_RUNTIME_ROOT"] = str(runtime)
                 env["AFYX_GRAPH_BIN_DIR"] = str(base / "public-bin")
             result = subprocess.run(command, cwd=ROOT, env=env, capture_output=True, text=True)
-            self.assertNotEqual(result.returncode, 0)
-            if platform.system() == "Darwin":
-                self.assertEqual(result.returncode, 2)
-                self.assertIn("prebuilt runtime is unavailable for darwin-", result.stdout + result.stderr)
-            else:
-                self.assertIn("22.5", result.stdout + result.stderr)
+            self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+            self.assertIn("22.5", result.stdout + result.stderr)
             self.assertFalse(runtime.exists())
 
     def test_checksum_failure_preserves_owned_runtime(self) -> None:
@@ -178,12 +174,8 @@ class LifecycleContractTests(unittest.TestCase):
             env["AFYX_GRAPH_RUNTIME_ROOT"] = str(runtime)
             env["AFYX_GRAPH_BIN_DIR"] = str(base / "public-bin")
             result = subprocess.run(command, cwd=ROOT, env=env, capture_output=True, text=True)
-            self.assertNotEqual(result.returncode, 0)
-            if platform.system() == "Darwin":
-                self.assertEqual(result.returncode, 2)
-                self.assertIn("prebuilt runtime is unavailable for darwin-", result.stdout + result.stderr)
-            else:
-                self.assertIn("checksum mismatch", (result.stdout + result.stderr).lower())
+            self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+            self.assertIn("checksum mismatch", (result.stdout + result.stderr).lower())
             self.assertEqual((runtime / "metadata.json").read_text(encoding="utf-8"), metadata)
             self.assertTrue((runtime / ("current/bin/afyx-graph.cmd" if WINDOWS else "current/bin/afyx-graph")).is_file())
 

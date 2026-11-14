@@ -21,7 +21,7 @@ jobs:
         with:
           node-version: 24
       - name: Native positive, negative, integration and privacy acceptance
-        run: node --test --test-concurrency=1 afyx-context/test/native-consolidation.test.js afyx-forge/test/workflow.test.js scripts/tests/test_native_execution.mjs scripts/tests/test_mb12_capabilities.mjs scripts/tests/test_provider_inventory.mjs scripts/tests/test_capability_orchestrator.mjs scripts/tests/test_host_bridge.mjs scripts/tests/test_universal_runtime.mjs scripts/tests/test_native_skill_host_adapter.mjs scripts/tests/test_git_artifact_resolver.mjs scripts/tests/test_g6_package_integrity.mjs
+        run: node --test --test-concurrency=1 afyx-context/test/native-consolidation.test.js afyx-forge/test/workflow.test.js scripts/tests/test_native_execution.mjs scripts/tests/test_mb12_capabilities.mjs scripts/tests/test_midnight_circuit.mjs scripts/tests/test_provider_inventory.mjs scripts/tests/test_capability_orchestrator.mjs scripts/tests/test_host_bridge.mjs scripts/tests/test_universal_runtime.mjs scripts/tests/test_native_skill_host_adapter.mjs scripts/tests/test_git_artifact_resolver.mjs scripts/tests/test_g6_package_integrity.mjs
       - name: Confirm source remains unchanged
         shell: bash
         run: test -z "$(git status --porcelain)"

@@ -4,6 +4,7 @@ import { join } from 'node:path';
 import readline from 'node:readline';
 import { PACKAGE_ROOT } from './afyx-npm-installer.mjs';
 import { createBackendAdapter, summarizeExecution } from './afyx-install-backend.mjs';
+import { GRAPH_PACKAGE_TARGETS } from './afyx-graph-targets.mjs';
 
 const stages = ['DETECT', 'SELECT', 'CONFIGURE', 'REVIEW / APPLY', 'FINISH'];
 const supported = ['antigravity', 'claude', 'codex'];
@@ -39,8 +40,7 @@ export function presetComponents(preset, selected = [], pkgRoot = PACKAGE_ROOT) 
 
 export function runtimeSupport(preset, platform = process.platform, arch = process.arch) {
   if (preset !== 'full') return { supported: true, reason: '' };
-  if (platform === 'darwin') return { supported: false, reason: 'Full requires a verified macOS Graph archive; choose Recommended or Minimal.' };
-  if (arch !== 'x64') return { supported: false, reason: `Full Graph archive is unavailable for ${platform}/${arch}.` };
+  if (!GRAPH_PACKAGE_TARGETS.includes(`${platform}-${arch}`)) return { supported: false, reason: `Full Graph archive is unavailable for ${platform}/${arch}.` };
   return { supported: true, reason: '' };
 }
 

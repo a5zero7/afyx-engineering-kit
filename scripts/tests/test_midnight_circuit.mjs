@@ -53,7 +53,9 @@ test('presets derive membership from components.json and unsupported Full is exp
   assert.deepEqual(presetComponents('recommended'), ['efficient-coding', 'odoo-engineering', 'afyx-engineering-expert']);
   assert.ok(presetComponents('full').includes('afyx-graph'));
   assert.deepEqual(presetComponents('custom', ['afyx-context']), ['afyx-context']);
-  assert.equal(runtimeSupport('full', 'darwin', 'arm64').supported, false);
+  assert.equal(runtimeSupport('full', 'darwin', 'arm64').supported, true);
+  assert.equal(runtimeSupport('full', 'darwin', 'x64').supported, true);
+  assert.equal(runtimeSupport('full', 'darwin', 'unknown').supported, false);
   assert.equal(runtimeSupport('full', 'linux', 'arm64').supported, false);
   assert.equal(runtimeSupport('full', 'linux', 'x64').supported, true);
 });

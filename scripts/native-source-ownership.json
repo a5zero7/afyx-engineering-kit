@@ -2,7 +2,7 @@
   "schema": 1,
   "baselineRevision": "c4e4d8e29de239a2fcbc0db8ac65eea2276e7b00",
   "scope": "AFYX-320 comprehensive production source inventory",
-  "totalProductionFiles": 415,
+  "totalProductionFiles": 416,
   "entries": [
     {
       "path": "afyx-graph/engine/src/bin/afyx-graph.ts",
@@ -2501,6 +2501,12 @@
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
       "reviewedSha256": "1a317d7a18f1d886fb4084336d84a24279d8f5a700a7cdf7cce96a32dbcb5cb2",
       "evidence": "MB12 review: authored from AFYX functional requirements and existing reviewed 251f73a contracts; no upstream implementation, prompts, assets or dependency imported. Trusted-host boundaries and negative/regression tests recorded in MB12-native-consolidation-20261114-r1."
+    },
+    {
+      "path": "scripts/afyx-midnight-circuit.mjs",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "94972a507bef22bcdf124d7e26ea9fc6583c81471c1267cb8d42f0e5b7ffe083",
+      "evidence": "MB12 target-contract correction in existing AFYX-owned Midnight Circuit UI: derive Full eligibility from the canonical four-target catalog. No layout, third-party source, or policy bypass introduced."
     }
   ]
 }
