@@ -60,6 +60,7 @@ jobs:
         env:
           ACCEPTANCE_SHELL: ${{ matrix.backend }}
         run: |
+          python -m unittest discover -s scripts/tests -p test_installer_terminal.py -v
           candidate=$(python -c 'import os,pathlib; paths=list((pathlib.Path(os.environ["RUNNER_TEMP"])/"installer-package").glob("*.tgz")); assert len(paths)==1; print(paths[0])')
           python scripts/tests/run_installer_acceptance.py --output "$RUNNER_TEMP/installer-acceptance" --shell "$ACCEPTANCE_SHELL" --node "$(node -p 'process.execPath')" --tarball "$candidate" --npx-cli "$(npm root -g)/npm/bin/npx-cli.js" --resize
           python scripts/tests/run_installer_acceptance.py --output "$RUNNER_TEMP/installer-plain-acceptance" --shell "$ACCEPTANCE_SHELL" --node "$(node -p 'process.execPath')" --tarball "$candidate" --npx-cli "$(npm root -g)/npm/bin/npx-cli.js" --cases minimal,custom --plain

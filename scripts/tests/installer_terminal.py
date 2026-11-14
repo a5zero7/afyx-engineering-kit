@@ -175,7 +175,9 @@ class TerminalProcess:
             import termios
             fcntl.ioctl(self.master, termios.TIOCSWINSZ, struct.pack("HHHH", rows, columns, 0, 0))
         self.columns, self.rows = columns, rows
-        self.cells = [[" "] * columns for _ in range(rows)]
+        self.cells = [line[:columns] + [" "] * max(0, columns - len(line)) for line in self.cells[:rows]]
+        self.cells.extend([[" "] * columns for _ in range(rows - len(self.cells))])
+        self.row, self.column = min(self.row, rows - 1), min(self.column, columns - 1)
 
     def poll(self):
         if os.name != "nt":
