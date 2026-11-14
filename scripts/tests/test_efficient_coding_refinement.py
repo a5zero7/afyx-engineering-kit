@@ -48,7 +48,9 @@ class EfficientCodingRefinementTests(unittest.TestCase):
         text = corpus(CANDIDATE)
         for anchor in ("n+1", "memory", "i/o", "concurrency", "afyx-first", "external fallback"):
             self.assertIn(anchor, text)
-        self.assertRegex((CANDIDATE / "SKILL.md").read_text(encoding="utf-8"), r'(?m)^\s+version: "1\.2\.1"$')
+        # a7d014e independently revised the current skill to 1.2.2; the frozen
+        # evaluation candidates remain unchanged and are not current releases.
+        self.assertRegex((CANDIDATE / "SKILL.md").read_text(encoding="utf-8"), r'(?m)^\s+version: "1\.2\.2"$')
 
     def test_rejected_rigid_suggestions_are_absent(self) -> None:
         text = corpus(CANDIDATE)

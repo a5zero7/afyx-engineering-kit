@@ -867,7 +867,7 @@ print(answer)
         environment = run.load_json(ROOT / "evals" / manifest["environment"])
         historical = run.load_json(ROOT / "evals" / "environment-expert-v0.1.0.json")
         for name in freeze.REPOSITORY_SKILLS:
-            if name == "efficient-coding":
+            if name in {"efficient-coding", "afyx-engineering-expert"}:
                 continue
             self.assertEqual(
                 environment["skills"][name]["content_sha256"],
@@ -884,6 +884,12 @@ print(answer)
             "69f85c93dbab28fb11460b0a9a2bbc38dbcf9c04f02747af7199ba84077334db",
         )
         self.assertEqual(environment["skills"]["afyx-engineering-expert"]["version"], "0.1.1")
+        # The frozen snapshot matches 9adf427, before the recorded e93a25a and
+        # 62aeb1a edits. Do not re-freeze protected benchmark evidence to HEAD.
+        self.assertEqual(environment["skills"]["afyx-engineering-expert"]["content_sha256"],
+                         "97f47d60d176a79592317ff65dee52b1132cf25ccadbbce45e8f25a48914d854")
+        self.assertNotEqual(environment["skills"]["afyx-engineering-expert"]["content_sha256"],
+                            freeze.directory_content_sha256(ROOT / "skills/afyx-engineering-expert"))
         self.assertNotEqual(
             environment["skills"]["afyx-engineering-expert"]["content_sha256"],
             historical["skills"]["afyx-engineering-expert"]["content_sha256"],
@@ -905,7 +911,7 @@ print(answer)
         self.assertNotEqual(current_hash, frozen_efficient["content_sha256"])
         self.assertRegex(
             (current_source / "SKILL.md").read_text(encoding="utf-8"),
-            r'(?m)^\s+version: "1\.2\.1"$',
+            r'(?m)^\s+version: "1\.2\.2"$',
         )
 
         preflight_environment = copy.deepcopy(environment)
@@ -918,6 +924,9 @@ print(answer)
             with self.assertRaisesRegex(
                 RuntimeError, "efficient-coding: content SHA256 mismatch"
             ):
+                run.verify_frozen_environment(preflight_environment)
+
+            with self.assertRaisesRegex(RuntimeError, "afyx-engineering-expert: content SHA256 mismatch"):
                 run.verify_frozen_environment(preflight_environment)
 
         self.assertEqual(environment["runtime"]["codex_cli"], "0.162.1")

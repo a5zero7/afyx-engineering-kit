@@ -17,6 +17,7 @@ update_installed=false
 component_actions=()
 component_action_count=0
 preset=
+implicit_preset=false
 custom_component_list=
 offline=false
 no_build_fallback=false
@@ -176,6 +177,7 @@ if [[ -t 0 && -z "${CI:-}" ]] && ! "$dry_run"; then interactive=true; fi
 if [[ -z "$preset" && "$component_action_count" -eq 0 && "$interactive" == false &&
       "$validate_only" == false && "$update_installed" == false && "$force" == false ]]; then
   preset=recommended
+  implicit_preset=true
 fi
 
 available_version() {
@@ -219,6 +221,9 @@ component_action() {
   fi
   available="$(available_version "$id")"
   if action="$(explicit_action "$id")"; then :
+  elif "$implicit_preset" && [[ "$state" == DRIFTED && "$(afyx_component_field "$id" type)" == skill ]]; then
+    # A default selection does not authorize discarding local skill edits.
+    action=skip
   elif [[ -n "$preset" ]]; then
     afyx_control_classify "$id" "$state" "$preset" "$custom_component_list" "$provider_list"
     if [[ "$AFYX_DESIRED" != true || "$AFYX_DRIFT" == NOT_APPLICABLE ]]; then action=skip
@@ -522,7 +527,7 @@ expert_action="$(component_action afyx-engineering-expert 'Afyx Engineering Expe
 for additional_root in ${additional_skill_roots[@]+"${additional_skill_roots[@]}"}; do
   for skill_spec in "efficient-coding|$efficient_action" "odoo-engineering|$odoo_action" "afyx-engineering-expert|$expert_action"; do
     skill_id="${skill_spec%%|*}"; skill_action="${skill_spec#*|}"
-    if [[ -n "$preset" ]] && afyx_component_desired "$skill_id" "$preset" "$custom_component_list" "$provider_list"; then skill_action=install; fi
+    if ! "$implicit_preset" && [[ -n "$preset" ]] && afyx_component_desired "$skill_id" "$preset" "$custom_component_list" "$provider_list"; then skill_action=install; fi
     [[ "$skill_action" != skip && "$skill_action" != adopt ]] || continue
     target="$additional_root/$skill_id"
     afyx_classify_skill "$target" "$skill_id" afyx
@@ -547,7 +552,7 @@ elif [[ "$expert_action" != skip ]]; then expert_result="$(safe_skill_install af
 
 replicate_provider_skill() {
   local id="$1" label="$2" source="$3" action="$4" root target replace result
-  if [[ -n "$preset" ]] && afyx_component_desired "$id" "$preset" "$custom_component_list" "$provider_list"; then action=install; fi
+  if ! "$implicit_preset" && [[ -n "$preset" ]] && afyx_component_desired "$id" "$preset" "$custom_component_list" "$provider_list"; then action=install; fi
   [[ "$action" != skip && "$action" != adopt ]] || return 0
   for root in ${additional_skill_roots[@]+"${additional_skill_roots[@]}"}; do
     target="$root/$id"
@@ -558,7 +563,9 @@ replicate_provider_skill() {
         if [[ "$(afyx_skill_version "$target")" == "$(afyx_skill_version "$source")" ]]; then printf '%s [%s]: skipped\n' "$label" "$root"; continue; fi
         replace=true
         ;;
-      AFYX_OWNED_MODIFIED) replace=true ;;
+      AFYX_OWNED_MODIFIED)
+        if "$implicit_preset"; then printf '%s [%s]: modified content preserved; explicit repair required\n' "$label" "$root"; continue; fi
+        replace=true ;;
       *) printf 'Refusing to replace %s at provider skill root %s because ownership is %s.\n' "$label" "$root" "$AFYX_OWNERSHIP_STATE" >&2; exit 1 ;;
     esac
     result="$(safe_skill_install "$id" "$label" "$source" "$target" "$replace")"

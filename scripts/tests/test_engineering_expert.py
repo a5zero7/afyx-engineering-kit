@@ -213,8 +213,17 @@ class ExpertLifecycleTests(unittest.TestCase):
         manifest = self.target / "SKILL.md"
         manifest.write_text(manifest.read_text(encoding="utf-8") + "\nuser change\n", encoding="utf-8")
         before = manifest.read_bytes()
+        marker = self.target / ".afyx-install.json"
+        marker_before = marker.read_bytes()
         self.install(None)
         self.assertEqual(manifest.read_bytes(), before)
+        self.assertEqual(marker.read_bytes(), marker_before)
+        # Explicit repair still restores the product and retains the edited
+        # owner content in its normal backup, rather than deleting it.
+        self.install("repair")
+        self.assertEqual(manifest.read_bytes(), (EXPERT / "SKILL.md").read_bytes())
+        self.assertTrue(any(p.read_bytes() == before
+                            for p in (self.backups / "afyx-engineering-expert").rglob("SKILL.md")))
 
     def test_backup_failure_preserves_existing_install(self) -> None:
         self.install("install")

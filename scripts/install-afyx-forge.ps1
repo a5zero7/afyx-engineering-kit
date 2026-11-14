@@ -54,30 +54,34 @@ function Assert-SafeRoot {
 }
 
 function Resolve-SourceRevision {
-    if ($SourceRevision) { return $SourceRevision }
+    if ($SourceRevision) {
+        if ($SourceRevision -cnotmatch '^[0-9a-f]{40}$') { throw 'Explicit source revision is invalid.' }
+        return $SourceRevision
+    }
+    $gitCmd = Get-Command git -ErrorAction SilentlyContinue
+    if ($gitCmd -and (Test-Path -LiteralPath (Join-Path $packageRoot '.git'))) {
+        $rev = ((& $gitCmd.Source -C $packageRoot rev-parse HEAD 2>$null) -join '').Trim()
+        if ($LASTEXITCODE -eq 0 -and $rev -cmatch '^[0-9a-f]{40}$') { return $rev }
+    }
     $revFile = Join-Path $packageRoot '.afyx-source-revision'
     if (Test-Path -LiteralPath $revFile -PathType Leaf) {
         $fromFile = (Get-Content -Raw -LiteralPath $revFile -Encoding utf8).Trim()
-        if ($fromFile) { return $fromFile }
-    }
-    $gitCmd = Get-Command git -ErrorAction SilentlyContinue
-    if ($gitCmd) {
-        $rev = ((& $gitCmd.Source -C $packageRoot rev-parse HEAD 2>$null) -join '').Trim()
-        if ($LASTEXITCODE -eq 0 -and $rev) { return $rev }
+        if ($fromFile -cnotmatch '^[0-9a-f]{40}$') { throw 'Packaged source revision marker is invalid.' }
+        return $fromFile
     }
     return 'unknown'
 }
 
 function Resolve-SourceProvenance {
-    $revFile = Join-Path $packageRoot '.afyx-source-revision'
-    if (Test-Path -LiteralPath $revFile -PathType Leaf) { return 'RELEASE_CANDIDATE_SNAPSHOT' }
     $gitCmd = Get-Command git -ErrorAction SilentlyContinue
-    if ($gitCmd) {
+    if ($gitCmd -and (Test-Path -LiteralPath (Join-Path $packageRoot '.git'))) {
         $dirty = ((& $gitCmd.Source -C $packageRoot status --porcelain -- afyx-forge 2>$null) -join '').Trim()
         if ($LASTEXITCODE -eq 0) {
             return $(if ($dirty) { 'LOCAL_SOURCE_DIRTY' } else { 'LOCAL_SOURCE_CLEAN' })
         }
     }
+    $revFile = Join-Path $packageRoot '.afyx-source-revision'
+    if (Test-Path -LiteralPath $revFile -PathType Leaf) { return 'RELEASE_CANDIDATE_SNAPSHOT' }
     return 'LOCAL_SOURCE_UNVERIFIED'
 }
 

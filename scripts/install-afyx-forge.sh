@@ -94,30 +94,29 @@ json_value() {
 
 resolve_source_revision() {
   if [[ -n "$source_revision" ]]; then
+    [[ "$source_revision" =~ ^[0-9a-f]{40}$ ]] || { printf 'Explicit source revision is invalid.\n' >&2; return 1; }
     printf '%s\n' "$source_revision"
-    return 0
-  fi
-  if [[ -f "$PACKAGE_ROOT/.afyx-source-revision" ]]; then
-    tr -d '\r\n' < "$PACKAGE_ROOT/.afyx-source-revision"
-    printf '\n'
     return 0
   fi
   if [[ -e "$PACKAGE_ROOT/.git" ]] && command -v git >/dev/null 2>&1; then
     local rev
     rev="$(git -C "$PACKAGE_ROOT" rev-parse HEAD 2>/dev/null || true)"
-    if [[ -n "$rev" ]]; then
+    if [[ "$rev" =~ ^[0-9a-f]{40}$ ]]; then
       printf '%s\n' "$rev"
       return 0
     fi
+  fi
+  if [[ -f "$PACKAGE_ROOT/.afyx-source-revision" ]]; then
+    local marker
+    marker="$(tr -d '\r\n' < "$PACKAGE_ROOT/.afyx-source-revision")"
+    [[ "$marker" =~ ^[0-9a-f]{40}$ ]] || { printf 'Packaged source revision marker is invalid.\n' >&2; return 1; }
+    printf '%s\n' "$marker"
+    return 0
   fi
   printf '%s\n' 'unknown'
 }
 
 resolve_source_provenance() {
-  if [[ -f "$PACKAGE_ROOT/.afyx-source-revision" ]]; then
-    printf '%s\n' 'RELEASE_CANDIDATE_SNAPSHOT'
-    return 0
-  fi
   if [[ -e "$PACKAGE_ROOT/.git" ]] && command -v git >/dev/null 2>&1 && git -C "$PACKAGE_ROOT" rev-parse HEAD >/dev/null 2>&1; then
     local dirty
     dirty="$(git -C "$PACKAGE_ROOT" status --porcelain -- afyx-forge 2>/dev/null || true)"
@@ -126,6 +125,10 @@ resolve_source_provenance() {
     else
       printf '%s\n' 'LOCAL_SOURCE_CLEAN'
     fi
+    return 0
+  fi
+  if [[ -f "$PACKAGE_ROOT/.afyx-source-revision" ]]; then
+    printf '%s\n' 'RELEASE_CANDIDATE_SNAPSHOT'
     return 0
   fi
   printf '%s\n' 'LOCAL_SOURCE_UNVERIFIED'

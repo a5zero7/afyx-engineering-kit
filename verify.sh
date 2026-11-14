@@ -142,7 +142,7 @@ if command -v tar >/dev/null 2>&1 && { command -v shasum >/dev/null 2>&1 || comm
 codex_detected=false
 if command -v codex >/dev/null 2>&1; then
   codex_detected=true
-  if version="$(codex --version 2>/dev/null)"; then result OK 'Codex CLI' "$version"; elif "$provider_explicit" && [[ ",$provider_list," == *,codex,* ]]; then result FAIL 'Codex CLI' 'selected host version command failed'; core_failure=true; else result WARN 'Codex CLI' 'version command failed (not selected)'; fi
+  if version="$(codex --version 2>/dev/null)"; then result OK 'Codex CLI' "$version"; elif [[ ",$provider_list," == *,codex,* ]]; then result FAIL 'Codex CLI' 'version command failed'; core_failure=true; else result WARN 'Codex CLI' 'version command failed (not selected)'; fi
 else result SKIP 'Codex CLI' 'PROVIDER_NOT_INSTALLED'; fi
 extension_detected=false
 for extension in "$HOME"/.vscode/extensions/openai.chatgpt-*; do [[ -d "$extension" ]] && { extension_detected=true; break; }; done
