@@ -167,21 +167,20 @@ export function discoverAfyxCapabilities({
   const contextEnvironmentOff = String(environment?.AFYX_CONTEXT_OPT_IN ?? '').trim() === '0';
   const capabilities = {};
 
-  if (Array.isArray(customComponents)) {
-    for (const comp of customComponents) {
-      if (comp?.id) registerAfyxComponent(comp);
-    }
+  const localRegistry = new Map(DYNAMIC_COMPONENT_REGISTRY);
+  for (const item of Array.isArray(customComponents) ? customComponents : []) {
+    if (item?.id && typeof item.id === 'string') localRegistry.set(item.id, Object.freeze({ ...item }));
   }
 
   // Universal discovery over all registered and caller-declared components
   const allComponentIds = new Set([
-    ...DYNAMIC_COMPONENT_REGISTRY.keys(),
+    ...localRegistry.keys(),
     ...Object.keys(componentStates),
   ]);
 
   for (const componentId of allComponentIds) {
     const observed = componentStates[componentId] ?? {};
-    const metadata = DYNAMIC_COMPONENT_REGISTRY.get(componentId) ?? {
+    const metadata = localRegistry.get(componentId) ?? {
       id: componentId,
       canonicalName: observed.canonicalName ?? componentId,
       type: observed.type ?? 'runtime',
@@ -254,22 +253,28 @@ export function classifyTaskIntent(task = {}) {
   const directSourceCandidate = task.exactKnownSource === true || task.knownFile === true ||
     ['known-file', 'string-replacement', 'exact-source'].includes(taskType) ||
     /\b(exact source|known file|string replacement)\b/.test(intentText);
-  const odoo = task.project?.isOdoo === true || task.explicitOdooEvidence === true ||
+  const odoo = task.project?.framework === 'odoo' || task.framework === 'odoo' || task.project?.isOdoo === true || task.explicitOdooEvidence === true ||
     taskType.startsWith('odoo-') || /\bodoo\b/.test(intentText);
   const relational = task.needsRelationalEvidence === true ||
     ['impact-analysis', 'cross-asset', 'relationship-analysis'].includes(taskType) ||
     /\b(dependency|relationship|blast radius|call graph|impact analysis)\b/.test(intentText);
   const contextOptimization = task.needsContextOptimization === true ||
     taskType === 'large-context';
-  const architecture = ['architecture', 'multi-disciplinary', 'system-design'].includes(taskType);
-  const forgeAdvice = task.forgeAdvice === true || taskType === 'forge-advice';
+  const architecture = ['architecture', 'multi-disciplinary', 'system-design', 'general-engineering', 'skill-discovery', 'skill-refinement', 'skill-composition'].includes(taskType);
+  const forgeAdvice = task.forgeAdvice === true || ['forge-advice', 'workflow-execution', 'multi-agent-workflow'].includes(taskType);
   const forgeAutonomous = task.autonomousExecution === true || AUTONOMOUS_FORGE_INTENTS.has(taskType);
   const telemetry = task.needsTelemetry === true || task.telemetry === true || task.trackUsage === true ||
     taskType === 'usage-telemetry' || taskType === 'telemetry' ||
     /\b(telemetry|usage tracking|usage report)\b/.test(intentText);
+  const documentation = ['documentation-search', 'documentation-research'].includes(taskType) || task.domain === 'documentation';
+  const usageAnalytics = taskType === 'usage-analytics';
+  const github = taskType === 'github-operation' || task.domain === 'github';
+  const nativeExecution = taskType === 'cli-automation' || task.domain === 'local-cli';
+  const securityAudit = taskType === 'security-audit';
+  const manualSelection = Array.isArray(task.manualSelection) ? task.manualSelection.filter((id) => typeof id === 'string').slice(0, 4) : [];
   const customCapability = task.needsCustomCapability ?? task.customCapability ?? null;
   const customComponentId = task.customComponentId ?? null;
-  const complexCapabilityNeeded = odoo || relational || contextOptimization ||
+  const complexCapabilityNeeded = documentation || usageAnalytics || github || nativeExecution || securityAudit || manualSelection.length > 0 || odoo || relational || contextOptimization ||
     architecture || forgeAdvice || forgeAutonomous || telemetry ||
     Boolean(customCapability) || Boolean(customComponentId);
   const directSource = directSourceCandidate && !complexCapabilityNeeded;
@@ -284,7 +289,7 @@ export function classifyTaskIntent(task = {}) {
     forgeAutonomous,
     telemetry,
     customCapability,
-    customComponentId,
+    customComponentId, documentation, usageAnalytics, github, nativeExecution, securityAudit, manualSelection,
   });
 }
 
@@ -323,7 +328,14 @@ function makeRequest({ task, componentId, discovery, budgets, reason, hopCount =
 
 function selectionCandidates(task, classification, modularRuntimePlan, discovery) {
   if (classification.directSource) return [];
-  const selectedByPlanner = new Set(modularRuntimePlan.plannedComponents);
+  const exclusiveDomain = classification.documentation || classification.usageAnalytics || classification.github || classification.nativeExecution || classification.securityAudit;
+  const selectedByPlanner = new Set(exclusiveDomain ? [] : modularRuntimePlan.plannedComponents);
+  if (classification.documentation || classification.usageAnalytics) selectedByPlanner.add('afyx-context');
+  if (classification.github) selectedByPlanner.add('afyx-native-github');
+  if (classification.nativeExecution) selectedByPlanner.add('afyx-native-execution');
+  if (classification.securityAudit) selectedByPlanner.add('afyx-security-auditor');
+  for (const id of classification.manualSelection) selectedByPlanner.add(id);
+
   if (classification.odoo) selectedByPlanner.add('odoo-engineering');
   if (classification.architecture) selectedByPlanner.add('afyx-engineering-expert');
   if (classification.relational) selectedByPlanner.add('afyx-graph');
@@ -346,6 +358,11 @@ function selectionCandidates(task, classification, modularRuntimePlan, discovery
   }
 
   const preferredOrder = [
+    ...(classification.documentation || classification.usageAnalytics ? ['afyx-context'] : []),
+    ...(classification.github ? ['afyx-native-github'] : []),
+    ...(classification.nativeExecution ? ['afyx-native-execution'] : []),
+    ...(classification.securityAudit ? ['afyx-security-auditor'] : []),
+    ...classification.manualSelection,
     ...(classification.odoo ? ['odoo-engineering'] : []),
     ...(classification.architecture ? ['afyx-engineering-expert'] : []),
     ...(classification.relational ? ['afyx-graph'] : []),

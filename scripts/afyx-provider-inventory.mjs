@@ -17,7 +17,7 @@ const catalog = [
 
 function commandPath(name, env, platform) {
   const suffixes = platform === 'win32' ? ['.exe', '.cmd', '.bat'] : [''];
-  for (const directory of (env.PATH || '').split(delimiter).filter(Boolean)) {
+  for (const directory of (env.PATH || '').split(delimiter).filter(Boolean).slice(0, 128)) {
     for (const suffix of suffixes) {
       const candidate = join(directory, name + suffix);
       try {
@@ -39,11 +39,13 @@ function extensionProducts(home, platform) {
     const directory = join(home, root, 'extensions');
     let names;
     try { names = readdirSync(directory); } catch { continue; }
-    for (const name of names) {
+    for (const name of names.sort().slice(0, 512)) {
       if (!/^(openai\.chatgpt|anthropic\.claude-code)-/i.test(name)) continue;
       const location = join(directory, name);
       try {
-        const manifest = JSON.parse(readFileSync(join(location, 'package.json'), 'utf8'));
+        const manifestPath = join(location, 'package.json');
+        if (statSync(manifestPath).size > 65536) continue;
+        const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'));
         const id = `${manifest.publisher}.${manifest.name}`.toLowerCase();
         if (!['openai.chatgpt', 'anthropic.claude-code'].includes(id)) continue;
         found.push({ id, path: location, version: String(manifest.version || '') });
@@ -54,6 +56,7 @@ function extensionProducts(home, platform) {
 }
 
 function knownDesktopPaths(env, platform) {
+  if (platform === 'darwin') return { antigravity: ['/Applications/Antigravity.app/Contents/MacOS/Antigravity', join(env.HOME || homedir(), 'Applications/Antigravity.app/Contents/MacOS/Antigravity')], cursor: ['/Applications/Cursor.app/Contents/MacOS/Cursor'] };
   if (platform !== 'win32') return { antigravity: [], cursor: [] };
   const appPath = (executable) => {
     const reg = join(env.SystemRoot || 'C:\\Windows', 'System32', 'reg.exe');

@@ -139,7 +139,11 @@ jobs:
           & (Join-Path $runtime 'current/bin/afyx-graph.cmd') help
 
   macos:
-    runs-on: macos-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-15, macos-15-intel]
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
@@ -176,15 +180,29 @@ jobs:
       - name: CLI and MCP smoke
         working-directory: afyx-graph/engine
         run: npm run test:smoke
-      - name: Verify explicit macOS prebuilt installation boundary (Full unsupported)
+      - name: Native macOS Full install, verify, MCP and uninstall (Bash 3.2)
+        shell: bash
         run: |
-          export AFYX_GRAPH_RUNTIME_ROOT="$RUNNER_TEMP/afyx-graph-runtime"
-          export AFYX_GRAPH_BIN_DIR="$RUNNER_TEMP/afyx-graph-bin"
-          set +e
-          ./scripts/install-afyx-graph.sh --offline > "$RUNNER_TEMP/macos-graph-install.log" 2>&1
-          result=$?
-          set -e
-          cat "$RUNNER_TEMP/macos-graph-install.log"
-          test "$result" -eq 2
-          grep -F 'prebuilt runtime is unavailable for darwin-' "$RUNNER_TEMP/macos-graph-install.log"
-          test ! -e "$AFYX_GRAPH_RUNTIME_ROOT/current"
+          node --input-type=module -e 'import {buildGraphReleaseArtifacts} from "./scripts/prepare-g6-package.mjs"; buildGraphReleaseArtifacts(process.cwd(),process.env.GITHUB_SHA)'
+          export HOME="$RUNNER_TEMP/afyx-macos-profile"
+          export AFYX_INSTALL_ROOT="$HOME/.afyx"
+          export AFYX_GRAPH_RUNTIME_ROOT="$HOME/.afyx/graph"
+          export AFYX_GRAPH_BIN_DIR="$HOME/.local/bin"
+          export AFYX_CONTEXT_RUNTIME_ROOT="$HOME/.afyx/context"
+          export AFYX_FORGE_RUNTIME_ROOT="$HOME/.afyx/forge"
+          export AFYX_HOST_BRIDGE_RUNTIME_ROOT="$HOME/.afyx/host-bridge"
+          export AFYX_BACKUP_ROOT="$HOME/backups"
+          export CODEX_HOME="$HOME/.codex"
+          export AFYX_GEMINI_HOME="$HOME/.gemini"
+          export CLAUDE_CONFIG_DIR="$HOME/.claude"
+          export AFYX_CONTEXT_OPT_IN=0
+          mkdir -p "$HOME"
+          /bin/bash ./install.sh --preset full --skip-provider-configuration --offline --no-build-fallback
+          /bin/bash ./verify.sh --preset full
+          node afyx-graph/engine/scripts/smoke-cli-mcp.mjs --bin "$AFYX_GRAPH_RUNTIME_ROOT/current/lib/dist/bin/afyx-graph.js"
+          node "$AFYX_CONTEXT_RUNTIME_ROOT/current/dist/cli.js" --help
+          node "$AFYX_FORGE_RUNTIME_ROOT/current/bin/afyx-forge.js" --help
+          /bin/bash ./scripts/install-afyx-graph.sh --update --offline --no-build-fallback
+          /bin/bash ./scripts/install-afyx-graph.sh --validate-only
+          /bin/bash ./scripts/install-afyx-graph.sh --uninstall
+          test ! -e "$AFYX_GRAPH_RUNTIME_ROOT"

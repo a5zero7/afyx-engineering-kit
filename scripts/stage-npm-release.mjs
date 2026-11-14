@@ -7,6 +7,7 @@ import { tmpdir } from 'node:os';
 import { dirname, isAbsolute, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { buildGraphReleaseArtifacts, checkGraphReleaseValid } from './prepare-g6-package.mjs';
+import { GRAPH_PACKAGE_TARGETS, graphArchiveName } from './afyx-graph-targets.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const args = process.argv.slice(2);
@@ -60,7 +61,7 @@ run('tar', ['-xf', archive, '-C', stage]);
 writeFileSync(join(stage, '.afyx-source-revision'), `${revision}\n`, 'utf8');
 const release = join('afyx-graph', 'engine', 'release');
 mkdirSync(join(stage, release), { recursive: true });
-for (const name of ['afyx-graph-win32-x64.zip', 'afyx-graph-linux-x64.tar.gz', 'SHA256SUMS', 'RELEASE-MANIFEST.json']) {
+for (const name of [...GRAPH_PACKAGE_TARGETS.map(graphArchiveName), 'SHA256SUMS', 'RELEASE-MANIFEST.json']) {
   const source = join(root, release, name);
   if (!statSync(source).isFile()) throw new Error(`Missing regular Graph artifact: ${name}`);
   copyFileSync(source, join(stage, release, name));
@@ -75,6 +76,7 @@ const fileNames = new Set(pkg.files.map((file) => file.path));
 for (const required of ['.afyx-source-revision', 'bin/afyx-engineering-kit.mjs',
   `${release.replaceAll('\\', '/')}/RELEASE-MANIFEST.json`,
   `${release.replaceAll('\\', '/')}/afyx-graph-win32-x64.zip`,
+  ...GRAPH_PACKAGE_TARGETS.filter((target) => target.startsWith('darwin')).map((target) => `${release.replaceAll('\\', '/')}/${graphArchiveName(target)}`),
   `${release.replaceAll('\\', '/')}/afyx-graph-linux-x64.tar.gz`]) {
   if (!fileNames.has(required)) throw new Error(`Incomplete npm package: ${required}`);
 }

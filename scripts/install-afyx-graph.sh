@@ -251,10 +251,10 @@ case "$(uname -m)" in
   *) printf 'Unsupported architecture: %s\n' "$(uname -m)" >&2; exit 1 ;;
 esac
 target="$os-$arch"
-if [[ "$target" != linux-x64 ]]; then
-  printf 'Afyx Graph prebuilt runtime is unavailable for %s. Minimal and Recommended Kit presets remain available; consumer source compilation is disabled.\n' "$target" >&2
-  exit 2
-fi
+case "$target" in
+  linux-x64|darwin-arm64|darwin-x64) ;;
+  *) printf 'Afyx Graph prebuilt runtime is unavailable for %s.\n' "$target" >&2; exit 2 ;;
+esac
 asset="afyx-graph-$target.tar.gz"
 
 require_host_runtime

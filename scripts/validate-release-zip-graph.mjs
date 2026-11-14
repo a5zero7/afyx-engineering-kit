@@ -20,7 +20,7 @@ if (mode === 'build') {
   const archive = join(release, archiveName);
   const manifest = JSON.parse(readFileSync(join(release, 'RELEASE-MANIFEST.json'), 'utf8'));
   const graphVersion = JSON.parse(readFileSync(join(root, 'afyx-graph', 'engine', 'package.json'), 'utf8')).version;
-  if (manifest.schema !== 1 || manifest.product !== 'Afyx Graph' ||
+  if (![1, 2].includes(manifest.schema) || manifest.product !== 'Afyx Graph' ||
       manifest.source_revision !== revision || manifest.product_version !== graphVersion ||
       !Array.isArray(manifest.artifacts)) throw new Error('Graph manifest source/product mismatch');
   const matches = manifest.artifacts.filter((item) => item.file === archiveName);
@@ -28,7 +28,7 @@ if (mode === 'build') {
     throw new Error('Missing or invalid Windows x64 Graph manifest entry');
   }
   const lines = readFileSync(join(release, 'SHA256SUMS'), 'utf8').trim().split(/\r?\n/);
-  const sums = lines.map((line) => /^([0-9a-f]{64})  (afyx-graph-(?:win32|linux)-x64\.(?:zip|tar\.gz))$/.exec(line));
+  const sums = lines.map((line) => /^([0-9a-f]{64})  (afyx-graph-(?:win32-x64|linux-x64|darwin-arm64|darwin-x64)\.(?:zip|tar\.gz))$/.exec(line));
   if (sums.some((match) => !match) || sums.filter((match) => match[2] === archiveName).length !== 1) {
     throw new Error('Missing, duplicate, or malformed Windows Graph SHA256SUMS entry');
   }

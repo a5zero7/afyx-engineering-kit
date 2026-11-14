@@ -46,6 +46,7 @@ export async function invokeHostWorkflow({
   budgetLimits = undefined,
   environment = process.env,
   trustedSkillEngineering = null,
+  trustedCapabilities = {},
 } = {}) {
   const parsedTask = typeof task === 'string' ? JSON.parse(task) : task;
   const resolvedProjectRoot = resolve(projectRoot);
@@ -62,6 +63,7 @@ export async function invokeHostWorkflow({
     budgetLimits,
     environment,
     trustedSkillEngineering,
+    trustedCapabilities,
   });
 
   return {
@@ -223,12 +225,29 @@ export function serveHostMcpBridge(serverOptions = {}) {
   return rl;
 }
 
+function trustedLaunchCapabilities() {
+  const repositories = (argumentValue('--github-repositories') || '').split(',').filter(Boolean);
+  if (!repositories.length) return {};
+  const github = { allowedRepositories: repositories };
+  const executable = argumentValue('--github-gh-executable');
+  return { github, githubExecutable: executable };
+}
+
 function argumentValue(flag) {
   const index = process.argv.indexOf(flag);
   return index >= 0 && index + 1 < process.argv.length ? process.argv[index + 1] : null;
 }
 
 async function main() {
+  const trustedCapabilities = trustedLaunchCapabilities();
+  if (trustedCapabilities.githubExecutable) {
+    const { createGhRequest } = await import('./afyx-native-github.mjs');
+    trustedCapabilities.github.request = createGhRequest({ executable: trustedCapabilities.githubExecutable,
+      projectRoot: resolve(argumentValue('--project-root') || process.cwd()) });
+    trustedCapabilities.github.authMode = 'HOST_GH_SESSION';
+    delete trustedCapabilities.githubExecutable;
+  }
+
   if (process.argv.includes('--mcp') || (process.argv.includes('serve') && process.argv.includes('--mcp'))) {
     const installRoot = argumentValue('--install-root');
     const projectRoot = argumentValue('--project-root');
@@ -236,6 +255,7 @@ async function main() {
     const authorizedIds = new Set((argumentValue('--authorize') ?? '').split(',').filter(Boolean));
     const authorizations = Object.fromEntries([...authorizedIds].map((id) => [id, true]));
     serveHostMcpBridge({
+      trustedCapabilities,
       installRoot,
       projectRoot,
       provider,
@@ -267,6 +287,7 @@ async function main() {
 
   const authorizations = Object.fromEntries([...authorizedIds].map((id) => [id, true]));
   const result = await invokeHostWorkflow({
+    trustedCapabilities,
     installRoot,
     projectRoot,
     task,

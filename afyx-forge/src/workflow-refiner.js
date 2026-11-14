@@ -100,6 +100,9 @@ export function extractStructuredCriteria(taskText) {
  * Refines a raw task directive into high-signal engineering specifications.
  */
 export function refineTaskDirective(rawTaskText) {
+  if (typeof rawTaskText !== 'string' || !rawTaskText.trim() || rawTaskText.length > 65_536) {
+    throw new TypeError('Task text must be non-empty and at most 65536 characters.');
+  }
   const stripped = stripInstructionBoilerplate(rawTaskText);
   const structured = extractStructuredCriteria(stripped);
 
@@ -129,7 +132,8 @@ export function evaluateTaskCompletion(criteriaList, verifiedEvidence = []) {
     // Check key terms from criterion in verified evidence
     const words = criterion.text.toLowerCase().split(/\s+/).filter((w) => w.length > 3);
     const matchedWords = words.filter((w) => evidenceText.includes(w));
-    const satisfied = matchedWords.length >= Math.ceil(words.length * 0.5);
+    const denied = /\b(?:(?:do(?:es)?|did)\s+not\s+pass|not\s+(?:verified|passed|passing|successful)|failed|failure|gagal|belum\s+(?:lulus|terverifikasi)|tidak\s+(?:lulus|berhasil))\b/i.test(evidenceText);
+    const satisfied = !denied && matchedWords.length >= Math.ceil(words.length * 0.5);
     return {
       id: criterion.id,
       text: criterion.text,
@@ -142,10 +146,42 @@ export function evaluateTaskCompletion(criteriaList, verifiedEvidence = []) {
   const score = criteriaList.length > 0 ? satisfiedCount / criteriaList.length : 1.0;
 
   return {
+    assurance: 'TEXT_HEURISTIC_ONLY',
+    verifiedComplete: false,
     isComplete: score >= 1.0,
     completionScore: Number(score.toFixed(2)),
     totalCriteria: criteriaList.length,
     satisfiedCriteriaCount: satisfiedCount,
     details: evaluation,
   };
+}
+
+/** Versioned acceptance boundary: model assertions and free text are not verification authority. */
+export const VERIFIED_COMPLETION_CONTRACT = 'afyx-forge-completion/v2';
+export function evaluateVerifiedTaskCompletion(criteriaList, records = [], { sourceRevision, verifyEvidence } = {}) {
+  const validCriteria = Array.isArray(criteriaList) && criteriaList.length > 0 && criteriaList.length <= 64
+    && criteriaList.every((item) => item && /^[A-Za-z][A-Za-z0-9-]{0,63}$/.test(item.id) && typeof item.text === 'string' && item.text.length > 0 && item.text.length <= 4096)
+    && new Set(criteriaList.map((item) => item.id)).size === criteriaList.length;
+  const validContext = validCriteria && /^[0-9a-f]{40}$/.test(sourceRevision ?? '') && typeof verifyEvidence === 'function'
+    && Array.isArray(records) && records.length <= 256;
+  const details = validCriteria ? criteriaList.map((criterion) => {
+    const matching = validContext ? records.filter((record) => record && typeof record === 'object' && record.criterionId === criterion.id) : [];
+    let satisfied = matching.length > 0;
+    for (const record of matching) {
+      if (record.status !== 'PASS' || record.exitCode !== 0 || record.sourceRevision !== sourceRevision
+        || !/^[0-9a-f]{64}$/.test(record.evidenceDigest ?? '') || typeof record.command !== 'string'
+        || !record.command.trim() || record.command.length > 4096) { satisfied = false; continue; }
+      try {
+        // A trusted host binds the record to its actual receipt/log, not record.verified.
+        const bound = Object.freeze({ ...record });
+        if (verifyEvidence(bound, Object.freeze({ criterionId: criterion.id, sourceRevision })) !== true) satisfied = false;
+      } catch { satisfied = false; }
+    }
+    return Object.freeze({ id: criterion.id, satisfied });
+  }) : [];
+  const satisfiedCount = details.filter((item) => item.satisfied).length;
+  const complete = validContext && details.length > 0 && satisfiedCount === details.length;
+  return Object.freeze({ contract: VERIFIED_COMPLETION_CONTRACT, assurance: 'HOST_VERIFIED_EVIDENCE', isComplete: complete,
+    verifiedComplete: complete, completionScore: details.length ? satisfiedCount / details.length : 0,
+    totalCriteria: validCriteria ? criteriaList.length : 0, satisfiedCriteriaCount: satisfiedCount, details: Object.freeze(details) });
 }

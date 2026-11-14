@@ -4,7 +4,7 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
-import { createForgePlan, runDoctor, FORGE_CORE_VERSION } from './index.js';
+import { createForgePlan, runDoctor, FORGE_CORE_VERSION, refineTaskDirective, createForgeProfiles } from './index.js';
 
 function printHelp() {
   console.log(`
@@ -14,6 +14,8 @@ USAGE:
   afyx-forge <command> [options]
 
 COMMANDS:
+  refine        Refine --task <text> without executing tools
+  profiles      List AFYX-owned domain profiles [--domain <name>]
   plan      Formulate an actionable engineering plan and adaptive routing policy
   doctor    Diagnose agent surfaces, runtime components, and governance gates
   version   Display version and build metadata
@@ -49,6 +51,17 @@ export async function runCli(args = process.argv.slice(2)) {
   }
 
   const command = args[0];
+
+  if (command === 'refine' || command === 'profiles') {
+    try {
+      const option = command === 'refine' ? '--task' : '--domain';
+      if (args.length !== 1 && (args.length !== 3 || args[1] !== option)) throw new Error('Unsupported command arguments.');
+      if (command === 'refine' && args.length !== 3) throw new Error('--task is required.');
+      const result = command === 'refine' ? refineTaskDirective(args[2]) : createForgeProfiles({ domain: args[2] });
+      console.log(JSON.stringify(result, null, 2));
+      return 0;
+    } catch (error) { console.error(`Error: ${error.message}`); return 1; }
+  }
 
   if (command === 'doctor') {
     const diagnostic = runDoctor();

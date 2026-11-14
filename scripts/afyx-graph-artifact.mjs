@@ -105,7 +105,7 @@ function verifyReleaseManifest(manifestFile, archiveFile, metadataFile) {
   const manifest = readMetadata(manifestFile);
   const metadata = readMetadata(metadataFile);
   const identity = artifactIdentity(metadata);
-  if (manifest.schema !== 1 || manifest.product !== 'Afyx Graph') throw new Error('release manifest schema or product mismatch');
+  if (![1, 2].includes(manifest.schema) || manifest.product !== 'Afyx Graph') throw new Error('release manifest schema or product mismatch');
   const name = basename(archiveFile);
   const entry = Array.isArray(manifest.artifacts) ? manifest.artifacts.find((item) => item.file === name) : null;
   if (!entry || !/^[0-9a-f]{64}$/i.test(String(entry.sha256 || ''))) throw new Error(`release manifest has no valid entry for ${name}`);

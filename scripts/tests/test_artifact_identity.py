@@ -82,13 +82,6 @@ def create_bundle(release: Path, revision: str) -> Path:
 
 
 class ArtifactIdentityTests(unittest.TestCase):
-    def assert_unsupported_full_rejection(self, result, runtime: Path, public_bin: Path) -> None:
-        reason = f"UNSUPPORTED_FULL_TARGET:{host_target()[1]}"
-        self.assertEqual(result.returncode, 2, reason + "\n" + result.stdout + result.stderr)
-        self.assertIn("prebuilt runtime is unavailable for darwin-", result.stdout + result.stderr)
-        self.assertFalse(runtime.exists(), "unsupported Full must not install a runtime")
-        self.assertFalse(public_bin.exists(), "unsupported Full must not create a public launcher")
-
     def run_tool(self, *args: str, expected: int = 0) -> subprocess.CompletedProcess[str]:
         result = subprocess.run(
             ["node", str(SCRIPT), *args], cwd=ROOT, capture_output=True, text=True
@@ -210,11 +203,6 @@ class ArtifactIdentityTests(unittest.TestCase):
             command = ([shell, "-NoProfile", "-NonInteractive", "-File", str(installer), "-RuntimeRoot", str(runtime), "-SkipPathUpdate", "-Offline", "-NoBuildFallback"]
                        if os.name == "nt" else [shell, str(installer), "--offline", "--no-build-fallback"])
             installed = subprocess.run(command, cwd=ROOT, env=env, capture_output=True, text=True)
-            if host_target()[0] == "darwin":
-                # Fixture metadata cannot turn an unsupported product target into
-                # a supported runtime. Identity/forgery tests below still run.
-                self.assert_unsupported_full_rejection(installed, runtime, public_bin)
-                return
             self.assertEqual(installed.returncode, 0, installed.stdout + installed.stderr)
             metadata = json.loads((runtime / "metadata.json").read_text(encoding="utf-8-sig"))
             self.assertEqual(metadata["source_revision"], current)
@@ -360,9 +348,6 @@ class ArtifactIdentityTests(unittest.TestCase):
             command = ([shell, "-NoProfile", "-NonInteractive", "-File", str(installer), "-RuntimeRoot", str(runtime), "-SkipPathUpdate", "-Offline", "-ArchivePath", str(archive)]
                        if os.name == "nt" else [shell, str(installer), "--offline", "--archive", str(archive)])
             result = subprocess.run(command, cwd=ROOT, env=env, capture_output=True, text=True)
-            if host_target()[0] == "darwin":
-                self.assert_unsupported_full_rejection(result, runtime, base / "bin")
-                return
             self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
             installed = json.loads((runtime / "metadata.json").read_text(encoding="utf-8-sig"))
             self.assertEqual(installed["source_revision"], "UNKNOWN")

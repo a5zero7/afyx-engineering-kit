@@ -23,6 +23,7 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { tmpdir } from 'node:os';
 import { verifyGraphArchivePaths } from './verify-graph-archive.mjs';
+import { graphManifestTargets, graphArchiveName } from './afyx-graph-targets.mjs';
 
 const CANONICAL_REPO = 'a5zero7/afyx-engineering-kit';
 const GITHUB_API_BASE = `https://api.github.com/repos/${CANONICAL_REPO}`;
@@ -36,7 +37,7 @@ const REQUIRED_ARTIFACTS = Object.freeze([
 ]);
 
 export function validateReleaseChecksums(manifest, sumsText, revision) {
-  const archives = REQUIRED_ARTIFACTS.filter((name) => name.endsWith('.zip') || name.endsWith('.tar.gz'));
+  const archives = graphManifestTargets(manifest).map(graphArchiveName);
   if (manifest?.source_revision !== revision || !Array.isArray(manifest.artifacts) ||
       manifest.artifacts.length !== archives.length) throw new Error('Incomplete or stale Graph release manifest');
   const entries = new Map();
@@ -256,7 +257,7 @@ export async function resolveAndStageGitReleaseArtifacts(root, revision, options
     const expectedSums = validateReleaseChecksums(manifestObj, sumsContent, revision);
 
     // 4. Download and verify each required archive
-    const archivesToDownload = ['afyx-graph-win32-x64.zip', 'afyx-graph-linux-x64.tar.gz'];
+    const archivesToDownload = graphManifestTargets(manifestObj).map(graphArchiveName);
     for (const archiveName of archivesToDownload) {
       const archiveUrl = `${downloadBase}/${resolvedTag}/${archiveName}`;
       const archiveBuf = await fetchArtifact(archiveUrl, { timeoutMs: 60000 });
@@ -285,7 +286,7 @@ export async function resolveAndStageGitReleaseArtifacts(root, revision, options
     }
 
     // 5. Atomically stage all verified artifacts to releaseDir
-    for (const file of REQUIRED_ARTIFACTS) {
+    for (const file of ['RELEASE-MANIFEST.json', 'SHA256SUMS', ...graphManifestTargets(manifestObj).map(graphArchiveName)]) {
       copyFileSync(join(tempStage, file), join(releaseDir, file));
     }
 
@@ -293,7 +294,7 @@ export async function resolveAndStageGitReleaseArtifacts(root, revision, options
       success: true,
       tag: resolvedTag,
       revision,
-      artifacts: REQUIRED_ARTIFACTS,
+      artifacts: ['RELEASE-MANIFEST.json', 'SHA256SUMS', ...graphManifestTargets(manifestObj).map(graphArchiveName)],
     };
   } finally {
     if (existsSync(tempStage)) {

@@ -21,6 +21,10 @@ export const HOST_BRIDGE_FILES = Object.freeze([
   'afyx-tool-family-routing.mjs',
   'afyx-native-skill-host.mjs',
   'afyx-skill-engineering.mjs',
+  'afyx-skill-catalog.mjs',
+  'afyx-native-execution.mjs',
+  'afyx-native-github.mjs',
+  'afyx-security-auditor.mjs',
   'components.json',
 ]);
 

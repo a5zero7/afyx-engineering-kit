@@ -72,6 +72,9 @@ export const DOMAIN_AUTHORITY_MATRIX = Object.freeze({
     primaryOwner: 'afyx-skill-engineering',
     description: 'Skill authoring, validation, packaging, review and installation.',
   },
+  'scoped-github-evidence': { primaryOwner: 'afyx-native-github', description: 'Scoped read-only GitHub evidence via trusted host credentials.' },
+  'validated-local-execution': { primaryOwner: 'afyx-native-execution', description: 'Trusted CLI catalog execution with bounded arguments and host approval.' },
+  'source-security-candidates': { primaryOwner: 'afyx-security-auditor', description: 'Bounded read-only heuristic security candidates.' },
   'credential-use-authorization': {
     primaryOwner: 'afyx-credential-broker',
     description: 'Host-scoped credential use authorization without secret disclosure.',

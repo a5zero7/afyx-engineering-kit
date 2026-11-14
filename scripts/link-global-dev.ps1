@@ -92,21 +92,28 @@ if (-not $npmCmd) {
 
 $nodeVerStr = (& $nodeCmd.Source --version).Trim()
 $nodeMajor = [int]($nodeVerStr -replace '^v(\d+)\..*', '$1')
-if ($nodeMajor -lt 22) {
+$nodeMinor = [int]($nodeVerStr -replace '^v\d+\.(\d+)\..*', '$1')
+if ($nodeMajor -lt 22 -or ($nodeMajor -eq 22 -and $nodeMinor -lt 5)) {
     Write-Step 'FAIL' 'Node.js Version' "Node.js >= 22.5.0 required (detected $nodeVerStr)"
     exit 1
 }
+
+$globalModules = (& $npmCmd.Source root --global).Trim()
+if ($LASTEXITCODE -ne 0) { throw 'Cannot resolve the configured npm global root.' }
+& $nodeCmd.Source (Join-Path $RepositoryRoot 'scripts/afyx-local-link-ownership.mjs') $RepositoryRoot $globalModules
+if ($LASTEXITCODE -ne 0) { throw 'Refusing to replace or unlink a foreign npm installation.' }
 
 if ($Uninstall) {
     Write-Step 'INFO' 'Uninstall' 'Unlinking global afyx-engineering-kit package...'
     try {
         Push-Location $RepositoryRoot
         & $npmCmd.Source unlink --global afyx-engineering-kit 2>&1 | Out-Null
+        if ($LASTEXITCODE -ne 0) { throw 'npm unlink failed; installation state must be reviewed.' }
         Pop-Location
         Write-Step 'PASS' 'Uninstall' 'Successfully unlinked global afyx-engineering-kit.'
     } catch {
         Pop-Location
-        Write-Step 'WARN' 'Uninstall' "npm unlink notice: $_"
+        throw 'npm unlink failed; existing installation was preserved for review.'
     }
     exit 0
 }
@@ -189,5 +196,5 @@ if ($npxVerExit -ne 0 -or $npxHelpExit -ne 0 -or $npxDryExit -ne 0) {
 
 Write-Step 'PASS' 'BARE_NPX_ON_WINDOWS' 'Bare "npx afyx-engineering-kit install" resolved offline from temp directory.'
 Write-Step 'PASS' 'OFFLINE_REGISTRY_ISOLATION' 'Executed with npm_config_offline=true; zero registry queries required.'
-Write-Step 'PASS' 'GRAPH_RUNTIME_AVAILABILITY' 'Graph engine and release archives confirmed available.'
+Write-Step 'INFO' 'GRAPH_RUNTIME_AVAILABILITY' 'Not tested by the local-link verifier; use Full runtime acceptance separately.'
 Write-Step 'PASS' 'LOCAL_BARE_NPX_VERIFIED' 'Local bare NPX resolution setup is healthy and verified.'

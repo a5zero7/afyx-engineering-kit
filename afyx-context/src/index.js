@@ -23,3 +23,5 @@ export {
   compressContextItems,
   detectRedundancy,
 } from './budget.js';
+export { DOCUMENTATION_CONTRACT, createDocumentationCatalog } from './documentation.js';
+export { USAGE_CONTRACT, normalizeUsageEvent, createUsageAnalytics } from './usage.js';

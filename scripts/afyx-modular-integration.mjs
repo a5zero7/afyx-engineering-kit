@@ -159,6 +159,9 @@ export const PRODUCT_INVENTORY = Object.freeze({
     productionReady: false, activationMode: 'ON_DEMAND',
     providers: Object.freeze(['codex', 'antigravity', 'claude']),
   }),
+  'afyx-native-github': Object.freeze({ id: 'afyx-native-github', canonicalName: 'Afyx Native GitHub', type: 'runtime', primaryCapability: 'scoped-github-evidence', ownershipClass: 'AFYX', maturity: 'SOURCE_READY', activationMode: 'ON_DEMAND' }),
+  'afyx-native-execution': Object.freeze({ id: 'afyx-native-execution', canonicalName: 'Afyx Native Execution', type: 'runtime', primaryCapability: 'validated-local-execution', ownershipClass: 'AFYX', maturity: 'SOURCE_READY', activationMode: 'ON_DEMAND' }),
+  'afyx-security-auditor': Object.freeze({ id: 'afyx-security-auditor', canonicalName: 'Afyx Security Auditor', type: 'runtime', primaryCapability: 'source-security-candidates', ownershipClass: 'AFYX', maturity: 'SOURCE_READY', activationMode: 'ON_DEMAND' }),
   'afyx-credential-broker': Object.freeze({
     id: 'afyx-credential-broker', canonicalName: 'Afyx Credential Broker',
     type: 'toolset', primaryCapability: 'credential-use-authorization',

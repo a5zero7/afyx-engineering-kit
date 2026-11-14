@@ -281,6 +281,10 @@ function discoverDynamicComponents({
 }) {
   const componentsRoot = join(installRoot, 'components');
   const states = {};
+  const bundledStates = Object.fromEntries(['afyx-native-execution', 'afyx-native-github', 'afyx-security-auditor'].map((id) => [id, {
+    installed: true, enabled: componentEnabled(id, componentSettings?.[id], environment), healthy: true, compatible: true,
+    authorized: authorizations[id] === true, sourceIdentity: sha256File(fileURLToPath(new URL(`./${id}.mjs`, import.meta.url))), observationSource: 'BUNDLED_HOST_CAPABILITY',
+  }]));
   const adapters = {};
   const evidence = [];
   if (!existsSync(componentsRoot) || !statSync(componentsRoot).isDirectory()) {
@@ -361,6 +365,7 @@ export function createInstalledAfyxRuntime({
   environment = process.env,
   nodePath = process.execPath,
   trustedSkillEngineering = null,
+  trustedCapabilities = {},
 } = {}) {
   if (typeof installRoot !== 'string' || !installRoot.trim() ||
       typeof projectRoot !== 'string' || !projectRoot.trim()) {
@@ -407,6 +412,10 @@ export function createInstalledAfyxRuntime({
     sourceIdentity: nativeSkill.sourceIdentity,
     observationSource: 'TRUSTED_HOST_ADAPTER',
   } : null;
+  const bundledStates = Object.fromEntries(['afyx-native-execution', 'afyx-native-github', 'afyx-security-auditor'].map((id) => [id, {
+    installed: true, enabled: componentEnabled(id, componentSettings?.[id], environment), healthy: true, compatible: true,
+    authorized: authorizations[id] === true, sourceIdentity: sha256File(fileURLToPath(new URL(`./${id}.mjs`, import.meta.url))), observationSource: 'BUNDLED_HOST_CAPABILITY',
+  }]));
   const adapters = {
     ...createInstalledHostAdapters({
       installRoot: resolvedInstallRoot,
@@ -419,6 +428,7 @@ export function createInstalledAfyxRuntime({
       codexToolsRoot: resolvedToolsRoot,
       nodePath,
       environment,
+      trustedCapabilities,
     }),
     ...dynamic.adapters,
     ...(nativeSkill ? { 'afyx-skill-engineering': nativeSkill.adapter } : {}),
@@ -429,7 +439,7 @@ export function createInstalledAfyxRuntime({
     projectRoot: resolvedProjectRoot,
     provider,
     providerSkillRoots,
-    componentStates: Object.freeze({ ...known.states, ...dynamic.states,
+    componentStates: Object.freeze({ ...known.states, ...dynamic.states, ...bundledStates,
       ...(nativeSkillState ? { 'afyx-skill-engineering': nativeSkillState } : {}) }),
     adapters: Object.freeze(adapters),
     discoveryEvidence: Object.freeze([...known.evidence, ...dynamic.evidence,

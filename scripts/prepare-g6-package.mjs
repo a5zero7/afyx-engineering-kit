@@ -26,10 +26,7 @@ import { createDeterministicArchive } from '../afyx-graph/engine/scripts/determi
 import { stampArtifact } from './afyx-graph-artifact.mjs';
 import { resolveAndStageGitReleaseArtifacts } from './resolve-git-release-artifacts.mjs';
 
-const expected = new Map([
-  ['afyx-graph-win32-x64.zip', 'win32-x64'],
-  ['afyx-graph-linux-x64.tar.gz', 'linux-x64'],
-]);
+import { GRAPH_PACKAGE_TARGETS, graphArchiveName, graphManifestTargets } from './afyx-graph-targets.mjs';
 
 export function buildGraphBundle({ root, target, revision, outputDir }) {
   const engineRoot = join(root, 'afyx-graph', 'engine');
@@ -151,36 +148,21 @@ export function buildGraphReleaseArtifacts(root, revision) {
   const releaseDir = join(root, 'afyx-graph', 'engine', 'release');
   mkdirSync(releaseDir, { recursive: true });
 
-  const winZip = buildGraphBundle({ root, target: 'win32-x64', revision, outputDir: releaseDir });
-  const linuxTar = buildGraphBundle({ root, target: 'linux-x64', revision, outputDir: releaseDir });
-
-  const winSum = createHash('sha256').update(readFileSync(winZip)).digest('hex');
-  const linuxSum = createHash('sha256').update(readFileSync(linuxTar)).digest('hex');
-
-  const sumsContent = `${linuxSum}  afyx-graph-linux-x64.tar.gz\n${winSum}  afyx-graph-win32-x64.zip\n`;
-  writeFileSync(join(releaseDir, 'SHA256SUMS'), sumsContent, 'utf8');
-
+  const artifacts = GRAPH_PACKAGE_TARGETS.map((target) => {
+    const archive = buildGraphBundle({ root, target, revision, outputDir: releaseDir });
+    return { file: graphArchiveName(target), target, sha256: createHash('sha256').update(readFileSync(archive)).digest('hex') };
+  });
+  writeFileSync(join(releaseDir, 'SHA256SUMS'), artifacts.map((a) => `${a.sha256}  ${a.file}`).join('\n') + '\n', 'utf8');
   const graphVersion = JSON.parse(readFileSync(join(root, 'afyx-graph', 'engine', 'package.json'), 'utf8')).version;
   const manifest = {
-    schema: 1,
+    schema: 2,
     product: 'Afyx Graph',
     product_version: graphVersion,
     release_tag: `afyx-graph-v${graphVersion}`,
     source_revision: revision,
     integrity_claim: 'sha256',
     publisher_authenticity: 'requires-independent-attestation',
-    artifacts: [
-      {
-        file: 'afyx-graph-linux-x64.tar.gz',
-        target: 'linux-x64',
-        sha256: linuxSum,
-      },
-      {
-        file: 'afyx-graph-win32-x64.zip',
-        target: 'win32-x64',
-        sha256: winSum,
-      },
-    ],
+    artifacts,
   };
   writeFileSync(join(releaseDir, 'RELEASE-MANIFEST.json'), `${JSON.stringify(manifest, null, 2)}\n`, 'utf8');
 }
@@ -200,6 +182,8 @@ export function checkGraphReleaseValid(root, revision) {
     if (manifest.source_revision !== revision) return false;
     const graphVersion = JSON.parse(readFileSync(join(root, 'afyx-graph', 'engine', 'package.json'), 'utf8')).version;
     if (manifest.product_version !== graphVersion) return false;
+    if (manifest.artifacts?.length !== graphManifestTargets(manifest).length) return false;
+    for (const target of graphManifestTargets(manifest)) if (!manifest.artifacts.some((a) => a.target === target && a.file === graphArchiveName(target))) return false;
     for (const artifact of manifest.artifacts) {
       const filePath = join(release, artifact.file);
       if (!existsSync(filePath)) return false;
@@ -221,15 +205,16 @@ export function prepareG6Package(root, revision, { autoBuild = false } = {}) {
   }
 
   const manifest = JSON.parse(readFileSync(join(release, 'RELEASE-MANIFEST.json'), 'utf8'));
+  const expected = new Map(graphManifestTargets(manifest).map((target) => [graphArchiveName(target), target]));
   const graphVersion = JSON.parse(readFileSync(join(root, 'afyx-graph', 'engine', 'package.json'), 'utf8')).version;
-  if (manifest.schema !== 1 || manifest.product !== 'Afyx Graph' ||
+  if (![1, 2].includes(manifest.schema) || manifest.product !== 'Afyx Graph' ||
       manifest.source_revision !== revision || manifest.product_version !== graphVersion ||
       !Array.isArray(manifest.artifacts) || manifest.artifacts.length !== expected.size) {
     throw new Error('Graph release manifest does not match this source revision and product');
   }
   const sumLines = readFileSync(join(release, 'SHA256SUMS'), 'utf8').trim().split(/\r?\n/);
   const sums = new Map(sumLines.map((line) => {
-    const match = /^([0-9a-f]{64})  (afyx-graph-(?:win32|linux)-x64\.(?:zip|tar\.gz))$/.exec(line);
+    const match = /^([0-9a-f]{64})  (afyx-graph-(?:win32-x64|linux-x64|darwin-arm64|darwin-x64)\.(?:zip|tar\.gz))$/.exec(line);
     if (!match) throw new Error('Malformed Graph SHA256SUMS');
     return [match[2], match[1]];
   }));

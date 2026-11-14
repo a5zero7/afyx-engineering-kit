@@ -38,9 +38,6 @@ if ! command -v node >/dev/null 2>&1 || ! command -v npm >/dev/null 2>&1; then
   if [ -s "${HOME:-}/.nvm/nvm.sh" ]; then
     # shellcheck source=/dev/null
     source "${HOME}/.nvm/nvm.sh"
-  elif [ -s "/home/afif/.nvm/nvm.sh" ]; then
-    # shellcheck source=/dev/null
-    source "/home/afif/.nvm/nvm.sh"
   fi
 fi
 
@@ -57,7 +54,8 @@ fi
 NODE_VER="$(node --version)"
 NODE_MAJOR="${NODE_VER%%.*}"
 NODE_MAJOR="${NODE_MAJOR#v}"
-if [ "$NODE_MAJOR" -lt 22 ]; then
+NODE_MINOR="${NODE_VER#*.}"; NODE_MINOR="${NODE_MINOR%%.*}"
+if [ "$NODE_MAJOR" -lt 22 ] || { [ "$NODE_MAJOR" -eq 22 ] && [ "$NODE_MINOR" -lt 5 ]; }; then
   printf "[FAIL] Node.js Version: Node.js >= 22.5.0 required (detected %s)\n" "$NODE_VER" >&2
   exit 1
 fi
@@ -81,9 +79,14 @@ fi
 
 chmod +x "$ENTRY_POINT" "$REPOSITORY_ROOT/install.sh" "$REPOSITORY_ROOT/verify.sh" 2>/dev/null || true
 
+GLOBAL_MODULES="$(npm root --global)"
+node "$SCRIPT_DIR/afyx-local-link-ownership.mjs" "$REPOSITORY_ROOT" "$GLOBAL_MODULES" || {
+  printf '[FAIL] Ownership: refusing to replace or unlink a foreign npm installation.\n' >&2; exit 1;
+}
+
 if [ "$MODE" = "uninstall" ]; then
   printf "[INFO] Uninstall: Unlinking global afyx-engineering-kit package...\n"
-  (cd "$REPOSITORY_ROOT" && npm unlink --global afyx-engineering-kit >/dev/null 2>&1 || true)
+  (cd "$REPOSITORY_ROOT" && npm unlink --global afyx-engineering-kit)
   printf "[PASS] Uninstall: Successfully unlinked global afyx-engineering-kit.\n"
   exit 0
 fi
@@ -113,8 +116,7 @@ CLI_VER="$(afyx-engineering-kit --version)"
 printf "[PASS] Version: %s\n" "$CLI_VER"
 
 # Test bare npx execution offline from a temporary location
-TEMP_TEST_DIR="/tmp/afyx-npx-verify-$$"
-mkdir -p "$TEMP_TEST_DIR"
+TEMP_TEST_DIR="$(mktemp -d "${TMPDIR:-/tmp}/afyx-npx-verify.XXXXXX")"
 trap 'rm -rf "$TEMP_TEST_DIR"' EXIT
 
 (
@@ -126,5 +128,5 @@ trap 'rm -rf "$TEMP_TEST_DIR"' EXIT
 
 printf "[PASS] BARE_NPX_ON_WSL2: Bare \"npx afyx-engineering-kit install\" resolved offline from temp directory.\n"
 printf "[PASS] OFFLINE_REGISTRY_ISOLATION: Executed with npm_config_offline=true; zero registry queries required.\n"
-printf "[PASS] GRAPH_RUNTIME_AVAILABILITY: Graph engine and release archives confirmed available.\n"
+printf "[INFO] GRAPH_RUNTIME_AVAILABILITY: Not tested by this local-link verifier; Full runtime acceptance is separate.\n"
 printf "[PASS] LOCAL_BARE_NPX_VERIFIED: Local bare NPX resolution setup on Linux/WSL2 is healthy and verified.\n"

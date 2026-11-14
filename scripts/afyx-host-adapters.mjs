@@ -17,6 +17,7 @@ import { createHash } from 'node:crypto';
 import { existsSync, readFileSync, statSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
+import { pathToFileURL } from 'node:url';
 
 export const AFYX_HOST_ADAPTERS_CONTRACT = 'AfyxHostAdapters/v1';
 
@@ -177,6 +178,7 @@ export function createInstalledHostAdapters({
   skillRoots = {},
   nodePath = process.execPath,
   environment = process.env,
+  trustedCapabilities = {},
 } = {}) {
   if (!isNonEmptyString(installRoot) || !isNonEmptyString(projectRoot)) {
     throw new TypeError('installRoot and projectRoot are required non-empty paths');
@@ -194,7 +196,29 @@ export function createInstalledHostAdapters({
   const efficientSkillDir = skillRoots['efficient-coding'] ?? join(resolvedInstallRoot, 'skills', 'efficient-coding');
   const codexToolFile = codexToolsRoot ? join(resolve(codexToolsRoot), 'CodexUsage.psm1') : null;
 
+  let documentationCatalog, usageAnalytics, nativeExecution, githubReader;
+  const success = (data, capability, evidence = []) => ({ status: 'SUCCESS', output: data, capability,
+    evidence, outputBytes: Buffer.byteLength(JSON.stringify(data)), followUpRequests: [] });
   return Object.freeze({
+
+    'afyx-native-execution': async (request, { signal } = {}) => {
+      const { createNativeExecution } = await import('./afyx-native-execution.mjs');
+      nativeExecution ??= createNativeExecution({ projectRoot: resolvedProjectRoot, ...trustedCapabilities.nativeExecution, environment });
+      const result = await nativeExecution.execute(request.payload ?? { capabilityId: 'node-version', arguments: {} }, { signal });
+      return { ...success(result, 'validated-local-execution'), status: result.status === 'SUCCESS' ? 'SUCCESS' : 'FAILED', reason: result.receipt?.reason };
+    },
+    'afyx-native-github': async (request, { signal } = {}) => {
+      if (!trustedCapabilities.github) return { status: 'FAILED', reason: 'GITHUB_HOST_SCOPE_REQUIRED', output: null };
+      const { createGitHubReader } = await import('./afyx-native-github.mjs');
+      githubReader ??= createGitHubReader(trustedCapabilities.github);
+      const result = await githubReader.read(request.payload, { signal });
+      return { ...success(result, 'scoped-github-evidence'), status: result.status === 'SUCCESS' ? 'SUCCESS' : 'FAILED', reason: result.code };
+    },
+    'afyx-security-auditor': async () => {
+      const { auditDirectory } = await import('./afyx-security-auditor.mjs');
+      return success(auditDirectory(resolvedProjectRoot, trustedCapabilities.securityAudit), 'source-security-candidates');
+    },
+
     /**
      * Real host adapter for Afyx Graph
      */
@@ -276,6 +300,19 @@ export function createInstalledHostAdapters({
      * Real host adapter for Afyx Context Engine
      */
     'afyx-context': async (request) => {
+      if (['documentation-search', 'documentation-research', 'usage-analytics'].includes(request.taskType)) {
+        const contextModule = await import(pathToFileURL(join(resolvedInstallRoot, 'context', 'current', 'src', 'index.js')).href);
+        if (request.taskType === 'usage-analytics') {
+          usageAnalytics ??= contextModule.createUsageAnalytics(trustedCapabilities.usage);
+          for (const event of trustedCapabilities.usage?.events ?? []) usageAnalytics.record(event);
+          return success(usageAnalytics.summarize(request.payload ?? {}), 'bounded-context-optimization');
+        }
+        documentationCatalog ??= contextModule.createDocumentationCatalog({ projectRoot: resolvedProjectRoot,
+          sources: [{ id: 'readme', path: 'README.md', domain: 'engineering' }], ...trustedCapabilities.documentation });
+        const result = documentationCatalog.search(request.payload ?? { query: request.task?.intent ?? request.intent });
+        return success(result, 'bounded-context-optimization', result.items.map((item) => ({ kind: 'documentation-source', path: item.path, sha256: item.sha256 })));
+      }
+
       // Check for explicit OFF environment variable
       if (String(environment?.AFYX_CONTEXT_OPT_IN ?? '').trim() === '0') {
         return { status: 'FAILED', reason: 'EXPLICITLY_DISABLED', output: null };
@@ -359,6 +396,13 @@ export function createInstalledHostAdapters({
      * Real host adapter for Afyx Forge Core
      */
     'afyx-forge': async (request) => {
+      if (['workflow-execution', 'multi-agent-workflow'].includes(request.taskType)) {
+        if (!trustedCapabilities.forge) return { status: 'FAILED', reason: 'FORGE_HOST_ADAPTERS_REQUIRED', output: null };
+        const forge = await import(pathToFileURL(join(resolvedInstallRoot, 'forge', 'current', 'src', 'index.js')).href);
+        const result = await forge.executeForgeWorkflow(request.payload, trustedCapabilities.forge);
+        return { ...success(result, 'adaptive-engineering-policy'), status: result.status === 'SUCCESS' ? 'SUCCESS' : 'FAILED' };
+      }
+
       if (!existsSync(forgeEntrypoint)) {
         return { status: 'FAILED', reason: 'FORGE_ENTRYPOINT_NOT_FOUND', output: null };
       }
@@ -453,6 +497,14 @@ export function createInstalledHostAdapters({
      * Real host adapter for Afyx Engineering Expert (Skill)
      */
     'afyx-engineering-expert': async (request) => {
+      if (['skill-discovery', 'skill-refinement', 'skill-composition'].includes(request.taskType)) {
+        const catalog = await import('./afyx-skill-catalog.mjs');
+        if (request.taskType === 'skill-refinement') return success(catalog.refineSkillSpecification(request.payload), 'cross-disciplinary-expertise');
+        if (request.taskType === 'skill-composition') return success(catalog.composeSkillSpecifications(request.payload?.skills), 'cross-disciplinary-expertise');
+        const result = catalog.discoverSkillDescriptors({ roots: [resolve(expertSkillDir, '..')], ...trustedCapabilities.skills });
+        return success(result, 'cross-disciplinary-expertise');
+      }
+
       const skillFile = join(expertSkillDir, 'SKILL.md');
       if (!existsSync(skillFile)) {
         return { status: 'FAILED', reason: 'EXPERT_SKILL_FILE_NOT_FOUND', output: null };

@@ -352,3 +352,5 @@ export function rollbackSkillInstall({ provider, skillsRoot, name }, { authorize
   catch (error) { renameSync(displaced, target); throw error; }
   return { status: 'ROLLED_BACK', target, digest: previous.digest, displaced };
 }
+
+export { discoverSkillDescriptors, loadSkillContext, refineSkillSpecification, composeSkillSpecifications } from './afyx-skill-catalog.mjs';

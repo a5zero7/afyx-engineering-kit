@@ -1,0 +1,27 @@
+name: MB12 Native Capability Acceptance
+on:
+  push:
+    branches: [dev]
+    paths: ['afyx-context/**', 'afyx-forge/**', 'scripts/**', '.github/workflows/mb12-native.yml']
+  pull_request:
+    branches: [dev]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  native:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest, macos-15, macos-15-intel]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 24
+      - name: Native positive, negative, integration and privacy acceptance
+        run: node --test --test-concurrency=1 afyx-context/test/native-consolidation.test.js afyx-forge/test/workflow.test.js scripts/tests/test_native_execution.mjs scripts/tests/test_mb12_capabilities.mjs scripts/tests/test_provider_inventory.mjs scripts/tests/test_capability_orchestrator.mjs scripts/tests/test_host_bridge.mjs scripts/tests/test_universal_runtime.mjs scripts/tests/test_native_skill_host_adapter.mjs scripts/tests/test_git_artifact_resolver.mjs scripts/tests/test_g6_package_integrity.mjs
+      - name: Confirm source remains unchanged
+        shell: bash
+        run: test -z "$(git status --porcelain)"

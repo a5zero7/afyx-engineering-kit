@@ -32,6 +32,8 @@
     "afyx-graph/afyx-graph.json",
     "afyx-graph/engine/release/afyx-graph-win32-x64.zip",
     "afyx-graph/engine/release/afyx-graph-linux-x64.tar.gz",
+    "afyx-graph/engine/release/afyx-graph-darwin-arm64.tar.gz",
+    "afyx-graph/engine/release/afyx-graph-darwin-x64.tar.gz",
     "afyx-graph/engine/release/SHA256SUMS",
     "afyx-graph/engine/release/RELEASE-MANIFEST.json",
     "afyx-graph/engine/scripts/distribution-product.json",

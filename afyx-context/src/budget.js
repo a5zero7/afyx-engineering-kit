@@ -1,166 +1,52 @@
-/**
- * AFYX Context Engine - Deterministic Context Budgeting & Compression
- *
- * Provides deterministic token and byte estimation, redundancy detection,
- * and adaptive evidence compression without external model telemetry.
- * Ensures critical source references (file paths, symbol names, error spans)
- * remain recoverable when trimming oversized tool outputs.
- */
-
-export const DEFAULT_CONTEXT_BUDGET = Object.freeze({
-  maxTokens: 4000,
-  maxBytes: 16000,
-  maxLines: 250,
-});
-
-/**
- * Deterministic token counter heuristic (provider-agnostic: ~4 chars per token).
- */
+/** AFYX bounded context selection. Token counts are estimates, not provider telemetry. */
+export const DEFAULT_CONTEXT_BUDGET = Object.freeze({ maxTokens: 4000, maxBytes: 16000, maxLines: 250 });
 export function estimateTokens(text) {
   if (!text) return 0;
-  const str = typeof text === 'string' ? text : JSON.stringify(text);
-  // Accurate code token heuristic: words + punctuation chunks
-  const wordTokens = str.split(/\s+/).filter(Boolean).length;
-  const charTokens = Math.ceil(str.length / 4);
-  return Math.max(wordTokens, charTokens);
+  const value = typeof text === 'string' ? text : JSON.stringify(text);
+  return Math.max(value.split(/\s+/).filter(Boolean).length, Math.ceil(value.length / 4));
 }
-
-/**
- * Calculates byte size in UTF-8.
- */
 export function estimateBytes(text) {
   if (!text) return 0;
-  const str = typeof text === 'string' ? text : JSON.stringify(text);
-  return Buffer.byteLength(str, 'utf8');
+  return Buffer.byteLength(typeof text === 'string' ? text : JSON.stringify(text), 'utf8');
 }
-
-/**
- * Detects repetitive / redundant lines across text blocks.
- */
 export function detectRedundancy(lines, { minRepeatCount = 3 } = {}) {
-  const lineCounts = new Map();
-  for (const line of lines) {
-    const trimmed = line.trim();
-    if (trimmed.length > 10) {
-      lineCounts.set(trimmed, (lineCounts.get(trimmed) || 0) + 1);
-    }
-  }
-  const redundant = new Set();
-  for (const [line, count] of lineCounts.entries()) {
-    if (count >= minRepeatCount) {
-      redundant.add(line);
-    }
-  }
-  return redundant;
+  const counts = new Map();
+  for (const line of lines) { const value = line.trim(); if (value.length > 10) counts.set(value, (counts.get(value) || 0) + 1); }
+  return new Set([...counts].filter(([, count]) => count >= minRepeatCount).map(([line]) => line));
 }
-
-/**
- * Compresses an array of text sections or source files within a bounded budget,
- * preserving critical references and recording exact truncation metadata.
- *
- * @param {Array<{ id: string, text: string, priority?: number, references?: string[] }>} items
- * @param {Object} [budget]
- * @param {number} [budget.maxTokens]
- * @param {number} [budget.maxBytes]
- * @param {number} [budget.maxLines]
- * @returns {Object} Compressed result with retained items and truncation receipts
- */
 export function compressContextItems(items, budget = {}) {
-  const maxBytes = budget.maxBytes || DEFAULT_CONTEXT_BUDGET.maxBytes;
-  const maxTokens = budget.maxTokens || DEFAULT_CONTEXT_BUDGET.maxTokens;
-  const maxLines = budget.maxLines || DEFAULT_CONTEXT_BUDGET.maxLines;
-
-  // Sort by priority descending (higher priority admitted first)
-  const sorted = [...items].sort((a, b) => (b.priority || 0) - (a.priority || 0));
-
-  let currentBytes = 0;
-  let currentTokens = 0;
-  let currentLines = 0;
-
-  const admitted = [];
-  const truncated = [];
-  const omitted = [];
-  const preservedReferences = new Set();
-
-  for (const item of sorted) {
-    const itemBytes = estimateBytes(item.text);
-    const itemTokens = estimateTokens(item.text);
-    const itemLinesList = item.text.split('\n');
-    const itemLinesCount = itemLinesList.length;
-
-    // Register references
-    if (Array.isArray(item.references)) {
-      for (const ref of item.references) preservedReferences.add(ref);
-    }
-
-    // Check if item fits fully
-    if (
-      currentBytes + itemBytes <= maxBytes &&
-      currentTokens + itemTokens <= maxTokens &&
-      currentLines + itemLinesCount <= maxLines
-    ) {
-      admitted.push({
-        id: item.id,
-        text: item.text,
-        status: 'FULL',
-        originalBytes: itemBytes,
-        originalTokens: itemTokens,
-      });
-      currentBytes += itemBytes;
-      currentTokens += itemTokens;
-      currentLines += itemLinesCount;
-      continue;
-    }
-
-    // Partial budget remaining: try bounded slice
-    const remainingBytes = Math.max(0, maxBytes - currentBytes);
-    const remainingLines = Math.max(0, maxLines - currentLines);
-
-    if (remainingBytes > 300 && remainingLines > 5) {
-      const halfLines = Math.floor(remainingLines / 2);
-      const head = itemLinesList.slice(0, halfLines);
-      const tail = itemLinesList.slice(-halfLines);
-      const omittedLineCount = itemLinesCount - head.length - tail.length;
-
-      const marker = `\n<!-- AFYX-TRUNCATED: [id=${item.id}] original=${itemLinesCount} lines, omitted=${omittedLineCount} lines; full evidence recoverable on disk -->\n`;
-      const compressedText = [...head, marker, ...tail].join('\n');
-
-      admitted.push({
-        id: item.id,
-        text: compressedText,
-        status: 'PARTIAL',
-        originalBytes: itemBytes,
-        compressedBytes: estimateBytes(compressedText),
-        omittedLines: omittedLineCount,
-      });
-      truncated.push(item.id);
-      currentBytes += estimateBytes(compressedText);
-      currentLines += remainingLines;
-      break;
-    } else {
-      omitted.push({
-        id: item.id,
-        originalBytes: itemBytes,
-        references: item.references || [],
-      });
-    }
+  const limits = {};
+  for (const [key, fallback] of Object.entries(DEFAULT_CONTEXT_BUDGET)) {
+    limits[key] = budget[key] ?? fallback;
+    if (!Number.isSafeInteger(limits[key]) || limits[key] < 1) throw new Error(`Invalid context budget: ${key}`);
   }
-
-  return {
-    contract: 'afyx-context-budget-v1',
-    budget: { maxBytes, maxTokens, maxLines },
-    metrics: {
-      totalOriginalItems: items.length,
-      admittedItemsCount: admitted.length,
-      truncatedItemsCount: truncated.length,
-      omittedItemsCount: omitted.length,
-      consumedBytes: currentBytes,
-      consumedTokens: currentTokens,
-      consumedLines: currentLines,
-    },
-    admitted,
-    truncated,
-    omitted,
-    preservedReferences: Array.from(preservedReferences),
-  };
+  if (!Array.isArray(items) || items.some((item) => !item || typeof item.id !== 'string' || !item.id || typeof item.text !== 'string')) throw new Error('Context items require a non-empty id and text string');
+  const admitted = [], truncated = [], omitted = [];
+  const preservedReferences = new Set();
+  let rendered = '';
+  const measure = (text) => ({ bytes: estimateBytes(text), tokens: estimateTokens(text), lines: text ? text.split('\n').length : 0 });
+  const fits = (text) => { const size = measure((admitted.length ? `${rendered}\n\n` : '') + text); return size.bytes <= limits.maxBytes && size.tokens <= limits.maxTokens && size.lines <= limits.maxLines; };
+  for (const item of [...items].sort((a, b) => (b.priority || 0) - (a.priority || 0))) {
+    let text = item.text, status = 'FULL';
+    if (!fits(text)) {
+      const chars = Array.from(text);
+      let low = 0, high = chars.length - 1, selected = null;
+      // Slice code points so UTF-8 never contains a split surrogate.
+      while (low <= high) {
+        const keep = Math.floor((low + high) / 2), head = Math.ceil(keep / 2), tail = Math.floor(keep / 2);
+        const candidate = chars.slice(0, head).join('') + `\n<!-- AFYX-TRUNCATED: ${chars.length - keep} characters omitted -->\n` + (tail ? chars.slice(-tail).join('') : '');
+        if (fits(candidate)) { selected = candidate; low = keep + 1; } else high = keep - 1;
+      }
+      if (selected === null) { omitted.push({ id: item.id, originalBytes: estimateBytes(item.text), references: item.references || [] }); continue; }
+      text = selected; status = 'PARTIAL'; truncated.push(item.id);
+    }
+    const references = Array.isArray(item.references) ? [...new Set(item.references.filter((ref) => typeof ref === 'string'))] : [];
+    admitted.push({ id: item.id, text, status, references, originalBytes: estimateBytes(item.text), originalTokens: estimateTokens(item.text), ...(status === 'PARTIAL' ? { compressedBytes: estimateBytes(text) } : {}) });
+    for (const reference of references) preservedReferences.add(reference);
+    rendered += (admitted.length > 1 ? '\n\n' : '') + text;
+  }
+  const size = measure(rendered);
+  return { contract: 'afyx-context-budget-v1', budget: limits,
+    metrics: { totalOriginalItems: items.length, admittedItemsCount: admitted.length, truncatedItemsCount: truncated.length, omittedItemsCount: omitted.length, consumedBytes: size.bytes, consumedTokens: size.tokens, consumedLines: size.lines },
+    admitted, truncated, omitted, preservedReferences: [...preservedReferences] };
 }

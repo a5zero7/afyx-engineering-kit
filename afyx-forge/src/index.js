@@ -269,5 +269,8 @@ export {
   extractStructuredCriteria,
   refineTaskDirective,
   evaluateTaskCompletion,
+  evaluateVerifiedTaskCompletion,
+  VERIFIED_COMPLETION_CONTRACT,
 } from './workflow-refiner.js';
+export { createForgeProfiles, executeForgeWorkflow, FORGE_WORKFLOW_CONTRACT } from './workflow.js';
 
