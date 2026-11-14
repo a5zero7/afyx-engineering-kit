@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, mkdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
@@ -9,7 +9,7 @@ import { createInstalledAfyxRuntime } from '../afyx-universal-runtime.mjs';
 import { verifySkillInstall } from '../afyx-skill-engineering.mjs';
 
 async function fixture(run) {
-  const root = mkdtempSync(join(tmpdir(), 'afyx-native-skill-host-'));
+  const root = mkdtempSync(join(realpathSync(tmpdir()), 'afyx-native-skill-host-'));
   const draftsRoot = join(root, 'drafts');
   const skillsRoot = join(root, 'provider-skills');
   const installRoot = join(root, 'kit');

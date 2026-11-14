@@ -2,6 +2,8 @@
 """Zero-model static contract regression for ACE provider companion onboarding."""
 
 from pathlib import Path
+import subprocess
+import tempfile
 import unittest
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -40,7 +42,30 @@ class ContextCompanionContractTests(unittest.TestCase):
         self.assertIn("antigravityIdeDetected", installer)
         self.assertIn("CLI not found, MCP integration unavailable", installer)
         self.assertIn("Enabled = $antigravityDetected", installer)
-        self.assertIn("Enabled = $claudeDetected", installer)
+        self.assertIn("Enabled = $claudeEnabled", installer)
+        with tempfile.TemporaryDirectory(prefix="afyx-provider-readonly-") as profile:
+            config = Path(profile) / ".gemini/config/mcp_config.json"
+            config.parent.mkdir(parents=True)
+            original = b'{"mcpServers":{"foreign":{"command":"owner-tool"}}}\r\n'
+            config.write_bytes(original)
+            program = """
+import assert from 'node:assert/strict';
+import { discoverProviderInventory } from './scripts/afyx-provider-inventory.mjs';
+const probe = { commands: {}, desktops: {}, files: [], extensions: [
+  { id: 'anthropic.claude-code', path: '/fixture/extension', version: '1' }
+] };
+const before = JSON.stringify(probe);
+const inventory = discoverProviderInventory({ env: { PATH: '' }, home: process.argv[1], probe });
+const claude = inventory.find(item => item.id === 'claude');
+assert.equal(claude.installed, true);
+assert.deepEqual(claude.products.map(item => item.type), ['VS Code Extension']);
+assert.ok(claude.products.every(item => item.configuration === 'NOT_VERIFIED'));
+assert.equal(JSON.stringify(probe), before);
+"""
+            result = subprocess.run(["node", "--input-type=module", "-e", program, profile],
+                                    cwd=ROOT, capture_output=True, text=True, timeout=30)
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            self.assertEqual(config.read_bytes(), original)
 
 
 if __name__ == "__main__":

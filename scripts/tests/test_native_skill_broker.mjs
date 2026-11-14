@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { existsSync, mkdtempSync, mkdirSync, readFileSync, renameSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, mkdirSync, readFileSync, realpathSync, renameSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
@@ -11,7 +11,7 @@ import { CREDENTIAL_BROKER_CONTRACT, createCredentialBroker } from '../afyx-cred
 import { discoverAfyxCapabilities, resolveAfyxCapabilityRoute } from '../afyx-capability-orchestrator.mjs';
 
 function fixture(fn) {
-  const root = mkdtempSync(join(tmpdir(), 'afyx-native-skill-'));
+  const root = mkdtempSync(join(realpathSync(tmpdir()), 'afyx-native-skill-'));
   try { return fn(root); } finally { rmSync(root, { recursive: true, force: true }); }
 }
 function source(root, name = 'afyx-fixture', trigger = 'review fixture') {

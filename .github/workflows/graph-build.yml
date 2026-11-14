@@ -176,14 +176,15 @@ jobs:
       - name: CLI and MCP smoke
         working-directory: afyx-graph/engine
         run: npm run test:smoke
-      - name: Installer fallback, update and executable verification
+      - name: Verify explicit macOS prebuilt installation boundary (Full unsupported)
         run: |
           export AFYX_GRAPH_RUNTIME_ROOT="$RUNNER_TEMP/afyx-graph-runtime"
           export AFYX_GRAPH_BIN_DIR="$RUNNER_TEMP/afyx-graph-bin"
-          ./scripts/install-afyx-graph.sh --offline
-          archive="$(find afyx-graph/engine/release -maxdepth 1 -name 'afyx-graph-darwin-*.tar.gz' -print -quit)"
-          test -n "$archive"
-          ./scripts/install-afyx-graph.sh --update --archive "$archive"
-          ./scripts/install-afyx-graph.sh --validate-only
-          "$AFYX_GRAPH_RUNTIME_ROOT/current/bin/afyx-graph" --version
-          "$AFYX_GRAPH_RUNTIME_ROOT/current/bin/afyx-graph" help
+          set +e
+          ./scripts/install-afyx-graph.sh --offline > "$RUNNER_TEMP/macos-graph-install.log" 2>&1
+          result=$?
+          set -e
+          cat "$RUNNER_TEMP/macos-graph-install.log"
+          test "$result" -eq 2
+          grep -F 'prebuilt runtime unavailable for darwin-' "$RUNNER_TEMP/macos-graph-install.log"
+          test ! -e "$AFYX_GRAPH_RUNTIME_ROOT/current"

@@ -5,6 +5,7 @@ import {
   mkdirSync,
   mkdtempSync,
   readFileSync,
+  realpathSync,
   rmSync,
   writeFileSync,
 } from 'node:fs';
@@ -32,7 +33,7 @@ function write(path, value = '') {
 }
 
 function fixture() {
-  const root = mkdtempSync(join(tmpdir(), 'afyx-universal-runtime-'));
+  const root = mkdtempSync(join(realpathSync(tmpdir()), 'afyx-universal-runtime-'));
   const installRoot = join(root, 'install');
   const projectRoot = join(root, 'project');
   const codexToolsRoot = join(root, 'codex-tools');
