@@ -303,3 +303,25 @@ test('Finish consumes backend states and verification before offering a successf
   assert.match(terminal.output.text.replace(/\x1b\[[0-?]*[ -/]*[@-~]/g, ''), /Finish — PASS/);
   assert.equal(terminal.input.rawMode, false);
 });
+
+test('Hybrid Midnight Circuit palette renders 24-bit base/panel/cyan selection, safe 16-color fallback, and clean ASCII', () => {
+  const args = {
+    width: 100, height: 26,
+    providers: [{ id: 'codex', name: 'Codex', products: [{ type: 'CLI' }] }],
+    selection: ['› ● [1] Recommended', '  ○ [2] Minimal'],
+    activity: ['Inspecting supported host installations.'],
+    hint: '↑/↓: move  Enter: choose',
+  };
+  const truecolor = renderFrame({ ...args, color: 24 });
+  assert.match(truecolor, /\x1b\[38;2;34;211;238;48;2;11;16;32m/);
+  assert.match(truecolor, /\x1b\[38;2;99;102;241;48;2;17;25;43m/);
+  assert.match(truecolor, /\x1b\[1;38;2;11;16;32;48;2;34;211;238m› ● \[1\] Recommended/);
+
+  const ansi16 = renderFrame({ ...args, color: 16 });
+  assert.doesNotMatch(ansi16, /48;2;/);
+  assert.match(ansi16, /\x1b\[1;46;30m› ● \[1\] Recommended/);
+
+  const plain = renderFrame({ ...args, color: false, ascii: true });
+  assert.doesNotMatch(plain, /\x1b\[/);
+  assert.match(plain, /> \* \[1\] Recommended/);
+});

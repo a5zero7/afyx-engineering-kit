@@ -69,9 +69,32 @@ function wrapLines(lines, inner) {
   });
 }
 
-const tones = { cyan: '96', blue: '94', purple: '95', text: '97', muted: '90', success: '92', error: '91', warning: '93' };
-const rgb = { cyan: '34;211;238', blue: '96;165;250', purple: '139;92;246', text: '229;242;255', muted: '147;164;187', success: '52;211;153', error: '251;113;133', warning: '251;191;36' };
-const styled = (text, tone, color) => color ? `\x1b[${color === 24 ? `38;2;${rgb[tone]}` : tones[tone]}m${text}\x1b[0m` : text;
+const tones = { cyan: '96', blue: '94', indigo: '94', purple: '95', text: '97', muted: '90', success: '92', error: '91', warning: '93' };
+const rgb = {
+  cyan: '34;211;238',
+  blue: '96;165;250',
+  indigo: '99;102;241',
+  purple: '139;92;246',
+  text: '229;242;255',
+  muted: '147;164;187',
+  success: '52;211;153',
+  error: '251;113;133',
+  warning: '251;191;36',
+  dark: '11;16;32',
+};
+const surfaces = { base: '48;2;11;16;32', panel: '48;2;17;25;43', focus: '48;2;34;211;238' };
+const styled = (text, tone, color, surface) => {
+  if (!color) return text;
+  if (color === 24) {
+    const fg = tone === 'focus' ? `1;38;2;${rgb.dark}` : `38;2;${rgb[tone] || rgb.text}`;
+    const bg = surface ? `;${surfaces[surface]}` : '';
+    return `\x1b[${fg}${bg}m${text}\x1b[0m`;
+  }
+  if (tone === 'focus') return `\x1b[1;46;30m${text}\x1b[0m`;
+  return `\x1b[${tones[tone] || tones.text}m${text}\x1b[0m`;
+};
+const paintLine = (text, tone, color, width, surface = 'base') =>
+  color === 24 ? styled(text.padEnd(width), tone, color, surface) : styled(text, tone, color);
 const plainOutputs = new WeakSet();
 const previousFrames = new WeakMap();
 
@@ -104,18 +127,31 @@ function panel(title, lines, width, limit, offset = 0, color = false, tone = 'cy
     const total = wrapped.length;
     wrapped = [...wrapped.slice(start, start + Math.max(1, limit - 1)), fit(`Tab: focus activity; ↑/↓ scroll (${start + 1}/${total})`, inner)];
   }
-  return [styled(top, tone, color), ...wrapped.map((line) => {
-    const state = /\b(FAILED|FAIL|BLOCKED)\b/.test(line) ? 'error' : /\b(PASS|COMPLETED|HEALTHY)\b/.test(line) ? 'success'
-      : /\b(WARNING|RESTART)\b/.test(line) ? 'warning' : /COMING SOON|OTHER DETECTED/.test(line) ? 'purple'
-      : /^›/.test(line) ? 'cyan' : /INDETERMINATE|RUNNING/.test(line) ? 'blue' : 'text';
-    return `${styled('│', tone, color)} ${styled(line.padEnd(inner), state, color)} ${styled('│', tone, color)}`;
-  }), styled(`╰${'─'.repeat(width - 2)}╯`, tone, color)];
+  return [styled(top, tone, color, 'panel'), ...wrapped.map((line) => {
+    const isFocus = /^›/.test(line);
+    const state = isFocus ? 'focus'
+      : /\b(FAILED|FAIL|BLOCKED)\b/.test(line) ? 'error'
+      : /\b(PASS|COMPLETED|HEALTHY)\b/.test(line) ? 'success'
+      : /\b(WARNING|RESTART)\b/.test(line) ? 'warning'
+      : /COMING SOON|OTHER DETECTED/.test(line) ? 'purple'
+      : /INDETERMINATE|RUNNING/.test(line) ? 'blue'
+      : /^─+$|^RECENT ACTIVITY\b/.test(line) ? 'muted'
+      : 'text';
+    const rowSurface = isFocus ? 'focus' : 'panel';
+    const borderLeft = styled('│ ', tone, color, 'panel');
+    const borderRight = styled(' │', tone, color, 'panel');
+    return `${borderLeft}${styled(line.padEnd(inner), state, color, rowSurface)}${borderRight}`;
+  }), styled(`╰${'─'.repeat(width - 2)}╯`, tone, color, 'panel')];
 }
 
 export function renderFrame({ stage = 0, providers = [], providerSummary, selection = [], activity = [], width = 80, height = 24, activityOffset = 0, providerOffset = 0, hint = '', color = false, ascii = false, failed = false, installing = false, receipt = false, discovering = false, runtime = '', environment } = {}) {
   const safeWidth = Math.max(40, width);
   const labels = safeWidth < 112 ? ['DETECT', 'SELECT', 'CONFIG', 'APPLY', 'FINISH'] : stages;
-  const stepLine = labels.map((name, index) => styled(`${index === stage ? '[' : ''}${String(index + 1).padStart(2, '0')} ${name}${index < stage ? ' +' : index === stage ? failed ? ' FAILED]' : ' *]' : ''}`, index < stage ? 'success' : index === stage ? failed ? 'error' : 'cyan' : 'muted', color)).join('  ');
+  const stepParts = labels.map((name, index) => styled(`${index === stage ? '[' : ''}${String(index + 1).padStart(2, '0')} ${name}${index < stage ? ' +' : index === stage ? failed ? ' FAILED]' : ' *]' : ''}`, index < stage ? 'success' : index === stage ? failed ? 'error' : 'cyan' : 'muted', color, 'base'));
+  const stepText = stepParts.join(paintLine('  ', 'muted', color, 2, 'base'));
+  const stepPlainLen = stripVTControlCharacters(stepText).length;
+  const stepPad = color === 24 && stepPlainLen < safeWidth ? styled(' '.repeat(safeWidth - stepPlainLen), 'muted', color, 'base') : '';
+  const stepLine = stepPlainLen <= safeWidth ? `${stepText}${stepPad}` : paintLine(fit(`STEP ${stage + 1}/5 ${stages[stage]}`, safeWidth), failed ? 'error' : 'cyan', color, safeWidth);
   const ordered = [...providers].sort((a, b) => a.name.localeCompare(b.name));
   const inventoryLines = (entries) => entries.flatMap((entry) => {
     const products = (entry.products || []).map((product) => `${product.type}${product.version ? ` ${product.version}` : ''}`);
@@ -128,6 +164,7 @@ export function renderFrame({ stage = 0, providers = [], providerSummary, select
   const footer = wrapLines([hint], safeWidth).slice(0, 2);
   const identity = environment ? wrapLines(environmentLines(environment), safeWidth) : [];
   const budget = Math.max(9, height - 4 - identity.length - footer.length);
+  const rightTone = failed ? 'error' : receipt ? 'success' : installing ? 'blue' : 'cyan';
   let body;
   if (safeWidth >= 80) {
     const providerWidth = Math.max(28, Math.floor((safeWidth - 1) * 0.30));
@@ -140,28 +177,29 @@ export function renderFrame({ stage = 0, providers = [], providerSummary, select
     const rightLines = [...selection.slice(0, choicesLimit).map((line) => fit(line, selectionWidth - 4)),
       '─'.repeat(selectionWidth - 4), `RECENT ACTIVITY${activityLines.length > recentLimit ? ` (${start + 1}/${activityLines.length}; Tab, ↑/↓)` : ''}`,
       ...activityLines.slice(start, start + recentLimit)];
-    const left = panel('PROVIDERS / HOST', providerLines, providerWidth, contentLimit, providerOffset, color);
+    const left = panel('PROVIDERS / HOST', providerLines, providerWidth, contentLimit, providerOffset, color, 'indigo');
     const title = failed ? 'INSTALLATION FAILED' : installing ? 'INSTALLATION PROGRESS' : receipt ? 'VERIFIED RECEIPT'
       : stage === 3 ? 'REVIEW / APPLY' : stage === 4 ? 'FINISH / VERIFICATION' : 'SELECTION / CONFIGURATION';
-    const right = panel(title, rightLines, selectionWidth, contentLimit, 0, color, 'purple');
+    const right = panel(title, rightLines, selectionWidth, contentLimit, 0, color, rightTone);
     const rows = Math.max(left.length, right.length);
-    body = Array.from({ length: rows }, (_, index) => `${left[index] || ' '.repeat(providerWidth)} ${right[index] || ' '.repeat(selectionWidth)}`);
+    const gutter = color === 24 ? styled(' ', 'text', color, 'base') : ' ';
+    body = Array.from({ length: rows }, (_, index) => `${left[index] || paintLine('', 'text', color, providerWidth, 'base')}${gutter}${right[index] || paintLine('', 'text', color, selectionWidth, 'base')}`);
   } else {
     const providerLimit = 2;
     const selectionLimit = Math.max(3, Math.floor((budget - 6 - providerLimit) / 2));
     const activityLimit = Math.max(2, budget - 6 - providerLimit - selectionLimit);
-    body = [panel('PROVIDERS / HOST', providerLines, safeWidth, providerLimit, 0, color),
-      panel('SELECTION / STATUS', selection, safeWidth, selectionLimit, 0, color, 'purple'),
-      panel('PLAN / ACTIVITY', activity, safeWidth, activityLimit, activityOffset, color)].flat();
+    body = [panel('PROVIDERS / HOST', providerLines, safeWidth, providerLimit, 0, color, 'indigo'),
+      panel('SELECTION / STATUS', selection, safeWidth, selectionLimit, 0, color, rightTone),
+      panel('PLAN / ACTIVITY', activity, safeWidth, activityLimit, activityOffset, color, 'purple')].flat();
   }
   const screen = [
-    styled('AFYX / ENGINEERING KIT', 'cyan', color),
-    styled(fit(`Unified Installer | ${runtime || `v${getPackageVersion()}`} | I choose my path.`, safeWidth), 'purple', color),
-    ...identity.map((line) => styled(line, 'muted', color)),
-    stripVTControlCharacters(stepLine).length <= safeWidth ? stepLine : fit(`STEP ${stage + 1}/5 ${stages[stage]}`, safeWidth),
-    styled('─'.repeat(safeWidth), 'muted', color),
+    paintLine('AFYX / ENGINEERING KIT', 'cyan', color, safeWidth),
+    paintLine(fit(`Unified Installer | ${runtime || `v${getPackageVersion()}`} | I choose my path.`, safeWidth), 'purple', color, safeWidth),
+    ...identity.map((line) => paintLine(line, 'muted', color, safeWidth)),
+    stepLine,
+    paintLine('─'.repeat(safeWidth), 'indigo', color, safeWidth),
     ...body,
-    ...footer.map((line) => styled(line, 'muted', color)),
+    ...footer.map((line) => paintLine(line, 'muted', color, safeWidth)),
   ].join('\n');
   return ascii ? stripVTControlCharacters(screen).replace(/[╭╮╰╯]/g, '+').replace(/─/g, '-').replace(/│/g, '|')
     .replace(/[›→]/g, '>').replace(/↑/g, '^').replace(/↓/g, 'v').replace(/●/g, '*').replace(/○/g, 'o')

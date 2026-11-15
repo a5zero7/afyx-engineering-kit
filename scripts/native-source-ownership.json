@@ -2505,8 +2505,8 @@
     {
       "path": "scripts/afyx-midnight-circuit.mjs",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "421cc2b1c4c6ba8adc4f842bb7cac813bc11a82b24b9ff271ee19199d8f025d3",
-      "evidence": "Installer UX v2: independently implemented native ANSI layout, asynchronous AFYX backend integration, bounded progress display, plain fallback and verification receipt. Reuses existing AFYX installer contracts; imports only Node built-ins and AFYX modules. No third-party source or visual asset embedded. Plain numbered menus display every option without panel clipping; regression covers long labels and final close choice."
+      "reviewedSha256": "71782d90285c8aae4594d3cd0d2b8235d7bec702ced468fdb2705e9a82bc8e48",
+      "evidence": "Installer UX v2 (AFYX-345 hybrid visual refinement): independently implemented native ANSI layout, Midnight Circuit 24-bit base/panel/cyan-selection palette with 16-color and plain fallback, asynchronous AFYX backend integration, bounded progress display, and verification receipt. Reuses existing AFYX installer contracts; imports only Node built-ins and AFYX modules. No third-party source or visual asset embedded."
     },
     {
       "path": "scripts/afyx-install-progress.mjs",
