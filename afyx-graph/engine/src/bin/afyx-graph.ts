@@ -2134,12 +2134,24 @@ for (const direction of ['callers', 'callees'] as const) {
           const collected = groups.map((group) => {
             const nodes = new Map<string, Node>();
             const edges = new Map<string, Edge>();
+            const edgeKey = (edge: Edge) =>
+              `${edge.source}->${edge.target}:${edge.kind}:${edge.line ?? 0}:${edge.column ?? 0}`;
             for (const target of group) {
               const connections = (direction === 'callers' ? cg.getCallers(target.id) : cg.getCallees(target.id))
                 .filter(isSourceGroundedRelationship);
               for (const { node, edge } of connections) {
                 nodes.set(node.id, node);
-                edges.set(`${edge.source}->${edge.target}:${edge.kind}`, edge);
+                edges.set(edgeKey(edge), edge);
+              }
+              const allEdges = direction === 'callers'
+                ? cg.getIncomingEdges(target.id)
+                : cg.getOutgoingEdges(target.id);
+              for (const edge of allEdges) {
+                const otherId = direction === 'callers' ? edge.source : edge.target;
+                const otherNode = nodes.get(otherId);
+                if (otherNode && isSourceGroundedRelationship({ node: otherNode, edge })) {
+                  edges.set(edgeKey(edge), edge);
+                }
               }
             }
             return { group, nodes: [...nodes.values()], edges: [...edges.values()] };
@@ -2253,7 +2265,10 @@ program
         const collected = groups.map((group) => {
           const merged = mergeSymbolImpact(cg, group, depth, 'last-seen');
           const edges = new Map<string, Edge>();
-          for (const edge of merged.edges) edges.set(`${edge.source}->${edge.target}:${edge.kind}`, edge);
+          for (const edge of merged.edges) {
+            const edgeKey = `${edge.source}->${edge.target}:${edge.kind}:${edge.line ?? 0}:${edge.column ?? 0}`;
+            edges.set(edgeKey, edge);
+          }
           return { group, nodes: merged.nodes, edges };
         });
 

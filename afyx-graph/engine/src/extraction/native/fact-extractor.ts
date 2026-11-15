@@ -1501,7 +1501,10 @@ export function extractNativeFacts(filePath: string, source: string, language: L
   }
 
   for (const parent of containers) {
-    if (['rust', 'kotlin', 'scala'].includes(language)) continue;
+    // Python methods are already identified by explicit `def` declarations above.
+    // Its class bodies use indentation, so the brace-oriented scan below can
+    // otherwise mistake a call before a later dictionary literal for a method.
+    if (['python', 'rust', 'kotlin', 'scala'].includes(language)) continue;
     const begin = parent.bodyStart! + 1;
     const end = parent.bodyEnd ?? tokens.length;
     for (let i = begin; i < end; i += 1) {

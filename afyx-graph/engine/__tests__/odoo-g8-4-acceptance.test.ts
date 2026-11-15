@@ -222,7 +222,7 @@ class TestPurchaseRequest(TransactionCase):
       // 1. Verify extraction version & metadata
       const buildInfo = cg.getIndexBuildInfo();
       expect(buildInfo.extractionVersion).toBe(EXTRACTION_VERSION);
-      expect(EXTRACTION_VERSION).toBe(29);
+      expect(EXTRACTION_VERSION).toBe(30);
       expect(cg.isIndexStale()).toBe(false);
 
       // 2. Verify Nodes in DB
@@ -311,13 +311,13 @@ class PurchaseRequestTag(models.Model):
       cg = null;
     });
 
-    it('demonstrates behavior of preexisting v29 index vs fresh build', async () => {
+    it('demonstrates behavior of the current index vs fresh build', async () => {
       cg = await AfyxGraph.init(tempDir);
       await cg.indexAll();
       cg.resolveReferences();
 
       const buildInfo = cg.getIndexBuildInfo();
-      expect(buildInfo.extractionVersion).toBe(29);
+      expect(buildInfo.extractionVersion).toBe(30);
 
       // Validated rebuild path:
       await cg.indexAll();

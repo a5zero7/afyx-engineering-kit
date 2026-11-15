@@ -20,7 +20,7 @@ import {
   isImportableKind,
 } from './types';
 import { matchJsStoreBindingCall, isUnresolvedJsMemberCall, isVisibleAcrossFiles, matchReference, matchFunctionRef, matchDottedCallChain, matchScopedCallChain, matchMethodCall, sameLanguageFamily, crossesKnownFamily, dumpNameMatcherProfile, clearNameMatcherMemos } from './name-matcher';
-import { resolveViaImport, resolvePhpImportedStaticCall, resolveJvmImport, extractImportMappings, extractReExports, loadCppIncludeDirs, isPhpIncludePathRef, isCobolCopybookRef, isNixPathImportRef, isBoundToOutOfRepoImport, clearImportResolverMemos, resolveImportPath } from './import-resolver';
+import { resolveViaImport, resolvePhpImportedStaticCall, resolveJvmImport, extractImportMappings, extractReExports, loadCppIncludeDirs, isPhpIncludePathRef, isCobolCopybookRef, isNixPathImportRef, isBoundToOutOfRepoImport, isUnprovenPythonImportedTarget, clearImportResolverMemos, resolveImportPath } from './import-resolver';
 import { ResolverPool, minRefsForPool } from './resolver-pool';
 import { resolveAliasBinding } from './alias-binding';
 import { detectFrameworks } from './frameworks';
@@ -1094,6 +1094,10 @@ export class ReferenceResolver {
       // non-`pub` item outside its module subtree — cannot be what a name in
       // another file means, whichever strategy chose it (#1730).
       if (target && !isVisibleAcrossFiles(target, ref, this.context)) {
+        nameResult = null;
+      } else if (target && !importResult && isUnprovenPythonImportedTarget(ref, target, this.context)) {
+        // A bare imported call cannot be attributed to an unrelated file on
+        // name alone when neither its module nor target path supports it.
         nameResult = null;
       } else if (ref.language === 'nix') {
         if (!target || target.filePath !== ref.filePath) {

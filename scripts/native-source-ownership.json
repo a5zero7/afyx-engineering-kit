@@ -7,8 +7,8 @@
     {
       "path": "afyx-graph/engine/src/bin/afyx-graph.ts",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "121441ad98bbb787b62ed15fdc19c572ac049ab42a302552ea263761cdbb0520",
-      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+      "reviewedSha256": "5d2917df573e34171260701b54260becf4cd78a172d220ccd3e6ae06d4d2d5a4",
+      "evidence": "Independently authored AFYX native component implementing command-line interface and query orchestration."
     },
     {
       "path": "afyx-graph/engine/src/bin/cli-parser.ts",
@@ -403,8 +403,8 @@
     {
       "path": "afyx-graph/engine/src/extraction/extraction-version.ts",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "ac1ce138f36a0870fbbb249a1e687ffcd0aadd30bd956815a7361fe4f49ec6bc",
-      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+      "reviewedSha256": "65c272d824f242158bb04dee4946b1f302ed4f07ea784a2bf20598d3d6c809a4",
+      "evidence": "Independently authored AFYX native component tracking engine schema and extraction version state."
     },
     {
       "path": "afyx-graph/engine/src/extraction/extractor-registry.ts",
@@ -511,8 +511,8 @@
     {
       "path": "afyx-graph/engine/src/extraction/native/fact-extractor.ts",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "6af8061a220c288a522c7bb070900d283ceaf97c24c6b2ac6377707dcbce79a2",
-      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+      "reviewedSha256": "b2c974efb4ecb96fd1067dcb8cb5e92b15b5b863eaff00cc5300c3771133bf82",
+      "evidence": "Independently authored AFYX native component implementing source-grounded grammar and AST symbol extraction."
     },
     {
       "path": "afyx-graph/engine/src/extraction/native/java-lombok-facts.ts",
@@ -866,8 +866,8 @@
     {
       "path": "afyx-graph/engine/src/impact/symbol-impact.ts",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "9daee7d4e9be4d41456ba7c980c7ea0d9f9c55dca393ecb50d36202556ff053b",
-      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+      "reviewedSha256": "ca8df53b768ce285efe95c1d9e3933142c6918875451b571b13489295a5eac1c",
+      "evidence": "Independently authored AFYX native component implementing multi-definition blast radius and impact merging."
     },
     {
       "path": "afyx-graph/engine/src/index-health.ts",
@@ -1562,14 +1562,14 @@
     {
       "path": "afyx-graph/engine/src/resolution/import-resolver.ts",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "2cbceb4efb4aba01a42d0fe89a2916eb059e4e2c42391e47b994c757e48d5298",
-      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+      "reviewedSha256": "e8667c7578fa6855e569dc5daa0dd4957f87b1f58212e28a0f5abe21d837fc93",
+      "evidence": "Independently authored AFYX native component resolving import paths, aliases, and module bindings."
     },
     {
       "path": "afyx-graph/engine/src/resolution/index.ts",
-      "classification": "PUBLIC_API_BARREL",
-      "reviewedSha256": "fe22d305edaf3b79e018fc75f4585752ab65105f2b923c3fe0108cab3ea54656",
-      "evidence": "AFYX public module barrel export surface; exposes stable interface without independent algorithmic logic."
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "7bfa273c57f24a411d590d885674cc4053d3daa9373319020f7362721f32f773",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and reference resolution orchestration."
     },
     {
       "path": "afyx-graph/engine/src/resolution/js-builtins.ts",
