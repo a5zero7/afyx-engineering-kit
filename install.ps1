@@ -33,11 +33,12 @@ param(
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
+Import-Module (Join-Path $PSScriptRoot 'scripts\lib\AfyxTerminal.psm1') -Force
 
 # Bare interactive entrypoints share the Node UX. Explicit native script options
 # and noninteractive automation retain their existing backend contract.
 if ($PSBoundParameters.Count -eq 0 -and -not $env:CI -and $env:AFYX_INSTALL_UI_OWNER -ne 'node' -and
-    -not [Console]::IsInputRedirected -and -not [Console]::IsOutputRedirected) {
+    (Test-AfyxInteractiveTerminal)) {
     $interactiveNode = Get-Command node -ErrorAction SilentlyContinue
     if ($interactiveNode) {
         & $interactiveNode.Source (Join-Path $PSScriptRoot 'bin\afyx-engineering-kit.mjs') install
@@ -82,7 +83,6 @@ if ($InstallUsageTracker -and $SkipUsageTracker) { throw '-InstallUsageTracker a
 Import-Module (Join-Path $packageRoot 'scripts\lib\AfyxComponents.psm1') -Force
 Import-Module (Join-Path $packageRoot 'scripts\lib\AfyxPlatform.psm1') -Force
 Import-Module (Join-Path $packageRoot 'scripts\lib\AfyxSkillLifecycle.psm1') -Force -DisableNameChecking
-Import-Module (Join-Path $packageRoot 'scripts\lib\AfyxTerminal.psm1') -Force
 $terminal = New-AfyxTerminalContext
 $providerRegistry = @(Get-AfyxProviderRegistry)
 $providerIds = @($providerRegistry | ForEach-Object { [string]$_.provider })
