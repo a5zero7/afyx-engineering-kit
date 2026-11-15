@@ -268,8 +268,8 @@ describe('Afyx-native Status seam', () => {
       '- Filesystem/content: CURRENT (0 pending)\n' +
       '- Extraction: COMPLETE\n' +
       // The fixture is built with extraction v28, while the current runtime
-      // is v29; the version comparison must remain visible to operators.
-      '- Extraction version: 28/29\n' +
+      // is v30; the version comparison must remain visible to operators.
+      '- Extraction version: 28/30\n' +
       '- Pending references: 0\n' +
       '- Watcher: ENABLED\n' +
       '- Last full index accounting: unavailable\n' +
