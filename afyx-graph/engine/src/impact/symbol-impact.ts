@@ -37,13 +37,15 @@ export function mergeSymbolImpact(
 ): MergedImpact {
   const nodes = new Map<string, Node>();
   const roots = definitionNodes.map((n) => n.id);
+  const edgeKey = (edge: Edge): string =>
+    `${edge.source}->${edge.target}:${edge.kind}:${edge.line ?? 0}:${edge.column ?? 0}`;
 
   if (edgeDedup === 'last-seen') {
     const edgeByKey = new Map<string, Edge>();
     for (const target of definitionNodes) {
       const impact = host.getImpactRadius(target.id, depth);
       for (const [id, node] of impact.nodes) nodes.set(id, node);
-      for (const edge of impact.edges) edgeByKey.set(`${edge.source}->${edge.target}:${edge.kind}`, edge);
+      for (const edge of impact.edges) edgeByKey.set(edgeKey(edge), edge);
     }
     return { nodes, edges: [...edgeByKey.values()], roots };
   }
@@ -54,7 +56,7 @@ export function mergeSymbolImpact(
     const impact = host.getImpactRadius(target.id, depth);
     for (const [id, node] of impact.nodes) nodes.set(id, node);
     for (const edge of impact.edges) {
-      const key = `${edge.source}->${edge.target}:${edge.kind}`;
+      const key = edgeKey(edge);
       if (!seenKeys.has(key)) {
         seenKeys.add(key);
         edges.push(edge);

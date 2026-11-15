@@ -29,4 +29,6 @@
 // v29: added native Odoo security and configuration asset extractors:
 // __manifest__.py (module metadata & dependencies), ir.model.access.csv (ACL
 // model grants), and security XML (record rules, security groups & category definitions).
-export const EXTRACTION_VERSION = 29;
+// v30: remove fabricated Python methods and unrelated imported-call targets;
+// existing indexes may retain those false nodes and edges until rebuilt.
+export const EXTRACTION_VERSION = 30;

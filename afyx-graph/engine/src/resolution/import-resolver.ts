@@ -2088,6 +2088,32 @@ function findPythonModuleFile(
   return pkgFile ?? null;
 }
 
+/** Whether a bare imported Python call lacks evidence for a cross-file fallback. */
+export function isUnprovenPythonImportedTarget(
+  ref: UnresolvedRef,
+  target: Node,
+  context: ResolutionContext,
+): boolean {
+  if (ref.language !== 'python' || ref.referenceKind !== 'calls' ||
+      ref.referenceName.includes('.') || target.filePath === ref.filePath) return false;
+  const bindings = context.getImportMappings(ref.filePath, ref.language)
+    .filter((imp) => imp.localName === ref.referenceName);
+  if (bindings.length === 0) return false;
+  return bindings.every((imp) => {
+    // Relative imports or indexed modules may use re-exports the importer
+    // cannot follow directly; retain the existing conservative fallback.
+    if (!imp.source || imp.source.startsWith('.') || findPythonModuleFile(imp.source, context, ref.filePath)) return false;
+    const modulePath = imp.source.replace(/\./g, '/');
+    const file = target.filePath.replace(/\\/g, '/');
+    if (file === `${modulePath}.py` || file.endsWith(`/${modulePath}.py`) ||
+        file.startsWith(`${modulePath}/`) || file.includes(`/${modulePath}/`)) return false;
+    // Odoo add-ons may be indexed without the outer odoo/addons directory.
+    const addon = /^odoo\.addons\.([^.]+)/.exec(imp.source)?.[1];
+    if (addon && (file.startsWith(`${addon}/`) || file.includes(`/${addon}/`))) return false;
+    return true;
+  });
+}
+
 /**
  * Resolve a Python ABSOLUTE dotted module import (`import a.b.c`) to its file —
  * the Django `AppConfig.ready(): import myapp.signals` pattern and any
