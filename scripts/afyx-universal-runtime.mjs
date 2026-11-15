@@ -120,9 +120,9 @@ function inspectGraphIndex(projectRoot, entrypoint, nodePath, environment, timeo
     encoding: 'utf8', windowsHide: true, timeout: timeoutMs,
     maxBuffer: 2 * 1024 * 1024, env: environment,
   });
-  if (result.status !== 0 || result.error) return { indexReady: false, indexFresh: false };
+  if (result.status !== 0 || result.error) return { indexReady: false, indexFresh: false, initialized: false };
   let status;
-  try { status = JSON.parse(result.stdout); } catch { return { indexReady: false, indexFresh: false }; }
+  try { status = JSON.parse(result.stdout); } catch { return { indexReady: false, indexFresh: false, initialized: false }; }
   let indexRoot;
   let trustedRoot = false;
   let safeState = false;
@@ -139,7 +139,7 @@ function inspectGraphIndex(projectRoot, entrypoint, nodePath, environment, timeo
       && !lstatSync(statePath).isSymbolicLink()
       && realpathSync(statePath) === statePath
       && database && existsSync(database) && lstatSync(database).isFile());
-  } catch { return { indexReady: false, indexFresh: false }; }
+  } catch { return { indexReady: false, indexFresh: false, initialized: status?.initialized === true }; }
   const indexReady = status.initialized === true && trustedRoot && safeState
     && !status.worktreeMismatch && status.index?.state === 'complete'
     && status.index?.pendingRefs === 0;
@@ -148,7 +148,61 @@ function inspectGraphIndex(projectRoot, entrypoint, nodePath, environment, timeo
     && health.pendingChanges?.state === 'CURRENT'
     && health.compatibility?.reindexRecommended === false
     && health.gitFreshness?.state !== 'STALE');
-  return { indexReady: Boolean(indexReady), indexFresh, indexRoot: indexReady ? indexRoot : null };
+  return {
+    indexReady: Boolean(indexReady),
+    indexFresh,
+    indexRoot: indexReady ? indexRoot : null,
+    initialized: status.initialized === true,
+  };
+}
+
+const activeGraphInits = new Map();
+
+function runSafeGraphInit(projectRoot, entrypoint, nodePath, environment, timeoutMs = 15_000) {
+  let safeProject;
+  try {
+    safeProject = realpathSync(projectRoot);
+  } catch {
+    return { initialized: false, error: 'INVALID_PROJECT_ROOT' };
+  }
+
+  if (!safeProject || !existsSync(safeProject) || lstatSync(safeProject).isSymbolicLink()) {
+    return { initialized: false, error: 'UNSAFE_WORKSPACE_ROOT' };
+  }
+
+  // Check daemon ownership: respect writer.pid if an active daemon is running
+  const writerPidFile = join(safeProject, '.afyx-graph', 'writer.pid');
+  if (existsSync(writerPidFile)) {
+    try {
+      const pidData = JSON.parse(readFileSync(writerPidFile, 'utf8'));
+      if (pidData?.pid) {
+        try {
+          process.kill(pidData.pid, 0);
+          return { initialized: false, error: 'ACTIVE_DAEMON_PRESENT' };
+        } catch {}
+      }
+    } catch {}
+  }
+
+  try {
+    const result = spawnSync(nodePath, [entrypoint, 'init', safeProject, '--yes'], {
+      cwd: safeProject,
+      encoding: 'utf8',
+      windowsHide: true,
+      timeout: timeoutMs,
+      maxBuffer: 2 * 1024 * 1024,
+      env: environment,
+    });
+    if (result.status === 0 && !result.error) {
+      return { initialized: true };
+    }
+    return {
+      initialized: false,
+      error: result.error?.message || (result.stderr || '').trim() || `Exit code ${result.status}`,
+    };
+  } catch (err) {
+    return { initialized: false, error: err.message };
+  }
 }
 
 function skillRootFor(provider, componentId, providerSkillRoots) {
@@ -466,13 +520,56 @@ export function createInstalledAfyxRuntime({
     provider,
     providerSkillRoots,
     get preparationEvents() { return Object.freeze([...preparationEvents]); },
-    prepareCapabilityState(componentId, controls = {}) {
+    async prepareCapabilityState(componentId, controls = {}) {
       const original = known.states[componentId];
       if (componentId !== 'afyx-graph' || !graphProbeAuthorized || !original?.installed || !original.enabled || !original.authorized) return original;
       const root = known.evidence.find((item) => item.componentId === componentId).root;
+      const entrypoint = join(root, 'current/lib/dist/bin/afyx-graph.js');
       preparationEvents.push('afyx-graph/status');
-      const observed = inspectGraphIndex(resolvedProjectRoot, join(root, 'current/lib/dist/bin/afyx-graph.js'), nodePath, environment,
-        Math.max(1, Math.min(10_000, controls.maxExecutionMs || 10_000)));
+      const timeoutMs = Math.max(1, Math.min(10_000, controls.maxExecutionMs || 10_000));
+      let observed = inspectGraphIndex(resolvedProjectRoot, entrypoint, nodePath, environment, timeoutMs);
+
+      // Safe Stale Index Policy: report status, do not silently destroy owner data
+      if (observed.indexReady && !observed.indexFresh) {
+        const override = componentStateOverrides[componentId] || {};
+        if (observed.indexRoot) graphAdapter = createInstalledHostAdapters({ ...adapterOptions, graphIndexRoot: observed.indexRoot })['afyx-graph'];
+        return {
+          ...original,
+          ...observed,
+          indexReady: override.indexReady ?? observed.indexReady,
+          indexFresh: override.indexFresh ?? observed.indexFresh,
+          reindexPolicy: 'SAFE_REPORT_STATUS',
+        };
+      }
+
+      // Graph installed, workspace uninitialized, explicit relational demand:
+      // Initialize just in time before Graph MCP invocation
+      const isUninitialized = observed.initialized === false || !observed.indexReady;
+      const explicitRelationalDemand = controls.jitInitialize === true || controls.relationalDemand === true;
+
+      if (isUninitialized && explicitRelationalDemand && original.healthy !== false && original.compatible !== false) {
+        let canonicalKey;
+        try { canonicalKey = realpathSync(resolvedProjectRoot); } catch { canonicalKey = resolvedProjectRoot; }
+
+        let initPromise = activeGraphInits.get(canonicalKey);
+        if (!initPromise) {
+          preparationEvents.push('afyx-graph/init');
+          initPromise = Promise.resolve().then(() => runSafeGraphInit(resolvedProjectRoot, entrypoint, nodePath, environment, Math.min(30_000, controls.maxExecutionMs || 15_000)));
+          activeGraphInits.set(canonicalKey, initPromise);
+        }
+
+        try {
+          const initRes = await initPromise;
+          if (initRes.initialized) {
+            observed = inspectGraphIndex(resolvedProjectRoot, entrypoint, nodePath, environment, timeoutMs);
+          } else {
+            observed = { ...observed, jitError: initRes.error, indexReady: false, indexFresh: false };
+          }
+        } finally {
+          activeGraphInits.delete(canonicalKey);
+        }
+      }
+
       const override = componentStateOverrides[componentId] || {};
       if (observed.indexRoot) graphAdapter = createInstalledHostAdapters({ ...adapterOptions, graphIndexRoot: observed.indexRoot })['afyx-graph'];
       return { ...original, ...observed, indexReady: override.indexReady ?? observed.indexReady, indexFresh: override.indexFresh ?? observed.indexFresh };

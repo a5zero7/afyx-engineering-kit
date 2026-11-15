@@ -228,21 +228,39 @@ export function createInstalledHostAdapters({
       }
 
       const intent = String(request.intent || '').toLowerCase();
+      const taskType = String(request.taskType || '').toLowerCase();
       const isInventory = request.taskType === 'odoo-impact-analysis';
       const isFileInventory = !isInventory && intent.includes('inventory');
 
+      const targetPath = graphIndexRoot ? resolve(graphIndexRoot) : resolvedProjectRoot;
       let runArgs = [];
-      if (isInventory) {
-        runArgs = [graphEntrypoint, 'inventory', '_inherit', 'sale.order', '--path', resolvedProjectRoot];
-      } else if (isFileInventory) {
-        runArgs = [graphEntrypoint, 'files', '--format', 'tree', '--max-depth', '2', '--path', resolvedProjectRoot];
+
+      const operation = request.payload?.operation || (
+        isInventory ? 'inventory' :
+        taskType.includes('caller') || intent.includes('caller') ? 'callers' :
+        taskType.includes('impact') || intent.includes('impact') ? 'impact' :
+        isFileInventory ? 'files' : 'explore'
+      );
+
+      if (operation === 'callers') {
+        const symbol = request.payload?.symbol || request.intent?.replace(/[^a-zA-Z0-9_]/g, ' ').trim().split(/\s+/)[0] || 'action_post';
+        runArgs = [graphEntrypoint, 'callers', symbol, '--path', targetPath, '--json'];
+      } else if (operation === 'impact') {
+        const symbol = request.payload?.symbol || request.intent?.replace(/[^a-zA-Z0-9_]/g, ' ').trim().split(/\s+/)[0] || 'SaleOrder';
+        runArgs = [graphEntrypoint, 'impact', symbol, '--path', targetPath, '--json'];
+      } else if (operation === 'inventory') {
+        const decl = request.payload?.declaration || '_inherit';
+        const val = request.payload?.value || 'sale.order';
+        runArgs = [graphEntrypoint, 'inventory', decl, val, '--path', targetPath];
+      } else if (operation === 'files') {
+        runArgs = [graphEntrypoint, 'files', '--format', 'tree', '--max-depth', '2', '--path', targetPath];
       } else {
         const queryTerm = request.intent?.replace(/[^a-zA-Z0-9_]/g, ' ').trim() || 'OrderService';
-        runArgs = [graphEntrypoint, 'explore', queryTerm, '--path', resolvedProjectRoot];
+        runArgs = [graphEntrypoint, 'explore', queryTerm, '--path', targetPath];
       }
 
       const execResult = spawnSync(nodePath, runArgs, {
-        cwd: resolvedProjectRoot,
+        cwd: targetPath,
         encoding: 'utf8',
         timeout: requestTimeout(request, 10_000),
         windowsHide: true,
@@ -288,7 +306,7 @@ export function createInstalledHostAdapters({
         output: stdout,
         contextBytes: outputBytes,
         evidence: [
-          { kind: 'graph-tool', command: isInventory ? 'inventory' : (isFileInventory ? 'files' : 'explore') },
+          { kind: 'graph-tool', command: operation },
           { kind: 'graph-source-root', path: graphIndexRoot ?? resolvedProjectRoot },
           ...structuredEvidence,
         ],

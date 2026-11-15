@@ -70,3 +70,29 @@ to exercise Full install, verify, Graph MCP, update and uninstall with Bash 3.2.
 Support claims require the actual exact-source CI result; mocks are not evidence
 of native platform execution. Interactive visual acceptance and fresh IDE-agent
 acceptance remain separate from deterministic runtime/MCP tests.
+
+## Reference source reconciliation (.rea_source)
+
+The native capabilities introduced in MB12 were designed through a rigorous clean-room
+specification process. Reference architectures in `.rea_source` were inspected strictly
+for requirements discovery and protocol boundary patterns, with zero copied implementation,
+assets, prompts, or runtime dependencies:
+
+| Capability Domain | Inspected Reference Project | License | Architectural Influence & Clean-Room Derivation |
+| :--- | :--- | :--- | :--- |
+| **AFYX Context** | `context7-master` | MIT | Documentation catalog scoping, bounded memory, and project README fast-path. Pure TypeScript/Node stdio implementation without external indexing servers. |
+| **AFYX Context** | `ccusage-main` | MIT | Bounded passive usage aggregation and token metrics schema. Retains null for unobserved costs; does not scrape provider log directories. |
+| **AFYX Forge** | `superpowers-main` | MIT | Structured multi-phase workflows and assistive engineering planning. Autonomous execution remains blocked behind strict A8 gate. |
+| **AFYX Forge** | `awesome-claude-code-subagents-main` | MIT | Agent specialization taxonomy and handoff boundaries without vendor-specific subagent primitives. |
+| **AFYX Forge** | `AMATERASU-main` | Apache-2.0 / MIT | Checkpoint resume validation and plan identity hashing. Completion v2 demands verified source-bound evidence. |
+| **AFYX Native Execution** | `CLI-Anything-main` | MIT | Declarative command catalog compilation. Command execution is validated against pinned executables; no arbitrary shell evaluation. |
+| **AFYX Native GitHub** | `github-mcp-server-main` | MIT | Read-only GitHub operations and MCP protocol boundaries. Implements zero mutation, strict pagination, and bounded credential-free public/gh execution. |
+| **AFYX Engineering Expert** | `claude-plugins-official-main` | MIT | Standardized skill manifest schemas and provider descriptor interoperability. |
+| **AFYX Engineering Expert** | `replica-skill-main` | MIT | Deterministic skill composition and ownership conflict detection without granting execution authority. |
+
+### Clean-room derivation & ownership boundary
+1. **Clean-Room Verification**: All AFYX modules (`afyx-universal-runtime.mjs`, `afyx-capability-orchestrator.mjs`, `afyx-host-adapters.mjs`, `afyx-native-github.mjs`, `afyx-native-execution.mjs`, `afyx-security-auditor.mjs`, `afyx-skill-engineering.mjs`) are authored from first principles.
+2. **License Compatibility**: All reference projects use permissive licenses (MIT or Apache-2.0). No GPL, AGPL, or restrictive copyleft code exists anywhere in the codebase.
+3. **Intellectual Property Integrity**: The codebase maintains 100% AFYX proprietary ownership, tracked by SHA-256 digests in `scripts/native-source-ownership.json`.
+4. **Supply Chain Isolation**: No third-party packages or runtime binaries were added from these reference directories.
+

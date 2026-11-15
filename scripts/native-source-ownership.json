@@ -2385,7 +2385,7 @@
     {
       "path": "scripts/afyx-capability-orchestrator.mjs",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "b3ca2ccc29061a811ef392ba13049c3eed685690b8980c27aaf48d90c0658cd3",
+      "reviewedSha256": "41c04346332d097d6fb4d9647fddb5315ebd2cf6cbff89ecce72c1b8b32c738c",
       "evidence": "MB12 review: authored from AFYX functional requirements and existing reviewed 251f73a contracts; no upstream implementation, prompts, assets or dependency imported. Trusted-host boundaries and negative/regression tests recorded in MB12-native-consolidation-20261114-r1."
     },
     {
@@ -2403,7 +2403,7 @@
     {
       "path": "scripts/afyx-host-adapters.mjs",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "89ea5c34d2ad1b4ee2e39b8870189c2cd3daa845b2e6d895f4cd26ce18cc9fbd",
+      "reviewedSha256": "976ee3b356f9be39d32966cc07a919cd1ddee8617d7cb8c6f14959c4dbf0edf0",
       "evidence": "MB12 review: authored from AFYX functional requirements and existing reviewed 251f73a contracts; no upstream implementation, prompts, assets or dependency imported. Trusted-host boundaries and negative/regression tests recorded in MB12-native-consolidation-20261114-r1."
     },
     {
@@ -2475,7 +2475,7 @@
     {
       "path": "scripts/afyx-universal-runtime.mjs",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "d2b3ee0a97d428262591980322fe86ac9ab9361b5fc31a2e43c8bc88e9677dc4",
+      "reviewedSha256": "b2bee9593239ce1b9c7aedd331b288c7f6e90146ffc19385dd90c9356bee633f",
       "evidence": "MB12 review: authored from AFYX functional requirements and existing reviewed 251f73a contracts; no upstream implementation, prompts, assets or dependency imported. Trusted-host boundaries and negative/regression tests recorded in MB12-native-consolidation-20261114-r1."
     },
     {

@@ -609,6 +609,40 @@ function failedExecutionResult(request, reason, durationMs) {
 export async function executeAfyxCapabilityRoute(options = {}) {
   const executionStarted = performance.now();
   const startedAt = executionStarted - (Number.isFinite(options.preparationElapsedMs) ? Math.max(0, options.preparationElapsedMs) : 0);
+
+  const task = options.task ?? {};
+  const initialClassification = classifyTaskIntent(task, options.hostMetadata);
+  const exclusive = initialClassification.odoo || initialClassification.forgeAdvice || initialClassification.documentation || initialClassification.usageAnalytics ||
+    initialClassification.github || initialClassification.nativeExecution || initialClassification.securityAudit || initialClassification.unknownDomain || initialClassification.ambiguousDomain;
+  const hasRelationalDemand = initialClassification.relational && (!exclusive || task.needsRelationalEvidence === true);
+
+  // First-use Graph JIT Initialization:
+  // When a task has explicit relational demand, Graph is installed and authorized,
+  // but the workspace index is not ready, perform JIT initialization before route planning.
+  const graphState = options.componentStates?.['afyx-graph'];
+  if (hasRelationalDemand && graphState?.installed && graphState?.enabled !== false && graphState?.authorized &&
+      !graphState?.indexReady && typeof options.prepareCapabilityState === 'function') {
+    try {
+      const remainingMs = Math.max(1, Math.floor((options.budgetLimits?.maxExecutionMs || DEFAULT_BUDGET_LIMITS.maxExecutionMs) - (performance.now() - executionStarted)));
+      const preparedGraph = await options.prepareCapabilityState('afyx-graph', {
+        jitInitialize: true,
+        relationalDemand: true,
+        maxExecutionMs: remainingMs,
+      });
+      if (preparedGraph && typeof preparedGraph === 'object') {
+        options = {
+          ...options,
+          componentStates: {
+            ...options.componentStates,
+            'afyx-graph': preparedGraph,
+          },
+        };
+      }
+    } catch {
+      // Preflight pre-init failure degrades safely to direct source
+    }
+  }
+
   const route = resolveAfyxCapabilityRoute(options);
   const planningMs = performance.now() - executionStarted;
   let activeDiscovery = route.discovery;
@@ -785,7 +819,11 @@ export async function executeAfyxCapabilityRoute(options = {}) {
           performance.now() - startedAt < route.budgets.maxExecutionMs) {
         preparedCapabilities.add(target);
         try {
-          const state = await options.prepareCapabilityState(target, { maxExecutionMs: Math.max(1, Math.floor(route.budgets.maxExecutionMs - (performance.now() - startedAt))) });
+          const state = await options.prepareCapabilityState(target, {
+            jitInitialize: true,
+            relationalDemand: true,
+            maxExecutionMs: Math.max(1, Math.floor(route.budgets.maxExecutionMs - (performance.now() - startedAt))),
+          });
           const observed = discoverAfyxCapabilities({ ...options, componentStates: { ...options.componentStates, [target]: state } });
           if (observed.capabilities[target]?.sourceIdentity === followUpCapability.sourceIdentity) {
             activeDiscovery = observed;
