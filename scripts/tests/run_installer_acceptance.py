@@ -161,8 +161,8 @@ def main():
             assert launches, "No actual installed/source executable identity was recorded"
             result["launches"] = launches
             environments = []
-            for log in backend_logs:
-                verification_file = log.parent / "verification.json"
+            for launch in launches:
+                verification_file = Path(launch["backendLog"]).parent / "verification.json"
                 if verification_file.is_file():
                     environment = json.loads(verification_file.read_text(encoding="utf-8-sig")).get("environment")
                     if environment:

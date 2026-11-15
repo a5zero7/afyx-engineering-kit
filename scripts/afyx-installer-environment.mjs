@@ -49,14 +49,25 @@ async function observeWindows(parentPid, executeCommand) {
     `[ordered]@{caption=$os.Caption; version=$os.Version; shell=$shell}|ConvertTo-Json -Compress`;
   return JSON.parse(await executeCommand('powershell.exe', ['-NoProfile', '-Command', script]));
 }
-async function observePosixShell(parentPid, executeCommand, readLink) {
+async function observePosixShell(parentPid, executeCommand, readLink, platform) {
   let pid = parentPid;
   for (let i = 0; i < 10 && Number.isSafeInteger(pid) && pid > 1; i++) {
     const row = await executeCommand('ps', ['-p', String(pid), '-o', 'ppid=', '-o', 'comm=']);
     const match = row.trim().match(/^(\d+)\s+(.+)$/);
     if (!match) break;
     const command = match[2].trim().replace(/^-/, '');
-    if (['bash', 'zsh'].includes(basename(command))) return isAbsolute(command) ? command : await readLink(`/proc/${pid}/exe`);
+    if (['bash', 'zsh'].includes(basename(command))) {
+      if (isAbsolute(command)) return command;
+      if (platform === 'darwin') {
+        // BSD ps can expose only argv[0]. Darwin has no /proc; identify the
+        // executable from this process's native text-file records instead.
+        const records = await executeCommand('/usr/sbin/lsof', ['-a', '-p', String(pid), '-d', 'txt', '-Fn']);
+        const candidates = [...new Set(records.split('\n').filter((line) => line.startsWith('n'))
+          .map((line) => line.slice(1)).filter((path) => isAbsolute(path) && basename(path) === basename(command)))];
+        return candidates.length === 1 ? candidates[0] : null;
+      }
+      return await readLink(`/proc/${pid}/exe`);
+    }
     pid = Number(match[1]);
   }
   return null;
@@ -87,7 +98,7 @@ export async function detectInstallerEnvironment({ platform = process.platform, 
           const version = await command('sw_vers', ['-productVersion']);
           if (/^\d+(?:\.\d+){1,2}$/.test(version)) state.os = { name: 'macOS', version, source: 'SW_VERS' };
         }
-        state.invokingShell = await shellIdentity(await observePosixShell(parentPid, command, readLink), command);
+        state.invokingShell = await shellIdentity(await observePosixShell(parentPid, command, readLink, platform), command);
       }
     } catch { /* Leave only the fields not observed as Unknown. */ }
   })());

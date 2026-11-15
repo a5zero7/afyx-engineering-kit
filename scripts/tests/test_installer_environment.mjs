@@ -40,6 +40,17 @@ test('macOS uses sw_vers and observed Zsh while backend can remain Bash 3.2', as
   assert.equal(observed.os.version, '15.7'); assert.equal(observed.invokingShell.name, 'Zsh');
   assert.equal(observed.backendShell.version, '3.2.57(1)-release'); assert.equal(observed.terminal.name, 'Terminal.app');
 });
+for (const shell of ['bash', 'zsh']) test(`Darwin relative ${shell} comm uses a unique observed executable, never /proc or PATH guesses`, async () => {
+  const path = '/observed/bin/' + shell;
+  const observed = await detectInstallerEnvironment({ platform: 'darwin', arch: 'arm64', pkgRoot: '/fixture', readText: files, env: {}, parentPid: 123,
+    readLink: () => { throw Error('Darwin has no procfs'); }, executeCommand: async (program, args) => {
+      if (program === 'sw_vers') return '15.7';
+      if (program === 'ps') return '1 ' + shell;
+      if (program === '/usr/sbin/lsof') { assert.deepEqual(args, ['-a', '-p', '123', '-d', 'txt', '-Fn']); return 'p123\nn' + path + '\nn/usr/lib/cache\n'; }
+      return program.endsWith('zsh') ? 'zsh 5.9' : 'GNU bash, version 3.2.57(1)-release';
+    } });
+  assert.equal(observed.invokingShell.executable, path); assert.equal(observed.invokingShell.name, shell === 'bash' ? 'Bash' : 'Zsh');
+});
 test('unobservable identities stay Unknown; SHELL and ComSpec do not prove an invoker', async () => {
   const observed = await detectInstallerEnvironment({ platform: 'linux', pkgRoot: '/missing', env: { SHELL: '/bin/bash', ComSpec: 'cmd.exe' },
     readText: async () => { throw Error('missing'); }, executeCommand: async () => { throw Error('missing'); } });

@@ -14,7 +14,7 @@ for (const shell of windows ? ['powershell.exe', 'pwsh.exe'] : ['bash']) {
   for (const scenario of scenarios) {
     test(`${shell}: Claude readiness ${scenario} preserves user configuration`, { timeout: 120_000 }, (t) => {
       const root = mkdtempSync(join(realpathSync(tmpdir()), 'afyx-claude-readiness-'));
-      t.after(() => rmSync(root, { recursive: true, force: true }));
+      t.after(() => rmSync(root, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 }));
       const profile = join(root, 'profile'), bin = join(root, 'bin'), project = join(root, 'project');
       for (const path of [profile, bin, project]) mkdirSync(path);
       copyFileSync(process.execPath, join(bin, windows ? 'node.exe' : 'node'));

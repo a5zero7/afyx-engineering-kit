@@ -2541,7 +2541,7 @@
     {
       "path": "scripts/afyx-installer-environment.mjs",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "fb0fee5fac4c7be24fdd33c47ac7f8cba04f6a05a02b670d43f2c1ad4f9f276c",
+      "reviewedSha256": "86e29eb8bee23dd1972ec91ea55915c385ac0d0b2f70d497d9c3a64e25e9cc94",
       "evidence": "Independently authored AFYX read-only installer environment adapter using Node built-ins and native OS observations; separates invoking shell, terminal, backend and source identity. No third-party implementation or asset is embedded."
     }
   ]

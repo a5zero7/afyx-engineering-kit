@@ -13,7 +13,9 @@ for (const shell of windows ? ['powershell.exe', 'pwsh.exe', 'cmd.exe'] : ['bash
     t.after(() => rmSync(root, { recursive: true, force: true }));
     const probe = join(root, 'observe.mjs');
     writeFileSync(probe, `import {detectInstallerEnvironment} from ${JSON.stringify(new URL('../afyx-installer-environment.mjs', import.meta.url).href)};\n` +
-      `console.log('AFYX_ENVIRONMENT_JSON '+JSON.stringify(await detectInstallerEnvironment({pkgRoot:${JSON.stringify(PACKAGE_ROOT)}})));\n`);
+      `const state=await detectInstallerEnvironment({pkgRoot:${JSON.stringify(PACKAGE_ROOT)}});\n` +
+      `if(process.platform==='darwin'&&state.invokingShell.name==='Unknown'){const {execFileSync}=await import('node:child_process');for(const [program,args] of [['/bin/ps',['-p',String(process.ppid),'-o','ppid=','-o','comm=']],['/usr/sbin/lsof',['-a','-p',String(process.ppid),'-d','txt','-Fn']]]){try{console.error('AFYX_PARENT_OBSERVATION '+JSON.stringify({program,output:execFileSync(program,args,{encoding:'utf8',timeout:4000,maxBuffer:32768})}));}catch(error){console.error('AFYX_PARENT_OBSERVATION '+JSON.stringify({program,code:error.code}));}}}\n` +
+      `console.log('AFYX_ENVIRONMENT_JSON '+JSON.stringify(state));\n`);
     let args, input;
     if (shell === 'cmd.exe') {
       assert.doesNotMatch(process.execPath + probe, /["%\r\n]/);
@@ -31,7 +33,7 @@ for (const shell of windows ? ['powershell.exe', 'pwsh.exe', 'cmd.exe'] : ['bash
     assert.ok(json, result.stdout);
     const actual = JSON.parse(json[1]);
     const expected = { 'powershell.exe': 'Windows PowerShell', 'pwsh.exe': 'PowerShell', 'cmd.exe': 'CMD', bash: 'Bash', zsh: 'Zsh' }[shell];
-    assert.equal(actual.invokingShell.name, expected, JSON.stringify(actual));
+    assert.equal(actual.invokingShell.name, expected, JSON.stringify(actual) + '\n' + result.stderr);
     assert.ok(actual.invokingShell.version, JSON.stringify(actual));
     assert.equal(actual.architecture, process.arch);
     console.log(JSON.stringify({ invoker: shell, environment: actual }));
