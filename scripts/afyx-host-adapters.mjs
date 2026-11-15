@@ -227,26 +227,50 @@ export function createInstalledHostAdapters({
         return { status: 'FAILED', reason: 'GRAPH_ENTRYPOINT_NOT_FOUND', output: null };
       }
 
+      const SUPPORTED_GRAPH_OPERATIONS = new Set(['callers', 'impact', 'inventory', 'files', 'explore']);
+      const explicitOperation = request.payload?.operation ?? request.operation ?? null;
+
+      if (request.payload?.operation && request.operation && request.payload.operation !== request.operation) {
+        return {
+          status: 'FAILED',
+          reason: 'AMBIGUOUS_OPERATION: Conflicting payload and request operations',
+          output: null,
+        };
+      }
+
+      if (explicitOperation !== null && explicitOperation !== undefined) {
+        if (typeof explicitOperation !== 'string' || !SUPPORTED_GRAPH_OPERATIONS.has(explicitOperation.trim().toLowerCase())) {
+          return {
+            status: 'FAILED',
+            reason: `UNSUPPORTED_OPERATION: ${String(explicitOperation)}`,
+            output: null,
+          };
+        }
+      }
+
       const intent = String(request.intent || '').toLowerCase();
       const taskType = String(request.taskType || '').toLowerCase();
       const isInventory = request.taskType === 'odoo-impact-analysis';
-      const isFileInventory = !isInventory && intent.includes('inventory');
+      const isFileInventory = !isInventory && (intent.includes('inventory') || taskType === 'files' || taskType === 'file-inventory');
 
       const targetPath = graphIndexRoot ? resolve(graphIndexRoot) : resolvedProjectRoot;
       let runArgs = [];
 
-      const operation = request.payload?.operation || (
+      const operation = explicitOperation ? explicitOperation.trim().toLowerCase() : (
         isInventory ? 'inventory' :
-        taskType.includes('caller') || intent.includes('caller') ? 'callers' :
-        taskType.includes('impact') || intent.includes('impact') ? 'impact' :
-        isFileInventory ? 'files' : 'explore'
+        isFileInventory ? 'files' :
+        taskType === 'callers' || taskType === 'caller-analysis' || (intent.startsWith('callers') && !intent.includes('explore')) ? 'callers' :
+        taskType === 'impact' || taskType === 'symbol-impact' || (intent.startsWith('impact') && !intent.includes('explore') && !intent.includes('analysis')) ? 'impact' :
+        'explore'
       );
 
       if (operation === 'callers') {
-        const symbol = request.payload?.symbol || request.intent?.replace(/[^a-zA-Z0-9_]/g, ' ').trim().split(/\s+/)[0] || 'action_post';
+        const cleanIntent = request.intent ? request.intent.replace(/^callers?\s+/i, '').trim() : '';
+        const symbol = request.payload?.symbol || request.symbol || cleanIntent.replace(/[^a-zA-Z0-9_]/g, ' ').trim().split(/\s+/)[0] || 'action_post';
         runArgs = [graphEntrypoint, 'callers', symbol, '--path', targetPath, '--json'];
       } else if (operation === 'impact') {
-        const symbol = request.payload?.symbol || request.intent?.replace(/[^a-zA-Z0-9_]/g, ' ').trim().split(/\s+/)[0] || 'SaleOrder';
+        const cleanIntent = request.intent ? request.intent.replace(/^impact\s+/i, '').trim() : '';
+        const symbol = request.payload?.symbol || request.symbol || cleanIntent.replace(/[^a-zA-Z0-9_]/g, ' ').trim().split(/\s+/)[0] || 'SaleOrder';
         runArgs = [graphEntrypoint, 'impact', symbol, '--path', targetPath, '--json'];
       } else if (operation === 'inventory') {
         const decl = request.payload?.declaration || '_inherit';
@@ -255,7 +279,7 @@ export function createInstalledHostAdapters({
       } else if (operation === 'files') {
         runArgs = [graphEntrypoint, 'files', '--format', 'tree', '--max-depth', '2', '--path', targetPath];
       } else {
-        const queryTerm = request.intent?.replace(/[^a-zA-Z0-9_]/g, ' ').trim() || 'OrderService';
+        const queryTerm = request.payload?.query || request.intent?.replace(/[^a-zA-Z0-9_]/g, ' ').trim() || 'OrderService';
         runArgs = [graphEntrypoint, 'explore', queryTerm, '--path', targetPath];
       }
 

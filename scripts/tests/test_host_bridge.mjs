@@ -127,6 +127,24 @@ test('generic file inventory uses Graph files while Odoo impact keeps declaratio
     assert.equal(odoo.status, 'SUCCESS');
     assert.match(odoo.output, /^inventory\|_inherit\|sale\.order\|--path\|/);
     assert.equal(odoo.evidence[0].command, 'inventory');
+
+    const callers = await graph({ payload: { operation: 'callers', symbol: 'action_post' } });
+    assert.equal(callers.status, 'SUCCESS');
+    assert.match(callers.output, /^callers\|action_post\|--path\|.*\|--json$/);
+    assert.equal(callers.evidence[0].command, 'callers');
+
+    const impact = await graph({ payload: { operation: 'impact', symbol: 'SaleOrder' } });
+    assert.equal(impact.status, 'SUCCESS');
+    assert.match(impact.output, /^impact\|SaleOrder\|--path\|.*\|--json$/);
+    assert.equal(impact.evidence[0].command, 'impact');
+
+    const unsupported = await graph({ payload: { operation: 'unsupported-op' } });
+    assert.equal(unsupported.status, 'FAILED');
+    assert.match(unsupported.reason, /^UNSUPPORTED_OPERATION:/);
+
+    const ambiguous = await graph({ operation: 'files', payload: { operation: 'callers' } });
+    assert.equal(ambiguous.status, 'FAILED');
+    assert.match(ambiguous.reason, /^AMBIGUOUS_OPERATION:/);
   } finally {
     fx.cleanup();
   }

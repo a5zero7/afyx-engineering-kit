@@ -2403,7 +2403,7 @@
     {
       "path": "scripts/afyx-host-adapters.mjs",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "976ee3b356f9be39d32966cc07a919cd1ddee8617d7cb8c6f14959c4dbf0edf0",
+      "reviewedSha256": "be11fa003cde2cd1bc0b61d6910a00c930db2fd37c371759a99b4b6ed8bf54ec",
       "evidence": "MB12 review: authored from AFYX functional requirements and existing reviewed 251f73a contracts; no upstream implementation, prompts, assets or dependency imported. Trusted-host boundaries and negative/regression tests recorded in MB12-native-consolidation-20261114-r1."
     },
     {
