@@ -29,7 +29,11 @@ function fakeTerminal(keys) {
   output.rows = 30;
   output.text = '';
   output.write = (text) => { output.text += text; };
-  return { input, output };
+  return { input, output, environment: {
+    os: { name: 'Fixture OS' }, architecture: 'x64', invokingShell: { name: 'Fixture shell' },
+    terminal: { name: 'Unknown' }, backendShell: { name: 'Unknown' },
+    package: { version: '0.1.0-alpha.8', sourceRevision: 'a'.repeat(40) },
+  } };
 }
 
 function backendFixture() {

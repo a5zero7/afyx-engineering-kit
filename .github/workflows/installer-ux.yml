@@ -54,13 +54,14 @@ jobs:
           name: installer-npm-candidate
           path: ${{ runner.temp }}/installer-package
       - name: Focused state, binding, failure and rendering regressions
-        run: node --test scripts/tests/test_npm_installer.mjs scripts/tests/test_midnight_circuit.mjs scripts/tests/test_installer_progress.mjs scripts/tests/test_install_contract.mjs scripts/tests/test_installer_native_binding.mjs scripts/tests/test_verify_claude_readiness.mjs scripts/tests/test_skill_digest_parity.mjs
+        run: node --test scripts/tests/test_npm_installer.mjs scripts/tests/test_midnight_circuit.mjs scripts/tests/test_installer_progress.mjs scripts/tests/test_install_contract.mjs scripts/tests/test_installer_native_binding.mjs scripts/tests/test_verify_claude_readiness.mjs scripts/tests/test_skill_digest_parity.mjs scripts/tests/test_smart_scoping.mjs scripts/tests/test_installer_environment.mjs scripts/tests/test_installer_environment_live.mjs
       - name: Actual npx, PTY and native lifecycle in disposable profiles
         shell: bash
         env:
           ACCEPTANCE_SHELL: ${{ matrix.backend }}
         run: |
           python -m unittest discover -s scripts/tests -p test_installer_terminal.py -v
+          python -m unittest discover -s scripts/tests -p test_installer_entrypoints.py -v
           candidate=$(python -c 'import os,pathlib; paths=list((pathlib.Path(os.environ["RUNNER_TEMP"])/"installer-package").glob("*.tgz")); assert len(paths)==1; print(paths[0])')
           npx_cli=$(node -p 'require("node:path").resolve(require("node:path").dirname(process.execPath), process.platform === "win32" ? "node_modules/npm/bin/npx-cli.js" : "../lib/node_modules/npm/bin/npx-cli.js")')
           test -f "$npx_cli"
@@ -77,9 +78,11 @@ jobs:
             ${{ runner.temp }}/installer-acceptance/*/terminal.ansi
             ${{ runner.temp }}/installer-acceptance/*/terminal-events.json
             ${{ runner.temp }}/installer-acceptance/**/backend.log
+            ${{ runner.temp }}/installer-acceptance/**/verification.json
             ${{ runner.temp }}/installer-plain-acceptance/acceptance-result.json
             ${{ runner.temp }}/installer-plain-acceptance/*/*.txt
             ${{ runner.temp }}/installer-plain-acceptance/*/terminal.ansi
             ${{ runner.temp }}/installer-plain-acceptance/*/terminal-events.json
             ${{ runner.temp }}/installer-plain-acceptance/**/backend.log
+            ${{ runner.temp }}/installer-plain-acceptance/**/verification.json
           if-no-files-found: warn

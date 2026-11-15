@@ -23,7 +23,7 @@ function capture(call, { signal } = {}) {
       });
       child.on('close', (code) => {
         clearTimeout(timer);
-        if (!failed) resolve({ exitCode: code ?? 1, output: Buffer.concat(chunks).toString('utf8') });
+        if (!failed) resolve({ exitCode: code ?? 1, output: Buffer.concat(chunks).toString('utf8'), executable: program });
       });
     };
     invoke(call.executable);
@@ -31,10 +31,13 @@ function capture(call, { signal } = {}) {
 }
 
 export function createBackendAdapter({ platform = process.platform, pkgRoot = PACKAGE_ROOT } = {}) {
+  let executionShell = null;
   return {
+    get executionShell() { return executionShell; },
     async plan(options, controls) {
       const { expectedPlan: _expectedPlan, ...query } = options;
       const result = await capture(buildSubprocessCall('install', { ...query, planJson: true, nonInteractive: true }, platform, pkgRoot), controls);
+      executionShell = result.executable;
       if (result.exitCode !== 0) throw new Error(`Backend plan failed (${result.exitCode}): ${result.output}`);
       return decodeContract(result.output, 'AfyxInstallPlan/v1');
     },
@@ -43,6 +46,7 @@ export function createBackendAdapter({ platform = process.platform, pkgRoot = PA
         'contextRuntimeRoot', 'forgeRuntimeRoot', 'graphRuntimeRoot', 'customComponents', 'skipProviderConfiguration'];
       const query = Object.fromEntries(allowed.filter((key) => options[key] !== undefined).map((key) => [key, options[key]]));
       const result = await capture(buildSubprocessCall('verify', { ...query, reportJson: true }, platform, pkgRoot), controls);
+      executionShell = result.executable;
       return { ...decodeContract(result.output, 'AfyxVerification/v1'), exitCode: result.exitCode };
     },
   };

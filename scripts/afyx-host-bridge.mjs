@@ -47,6 +47,8 @@ export async function invokeHostWorkflow({
   environment = process.env,
   trustedSkillEngineering = null,
   trustedCapabilities = {},
+  hostMetadata = {},
+  loadCapabilityDetails,
 } = {}) {
   const parsedTask = typeof task === 'string' ? JSON.parse(task) : task;
   const resolvedProjectRoot = resolve(projectRoot);
@@ -64,6 +66,8 @@ export async function invokeHostWorkflow({
     environment,
     trustedSkillEngineering,
     trustedCapabilities,
+    hostMetadata,
+    loadCapabilityDetails,
   });
 
   return {

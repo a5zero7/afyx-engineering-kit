@@ -2,6 +2,9 @@
 set -euo pipefail
 
 PACKAGE_ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+if [[ $# -eq 0 && -t 0 && -t 1 && -z "${CI:-}" && "${AFYX_INSTALL_UI_OWNER:-}" != node ]] && command -v node >/dev/null 2>&1; then
+  exec node "$PACKAGE_ROOT/bin/afyx-engineering-kit.mjs" install
+fi
 BUNDLED_EFFICIENT="$PACKAGE_ROOT/skills/efficient-coding"
 source "$PACKAGE_ROOT/scripts/lib/afyx-installer-progress.sh"
 BUNDLED_ODOO="$PACKAGE_ROOT/skills/odoo-engineering"

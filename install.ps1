@@ -34,6 +34,17 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
+# Bare interactive entrypoints share the Node UX. Explicit native script options
+# and noninteractive automation retain their existing backend contract.
+if ($PSBoundParameters.Count -eq 0 -and -not $env:CI -and $env:AFYX_INSTALL_UI_OWNER -ne 'node' -and
+    -not [Console]::IsInputRedirected -and -not [Console]::IsOutputRedirected) {
+    $interactiveNode = Get-Command node -ErrorAction SilentlyContinue
+    if ($interactiveNode) {
+        & $interactiveNode.Source (Join-Path $PSScriptRoot 'bin\afyx-engineering-kit.mjs') install
+        exit $LASTEXITCODE
+    }
+}
+
 $packageRoot = $PSScriptRoot
 Import-Module (Join-Path $packageRoot 'scripts\lib\AfyxInstallerProgress.psm1') -Force
 if ($env:AFYX_INSTALL_UI_OWNER -eq 'node') { [Console]::OutputEncoding = [Text.UTF8Encoding]::new($false) }

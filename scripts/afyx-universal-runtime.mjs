@@ -3,6 +3,7 @@
 /** Native installed-component discovery and execution for AfyxUniversalInterop/v1. */
 
 import { createHash } from 'node:crypto';
+import { performance } from 'node:perf_hooks';
 import { spawnSync } from 'node:child_process';
 import {
   existsSync,
@@ -23,10 +24,12 @@ import { fileURLToPath } from 'node:url';
 
 import {
   classifyTaskIntent,
+  DEFAULT_BUDGET_LIMITS,
   executeAfyxCapabilityRoute,
 } from './afyx-capability-orchestrator.mjs';
 import { createInstalledHostAdapters } from './afyx-host-adapters.mjs';
 import { createNativeSkillHostAdapter } from './afyx-native-skill-host.mjs';
+import { ACCEPTED_PROVIDERS } from './afyx-modular-runtime.mjs';
 
 export const AFYX_UNIVERSAL_RUNTIME_CONTRACT = 'AfyxUniversalRuntime/v1';
 export const AFYX_COMPONENT_MANIFEST_CONTRACT = 'AfyxComponentManifest/v1';
@@ -110,11 +113,11 @@ function componentEnabled(componentId, settings, environment) {
   return true;
 }
 
-function inspectGraphIndex(projectRoot, entrypoint, nodePath, environment) {
+function inspectGraphIndex(projectRoot, entrypoint, nodePath, environment, timeoutMs = 10_000) {
   // Graph's status command is the authority for ancestor resolution, ownership,
   // extraction compatibility, pending changes and incomplete indexes.
   const result = spawnSync(nodePath, [entrypoint, 'status', projectRoot, '--json'], {
-    encoding: 'utf8', windowsHide: true, timeout: 10_000,
+    encoding: 'utf8', windowsHide: true, timeout: timeoutMs,
     maxBuffer: 2 * 1024 * 1024, env: environment,
   });
   if (result.status !== 0 || result.error) return { indexReady: false, indexFresh: false };
@@ -194,6 +197,9 @@ function inspectKnownComponents({
   authorizations,
   environment,
   componentStateOverrides,
+  probeGraph = true,
+  preparationEvents = [],
+  probeTimeoutMs = 10_000,
 }) {
   const states = {};
   const evidence = [];
@@ -214,10 +220,13 @@ function inspectKnownComponents({
       componentSettings?.[componentId],
       environment,
     );
-    const graph = componentId === 'afyx-graph' && installed
-      ? inspectGraphIndex(projectRoot, join(root, 'current', 'lib', 'dist', 'bin', 'afyx-graph.js'), nodePath, environment)
-      : (componentId === 'afyx-graph' ? { indexReady: false, indexFresh: false } : {});
     const override = componentStateOverrides?.[componentId] ?? {};
+    const inspectGraph = componentId === 'afyx-graph' && installed && enabled && sourceIdentity !== null &&
+      override.healthy !== false && override.compatible !== false && authorizations?.[componentId] === true && probeGraph;
+    if (inspectGraph) preparationEvents.push('afyx-graph/status');
+    const graph = inspectGraph
+      ? inspectGraphIndex(projectRoot, join(root, 'current', 'lib', 'dist', 'bin', 'afyx-graph.js'), nodePath, environment, probeTimeoutMs)
+      : (componentId === 'afyx-graph' ? { indexReady: false, indexFresh: false } : {});
     states[componentId] = {
       installed,
       enabled,
@@ -366,6 +375,10 @@ export function createInstalledAfyxRuntime({
   nodePath = process.execPath,
   trustedSkillEngineering = null,
   trustedCapabilities = {},
+  probeGraph = true,
+  providerPermissions = {},
+  hostAuthorizations = {},
+  probeTimeoutMs = 10_000,
 } = {}) {
   if (typeof installRoot !== 'string' || !installRoot.trim() ||
       typeof projectRoot !== 'string' || !projectRoot.trim()) {
@@ -373,6 +386,12 @@ export function createInstalledAfyxRuntime({
   }
   const resolvedInstallRoot = resolve(installRoot);
   const resolvedProjectRoot = resolve(projectRoot);
+  const preparationEvents = [];
+  const graphProbeAuthorized = (provider === null || ACCEPTED_PROVIDERS.includes(provider)) &&
+    providerPermissions['afyx-graph'] !== false && providerPermissions['repository-graph-evidence'] !== false &&
+    hostAuthorizations[provider] !== false && hostAuthorizations.providers?.[provider] !== false &&
+    hostAuthorizations.enabledProviders?.[provider] !== false &&
+    (hostAuthorizations.mcpEnabled !== false || hostAuthorizations.cliBypassAllowed === true);
   // Usage Tracking is a Codex/Windows toolset installed under the provider's
   // tools root, outside the shared AFYX runtime directory.
   const resolvedToolsRoot = provider === 'codex' && process.platform === 'win32'
@@ -388,6 +407,9 @@ export function createInstalledAfyxRuntime({
     authorizations,
     environment,
     componentStateOverrides,
+    probeGraph: probeGraph && graphProbeAuthorized,
+    preparationEvents,
+    probeTimeoutMs,
   });
   const dynamic = discoverDynamicComponents({
     installRoot: resolvedInstallRoot,
@@ -416,8 +438,7 @@ export function createInstalledAfyxRuntime({
     installed: true, enabled: componentEnabled(id, componentSettings?.[id], environment), healthy: true, compatible: true,
     authorized: authorizations[id] === true, sourceIdentity: sha256File(fileURLToPath(new URL(`./${id}.mjs`, import.meta.url))), observationSource: 'BUNDLED_HOST_CAPABILITY',
   }]));
-  const adapters = {
-    ...createInstalledHostAdapters({
+  const adapterOptions = {
       installRoot: resolvedInstallRoot,
       projectRoot: resolvedProjectRoot,
       graphIndexRoot: known.states['afyx-graph']?.indexRoot ?? null,
@@ -429,7 +450,12 @@ export function createInstalledAfyxRuntime({
       nodePath,
       environment,
       trustedCapabilities,
-    }),
+  };
+  const hostAdapters = createInstalledHostAdapters(adapterOptions);
+  let graphAdapter = hostAdapters['afyx-graph'];
+  const adapters = {
+    ...hostAdapters,
+    'afyx-graph': (...args) => graphAdapter(...args),
     ...dynamic.adapters,
     ...(nativeSkill ? { 'afyx-skill-engineering': nativeSkill.adapter } : {}),
   };
@@ -439,6 +465,18 @@ export function createInstalledAfyxRuntime({
     projectRoot: resolvedProjectRoot,
     provider,
     providerSkillRoots,
+    get preparationEvents() { return Object.freeze([...preparationEvents]); },
+    prepareCapabilityState(componentId, controls = {}) {
+      const original = known.states[componentId];
+      if (componentId !== 'afyx-graph' || !graphProbeAuthorized || !original?.installed || !original.enabled || !original.authorized) return original;
+      const root = known.evidence.find((item) => item.componentId === componentId).root;
+      preparationEvents.push('afyx-graph/status');
+      const observed = inspectGraphIndex(resolvedProjectRoot, join(root, 'current/lib/dist/bin/afyx-graph.js'), nodePath, environment,
+        Math.max(1, Math.min(10_000, controls.maxExecutionMs || 10_000)));
+      const override = componentStateOverrides[componentId] || {};
+      if (observed.indexRoot) graphAdapter = createInstalledHostAdapters({ ...adapterOptions, graphIndexRoot: observed.indexRoot })['afyx-graph'];
+      return { ...original, ...observed, indexReady: override.indexReady ?? observed.indexReady, indexFresh: override.indexFresh ?? observed.indexFresh };
+    },
     componentStates: Object.freeze({ ...known.states, ...dynamic.states, ...bundledStates,
       ...(nativeSkillState ? { 'afyx-skill-engineering': nativeSkillState } : {}) }),
     adapters: Object.freeze(adapters),
@@ -452,6 +490,7 @@ export function createInstalledAfyxRuntime({
 
 /** Discover, select, and execute only the capabilities justified by one task. */
 export async function runInstalledAfyxWorkflow(options = {}) {
+  const startedAt = performance.now();
   const task = options.task ?? {};
   const routeOptions = {
     task,
@@ -461,21 +500,34 @@ export async function runInstalledAfyxWorkflow(options = {}) {
     userPreferences: options.userPreferences ?? {},
     budgetLimits: options.budgetLimits,
     environment: options.environment ?? process.env,
+    hostMetadata: options.hostMetadata,
+    loadCapabilityDetails: options.loadCapabilityDetails,
   };
-  if (classifyTaskIntent(task).directSource) {
+  if (classifyTaskIntent(task, options.hostMetadata).directSource) {
     return executeAfyxCapabilityRoute({
       ...routeOptions,
       componentStates: {},
       adapters: {},
     });
   }
-  const runtime = createInstalledAfyxRuntime(options);
+  const classification = classifyTaskIntent(task, options.hostMetadata);
+  const exclusive = classification.odoo || classification.forgeAdvice || classification.documentation || classification.usageAnalytics ||
+    classification.github || classification.nativeExecution || classification.securityAudit || classification.unknownDomain || classification.ambiguousDomain;
+  const runtime = createInstalledAfyxRuntime({ ...options, probeTimeoutMs: Math.max(1, Math.min(10_000, options.budgetLimits?.maxExecutionMs || DEFAULT_BUDGET_LIMITS.maxExecutionMs)),
+    probeGraph: options.budgetLimits?.maxToolCalls !== 0 && options.budgetLimits?.maxCapabilities !== 0 &&
+    (classification.relational && (!exclusive || task.needsRelationalEvidence === true) ||
+    classification.manualSelection.includes('afyx-graph') || classification.customComponentId === 'afyx-graph' ||
+    classification.customCapability === 'repository-graph-evidence') });
   try {
-    return await executeAfyxCapabilityRoute({
+    const result = await executeAfyxCapabilityRoute({
       ...routeOptions,
       componentStates: runtime.componentStates,
       adapters: runtime.adapters,
+      prepareCapabilityState: runtime.prepareCapabilityState,
+      preparationElapsedMs: performance.now() - startedAt,
     });
+    return { ...result, metrics: { ...result.metrics, runtimeDiscoveryToolCalls: runtime.preparationEvents.length,
+      runtimeDiscoveryInvocations: [...runtime.preparationEvents] } };
   } finally {
     runtime.dispose();
   }

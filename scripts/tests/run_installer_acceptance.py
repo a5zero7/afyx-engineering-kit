@@ -160,6 +160,16 @@ def main():
                 launches.append(launch)
             assert launches, "No actual installed/source executable identity was recorded"
             result["launches"] = launches
+            environments = []
+            for log in backend_logs:
+                verification_file = log.parent / "verification.json"
+                if verification_file.is_file():
+                    environment = json.loads(verification_file.read_text(encoding="utf-8-sig")).get("environment")
+                    if environment:
+                        assert environment["package"]["sourceRevision"] == source_revision
+                        environments.append(environment)
+            assert environments, "Verified receipt must include observed environment identity"
+            result["environments"] = environments
             result.update(status="PASS", exitCode=terminal.poll(), elapsedSeconds=round(time.monotonic() - started, 3))
         except Exception as error:
             result.update(status="FAIL", error=f"{type(error).__name__}: {error}", elapsedSeconds=round(time.monotonic() - started, 3))

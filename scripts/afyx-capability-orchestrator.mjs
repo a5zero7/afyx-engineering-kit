@@ -69,6 +69,7 @@ const AUTONOMOUS_FORGE_INTENTS = new Set([
   'formal-forge-evaluation',
   'production-forge-execution',
 ]);
+const FOLLOW_UP_JUSTIFICATION = Symbol('host-adapter-justification');
 
 /** In-memory dynamic component registry for universal extensibility. */
 const DYNAMIC_COMPONENT_REGISTRY = new Map(Object.entries(PRODUCT_INVENTORY));
@@ -126,14 +127,14 @@ function normalizeBudgets(requested = {}) {
   });
 }
 
-function providerAllows(componentId, capability, provider, providerPermissions) {
+function providerAllows(componentId, capability, provider, providerPermissions, metadata) {
   if (providerPermissions?.[componentId] === false || providerPermissions?.[capability] === false) {
     return false;
   }
   if (provider === null) return componentId !== 'afyx-credential-broker';
   const providerMeta = PROVIDER_CAPABILITY_SUPPORT[provider];
   if (!providerMeta) return false;
-  const declaredProviders = DYNAMIC_COMPONENT_REGISTRY.get(componentId)?.providers;
+  const declaredProviders = metadata?.providers;
   if (declaredProviders && !declaredProviders.includes(provider)) return false;
   if (componentId === 'afyx-forge') {
     return providerPermissions?.[componentId] === true;
@@ -196,6 +197,7 @@ export function discoverAfyxCapabilities({
       capability,
       normalizedProvider,
       providerPermissions,
+      metadata,
     );
     const installed = observed.installed === true;
     // Default-enabled for interoperability if installed, unless explicitly set to false or context env off
@@ -247,14 +249,25 @@ export function discoverAfyxCapabilities({
 }
 
 /** Cheap deterministic task classification. */
-export function classifyTaskIntent(task = {}) {
+export function classifyTaskIntent(task = {}, hostMetadata = {}) {
+  // Host observations are routing hints, never authorization grants. Task JSON
+  // cannot supply the in-process hostMetadata or a schema loader.
+  const domain = String(task.domain ?? hostMetadata.domain ?? '').toLowerCase();
+  const knownDomains = new Set(['odoo', 'github', 'documentation', 'local-cli', 'engineering', 'security']);
+  const unknownDomain = Boolean(domain && !knownDomains.has(domain));
+  const framework = task.project?.framework ?? task.framework ?? hostMetadata.project?.framework ?? hostMetadata.file?.framework;
   const intentText = `${task.intent ?? ''} ${task.operation ?? ''}`.toLowerCase();
   const taskType = String(task.taskType ?? 'generic').toLowerCase();
+  const textualDomains = [/\bodoo\b/, /\bgithub\b/, /\bdocumentation\b/].filter((pattern) => pattern.test(intentText));
+  const specifiedType = taskType !== 'generic' && taskType !== 'unknown';
+  const ambiguousDomain = !domain && !specifiedType && (textualDomains.length > 1 ||
+    (Array.isArray(hostMetadata.domains) && new Set(hostMetadata.domains).size > 1));
   const directSourceCandidate = task.exactKnownSource === true || task.knownFile === true ||
     ['known-file', 'string-replacement', 'exact-source'].includes(taskType) ||
     /\b(exact source|known file|string replacement)\b/.test(intentText);
-  const odoo = task.project?.framework === 'odoo' || task.framework === 'odoo' || task.project?.isOdoo === true || task.explicitOdooEvidence === true ||
-    taskType.startsWith('odoo-') || /\bodoo\b/.test(intentText);
+  const specializedType = ['github-operation', 'documentation-search', 'documentation-research', 'multi-agent-workflow', 'workflow-execution', 'cli-automation'].includes(taskType);
+  const odoo = (!domain || domain === 'odoo') && !ambiguousDomain && (domain === 'odoo' || !specializedType && (framework === 'odoo' ||
+    task.project?.isOdoo === true || task.explicitOdooEvidence === true || taskType.startsWith('odoo-') || /\bodoo\b/.test(intentText)));
   const relational = task.needsRelationalEvidence === true ||
     ['impact-analysis', 'cross-asset', 'relationship-analysis'].includes(taskType) ||
     /\b(dependency|relationship|blast radius|call graph|impact analysis)\b/.test(intentText);
@@ -266,18 +279,20 @@ export function classifyTaskIntent(task = {}) {
   const telemetry = task.needsTelemetry === true || task.telemetry === true || task.trackUsage === true ||
     taskType === 'usage-telemetry' || taskType === 'telemetry' ||
     /\b(telemetry|usage tracking|usage report)\b/.test(intentText);
-  const documentation = ['documentation-search', 'documentation-research'].includes(taskType) || task.domain === 'documentation';
+  const documentation = ['documentation-search', 'documentation-research'].includes(taskType) || domain === 'documentation';
   const usageAnalytics = taskType === 'usage-analytics';
-  const github = taskType === 'github-operation' || task.domain === 'github';
-  const nativeExecution = taskType === 'cli-automation' || task.domain === 'local-cli';
+  const github = taskType !== 'cli-automation' && (taskType === 'github-operation' || domain === 'github');
+  const nativeExecution = taskType === 'cli-automation' || domain === 'local-cli';
   const securityAudit = taskType === 'security-audit';
   const manualSelection = Array.isArray(task.manualSelection) ? task.manualSelection.filter((id) => typeof id === 'string').slice(0, 4) : [];
   const customCapability = task.needsCustomCapability ?? task.customCapability ?? null;
   const customComponentId = task.customComponentId ?? null;
-  const complexCapabilityNeeded = documentation || usageAnalytics || github || nativeExecution || securityAudit || manualSelection.length > 0 || odoo || relational || contextOptimization ||
-    architecture || forgeAdvice || forgeAutonomous || telemetry ||
-    Boolean(customCapability) || Boolean(customComponentId);
-  const directSource = directSourceCandidate && !complexCapabilityNeeded;
+  const explicitSharedNeed = task.needsRelationalEvidence === true || task.needsContextOptimization === true;
+  const explicitCapabilityType = taskType.startsWith('odoo-') || specializedType || securityAudit || architecture ||
+    ['large-context', 'usage-telemetry', 'usage-analytics', 'impact-analysis', 'cross-asset', 'relationship-analysis'].includes(taskType);
+  const explicitTelemetry = task.needsTelemetry === true || task.telemetry === true || task.trackUsage === true;
+  const directSource = directSourceCandidate && !explicitSharedNeed && !explicitCapabilityType && !manualSelection.length &&
+    !forgeAdvice && !forgeAutonomous && !explicitTelemetry && !customCapability && !customComponentId;
 
   return Object.freeze({
     directSource,
@@ -290,6 +305,7 @@ export function classifyTaskIntent(task = {}) {
     telemetry,
     customCapability,
     customComponentId, documentation, usageAnalytics, github, nativeExecution, securityAudit, manualSelection,
+    unknownDomain, ambiguousDomain,
   });
 }
 
@@ -330,7 +346,7 @@ function makeRequest({ task, componentId, discovery, budgets, reason, hopCount =
 
 function selectionCandidates(task, classification, modularRuntimePlan, discovery) {
   if (classification.directSource) return [];
-  const exclusiveDomain = classification.documentation || classification.usageAnalytics || classification.github || classification.nativeExecution || classification.securityAudit;
+  const exclusiveDomain = classification.odoo || classification.forgeAdvice || classification.documentation || classification.usageAnalytics || classification.github || classification.nativeExecution || classification.securityAudit || classification.unknownDomain || classification.ambiguousDomain;
   const selectedByPlanner = new Set(exclusiveDomain ? [] : modularRuntimePlan.plannedComponents);
   if (classification.documentation || classification.usageAnalytics) selectedByPlanner.add('afyx-context');
   if (classification.github) selectedByPlanner.add('afyx-native-github');
@@ -340,7 +356,7 @@ function selectionCandidates(task, classification, modularRuntimePlan, discovery
 
   if (classification.odoo) selectedByPlanner.add('odoo-engineering');
   if (classification.architecture) selectedByPlanner.add('afyx-engineering-expert');
-  if (classification.relational) selectedByPlanner.add('afyx-graph');
+  if (classification.relational && (!exclusiveDomain || task.needsRelationalEvidence === true)) selectedByPlanner.add('afyx-graph');
   if (classification.contextOptimization) selectedByPlanner.add('afyx-context');
   if (classification.forgeAdvice && !classification.forgeAutonomous) {
     selectedByPlanner.add('afyx-forge');
@@ -397,7 +413,7 @@ export function resolveAfyxCapabilityRoute(options = {}) {
   const task = options.task ?? {};
   const budgets = normalizeBudgets(options.budgetLimits);
   const discovery = discoverAfyxCapabilities(options);
-  const classification = classifyTaskIntent(task);
+  const classification = classifyTaskIntent(task, options.hostMetadata);
   const modularRuntimePlan = resolveModularRuntimeActivation({
     task,
     provider: options.provider ?? null,
@@ -414,6 +430,10 @@ export function resolveAfyxCapabilityRoute(options = {}) {
   const requests = [];
   const seenCapabilities = new Set();
   const owners = {};
+
+  if (classification.unknownDomain || classification.ambiguousDomain) {
+    diagnostics.push({ code: classification.unknownDomain ? 'UNKNOWN_DOMAIN' : 'AMBIGUOUS_DOMAIN', severity: 'INFO' });
+  }
 
   if (!discovery.providerKnown) {
     diagnostics.push({ code: 'UNKNOWN_PROVIDER', severity: 'ERROR' });
@@ -447,6 +467,10 @@ export function resolveAfyxCapabilityRoute(options = {}) {
       diagnostics.push({ code: 'AUTHORITY_MISMATCH', componentId, severity: 'ERROR' });
       continue;
     }
+    if (owners[discovered.capability] && owners[discovered.capability] !== componentId) {
+      diagnostics.push({ code: 'AUTHORITY_CONFLICT', capability: discovered.capability, severity: 'ERROR' });
+      continue;
+    }
     owners[discovered.capability] = componentId;
     if (!discovered.available) {
       degradations.push({
@@ -477,7 +501,8 @@ export function resolveAfyxCapabilityRoute(options = {}) {
     requests.push(makeRequest({ task, componentId, discovery, budgets, reason }));
   }
 
-  const blocked = !discovery.providerKnown || classification.forgeAutonomous || inheritedBlockingDiagnostics.length > 0;
+  const blocked = !discovery.providerKnown || classification.forgeAutonomous || inheritedBlockingDiagnostics.length > 0 ||
+    diagnostics.some((item) => ['AUTHORITY_CONFLICT', 'AUTHORITY_MISMATCH'].includes(item.code));
   return Object.freeze({
     contract: AFYX_UNIVERSAL_INTEROP_CONTRACT,
     taskId: task.id ?? 'anonymous-task',
@@ -515,6 +540,7 @@ function normalizedAdapterResult(request, raw, durationMs, validTargetIds) {
       .filter((item) => item && (validTargetIds ? validTargetIds.has(item.targetComponentId) : true))
       .map((item) => Object.freeze({
         targetComponentId: item.targetComponentId,
+        [FOLLOW_UP_JUSTIFICATION]: typeof item.invocationReason === 'string' && item.invocationReason.trim().length > 0,
         invocationReason: typeof item.invocationReason === 'string'
           ? item.invocationReason
           : `Requested by ${request.targetComponentId}`,
@@ -581,18 +607,37 @@ function failedExecutionResult(request, reason, durationMs) {
  * bounded by budgets, deduplication, cycle prevention, and Forge A8 restrictions.
  */
 export async function executeAfyxCapabilityRoute(options = {}) {
+  const executionStarted = performance.now();
+  const startedAt = executionStarted - (Number.isFinite(options.preparationElapsedMs) ? Math.max(0, options.preparationElapsedMs) : 0);
   const route = resolveAfyxCapabilityRoute(options);
+  const planningMs = performance.now() - executionStarted;
+  let activeDiscovery = route.discovery;
+  const activeOwners = { ...route.domainAuthorities };
   const adapters = options.adapters ?? {};
-  const startedAt = performance.now();
   const queue = [...route.requests];
   const results = [];
   const seen = new Set();
   const scheduledComponents = new Set(route.requests.map((request) => request.targetComponentId));
   const validTargetIds = new Set(Object.keys(route.discovery.capabilities));
+  const preparedCapabilities = new Set();
   let contextBytes = 0;
   let duplicateInvocationsAvoided = 0;
   let toolCalls = 0;
   let contextBudgetExceeded = false;
+  const invokedTools = [], loadedTools = [], details = new Map();
+  const justified = new Set(route.requests.map((request) => request.targetComponentId));
+  let schemaBytes = 0, schemaLatencyMs = 0, activeSchemaStarted = null, schemaLoadCalls = 0, blockedOutOfScopeRequests = 0;
+  const routingMetrics = () => ({
+    registeredTools: Object.keys(route.discovery.capabilities),
+    discoveredTools: Object.values(route.discovery.capabilities).filter((item) => item.installed && item.enabled).map((item) => item.componentId),
+    selectedTools: route.requests.map((request) => request.targetComponentId),
+    invokedTools: [...invokedTools], loadedTools: [...loadedTools], schemaBytes, planningMs, schemaLoadCalls,
+    schemaLatencyMs: schemaLatencyMs + (activeSchemaStarted === null ? 0 : performance.now() - activeSchemaStarted),
+    unnecessaryInvocationCount: invokedTools.filter((id) => !justified.has(id)).length,
+    blockedOutOfScopeRequests,
+    detailLoading: typeof options.loadCapabilityDetails === 'function' ? 'HOST_DEFERRED_DETAILS' : 'HOST_NOT_SUPPORTED',
+    registrationTokenSavings: 'NOT_CLAIMED',
+  });
 
   if (route.status === 'BLOCKED' || route.directSourceFastPath) {
     return Object.freeze({
@@ -600,6 +645,7 @@ export async function executeAfyxCapabilityRoute(options = {}) {
       executionStatus: route.status === 'BLOCKED' ? 'BLOCKED' : 'DIRECT_SOURCE',
       results: Object.freeze([]),
       metrics: Object.freeze({
+        ...routingMetrics(),
         selectedCapabilities: route.requests.length,
         executedCapabilities: 0,
         toolCalls: 0,
@@ -632,7 +678,7 @@ export async function executeAfyxCapabilityRoute(options = {}) {
       results.push(nonExecutedResult(request, 'BLOCKED', 'EXECUTION_TIME_BUDGET_EXHAUSTED'));
       continue;
     }
-    const discovered = route.discovery.capabilities[request.targetComponentId];
+    const discovered = activeDiscovery.capabilities[request.targetComponentId];
     if (!discovered?.available || discovered.capability !== request.capability) {
       results.push(nonExecutedResult(request, 'BLOCKED', 'CAPABILITY_NOT_AVAILABLE'));
       continue;
@@ -646,6 +692,7 @@ export async function executeAfyxCapabilityRoute(options = {}) {
     const invocationStartedAt = performance.now();
     let result;
     let timeout;
+    let adapterStarted = false;
     const controller = new AbortController();
     try {
       const remainingMs = Math.max(1, route.budgets.maxExecutionMs - (performance.now() - startedAt));
@@ -655,25 +702,46 @@ export async function executeAfyxCapabilityRoute(options = {}) {
           reject(new Error('EXECUTION_TIME_BUDGET_EXHAUSTED'));
         }, remainingMs);
       });
-      toolCalls += 1;
+      const invoke = async () => {
+        let capabilityDetails;
+        if (typeof options.loadCapabilityDetails === 'function') {
+          activeSchemaStarted = performance.now();
+          schemaLoadCalls += 1;
+          try { capabilityDetails = await options.loadCapabilityDetails(request, { signal: controller.signal }); }
+          finally { schemaLatencyMs += performance.now() - activeSchemaStarted; activeSchemaStarted = null; }
+          if (controller.signal.aborted) throw new Error('EXECUTION_TIME_BUDGET_EXHAUSTED');
+          const encoded = JSON.stringify(capabilityDetails);
+          if (!encoded) throw new Error('CAPABILITY_DETAILS_UNAVAILABLE');
+          const bytes = Buffer.byteLength(encoded);
+          if (schemaBytes + contextBytes + bytes > route.budgets.maxContextBytes) throw new Error('SCHEMA_CONTEXT_BUDGET_EXHAUSTED');
+          schemaBytes += bytes;
+          // Snapshot host data; adapter mutations cannot affect another request.
+          details.set(request.targetComponentId, JSON.parse(encoded));
+          loadedTools.push(request.targetComponentId);
+          capabilityDetails = details.get(request.targetComponentId);
+        }
+        if (controller.signal.aborted) throw new Error('EXECUTION_TIME_BUDGET_EXHAUSTED');
+        toolCalls += 1;
+        adapterStarted = true;
+        invokedTools.push(request.targetComponentId);
+        return adapter(request, { signal: controller.signal, capabilityDetails });
+      };
       result = normalizedAdapterResult(
         request,
-        await Promise.race([adapter(request, { signal: controller.signal }), timeoutPromise]),
+        await Promise.race([invoke(), timeoutPromise]),
         performance.now() - invocationStartedAt,
         validTargetIds,
       );
     } catch (error) {
-      result = failedExecutionResult(
-        request,
-        error instanceof Error ? error.message : String(error),
-        performance.now() - invocationStartedAt,
-      );
+      const reason = error instanceof Error ? error.message : String(error);
+      result = adapterStarted ? failedExecutionResult(request, reason, performance.now() - invocationStartedAt)
+        : Object.freeze({ ...nonExecutedResult(request, 'FAILED', reason), durationMs: performance.now() - invocationStartedAt });
     } finally {
       clearTimeout(timeout);
     }
     results.push(result);
     contextBytes += result.contextBytes;
-    if (contextBytes > route.budgets.maxContextBytes) {
+    if (contextBytes + schemaBytes > route.budgets.maxContextBytes) {
       contextBudgetExceeded = true;
       break;
     }
@@ -690,30 +758,56 @@ export async function executeAfyxCapabilityRoute(options = {}) {
       effectiveFollowUps.push({
         targetComponentId: 'afyx-context',
         invocationReason: 'Compress large graph evidence payload',
+        [FOLLOW_UP_JUSTIFICATION]: true,
       });
     }
 
     for (const followUp of effectiveFollowUps) {
       const target = followUp?.targetComponentId;
-      const followUpCapability = route.discovery.capabilities[target];
+      let followUpCapability = activeDiscovery.capabilities[target];
       const forgeAllowed = target !== 'afyx-forge' ||
-        (route.classification.forgeAdvice && !route.classification.forgeAutonomous);
-      const isAvailable = followUpCapability?.available === true;
+        ((route.classification.forgeAdvice || route.classification.manualSelection.includes(target)) && !route.classification.forgeAutonomous);
       const notDirectSelfCycle = target !== request.targetComponentId;
+      const authorityOwner = DOMAIN_AUTHORITY_MATRIX[followUpCapability?.capability]?.primaryOwner || activeOwners[followUpCapability?.capability];
+      const ownsDomain = !authorityOwner || authorityOwner === target;
+      const narrowDomain = route.classification.odoo || route.classification.github || route.classification.documentation || route.classification.nativeExecution ||
+        route.classification.relational || route.classification.contextOptimization || route.classification.forgeAdvice;
+      const shared = ['afyx-graph', 'afyx-context'].includes(target) && result.status === 'EXECUTED' &&
+        followUp[FOLLOW_UP_JUSTIFICATION] === true &&
+        (route.classification.odoo || route.classification.relational || route.classification.forgeAdvice || (target === 'afyx-context' && route.classification.contextOptimization) ||
+          (target === 'afyx-graph' && options.task?.needsRelationalEvidence === true));
+      const inScope = !narrowDomain || justified.has(target) || route.classification.manualSelection.includes(target) || shared;
+      if (!inScope) blockedOutOfScopeRequests += 1;
+      if (inScope && ownsDomain && forgeAllowed && notDirectSelfCycle && target === 'afyx-graph' &&
+          followUpCapability?.reason === 'GRAPH_INDEX_NOT_READY_OR_FRESH' && typeof options.prepareCapabilityState === 'function' &&
+          !preparedCapabilities.has(target) && toolCalls < route.budgets.maxToolCalls && request.hopCount < route.budgets.maxHops &&
+          (scheduledComponents.has(target) || scheduledComponents.size < route.budgets.maxCapabilities) &&
+          performance.now() - startedAt < route.budgets.maxExecutionMs) {
+        preparedCapabilities.add(target);
+        try {
+          const state = await options.prepareCapabilityState(target, { maxExecutionMs: Math.max(1, Math.floor(route.budgets.maxExecutionMs - (performance.now() - startedAt))) });
+          const observed = discoverAfyxCapabilities({ ...options, componentStates: { ...options.componentStates, [target]: state } });
+          if (observed.capabilities[target]?.sourceIdentity === followUpCapability.sourceIdentity) {
+            activeDiscovery = observed;
+            followUpCapability = observed.capabilities[target];
+          }
+        } catch { /* A failed preflight remains unavailable, never assumed fresh. */ }
+      }
+      const isAvailable = followUpCapability?.available === true;
 
-      if (!isAvailable || !forgeAllowed || !notDirectSelfCycle) {
+      if (!isAvailable || !forgeAllowed || !notDirectSelfCycle || !inScope || !ownsDomain) {
         if (followUpCapability) {
           results.push(nonExecutedResult(
             makeRequest({
               task: options.task ?? {},
               componentId: target,
-              discovery: route.discovery,
+              discovery: activeDiscovery,
               budgets: route.budgets,
               reason: followUp.invocationReason ?? `Requested by ${request.targetComponentId}`,
               hopCount: request.hopCount + 1,
             }),
             'BLOCKED',
-            !forgeAllowed ? 'FORGE_A8_REQUIRED' : (!notDirectSelfCycle ? 'DIRECT_SELF_CYCLE' : 'FOLLOW_UP_NOT_AUTHORIZED'),
+            !ownsDomain ? 'FOLLOW_UP_AUTHORITY_CONFLICT' : !inScope ? 'FOLLOW_UP_OUT_OF_SCOPE' : !forgeAllowed ? 'FORGE_A8_REQUIRED' : (!notDirectSelfCycle ? 'DIRECT_SELF_CYCLE' : 'FOLLOW_UP_NOT_AUTHORIZED'),
           ));
         }
         continue;
@@ -723,7 +817,7 @@ export async function executeAfyxCapabilityRoute(options = {}) {
           makeRequest({
             task: options.task ?? {},
             componentId: target,
-            discovery: route.discovery,
+            discovery: activeDiscovery,
             budgets: route.budgets,
             reason: followUp.invocationReason ?? `Requested by ${request.targetComponentId}`,
             hopCount: request.hopCount + 1,
@@ -734,11 +828,13 @@ export async function executeAfyxCapabilityRoute(options = {}) {
         continue;
       }
       scheduledComponents.add(target);
+      activeOwners[followUpCapability.capability] = target;
+      justified.add(target);
       queue.push(Object.freeze({
         ...makeRequest({
           task: options.task ?? {},
           componentId: target,
-          discovery: route.discovery,
+          discovery: activeDiscovery,
           budgets: route.budgets,
           reason: followUp.invocationReason ?? `Requested by ${request.targetComponentId}`,
           hopCount: request.hopCount + 1,
@@ -755,10 +851,13 @@ export async function executeAfyxCapabilityRoute(options = {}) {
   const degraded = contextBudgetExceeded || route.status === 'DEGRADED' || results.some((result) => ['DEGRADED', 'BLOCKED'].includes(result.status));
   return Object.freeze({
     ...route,
+    discovery: activeDiscovery,
+    domainAuthorities: Object.freeze(activeOwners),
     status: failed ? 'FAILED' : (degraded ? 'DEGRADED' : 'READY'),
     executionStatus: executedCapabilities > 0 ? 'EXECUTED' : 'NOT_RUN',
     results: Object.freeze(results),
     metrics: Object.freeze({
+      ...routingMetrics(),
       selectedCapabilities: route.requests.length,
       executedCapabilities,
       toolCalls,

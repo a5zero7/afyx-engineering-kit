@@ -8,6 +8,7 @@ import readline from 'node:readline';
 import { PACKAGE_ROOT, getPackageVersion } from './afyx-npm-installer.mjs';
 import { createBackendAdapter, summarizeExecution } from './afyx-install-backend.mjs';
 import { GRAPH_PACKAGE_TARGETS } from './afyx-graph-targets.mjs';
+import { detectInstallerEnvironment, environmentLines, recordBackendExecution } from './afyx-installer-environment.mjs';
 
 const stages = ['DETECT', 'SELECT', 'CONFIGURE', 'REVIEW / APPLY', 'FINISH'];
 const supported = ['antigravity', 'claude', 'codex'];
@@ -111,7 +112,7 @@ function panel(title, lines, width, limit, offset = 0, color = false, tone = 'cy
   }), styled(`╰${'─'.repeat(width - 2)}╯`, tone, color)];
 }
 
-export function renderFrame({ stage = 0, providers = [], providerSummary, selection = [], activity = [], width = 80, height = 24, activityOffset = 0, providerOffset = 0, hint = '', color = false, ascii = false, failed = false, installing = false, receipt = false, discovering = false, runtime = '' } = {}) {
+export function renderFrame({ stage = 0, providers = [], providerSummary, selection = [], activity = [], width = 80, height = 24, activityOffset = 0, providerOffset = 0, hint = '', color = false, ascii = false, failed = false, installing = false, receipt = false, discovering = false, runtime = '', environment } = {}) {
   const safeWidth = Math.max(40, width);
   const labels = safeWidth < 112 ? ['DETECT', 'SELECT', 'CONFIG', 'APPLY', 'FINISH'] : stages;
   const stepLine = labels.map((name, index) => styled(`${index === stage ? '[' : ''}${String(index + 1).padStart(2, '0')} ${name}${index < stage ? ' +' : index === stage ? failed ? ' FAILED]' : ' *]' : ''}`, index < stage ? 'success' : index === stage ? failed ? 'error' : 'cyan' : 'muted', color)).join('  ');
@@ -125,7 +126,8 @@ export function renderFrame({ stage = 0, providers = [], providerSummary, select
   const providerLines = [...(providerSummary || []), ...supportedLines, ...(otherLines.length ? ['OTHER DETECTED', ...otherLines] : [])];
   if (!providerLines.length) providerLines.push(discovering ? 'Discovery in progress' : 'No supported provider detected');
   const footer = wrapLines([hint], safeWidth).slice(0, 2);
-  const budget = Math.max(9, height - 4 - footer.length);
+  const identity = environment ? wrapLines(environmentLines(environment), safeWidth) : [];
+  const budget = Math.max(9, height - 4 - identity.length - footer.length);
   let body;
   if (safeWidth >= 80) {
     const providerWidth = Math.max(28, Math.floor((safeWidth - 1) * 0.30));
@@ -155,6 +157,7 @@ export function renderFrame({ stage = 0, providers = [], providerSummary, select
   const screen = [
     styled('AFYX / ENGINEERING KIT', 'cyan', color),
     styled(fit(`Unified Installer | ${runtime || `v${getPackageVersion()}`} | I choose my path.`, safeWidth), 'purple', color),
+    ...identity.map((line) => styled(line, 'muted', color)),
     stripVTControlCharacters(stepLine).length <= safeWidth ? stepLine : fit(`STEP ${stage + 1}/5 ${stages[stage]}`, safeWidth),
     styled('─'.repeat(safeWidth), 'muted', color),
     ...body,
@@ -209,7 +212,7 @@ async function choose({ input, output, frame, options, selected = 0, multiple = 
       output.write('\x1b[H\x1b[0JResize the terminal to at least 80 columns by 24 rows. Esc cancels safely.\n');
       return;
     }
-      const capacity = Math.max(3, Math.min(8, Math.floor(((output.rows || 24) - 8) / 2)));
+      const capacity = Math.max(3, Math.min(8, Math.floor(((output.rows || 24) - 12) / 2)));
     const start = Math.max(0, Math.min(cursor - Math.floor(capacity / 2), options.length - capacity));
     const rows = options.slice(start, start + capacity).map((option, offset) => {
       const index = start + offset;
@@ -265,17 +268,18 @@ async function choose({ input, output, frame, options, selected = 0, multiple = 
   }
 }
 
-export async function runMidnightCircuit({ input = process.stdin, output = process.stdout, pkgRoot = PACKAGE_ROOT, platform = process.platform, arch = process.arch, hosts, options = {}, plain = false, backend = createBackendAdapter({ platform, pkgRoot }) } = {}) {
+export async function runMidnightCircuit({ input = process.stdin, output = process.stdout, pkgRoot = PACKAGE_ROOT, platform = process.platform, arch = process.arch, hosts, options = {}, plain = false, environment, detectEnvironment = detectInstallerEnvironment, backend = createBackendAdapter({ platform, pkgRoot }) } = {}) {
   if (plain) plainOutputs.add(output); else plainOutputs.delete(output);
   previousFrames.delete(output);
   let providers = hosts ?? [];
   let available = [];
   const progressModel = new InstallerProgress({ reducedMotion: process.env.AFYX_REDUCED_MOTION === '1' });
   const frame = (stage, selection, activity, hint, view = {}) => renderFrame({ stage, providers,
-    providerSummary: stage >= 3 ? [`Selected: ${provider.join(', ') || 'skipped'}; scope: ${scope}`] : undefined,
+    providerSummary: stage >= 3 ? [`Selected: ${provider.join(', ') || 'skipped'}`, `Scope: ${scope}`] : undefined,
     selection, activity, width: output.columns || 80, height: plain ? Math.max(40, 20 + providers.length * 6 + selection.length + activity.length) : output.rows || 24, ...view,
     color: !plain && process.env.NO_COLOR === undefined ? output.getColorDepth?.() >= 24 ? 24 : 16 : false, ascii: plain,
-    runtime: `v${getPackageVersion()} | ${platform}/${arch} | Node ${process.versions.node}`,
+    runtime: `v${environment?.package?.version || getPackageVersion()} | Node ${process.versions.node} | source ${environment?.package?.sourceRevision?.slice(0, 8) || 'Unknown'}${environment?.package?.dirty ? '+' : ''}`,
+    environment,
     discovering: [...progressModel.operations.values()].some((item) => item.phase === 'discovery' && item.state === 'running'),
     hint: `${hint}${view.activityFocus ? ' [ACTIVITY FOCUS]' : view.providerFocus ? ' [PROVIDERS FOCUS]' : ''}` });
   let providerMode = 'skip';
@@ -299,15 +303,21 @@ export async function runMidnightCircuit({ input = process.stdin, output = proce
     const controller = new AbortController();
     const cancel = () => { controller.abort(); progressModel.stop('cancelled'); if (!plain) output.write('\x1b[0m\x1b[?25h'); };
     process.once('SIGINT', cancel); process.once('SIGTERM', cancel);
-    try { const result = await action(controller.signal); progressModel.end(id); return result; }
+    try { const result = await action(controller.signal); if (controller.signal.aborted) throw new Error('Installer operation canceled'); progressModel.end(id); return result; }
     catch (error) { progressModel.end(id, controller.signal.aborted ? 'cancelled' : 'failed', `${message}: ${String(error.message).split('\n')[0].slice(0, 512)}`); throw error; }
     finally { if (timer) clearInterval(timer); process.off('SIGINT', cancel); process.off('SIGTERM', cancel); }
   };
+  environment ??= await operation('discovery', 'Identifying OS, invoking shell, terminal and backend', 0,
+    (signal) => detectEnvironment({ platform, arch, pkgRoot, signal }));
   providers = hosts ?? await operation('discovery', 'Discovering CLI, IDE and extension inventory', 0, (signal) => discoverHosts(pkgRoot, signal));
   available = providers.filter((entry) => providerSelectable(entry, platform)).map((entry) => entry.id);
   providerMode = available.length ? 'all' : 'skip';
   const plan = async (phase = 'planning') => {
-    try { return await operation(phase, phase === 'revalidation' ? 'Revalidating plan fingerprint' : 'Generating read-only installation plan', 3, (signal) => backend.plan(backendOptions(), { signal })); }
+    try {
+      const result = await operation(phase, phase === 'revalidation' ? 'Revalidating plan fingerprint' : 'Generating read-only installation plan', 3, (signal) => backend.plan(backendOptions(), { signal }));
+      recordBackendExecution(environment, backend.executionShell);
+      return result;
+    }
     catch (error) {
       const diagnostic = recordInstallerDiagnostic(error);
       drawScreen(output, frame(3, ['FAILED — backend plan unavailable'],
@@ -461,7 +471,8 @@ export async function runMidnightCircuit({ input = process.stdin, output = proce
       const actual = await operation('validation', 'Inspecting installed component state', 4, (signal) => backend.plan(backendOptions(), { signal }));
       const verification = await operation('verify', 'Verifying installed components and provider configuration', 4, (signal) => backend.verify(backendOptions(), { signal }));
       const verificationPath = join(dirname(tracePath), 'verification.json');
-      writeFileSync(verificationPath, JSON.stringify(verification, null, 2) + '\n', { mode: 0o600 });
+      recordBackendExecution(environment, backend.executionShell);
+      writeFileSync(verificationPath, JSON.stringify({ ...verification, environment }, null, 2) + '\n', { mode: 0o600 });
       const result = await operation('receipt', 'Generating verified installation receipt', 4, () => summarizeExecution(actual, verification, exitCode, reviewedPlan));
       const checks = verification.rows.filter((row) => row.state === 'FAIL' || /^(Afyx Graph MCP|Antigravity MCP|Claude Code MCP|Afyx workflow MCP|Provider MCP|Afyx Context Engine|Afyx Forge Core|Core readiness)$/.test(row.name));
       const failedChecks = checks.filter((row) => row.state === 'FAIL' && row.name !== 'Core readiness');

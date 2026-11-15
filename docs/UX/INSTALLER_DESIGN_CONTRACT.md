@@ -5,6 +5,7 @@ Kontrak ini menggantikan arahan visual installer pada `docs/design/AFYX_ENGINEER
 Satu renderer Node.js melayani interaksi `npx afyx-engineering-kit install` di seluruh shell. PowerShell dan Bash adalah adapter eksekusi; keduanya tidak memilih desain TUI berdasarkan shell induk. Native scripts tetap menyediakan kontrak plan/verifikasi dan jalur noninteraktif.
 
 - Identitas: **AFYX / ENGINEERING KIT**, versi package dan platform/runtime aktual.
+- Metadata OS, invoking shell, terminal dan backend mengikuti [kontrak environment](INSTALLER_ENVIRONMENT_CONTRACT.md). Entrypoint native interaktif tanpa opsi meneruskan ke renderer yang sama ketika Node tersedia.
 - Warna: cyan fokus/brand (#22D3EE), biru aktivitas (#60A5FA), violet aksen sekunder (#8B5CF6), hijau operasi selesai (#34D399), amber peringatan/restart (#FBBF24), merah kegagalan (#FB7185). Terminal true-color menggunakan token RGB; lainnya menggunakan ANSI 16 warna. Status selalu memiliki teks; warna bukan satu-satunya indikator.
 - Lebar mencukupi: dua kolom, provider di kiri, panel sesuai tahap di kanan dengan aktivitas ringkas. Tidak ada tiga kolom sama lebar atau panel kosong yang dipaksa memenuhi tinggi terminal.
 - Lebar sedang/sempit: konten ditumpuk atau dipadatkan tanpa kehilangan kontrol; terminal yang tidak mendukung ANSI memakai wizard teks Node yang sama, pilihan bernomor, dan outcome backend yang sama.

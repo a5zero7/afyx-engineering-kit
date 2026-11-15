@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import {
+  existsSync,
   mkdirSync,
   mkdtempSync,
   readFileSync,
@@ -118,6 +119,31 @@ function installForge(fx, source = "console.log('{}');\n") {
   }));
   write(join(fx.installRoot, 'forge', 'current', 'bin', 'afyx-forge.js'), source);
 }
+
+test('unrelated installed Graph stays idle; authorized handoff checks freshness on demand', async (t) => {
+  const fx = fixture(); t.after(() => fx.cleanup()); installGraph(fx); installSkill(fx, 'odoo-engineering');
+  const entry = join(fx.installRoot, 'graph/current/lib/dist/bin/afyx-graph.js');
+  const calls = join(fx.root, 'graph-operations.log');
+  write(entry, `require('node:fs').appendFileSync(${JSON.stringify(calls)},process.argv[2]+'\\n');\n` + readFileSync(entry, 'utf8'));
+  const first = await runInstalledAfyxWorkflow({ ...fx, provider: 'codex', task: { taskType: 'odoo-fix' },
+    authorizations: { 'odoo-engineering': true, 'afyx-graph': true } });
+  assert.equal(first.metrics.runtimeDiscoveryToolCalls, 0);
+  assert.equal(existsSync(calls), false, 'metadata discovery must not execute Graph status');
+  installDynamic(fx);
+  write(join(fx.installRoot, 'components/afyx-review-assistant/current/interop.mjs'),
+    `process.stdin.resume();process.stdin.on('data',()=>{});process.stdin.on('end',()=>console.log(JSON.stringify({status:'SUCCESS',output:'review',followUpRequests:[{targetComponentId:'afyx-graph',invocationReason:'Verify review relationships'}]})));`);
+  const second = await runInstalledAfyxWorkflow({ ...fx, provider: 'codex', task: { customComponentId: 'afyx-review-assistant', payload: 'inspect relationships' },
+    authorizations: { 'afyx-review-assistant': true, 'afyx-graph': true } });
+  assert.equal(second.metrics.runtimeDiscoveryToolCalls, 1);
+  assert.deepEqual(second.metrics.runtimeDiscoveryInvocations, ['afyx-graph/status']);
+  assert.ok(second.results.some((item) => item.componentId === 'afyx-graph' && item.executionStatus === 'EXECUTED'), JSON.stringify(second));
+  assert.equal(readFileSync(calls, 'utf8').split('\n').filter((line) => line === 'status').length, 1);
+  const beforeBudgeted = readFileSync(calls, 'utf8');
+  const exhausted = await runInstalledAfyxWorkflow({ ...fx, provider: 'codex', task: { customComponentId: 'afyx-review-assistant' },
+    budgetLimits: { maxToolCalls: 1 }, authorizations: { 'afyx-review-assistant': true, 'afyx-graph': true } });
+  assert.equal(exhausted.metrics.runtimeDiscoveryToolCalls, 0);
+  assert.equal(readFileSync(calls, 'utf8'), beforeBudgeted, 'exhausted call budget must not trigger readiness subprocesses');
+});
 
 function installDynamic(fx, id = 'afyx-review-assistant', entrypoint = 'current/interop.mjs') {
   const root = join(fx.installRoot, 'components', id);
