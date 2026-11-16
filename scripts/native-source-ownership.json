@@ -2451,8 +2451,8 @@
     {
       "path": "scripts/afyx-provider-inventory.mjs",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "cbc113665f82e213cd9d233ebc8bef01b841e13f25b5e11e3d2f885a0076747b",
-      "evidence": "MB12 review: authored from AFYX functional requirements and existing reviewed 251f73a contracts; no upstream implementation, prompts, assets or dependency imported. Trusted-host boundaries and negative/regression tests recorded in MB12-native-consolidation-20261114-r1."
+      "reviewedSha256": "0991b191c3ea22b602568ca5fed28125071b89b4196dc1ef638fb570d3e48f2b",
+      "evidence": "MB12 native-source review retained. MB14 AFYX-328 technical delta review: existing filesystem inventory adds the official Antigravity extension identity and executable-presence fallback under the provider home, without launching it or claiming MCP readiness. Positive and preservation regressions pass; evidence AFYX-MB14-20261116. No upstream implementation or dependency imported; legal clearance remains separate."
     },
     {
       "path": "scripts/afyx-security-auditor.mjs",
