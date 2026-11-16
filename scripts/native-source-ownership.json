@@ -2415,7 +2415,7 @@
     {
       "path": "scripts/afyx-host-bridge.mjs",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "f394e330862dea631e44d287e79eb9ced9b71293860ef6f6eaae70abade74b16",
+      "reviewedSha256": "c79f49d0a9b22cc6d3639ac18492e7c7035a147a2651db9b2234cd2cf594c4f6",
       "evidence": "MB12 review: authored from AFYX functional requirements and existing reviewed 251f73a contracts; no upstream implementation, prompts, assets or dependency imported. Trusted-host boundaries and negative/regression tests recorded in MB12-native-consolidation-20261114-r1."
     },
     {

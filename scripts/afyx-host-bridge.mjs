@@ -52,6 +52,11 @@ export async function invokeHostWorkflow({
   loadCapabilityDetails,
 } = {}) {
   const parsedTask = typeof task === 'string' ? JSON.parse(task) : task;
+  const graphSymbol = parsedTask?.payload?.symbol;
+  if (['callers', 'caller-analysis', 'impact', 'symbol-impact'].includes(parsedTask?.taskType) &&
+      graphSymbol !== undefined && (typeof graphSymbol !== 'string' || !graphSymbol.trim())) {
+    throw new TypeError('INVALID_GRAPH_SYMBOL: task.payload.symbol must be a non-empty string');
+  }
   const resolvedProjectRoot = resolve(projectRoot);
   const resolvedInstallRoot = installRoot ? resolve(installRoot) : null;
   const permissions = providerPermissions ?? authorizations;
@@ -162,7 +167,12 @@ export function serveHostMcpBridge(serverOptions = {}) {
                   properties: {
                     task: {
                       type: 'object',
-                      description: 'The engineering task specification',
+                      description: 'Engineering task. For Graph callers/impact use e.g. {"taskType":"callers","payload":{"symbol":"createProject"}}. The symbol is a non-empty string, not an object.',
+                      properties: { taskType: { type: 'string' } },
+                      allOf: [{
+                        if: { properties: { taskType: { enum: ['callers', 'caller-analysis', 'impact', 'symbol-impact'] } }, required: ['taskType'] },
+                        then: { properties: { payload: { type: 'object', properties: { symbol: { type: 'string', minLength: 1 } } } } },
+                      }],
                     },
                   },
                   required: ['task'],
@@ -195,6 +205,7 @@ export function serveHostMcpBridge(serverOptions = {}) {
             jsonrpc: '2.0',
             id,
             result: {
+              structuredContent: result,
               content: [
                 {
                   type: 'text',
