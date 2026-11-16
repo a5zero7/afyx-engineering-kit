@@ -31,11 +31,11 @@ if "$offline"; then
 elif "$skip_self_update"; then
   printf 'Self-update skipped by --skip-self-update; using current local source intentionally.\n'
 else
-  if ! command -v git >/dev/null 2>&1; then
+  if [[ -e "$root/.git" ]] && ! command -v git >/dev/null 2>&1; then
     printf '[ERROR] Git executable not found. Self-update cannot be performed. Re-run with --skip-self-update only if using the current checkout intentionally.\n' >&2
     exit 1
   fi
-  if ! git -C "$root" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+  if [[ ! -e "$root/.git" ]] || ! git -C "$root" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
     printf '[INFO] Self-update unavailable: source directory is not a Git repository. Continuing with current source.\n'
   else
     if ! status="$(git -C "$root" status --porcelain)"; then

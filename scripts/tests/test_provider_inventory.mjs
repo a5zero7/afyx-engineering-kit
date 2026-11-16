@@ -11,6 +11,40 @@ const inspect = (probe, platform = 'win32') => discoverProviderInventory({
 });
 const byId = (inventory, id) => inventory.find((item) => item.id === id);
 
+test('Antigravity extension-installed CLI is discovered off PATH without execution', (t) => {
+  const home = mkdtempSync(join(tmpdir(), 'afyx-bundled-agy-'));
+  t.after(() => rmSync(home, { recursive: true, force: true }));
+  const executable = join(home, '.gemini', 'bin', process.platform === 'win32' ? 'agy.exe' : 'agy');
+  mkdirSync(join(home, '.gemini', 'bin'), { recursive: true });
+  writeFileSync(executable, 'DO NOT EXECUTE THIS FIXTURE');
+  chmodSync(executable, 0o755);
+  const inventory = discoverProviderInventory({ home, env: { PATH: '', HOME: home } });
+  const product = byId(inventory, 'antigravity').products.find((item) => item.type === 'CLI');
+  assert.equal(product.path, executable);
+  assert.equal(product.configuration, 'NOT_VERIFIED');
+  assert.ok(selectableProviderIds(inventory).includes('antigravity'));
+  assert.equal(readFileSync(executable, 'utf8'), 'DO NOT EXECUTE THIS FIXTURE');
+});
+
+test('Antigravity extension-only installation is visible without claiming MCP readiness', (t) => {
+  const home = mkdtempSync(join(tmpdir(), 'afyx-antigravity-inventory-'));
+  t.after(() => rmSync(home, { recursive: true, force: true }));
+  const directory = join(home, '.vscode', 'extensions', 'google.google-antigravity-fixture');
+  mkdirSync(directory, { recursive: true });
+  const manifest = join(directory, 'package.json');
+  writeFileSync(manifest, JSON.stringify({ publisher: 'google', name: 'google-antigravity', version: '1.12.0' }));
+  const before = readFileSync(manifest);
+  const inventory = discoverProviderInventory({ home, env: { PATH: '', HOME: home },
+    probe: { commands: {}, desktops: {} } });
+  const product = byId(inventory, 'antigravity').products[0];
+  assert.equal(product.type, 'VS Code Extension');
+  assert.equal(product.version, '1.12.0');
+  assert.equal(product.configuration, 'NOT_VERIFIED');
+  assert.equal(product.mcp, false);
+  assert.deepEqual(selectableProviderIds(inventory), []);
+  assert.deepEqual(readFileSync(manifest), before);
+});
+
 test('supported providers are alphabetic and unavailable products are honest', () => {
   const inventory = inspect({ commands: {}, extensions: [], desktops: {}, files: [] });
   assert.deepEqual(inventory.map((item) => item.name), ['Antigravity', 'Claude Code', 'Codex']);

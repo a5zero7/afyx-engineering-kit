@@ -365,6 +365,22 @@ References are owner/session-bound, and retrieval verifies the stored digest.
 
 ## Lifecycle and safety
 
+The canonical Full preset in `scripts/components.json` selects Efficient Coding,
+Odoo Engineering, Engineering Expert, Graph, Context, Forge, and Codex Usage
+Tracking (the last component remains platform/provider-specific). Kit package
+versions and individual component versions are independent; Graph 1.0.0 does not
+mean Kit 1.0.0.
+
+Source self-update uses only the updater's own Git checkout. Packaged/npm sources
+without their own `.git` continue with the installed source, even inside another
+repository. Detached checkouts and branches without an upstream skip Git pulling;
+dirty checkouts still stop before installation. This does not update an npm package
+to a new registry version.
+
+Provider inventory is read-only: it includes the Antigravity VS Code extension and
+its existing `.gemini/bin/agy` CLI even when the CLI is absent from `PATH`.
+Detection alone does not prove MCP registration, permission, or readiness.
+
 The installer inventories before mutation and distinguishes `NOT INSTALLED`,
 `HEALTHY`, `INCOMPLETE`, `INVALID`, `DRIFTED`, and `UNKNOWN`. Unknown or foreign
 ownership is not silently adopted. Update/repair uses staging, validation,

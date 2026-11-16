@@ -8,7 +8,7 @@ import { pathToFileURL } from 'node:url';
 import { spawnSync } from 'node:child_process';
 
 const catalog = [
-  { id: 'antigravity', name: 'Antigravity', supported: true, commands: ['agy', 'antigravity'] },
+  { id: 'antigravity', name: 'Antigravity', supported: true, commands: ['agy', 'antigravity'], extension: 'google.google-antigravity' },
   { id: 'claude', name: 'Claude Code', supported: true, commands: ['claude'], extension: 'anthropic.claude-code' },
   { id: 'codex', name: 'Codex', supported: true, commands: ['codex'], extension: 'openai.chatgpt' },
   { id: 'cursor', name: 'Cursor', supported: false, future: true, commands: ['cursor'] },
@@ -40,14 +40,14 @@ function extensionProducts(home, platform) {
     let names;
     try { names = readdirSync(directory); } catch { continue; }
     for (const name of names.sort().slice(0, 512)) {
-      if (!/^(openai\.chatgpt|anthropic\.claude-code)-/i.test(name)) continue;
+      if (!/^(openai\.chatgpt|anthropic\.claude-code|google\.google-antigravity)-/i.test(name)) continue;
       const location = join(directory, name);
       try {
         const manifestPath = join(location, 'package.json');
         if (statSync(manifestPath).size > 65536) continue;
         const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'));
         const id = `${manifest.publisher}.${manifest.name}`.toLowerCase();
-        if (!['openai.chatgpt', 'anthropic.claude-code'].includes(id)) continue;
+        if (!['openai.chatgpt', 'anthropic.claude-code', 'google.google-antigravity'].includes(id)) continue;
         found.push({ id, path: location, version: String(manifest.version || '') });
       } catch { /* incomplete or unrecognized extension */ }
     }
@@ -94,7 +94,14 @@ export function discoverProviderInventory({ platform = process.platform, env = p
   for (const entry of catalog) {
     const products = [];
     for (const command of entry.commands) {
-      const location = commands ? commands[command] : commandPath(command, env, platform);
+      let location = commands ? commands[command] : commandPath(command, env, platform);
+      if (!commands && !location && entry.id === 'antigravity' && command === 'agy') {
+        const bundled = join(home, '.gemini', 'bin', platform === 'win32' ? 'agy.exe' : 'agy');
+        try {
+          const info = statSync(bundled);
+          if (info.isFile() && (platform === 'win32' || (info.mode & 0o111))) location = bundled;
+        } catch { /* optional extension-installed CLI is absent */ }
+      }
       if (!location) continue;
       if (platform !== 'win32' && (location.toLowerCase().endsWith('.exe') || /^\/mnt\/[a-z]\//i.test(location))) continue;
       products.push({ type: 'CLI', name: `${entry.name} CLI`, path: location,

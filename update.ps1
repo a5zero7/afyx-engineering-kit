@@ -59,7 +59,7 @@ if ($Offline -and -not $SkipSelfUpdate) {
     Write-Host 'Offline mode: self-update skipped; using the current local source intentionally.'
 } elseif (-not $SkipSelfUpdate) {
     $git = Get-Command git -ErrorAction SilentlyContinue
-    if (-not $git) {
+  if (-not $git -and (Test-Path -LiteralPath (Join-Path $root '.git'))) {
         Write-Error 'Git executable not found. Self-update cannot be performed. Re-run with -SkipSelfUpdate only if using the current checkout intentionally.'
         exit 1
     }
@@ -75,10 +75,16 @@ if ($Offline -and -not $SkipSelfUpdate) {
         }
         if ($WhatIfPreference) {
             Write-Host 'WhatIf: skipping git pull --ff-only; repository will not be modified.'
-        } else {
-            & git -C $root pull --ff-only
-            if ($LASTEXITCODE -ne 0) { Write-Error 'Self-update failed; installer was not run.'; exit 1 }
-        }
+    } else {
+      $branch = & git -C $root symbolic-ref --quiet --short HEAD
+      $upstream = if ($LASTEXITCODE -eq 0 -and $branch) { & git -C $root for-each-ref '--format=%(upstream)' "refs/heads/$branch" }
+      if (-not $upstream) {
+        Write-Host 'No upstream branch configured; self-update skipped. Continuing current source.'
+      } else {
+        & git -C $root pull --ff-only
+        if ($LASTEXITCODE -ne 0) { Write-Error 'Self-update failed; installer was not run.'; exit 1 }
+      }
+    }
     }
 } else { Write-Host 'Self-update skipped by -SkipSelfUpdate; using current local source intentionally.' }
 

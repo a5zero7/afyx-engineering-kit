@@ -72,7 +72,7 @@ transactional lifecycle.
 | Guide focused, evidence-based code changes | Afyx Efficient Coding: ground, locate, reproduce, change, validate, report | Instruction workflow; tests and edits must actually run to count as evidence |
 | Apply verified Odoo-version conventions | Afyx Odoo Engineering with version-specific references for Odoo 10–20 | Actual source, runtime, edition, and database behavior take precedence |
 | Plan engineering work proportionally | Forge Core v0.1.0 CLI/API, task classification, adaptive policy and bounded guidance | Technical Alpha assistive planning; no autonomous execution or acceptance implied |
-| Compare engineering candidates consistently | Separate Forge B0–B5 manifests, fixtures, validators, controller and isolation work | Formal 36-cell campaign remains `NOT_RUN`; A8 has no GO |
+| Compare engineering candidates consistently | Separate Forge B0–B5 manifests, fixtures, validators, controller and isolation work | Formal 36-cell campaign remains `NOT_RUN`; bounded local Owner A8 GO does not clear the formal campaign |
 | Reduce repeated context without losing originals | ACE conservative reduction and digest-verified retrieval | Local state, explicit ownership/session, measured workload; savings are not universal |
 | Install and recover without taking over user assets | Shared component contract, ownership markers, staging, backup, rollback | Supported lifecycle paths and platform CI; external/user configuration is preserved |
 
@@ -130,9 +130,9 @@ billing savings. Negative-net findings are retained rather than hidden.
 | Kit lifecycle | Implemented and regression-tested across supported scripts | No guarantee for an unverified foreign target or every host customization |
 | Afyx Graph 1.0.0 | Technical Alpha runtime | Not Stable v1; publisher authenticity is not implied by checksum alone |
 | Afyx Engineering Expert 0.1.1 | Usable instruction skill | No framework certification, SME sign-off, or final D.6 acceptance claim |
-| Forge Core 0.1.0 / formal Forge campaign | Standalone assistive planning runtime is available; formal B0–B5 campaign remains gated | No autonomous engineering execution, A8 GO, 36-cell benchmark PASS, or A12 acceptance |
+| Forge Core 0.1.0 / formal Forge campaign | Standalone assistive planning runtime is available; formal B0–B5 campaign remains gated | No autonomous engineering execution, full-matrix A8 GO, 36-cell benchmark PASS, or A12 acceptance |
 | ACE 0.1.0 | Standalone and Kit-managed explicit option | No universal token/context saving; no distributed coordination or production authentication |
-| Afyx Efficient Coding 1.2.1 | Independent coding-process instruction skill | No autonomous tool execution or assumed test PASS |
+| Afyx Efficient Coding 1.2.2 | Independent coding-process instruction skill | No autonomous tool execution or assumed test PASS |
 | Afyx Odoo Engineering 1.2.0 | Version-scoped reference coverage for Odoo 10–20 | No substitute for exact repository/runtime version evidence |
 | Usage Tracking | Optional Windows toolset | API-equivalent estimates are not invoices or provider-authoritative billing |
 

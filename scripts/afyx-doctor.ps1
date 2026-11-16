@@ -20,7 +20,7 @@ $script:Warnings = 0
 function Write-Line([string]$State, [string]$Name, [string]$Detail = '') {
     if ($State -eq 'FAIL') { $script:Failures++ }
     if ($State -eq 'WARN') { $script:Warnings++ }
-    $suffix = if ($Detail) { " — $Detail" } else { '' }
+    $suffix = if ($Detail) { " - $Detail" } else { '' }
     Write-Host "[$State] $Name$suffix"
 }
 
@@ -103,11 +103,12 @@ if ($codexVersion) { Write-Line 'OK' 'Codex CLI' $codexVersion } else { Write-Li
 if ($extension) { Write-Line 'OK' 'VS Code extension' 'detected' } else { Write-Line 'INFO' 'VS Code extension' 'not detected' }
 $antigravityVersion = Get-ToolVersion 'agy' @('--version')
 if (-not $antigravityVersion) { $antigravityVersion = Get-ToolVersion 'antigravity' @('--version') }
+$antigravityExtension = [bool](Get-ChildItem -Path (Join-Path $(if ($env:USERPROFILE) { $env:USERPROFILE } else { $env:HOME }) '.vscode\extensions\google.google-antigravity-*') -Directory -ErrorAction SilentlyContinue | Select-Object -First 1)
 $claudeVersion = Get-ToolVersion 'claude' @('--version')
 $claudeExtension = [bool](Get-ChildItem -Path (Join-Path $(if ($env:USERPROFILE) { $env:USERPROFILE } else { $env:HOME }) '.vscode\extensions\anthropic.claude-code-*') -Directory -ErrorAction SilentlyContinue | Select-Object -First 1)
-if ($antigravityVersion) { Write-Line 'OK' 'Antigravity CLI' $antigravityVersion } else { Write-Line 'INFO' 'Antigravity CLI' 'not found (optional)' }
+if ($antigravityVersion -or $antigravityExtension) { Write-Line 'OK' 'Antigravity host' $(if ($antigravityVersion) { $antigravityVersion } else { 'VS Code extension detected' }) } else { Write-Line 'INFO' 'Antigravity host' 'not found (optional)' }
 if ($claudeVersion -or $claudeExtension) { Write-Line 'OK' 'Claude Code host' $(if ($claudeVersion) { $claudeVersion } else { 'VS Code extension detected' }) } else { Write-Line 'INFO' 'Claude Code host' 'not found (optional)' }
-if (-not $codexVersion -and -not $extension -and -not $antigravityVersion -and -not $claudeVersion -and -not $claudeExtension) {
+if (-not $codexVersion -and -not $extension -and -not $antigravityVersion -and -not $antigravityExtension -and -not $claudeVersion -and -not $claudeExtension) {
     Write-Line 'INFO' 'Provider host' 'none detected; component-only installation remains supported'
 }
 $gitVersion = Get-ToolVersion 'git' @('--version')
