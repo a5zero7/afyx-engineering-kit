@@ -47,7 +47,7 @@ test('supported caller/impact task types remain relational even with a known sou
   for (const taskType of ['callers', 'caller-analysis', 'impact', 'symbol-impact']) {
     const route = resolveAfyxCapabilityRoute({ task: { taskType, exactKnownSource: true, payload: { symbol: 'createProject' } },
       provider: 'codex', componentStates: { 'afyx-graph': { installed: true, enabled: true, authorized: true,
-        healthy: true, compatible: true, indexReady: true, indexFresh: true } } });
+        healthy: true, compatible: true, indexReady: true, indexFresh: true, sourceIdentity: 'verified-task-type-fixture' } } });
     assert.equal(route.directSourceFastPath, false, taskType);
     assert.equal(route.classification.relational, true, taskType);
     assert.equal(route.requests.filter((request) => request.targetComponentId === 'afyx-graph').length, 1, taskType);
