@@ -621,12 +621,14 @@ export async function executeAfyxCapabilityRoute(options = {}) {
   // but the workspace index is not ready, perform JIT initialization before route planning.
   const graphState = options.componentStates?.['afyx-graph'];
   if (hasRelationalDemand && graphState?.installed && graphState?.enabled !== false && graphState?.authorized &&
-      !graphState?.indexReady && typeof options.prepareCapabilityState === 'function') {
+      !graphState?.indexReady && options.budgetLimits?.maxToolCalls !== 0 && options.budgetLimits?.maxCapabilities !== 0 &&
+      typeof options.prepareCapabilityState === 'function') {
     try {
-      const remainingMs = Math.max(1, Math.floor((options.budgetLimits?.maxExecutionMs || DEFAULT_BUDGET_LIMITS.maxExecutionMs) - (performance.now() - executionStarted)));
+      const remainingMs = Math.max(1, Math.floor((options.budgetLimits?.maxExecutionMs || DEFAULT_BUDGET_LIMITS.maxExecutionMs) - (performance.now() - startedAt)));
       const preparedGraph = await options.prepareCapabilityState('afyx-graph', {
         jitInitialize: true,
         relationalDemand: true,
+        useInitialStatus: true,
         maxExecutionMs: remainingMs,
       });
       if (preparedGraph && typeof preparedGraph === 'object') {
@@ -758,7 +760,10 @@ export async function executeAfyxCapabilityRoute(options = {}) {
         toolCalls += 1;
         adapterStarted = true;
         invokedTools.push(request.targetComponentId);
-        return adapter(request, { signal: controller.signal, capabilityDetails });
+        // Synchronous subprocess adapters must receive the remaining deadline;
+        // an AbortController timer cannot interrupt spawnSync on the event loop.
+        const remainingMs = Math.max(1, Math.floor(route.budgets.maxExecutionMs - (performance.now() - startedAt)));
+        return adapter({ ...request, budgetLimits: { ...request.budgetLimits, maxExecutionMs: remainingMs } }, { signal: controller.signal, capabilityDetails });
       };
       result = normalizedAdapterResult(
         request,

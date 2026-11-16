@@ -347,6 +347,8 @@ test('host bridge MCP: stdio MCP server supports initialize, tools/list, and too
       params: {
         name: 'afyx_workflow',
         arguments: {
+          budgetLimits: { maxExecutionMs: 999_999 },
+          hostTimeoutMs: 999_999,
           task: {
             taskType: 'string-replacement',
             exactKnownSource: true,
@@ -363,6 +365,7 @@ test('host bridge MCP: stdio MCP server supports initialize, tools/list, and too
     assert.equal(workflowPayload.bridgeContract, AFYX_HOST_BRIDGE_CONTRACT);
     assert.equal(workflowPayload.executionStatus, 'DIRECT_SOURCE');
     assert.equal(workflowPayload.metrics.toolCalls, 0);
+    assert.equal(workflowPayload.budgets.maxExecutionMs, 5_000, 'model MCP arguments cannot grant a larger deadline');
   } finally {
     child.stdin.end();
     child.kill();

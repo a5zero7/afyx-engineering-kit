@@ -44,6 +44,7 @@ export async function invokeHostWorkflow({
   authorizations = {},
   providerPermissions = null,
   budgetLimits = undefined,
+  hostTimeoutMs,
   environment = process.env,
   trustedSkillEngineering = null,
   trustedCapabilities = {},
@@ -63,6 +64,7 @@ export async function invokeHostWorkflow({
     authorizations,
     providerPermissions: permissions,
     budgetLimits,
+    hostTimeoutMs,
     environment,
     trustedSkillEngineering,
     trustedCapabilities,
@@ -186,7 +188,6 @@ export function serveHostMcpBridge(serverOptions = {}) {
           const args = params.arguments || {};
           const result = await invokeHostWorkflow({
             task: args.task,
-            budgetLimits: args.budgetLimits,
             ...serverOptions,
           });
 
@@ -244,6 +245,11 @@ function argumentValue(flag) {
 
 async function main() {
   const trustedCapabilities = trustedLaunchCapabilities();
+  const timeoutArg = argumentValue('--host-timeout-ms');
+  const hostTimeoutMs = timeoutArg === null ? undefined : Number(timeoutArg);
+  if (hostTimeoutMs !== undefined && (!Number.isSafeInteger(hostTimeoutMs) || hostTimeoutMs < 1 || hostTimeoutMs > 60_000)) {
+    throw new TypeError('--host-timeout-ms must be an integer between 1 and 60000');
+  }
   if (trustedCapabilities.githubExecutable) {
     const { createGhRequest } = await import('./afyx-native-github.mjs');
     trustedCapabilities.github.request = createGhRequest({ executable: trustedCapabilities.githubExecutable,
@@ -259,6 +265,7 @@ async function main() {
     const authorizedIds = new Set((argumentValue('--authorize') ?? '').split(',').filter(Boolean));
     const authorizations = Object.fromEntries([...authorizedIds].map((id) => [id, true]));
     serveHostMcpBridge({
+      hostTimeoutMs,
       trustedCapabilities,
       installRoot,
       projectRoot,
@@ -291,6 +298,7 @@ async function main() {
 
   const authorizations = Object.fromEntries([...authorizedIds].map((id) => [id, true]));
   const result = await invokeHostWorkflow({
+    hostTimeoutMs,
     trustedCapabilities,
     installRoot,
     projectRoot,

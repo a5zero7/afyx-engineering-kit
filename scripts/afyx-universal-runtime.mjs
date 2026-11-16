@@ -120,9 +120,9 @@ function inspectGraphIndex(projectRoot, entrypoint, nodePath, environment, timeo
     encoding: 'utf8', windowsHide: true, timeout: timeoutMs,
     maxBuffer: 2 * 1024 * 1024, env: environment,
   });
-  if (result.status !== 0 || result.error) return { indexReady: false, indexFresh: false, initialized: false };
+  if (result.status !== 0 || result.error) return { indexReady: false, indexFresh: false, probeError: 'GRAPH_STATUS_FAILED' };
   let status;
-  try { status = JSON.parse(result.stdout); } catch { return { indexReady: false, indexFresh: false, initialized: false }; }
+  try { status = JSON.parse(result.stdout); } catch { return { indexReady: false, indexFresh: false, probeError: 'GRAPH_STATUS_INVALID' }; }
   let indexRoot;
   let trustedRoot = false;
   let safeState = false;
@@ -158,6 +158,12 @@ function inspectGraphIndex(projectRoot, entrypoint, nodePath, environment, timeo
 
 const activeGraphInits = new Map();
 
+function measureGraphStage(timings, stage, operation) {
+  const startedAt = performance.now();
+  try { return operation(); }
+  finally { timings.push({ stage, durationMs: performance.now() - startedAt }); }
+}
+
 function runSafeGraphInit(projectRoot, entrypoint, nodePath, environment, timeoutMs = 15_000) {
   let safeProject;
   try {
@@ -191,7 +197,7 @@ function runSafeGraphInit(projectRoot, entrypoint, nodePath, environment, timeou
       windowsHide: true,
       timeout: timeoutMs,
       maxBuffer: 2 * 1024 * 1024,
-      env: environment,
+      env: { ...environment, AFYX_GRAPH_NO_DAEMON: '1', AFYX_GRAPH_NO_WATCH: '1' },
     });
     if (result.status === 0 && !result.error) {
       return { initialized: true };
@@ -253,6 +259,7 @@ function inspectKnownComponents({
   componentStateOverrides,
   probeGraph = true,
   preparationEvents = [],
+  preparationTimings = [],
   probeTimeoutMs = 10_000,
 }) {
   const states = {};
@@ -279,7 +286,7 @@ function inspectKnownComponents({
       override.healthy !== false && override.compatible !== false && authorizations?.[componentId] === true && probeGraph;
     if (inspectGraph) preparationEvents.push('afyx-graph/status');
     const graph = inspectGraph
-      ? inspectGraphIndex(projectRoot, join(root, 'current', 'lib', 'dist', 'bin', 'afyx-graph.js'), nodePath, environment, probeTimeoutMs)
+      ? measureGraphStage(preparationTimings, 'initial-status', () => inspectGraphIndex(projectRoot, join(root, 'current', 'lib', 'dist', 'bin', 'afyx-graph.js'), nodePath, environment, probeTimeoutMs))
       : (componentId === 'afyx-graph' ? { indexReady: false, indexFresh: false } : {});
     states[componentId] = {
       installed,
@@ -441,6 +448,8 @@ export function createInstalledAfyxRuntime({
   const resolvedInstallRoot = resolve(installRoot);
   const resolvedProjectRoot = resolve(projectRoot);
   const preparationEvents = [];
+  const preparationTimings = [];
+  let preparationError = null;
   const graphProbeAuthorized = (provider === null || ACCEPTED_PROVIDERS.includes(provider)) &&
     providerPermissions['afyx-graph'] !== false && providerPermissions['repository-graph-evidence'] !== false &&
     hostAuthorizations[provider] !== false && hostAuthorizations.providers?.[provider] !== false &&
@@ -463,6 +472,7 @@ export function createInstalledAfyxRuntime({
     componentStateOverrides,
     probeGraph: probeGraph && graphProbeAuthorized,
     preparationEvents,
+    preparationTimings,
     probeTimeoutMs,
   });
   const dynamic = discoverDynamicComponents({
@@ -520,14 +530,22 @@ export function createInstalledAfyxRuntime({
     provider,
     providerSkillRoots,
     get preparationEvents() { return Object.freeze([...preparationEvents]); },
+    get preparationTimings() { return Object.freeze([...preparationTimings]); },
+    get preparationError() { return preparationError; },
     async prepareCapabilityState(componentId, controls = {}) {
       const original = known.states[componentId];
       if (componentId !== 'afyx-graph' || !graphProbeAuthorized || !original?.installed || !original.enabled || !original.authorized) return original;
       const root = known.evidence.find((item) => item.componentId === componentId).root;
       const entrypoint = join(root, 'current/lib/dist/bin/afyx-graph.js');
-      preparationEvents.push('afyx-graph/status');
-      const timeoutMs = Math.max(1, Math.min(10_000, controls.maxExecutionMs || 10_000));
-      let observed = inspectGraphIndex(resolvedProjectRoot, entrypoint, nodePath, environment, timeoutMs);
+      const deadline = performance.now() + Math.max(1, controls.maxExecutionMs || 10_000);
+      const remainingMs = () => Math.max(1, Math.floor(deadline - performance.now()));
+      const probe = (stage) => {
+        preparationEvents.push('afyx-graph/status');
+        return measureGraphStage(preparationTimings, stage, () => inspectGraphIndex(resolvedProjectRoot, entrypoint, nodePath, environment, Math.min(10_000, remainingMs())));
+      };
+      // Only the immediate workflow preflight may reuse discovery's observation.
+      let observed = controls.useInitialStatus && typeof original.initialized === 'boolean'
+        ? original : probe('pre-init-status');
 
       // Safe Stale Index Policy: report status, do not silently destroy owner data
       if (observed.indexReady && !observed.indexFresh) {
@@ -544,7 +562,8 @@ export function createInstalledAfyxRuntime({
 
       // Graph installed, workspace uninitialized, explicit relational demand:
       // Initialize just in time before Graph MCP invocation
-      const isUninitialized = observed.initialized === false || !observed.indexReady;
+      // A failed probe or an incomplete existing index is not permission to rebuild.
+      const isUninitialized = observed.initialized === false;
       const explicitRelationalDemand = controls.jitInitialize === true || controls.relationalDemand === true;
 
       if (isUninitialized && explicitRelationalDemand && original.healthy !== false && original.compatible !== false) {
@@ -553,16 +572,22 @@ export function createInstalledAfyxRuntime({
 
         let initPromise = activeGraphInits.get(canonicalKey);
         if (!initPromise) {
+          // Reserve time for post-init verification and the actual query.
+          if (remainingMs() <= 1_000) {
+            preparationError = 'GRAPH_COLD_START_DEADLINE_TOO_SHORT';
+            return { ...original, ...observed, jitError: preparationError };
+          }
           preparationEvents.push('afyx-graph/init');
-          initPromise = Promise.resolve().then(() => runSafeGraphInit(resolvedProjectRoot, entrypoint, nodePath, environment, Math.min(30_000, controls.maxExecutionMs || 15_000)));
+          initPromise = Promise.resolve().then(() => measureGraphStage(preparationTimings, 'initialize', () => runSafeGraphInit(resolvedProjectRoot, entrypoint, nodePath, environment, Math.max(1, Math.min(15_000, remainingMs() - 1_000)))));
           activeGraphInits.set(canonicalKey, initPromise);
         }
 
         try {
           const initRes = await initPromise;
           if (initRes.initialized) {
-            observed = inspectGraphIndex(resolvedProjectRoot, entrypoint, nodePath, environment, timeoutMs);
+            observed = probe('post-init-status');
           } else {
+            preparationError = initRes.error;
             observed = { ...observed, jitError: initRes.error, indexReady: false, indexFresh: false };
           }
         } finally {
@@ -588,6 +613,13 @@ export function createInstalledAfyxRuntime({
 /** Discover, select, and execute only the capabilities justified by one task. */
 export async function runInstalledAfyxWorkflow(options = {}) {
   const startedAt = performance.now();
+  // A host launch option, never task JSON, can grant a bounded cold-start window.
+  if (options.hostTimeoutMs !== undefined && (!Number.isSafeInteger(options.hostTimeoutMs) || options.hostTimeoutMs < 1 || options.hostTimeoutMs > 60_000)) {
+    throw new TypeError('hostTimeoutMs must be an integer between 1 and 60000');
+  }
+  const hostWindowMs = options.hostTimeoutMs === undefined ? Infinity : Math.max(1, options.hostTimeoutMs - 250);
+  const requestedMs = options.budgetLimits?.maxExecutionMs;
+  const warmBudgetMs = Number.isSafeInteger(requestedMs) && requestedMs > 0 ? requestedMs : DEFAULT_BUDGET_LIMITS.maxExecutionMs;
   const task = options.task ?? {};
   const routeOptions = {
     task,
@@ -595,7 +627,7 @@ export async function runInstalledAfyxWorkflow(options = {}) {
     providerPermissions: options.providerPermissions ?? {},
     hostAuthorizations: options.hostAuthorizations ?? {},
     userPreferences: options.userPreferences ?? {},
-    budgetLimits: options.budgetLimits,
+    budgetLimits: { ...options.budgetLimits, maxExecutionMs: Math.min(warmBudgetMs, hostWindowMs) },
     environment: options.environment ?? process.env,
     hostMetadata: options.hostMetadata,
     loadCapabilityDetails: options.loadCapabilityDetails,
@@ -610,12 +642,20 @@ export async function runInstalledAfyxWorkflow(options = {}) {
   const classification = classifyTaskIntent(task, options.hostMetadata);
   const exclusive = classification.odoo || classification.forgeAdvice || classification.documentation || classification.usageAnalytics ||
     classification.github || classification.nativeExecution || classification.securityAudit || classification.unknownDomain || classification.ambiguousDomain;
-  const runtime = createInstalledAfyxRuntime({ ...options, probeTimeoutMs: Math.max(1, Math.min(10_000, options.budgetLimits?.maxExecutionMs || DEFAULT_BUDGET_LIMITS.maxExecutionMs)),
+  const runtime = createInstalledAfyxRuntime({ ...options, probeTimeoutMs: Math.max(1, Math.min(10_000, routeOptions.budgetLimits.maxExecutionMs)),
     probeGraph: options.budgetLimits?.maxToolCalls !== 0 && options.budgetLimits?.maxCapabilities !== 0 &&
     (classification.relational && (!exclusive || task.needsRelationalEvidence === true) ||
     classification.manualSelection.includes('afyx-graph') || classification.customComponentId === 'afyx-graph' ||
     classification.customCapability === 'repository-graph-evidence') });
   try {
+    const discoveryMs = performance.now() - startedAt;
+    const graph = runtime.componentStates['afyx-graph'];
+    const cold = classification.relational && (!exclusive || task.needsRelationalEvidence === true) &&
+      graph?.installed && graph.enabled && graph.authorized && graph.healthy && graph.compatible && graph.initialized === false &&
+      options.budgetLimits?.maxToolCalls !== 0 && options.budgetLimits?.maxCapabilities !== 0;
+    if (cold && options.hostTimeoutMs !== undefined && options.budgetLimits?.maxExecutionMs === undefined) {
+      routeOptions.budgetLimits.maxExecutionMs = Math.min(15_000, hostWindowMs);
+    }
     const result = await executeAfyxCapabilityRoute({
       ...routeOptions,
       componentStates: runtime.componentStates,
@@ -623,7 +663,14 @@ export async function runInstalledAfyxWorkflow(options = {}) {
       prepareCapabilityState: runtime.prepareCapabilityState,
       preparationElapsedMs: performance.now() - startedAt,
     });
-    return { ...result, metrics: { ...result.metrics, runtimeDiscoveryToolCalls: runtime.preparationEvents.length,
+    const incomplete = cold && !result.results.some((item) => item.componentId === 'afyx-graph' && item.executionStatus === 'EXECUTED');
+    return { ...result,
+      ...(incomplete ? { completionStatus: 'DEFERRED', diagnostics: [...result.diagnostics, {
+        code: 'GRAPH_COLD_START_INCOMPLETE', severity: 'WARNING',
+        detail: runtime.preparationError ?? 'Graph initialization/query did not complete within the authorized deadline; no query success is claimed.',
+      }] } : {}),
+      metrics: { ...result.metrics, runtimeDiscoveryMs: discoveryMs, graphPreparationTimings: runtime.preparationTimings,
+      requestElapsedMs: performance.now() - startedAt, runtimeDiscoveryToolCalls: runtime.preparationEvents.length,
       runtimeDiscoveryInvocations: [...runtime.preparationEvents] } };
   } finally {
     runtime.dispose();
