@@ -28,7 +28,9 @@ test('trusted host cold window covers initialization and query; warm stays at fi
   const fx = fixture();
   t.after(() => fx.cleanup());
   const { logFile } = installMockGraph(fx, { initDelayMs: 5_100 });
-  const options = { ...fx, provider: 'codex', authorizations: { 'afyx-graph': true }, hostTimeoutMs: 30_000, task: relationalTask };
+  // Real Codex emits the supported operation without a redundant needsRelationalEvidence flag.
+  const options = { ...fx, provider: 'codex', authorizations: { 'afyx-graph': true }, hostTimeoutMs: 30_000,
+    task: { taskType: 'callers', payload: { symbol: 'createProject' } } };
   const cold = await runInstalledAfyxWorkflow(options);
   assert.equal(cold.executionStatus, 'EXECUTED', JSON.stringify(cold));
   assert.equal(cold.metrics.toolCalls, 1);
@@ -39,6 +41,17 @@ test('trusted host cold window covers initialization and query; warm stays at fi
   assert.equal(warm.executionStatus, 'EXECUTED');
   assert.equal(warm.budgets.maxExecutionMs, 5_000);
   assert.deepEqual(warm.metrics.runtimeDiscoveryInvocations, ['afyx-graph/status']);
+});
+
+test('supported caller/impact task types remain relational even with a known source hint', () => {
+  for (const taskType of ['callers', 'caller-analysis', 'impact', 'symbol-impact']) {
+    const route = resolveAfyxCapabilityRoute({ task: { taskType, exactKnownSource: true, payload: { symbol: 'createProject' } },
+      provider: 'codex', componentStates: { 'afyx-graph': { installed: true, enabled: true, authorized: true,
+        healthy: true, compatible: true, indexReady: true, indexFresh: true } } });
+    assert.equal(route.directSourceFastPath, false, taskType);
+    assert.equal(route.classification.relational, true, taskType);
+    assert.equal(route.requests.filter((request) => request.targetComponentId === 'afyx-graph').length, 1, taskType);
+  }
 });
 
 test('short host deadline defers cold work explicitly without initializing or inflating task budget', async (t) => {

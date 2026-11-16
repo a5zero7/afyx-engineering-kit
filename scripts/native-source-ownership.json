@@ -2385,7 +2385,7 @@
     {
       "path": "scripts/afyx-capability-orchestrator.mjs",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "9815bd4ef3031bfc364155bc0f642b46f07dd2273972a03bfb2ae770d872e7cd",
+      "reviewedSha256": "2ce94bbfc0990a704659c7adfeba9127053a95c037d58b5c1121ada35371d024",
       "evidence": "MB12 review: authored from AFYX functional requirements and existing reviewed 251f73a contracts; no upstream implementation, prompts, assets or dependency imported. Trusted-host boundaries and negative/regression tests recorded in MB12-native-consolidation-20261114-r1."
     },
     {

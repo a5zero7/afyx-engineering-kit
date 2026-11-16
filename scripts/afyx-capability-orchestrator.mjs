@@ -268,7 +268,8 @@ export function classifyTaskIntent(task = {}, hostMetadata = {}) {
   const specializedType = ['github-operation', 'documentation-search', 'documentation-research', 'multi-agent-workflow', 'workflow-execution', 'cli-automation'].includes(taskType);
   const odoo = (!domain || domain === 'odoo') && !ambiguousDomain && (domain === 'odoo' || !specializedType && (framework === 'odoo' ||
     task.project?.isOdoo === true || task.explicitOdooEvidence === true || taskType.startsWith('odoo-') || /\bodoo\b/.test(intentText)));
-  const relational = task.needsRelationalEvidence === true ||
+  const graphRelationshipTask = ['callers', 'caller-analysis', 'impact', 'symbol-impact'].includes(taskType);
+  const relational = graphRelationshipTask || task.needsRelationalEvidence === true ||
     ['impact-analysis', 'cross-asset', 'relationship-analysis'].includes(taskType) ||
     /\b(dependency|relationship|blast radius|call graph|impact analysis)\b/.test(intentText);
   const contextOptimization = task.needsContextOptimization === true ||
@@ -288,7 +289,7 @@ export function classifyTaskIntent(task = {}, hostMetadata = {}) {
   const customCapability = task.needsCustomCapability ?? task.customCapability ?? null;
   const customComponentId = task.customComponentId ?? null;
   const explicitSharedNeed = task.needsRelationalEvidence === true || task.needsContextOptimization === true;
-  const explicitCapabilityType = taskType.startsWith('odoo-') || specializedType || securityAudit || architecture ||
+  const explicitCapabilityType = graphRelationshipTask || taskType.startsWith('odoo-') || specializedType || securityAudit || architecture ||
     ['large-context', 'usage-telemetry', 'usage-analytics', 'impact-analysis', 'cross-asset', 'relationship-analysis'].includes(taskType);
   const explicitTelemetry = task.needsTelemetry === true || task.telemetry === true || task.trackUsage === true;
   const directSource = directSourceCandidate && !explicitSharedNeed && !explicitCapabilityType && !manualSelection.length &&
