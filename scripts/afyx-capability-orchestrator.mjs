@@ -268,7 +268,8 @@ export function classifyTaskIntent(task = {}, hostMetadata = {}) {
   const specializedType = ['github-operation', 'documentation-search', 'documentation-research', 'multi-agent-workflow', 'workflow-execution', 'cli-automation'].includes(taskType);
   const odoo = (!domain || domain === 'odoo') && !ambiguousDomain && (domain === 'odoo' || !specializedType && (framework === 'odoo' ||
     task.project?.isOdoo === true || task.explicitOdooEvidence === true || taskType.startsWith('odoo-') || /\bodoo\b/.test(intentText)));
-  const relational = task.needsRelationalEvidence === true ||
+  const graphRelationshipTask = ['callers', 'caller-analysis', 'impact', 'symbol-impact'].includes(taskType);
+  const relational = graphRelationshipTask || task.needsRelationalEvidence === true ||
     ['impact-analysis', 'cross-asset', 'relationship-analysis'].includes(taskType) ||
     /\b(dependency|relationship|blast radius|call graph|impact analysis)\b/.test(intentText);
   const contextOptimization = task.needsContextOptimization === true ||
@@ -288,7 +289,7 @@ export function classifyTaskIntent(task = {}, hostMetadata = {}) {
   const customCapability = task.needsCustomCapability ?? task.customCapability ?? null;
   const customComponentId = task.customComponentId ?? null;
   const explicitSharedNeed = task.needsRelationalEvidence === true || task.needsContextOptimization === true;
-  const explicitCapabilityType = taskType.startsWith('odoo-') || specializedType || securityAudit || architecture ||
+  const explicitCapabilityType = graphRelationshipTask || taskType.startsWith('odoo-') || specializedType || securityAudit || architecture ||
     ['large-context', 'usage-telemetry', 'usage-analytics', 'impact-analysis', 'cross-asset', 'relationship-analysis'].includes(taskType);
   const explicitTelemetry = task.needsTelemetry === true || task.telemetry === true || task.trackUsage === true;
   const directSource = directSourceCandidate && !explicitSharedNeed && !explicitCapabilityType && !manualSelection.length &&
@@ -621,12 +622,14 @@ export async function executeAfyxCapabilityRoute(options = {}) {
   // but the workspace index is not ready, perform JIT initialization before route planning.
   const graphState = options.componentStates?.['afyx-graph'];
   if (hasRelationalDemand && graphState?.installed && graphState?.enabled !== false && graphState?.authorized &&
-      !graphState?.indexReady && typeof options.prepareCapabilityState === 'function') {
+      !graphState?.indexReady && options.budgetLimits?.maxToolCalls !== 0 && options.budgetLimits?.maxCapabilities !== 0 &&
+      typeof options.prepareCapabilityState === 'function') {
     try {
-      const remainingMs = Math.max(1, Math.floor((options.budgetLimits?.maxExecutionMs || DEFAULT_BUDGET_LIMITS.maxExecutionMs) - (performance.now() - executionStarted)));
+      const remainingMs = Math.max(1, Math.floor((options.budgetLimits?.maxExecutionMs || DEFAULT_BUDGET_LIMITS.maxExecutionMs) - (performance.now() - startedAt)));
       const preparedGraph = await options.prepareCapabilityState('afyx-graph', {
         jitInitialize: true,
         relationalDemand: true,
+        useInitialStatus: true,
         maxExecutionMs: remainingMs,
       });
       if (preparedGraph && typeof preparedGraph === 'object') {
@@ -758,7 +761,10 @@ export async function executeAfyxCapabilityRoute(options = {}) {
         toolCalls += 1;
         adapterStarted = true;
         invokedTools.push(request.targetComponentId);
-        return adapter(request, { signal: controller.signal, capabilityDetails });
+        // Synchronous subprocess adapters must receive the remaining deadline;
+        // an AbortController timer cannot interrupt spawnSync on the event loop.
+        const remainingMs = Math.max(1, Math.floor(route.budgets.maxExecutionMs - (performance.now() - startedAt)));
+        return adapter({ ...request, budgetLimits: { ...request.budgetLimits, maxExecutionMs: remainingMs } }, { signal: controller.signal, capabilityDetails });
       };
       result = normalizedAdapterResult(
         request,

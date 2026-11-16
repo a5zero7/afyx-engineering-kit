@@ -44,6 +44,7 @@ export async function invokeHostWorkflow({
   authorizations = {},
   providerPermissions = null,
   budgetLimits = undefined,
+  hostTimeoutMs,
   environment = process.env,
   trustedSkillEngineering = null,
   trustedCapabilities = {},
@@ -51,6 +52,11 @@ export async function invokeHostWorkflow({
   loadCapabilityDetails,
 } = {}) {
   const parsedTask = typeof task === 'string' ? JSON.parse(task) : task;
+  const graphSymbol = parsedTask?.payload?.symbol;
+  if (['callers', 'caller-analysis', 'impact', 'symbol-impact'].includes(parsedTask?.taskType) &&
+      graphSymbol !== undefined && (typeof graphSymbol !== 'string' || !graphSymbol.trim())) {
+    throw new TypeError('INVALID_GRAPH_SYMBOL: task.payload.symbol must be a non-empty string');
+  }
   const resolvedProjectRoot = resolve(projectRoot);
   const resolvedInstallRoot = installRoot ? resolve(installRoot) : null;
   const permissions = providerPermissions ?? authorizations;
@@ -63,6 +69,7 @@ export async function invokeHostWorkflow({
     authorizations,
     providerPermissions: permissions,
     budgetLimits,
+    hostTimeoutMs,
     environment,
     trustedSkillEngineering,
     trustedCapabilities,
@@ -160,7 +167,12 @@ export function serveHostMcpBridge(serverOptions = {}) {
                   properties: {
                     task: {
                       type: 'object',
-                      description: 'The engineering task specification',
+                      description: 'Engineering task. For Graph callers/impact use e.g. {"taskType":"callers","payload":{"symbol":"createProject"}}. The symbol is a non-empty string, not an object.',
+                      properties: { taskType: { type: 'string' } },
+                      allOf: [{
+                        if: { properties: { taskType: { enum: ['callers', 'caller-analysis', 'impact', 'symbol-impact'] } }, required: ['taskType'] },
+                        then: { properties: { payload: { type: 'object', properties: { symbol: { type: 'string', minLength: 1 } } } } },
+                      }],
                     },
                   },
                   required: ['task'],
@@ -186,7 +198,6 @@ export function serveHostMcpBridge(serverOptions = {}) {
           const args = params.arguments || {};
           const result = await invokeHostWorkflow({
             task: args.task,
-            budgetLimits: args.budgetLimits,
             ...serverOptions,
           });
 
@@ -194,6 +205,7 @@ export function serveHostMcpBridge(serverOptions = {}) {
             jsonrpc: '2.0',
             id,
             result: {
+              structuredContent: result,
               content: [
                 {
                   type: 'text',
@@ -244,6 +256,11 @@ function argumentValue(flag) {
 
 async function main() {
   const trustedCapabilities = trustedLaunchCapabilities();
+  const timeoutArg = argumentValue('--host-timeout-ms');
+  const hostTimeoutMs = timeoutArg === null ? undefined : Number(timeoutArg);
+  if (hostTimeoutMs !== undefined && (!Number.isSafeInteger(hostTimeoutMs) || hostTimeoutMs < 1 || hostTimeoutMs > 60_000)) {
+    throw new TypeError('--host-timeout-ms must be an integer between 1 and 60000');
+  }
   if (trustedCapabilities.githubExecutable) {
     const { createGhRequest } = await import('./afyx-native-github.mjs');
     trustedCapabilities.github.request = createGhRequest({ executable: trustedCapabilities.githubExecutable,
@@ -259,6 +276,7 @@ async function main() {
     const authorizedIds = new Set((argumentValue('--authorize') ?? '').split(',').filter(Boolean));
     const authorizations = Object.fromEntries([...authorizedIds].map((id) => [id, true]));
     serveHostMcpBridge({
+      hostTimeoutMs,
       trustedCapabilities,
       installRoot,
       projectRoot,
@@ -291,6 +309,7 @@ async function main() {
 
   const authorizations = Object.fromEntries([...authorizedIds].map((id) => [id, true]));
   const result = await invokeHostWorkflow({
+    hostTimeoutMs,
     trustedCapabilities,
     installRoot,
     projectRoot,

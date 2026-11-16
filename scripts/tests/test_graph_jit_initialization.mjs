@@ -22,6 +22,132 @@ import {
   resolveAfyxCapabilityRoute,
 } from '../afyx-capability-orchestrator.mjs';
 
+const relationalTask = { taskType: 'callers', needsRelationalEvidence: true, payload: { symbol: 'createProject' } };
+
+test('trusted host cold window covers initialization and query; warm stays at five seconds', async (t) => {
+  const fx = fixture();
+  t.after(() => fx.cleanup());
+  const { logFile } = installMockGraph(fx, { initDelayMs: 5_100 });
+  // Real Codex emits the supported operation without a redundant needsRelationalEvidence flag.
+  const options = { ...fx, provider: 'codex', authorizations: { 'afyx-graph': true }, hostTimeoutMs: 30_000,
+    task: { taskType: 'callers', payload: { symbol: 'createProject' } } };
+  const cold = await runInstalledAfyxWorkflow(options);
+  assert.equal(cold.executionStatus, 'EXECUTED', JSON.stringify(cold));
+  assert.equal(cold.metrics.toolCalls, 1);
+  assert.equal(cold.budgets.maxExecutionMs, 15_000);
+  assert.deepEqual(readFileSync(logFile, 'utf8').trim().split('\n'), ['status', 'init', 'status', 'callers']);
+  assert.deepEqual(cold.metrics.graphPreparationTimings.map((item) => item.stage), ['initial-status', 'initialize', 'post-init-status']);
+  const warm = await runInstalledAfyxWorkflow(options);
+  assert.equal(warm.executionStatus, 'EXECUTED');
+  assert.equal(warm.budgets.maxExecutionMs, 5_000);
+  assert.deepEqual(warm.metrics.runtimeDiscoveryInvocations, ['afyx-graph/status']);
+});
+
+test('supported caller/impact task types remain relational even with a known source hint', () => {
+  for (const taskType of ['callers', 'caller-analysis', 'impact', 'symbol-impact']) {
+    const route = resolveAfyxCapabilityRoute({ task: { taskType, exactKnownSource: true, payload: { symbol: 'createProject' } },
+      provider: 'codex', componentStates: { 'afyx-graph': { installed: true, enabled: true, authorized: true,
+        healthy: true, compatible: true, indexReady: true, indexFresh: true, sourceIdentity: 'verified-task-type-fixture' } } });
+    assert.equal(route.directSourceFastPath, false, taskType);
+    assert.equal(route.classification.relational, true, taskType);
+    assert.equal(route.requests.filter((request) => request.targetComponentId === 'afyx-graph').length, 1, taskType);
+  }
+});
+
+test('short host deadline defers cold work explicitly without initializing or inflating task budget', async (t) => {
+  const fx = fixture();
+  t.after(() => fx.cleanup());
+  const { logFile } = installMockGraph(fx);
+  const result = await runInstalledAfyxWorkflow({ ...fx, provider: 'codex', authorizations: { 'afyx-graph': true },
+    hostTimeoutMs: 1_000, task: { ...relationalTask, hostTimeoutMs: 999_999, budgetLimits: { maxExecutionMs: 999_999 } } });
+  assert.equal(result.completionStatus, 'DEFERRED');
+  assert.equal(result.metrics.toolCalls, 0);
+  assert.equal(result.budgets.maxExecutionMs, 750);
+  assert.ok(result.diagnostics.some((item) => item.code === 'GRAPH_COLD_START_INCOMPLETE'));
+  assert.ok(!readFileSync(logFile, 'utf8').includes('init'));
+});
+
+test('explicit task budget is never expanded; invalid host deadlines are rejected', async (t) => {
+  const fx = fixture();
+  t.after(() => fx.cleanup());
+  const { logFile } = installMockGraph(fx);
+  const options = { ...fx, provider: 'codex', authorizations: { 'afyx-graph': true }, task: relationalTask, hostTimeoutMs: 30_000 };
+  const result = await runInstalledAfyxWorkflow({ ...options, budgetLimits: { maxExecutionMs: 500 } });
+  assert.equal(result.budgets.maxExecutionMs, 500);
+  assert.equal(result.metrics.toolCalls, 0);
+  assert.ok(!readFileSync(logFile, 'utf8').includes('init'));
+  await assert.rejects(runInstalledAfyxWorkflow({ ...options, hostTimeoutMs: 60_001 }), /hostTimeoutMs/);
+  await assert.rejects(runInstalledAfyxWorkflow({ ...options, hostTimeoutMs: Infinity }), /hostTimeoutMs/);
+});
+
+test('failed initialization and incomplete existing indexes never claim a successful cold query', async (t) => {
+  for (const incomplete of [false, true]) {
+    const fx = fixture();
+    t.after(() => fx.cleanup());
+    const { logFile } = installMockGraph(fx, { shouldFailInit: true, incomplete });
+    if (incomplete) write(join(fx.projectRoot, '.afyx-graph', 'afyx-graph.db'), 'preserve-incomplete');
+    const result = await runInstalledAfyxWorkflow({ ...fx, provider: 'codex', authorizations: { 'afyx-graph': true },
+      hostTimeoutMs: 30_000, task: relationalTask });
+    assert.equal(result.metrics.toolCalls, 0);
+    if (!incomplete) {
+      assert.equal(result.completionStatus, 'DEFERRED');
+      assert.match(result.diagnostics.find((item) => item.code === 'GRAPH_COLD_START_INCOMPLETE').detail, /Simulated Graph initialization error/);
+    }
+    else {
+      assert.equal(readFileSync(join(fx.projectRoot, '.afyx-graph', 'afyx-graph.db'), 'utf8'), 'preserve-incomplete');
+      assert.ok(!readFileSync(logFile, 'utf8').includes('init'));
+    }
+  }
+});
+
+test('host window does not authorize OFF, denied permissions, or zero tool budgets', async (t) => {
+  for (const restriction of [
+    { componentSettings: { 'afyx-graph': { enabled: false } } },
+    { providerPermissions: { 'afyx-graph': false } },
+    { authorizations: {} },
+    { budgetLimits: { maxToolCalls: 0 } },
+    { budgetLimits: { maxCapabilities: 0 } },
+  ]) {
+    const fx = fixture();
+    t.after(() => fx.cleanup());
+    const { logFile } = installMockGraph(fx);
+    const result = await runInstalledAfyxWorkflow({ ...fx, provider: 'codex', authorizations: { 'afyx-graph': true },
+      hostTimeoutMs: 30_000, task: relationalTask, ...restriction });
+    assert.equal(result.metrics.toolCalls, 0);
+    assert.equal(existsSync(logFile), false, JSON.stringify(restriction));
+  }
+});
+
+test('concurrent cold workflows share initialization and each return one query', async (t) => {
+  const fx = fixture();
+  t.after(() => fx.cleanup());
+  const { logFile } = installMockGraph(fx);
+  const options = { ...fx, provider: 'codex', authorizations: { 'afyx-graph': true }, hostTimeoutMs: 30_000, task: relationalTask };
+  const results = await Promise.all([runInstalledAfyxWorkflow(options), runInstalledAfyxWorkflow(options)]);
+  for (const result of results) {
+    assert.equal(result.executionStatus, 'EXECUTED', JSON.stringify(result));
+    assert.equal(result.metrics.toolCalls, 1);
+  }
+  const commands = readFileSync(logFile, 'utf8').trim().split('\n');
+  assert.equal(commands.filter((cmd) => cmd === 'init').length, 1);
+  assert.equal(commands.filter((cmd) => cmd === 'callers').length, 2);
+});
+
+test('failed status probes and an active writer never authorize initialization', async (t) => {
+  for (const activeWriter of [false, true]) {
+    const fx = fixture();
+    t.after(() => fx.cleanup());
+    const { logFile } = installMockGraph(fx);
+    if (activeWriter) write(join(fx.projectRoot, '.afyx-graph', 'writer.pid'), JSON.stringify({ pid: process.pid }));
+    else write(join(fx.installRoot, 'graph/current/lib/dist/bin/afyx-graph.js'), 'process.exit(1);');
+    const result = await runInstalledAfyxWorkflow({ ...fx, provider: 'codex', authorizations: { 'afyx-graph': true },
+      hostTimeoutMs: 30_000, task: relationalTask });
+    assert.equal(result.metrics.toolCalls, 0);
+    if (existsSync(logFile)) assert.ok(!readFileSync(logFile, 'utf8').includes('init'));
+    if (activeWriter) assert.equal(JSON.parse(readFileSync(join(fx.projectRoot, '.afyx-graph', 'writer.pid'))).pid, process.pid);
+  }
+});
+
 const HERE = dirname(fileURLToPath(import.meta.url));
 const COMPONENTS = JSON.parse(readFileSync(resolve(HERE, '..', 'components.json'), 'utf8')).components;
 
@@ -69,7 +195,7 @@ function installRegistrySkeleton(fx, id) {
   return root;
 }
 
-function installMockGraph(fx, { shouldFailInit = false } = {}) {
+function installMockGraph(fx, { shouldFailInit = false, initDelayMs = 0, incomplete = false } = {}) {
   installRegistrySkeleton(fx, 'afyx-graph');
   write(join(fx.installRoot, 'graph', 'metadata.json'), JSON.stringify({
     product_name: 'Afyx Graph',
@@ -103,7 +229,7 @@ if (cmd === 'status') {
     projectPath: proj,
     indexPath: isInitialized ? indexDir : null,
     index: {
-      state: isInitialized ? 'complete' : 'uninitialized',
+      state: isInitialized ? (${incomplete} ? 'incomplete' : 'complete') : 'uninitialized',
       pendingRefs: 0,
       reindexRecommended: !isFresh,
     },
@@ -114,6 +240,7 @@ if (cmd === 'status') {
     },
   }));
 } else if (cmd === 'init') {
+  if (${initDelayMs} > 0) Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ${initDelayMs});
   if (${shouldFailInit}) {
     console.error('Simulated Graph initialization error');
     process.exit(1);
@@ -225,7 +352,7 @@ test('Graph JIT 3: Graph installed, uninitialized with relational demand trigger
   assert.equal(state.installed, true);
   assert.equal(state.indexReady, true);
   assert.equal(state.indexFresh, true);
-  assert.deepEqual(runtime.preparationEvents, ['afyx-graph/status', 'afyx-graph/init']);
+  assert.deepEqual(runtime.preparationEvents, ['afyx-graph/status', 'afyx-graph/init', 'afyx-graph/status']);
 
   const ops = readFileSync(logFile, 'utf8').trim().split('\n');
   assert.deepEqual(ops, ['status', 'init', 'status']);

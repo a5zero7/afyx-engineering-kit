@@ -23,6 +23,13 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 const HOST_BRIDGE = resolve(HERE, '..', 'afyx-host-bridge.mjs');
 const COMPONENTS = JSON.parse(readFileSync(resolve(HERE, '..', 'components.json'), 'utf8')).components;
 
+test('Graph symbol contract rejects objects and blank values before runtime discovery', async () => {
+  for (const symbol of [{ name: 'createProject' }, '', '   ', 42]) {
+    await assert.rejects(invokeHostWorkflow({ task: { taskType: 'callers', payload: { symbol } },
+      projectRoot: tmpdir(), installRoot: null }), /INVALID_GRAPH_SYMBOL/);
+  }
+});
+
 function write(path, value = '') {
   mkdirSync(dirname(path), { recursive: true });
   writeFileSync(path, value, 'utf8');
@@ -338,6 +345,7 @@ test('host bridge MCP: stdio MCP server supports initialize, tools/list, and too
     const workflowTool = tools.find((t) => t.name === 'afyx_workflow');
     assert.ok(workflowTool, 'afyx_workflow tool must be present');
     assert.deepEqual(Object.keys(workflowTool.inputSchema.properties), ['task']);
+    assert.equal(workflowTool.inputSchema.properties.task.allOf[0].then.properties.payload.properties.symbol.type, 'string');
 
     // 4. Tools call direct source
     sendRpc({
@@ -347,6 +355,8 @@ test('host bridge MCP: stdio MCP server supports initialize, tools/list, and too
       params: {
         name: 'afyx_workflow',
         arguments: {
+          budgetLimits: { maxExecutionMs: 999_999 },
+          hostTimeoutMs: 999_999,
           task: {
             taskType: 'string-replacement',
             exactKnownSource: true,
@@ -360,9 +370,11 @@ test('host bridge MCP: stdio MCP server supports initialize, tools/list, and too
     const textContent = callRes.result?.content?.[0]?.text;
     assert.ok(textContent, 'Must contain text response');
     const workflowPayload = JSON.parse(textContent);
+    assert.deepEqual(callRes.result.structuredContent, workflowPayload, 'typed result preserves the original text envelope');
     assert.equal(workflowPayload.bridgeContract, AFYX_HOST_BRIDGE_CONTRACT);
     assert.equal(workflowPayload.executionStatus, 'DIRECT_SOURCE');
     assert.equal(workflowPayload.metrics.toolCalls, 0);
+    assert.equal(workflowPayload.budgets.maxExecutionMs, 5_000, 'model MCP arguments cannot grant a larger deadline');
   } finally {
     child.stdin.end();
     child.kill();
