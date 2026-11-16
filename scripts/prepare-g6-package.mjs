@@ -168,42 +168,17 @@ export function buildGraphReleaseArtifacts(root, revision) {
 }
 
 export function checkGraphReleaseValid(root, revision) {
-  const release = join(root, 'afyx-graph', 'engine', 'release');
-  const manifestPath = join(release, 'RELEASE-MANIFEST.json');
-  const sumsPath = join(release, 'SHA256SUMS');
-  const winZip = join(release, 'afyx-graph-win32-x64.zip');
-  const linuxTar = join(release, 'afyx-graph-linux-x64.tar.gz');
-
-  if (!existsSync(manifestPath) || !existsSync(sumsPath) || !existsSync(winZip) || !existsSync(linuxTar)) {
-    return false;
-  }
   try {
-    const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'));
-    if (manifest.source_revision !== revision) return false;
-    const graphVersion = JSON.parse(readFileSync(join(root, 'afyx-graph', 'engine', 'package.json'), 'utf8')).version;
-    if (manifest.product_version !== graphVersion) return false;
-    if (manifest.artifacts?.length !== graphManifestTargets(manifest).length) return false;
-    for (const target of graphManifestTargets(manifest)) if (!manifest.artifacts.some((a) => a.target === target && a.file === graphArchiveName(target))) return false;
-    for (const artifact of manifest.artifacts) {
-      const filePath = join(release, artifact.file);
-      if (!existsSync(filePath)) return false;
-      const digest = createHash('sha256').update(readFileSync(filePath)).digest('hex');
-      if (digest !== artifact.sha256) return false;
-    }
+    verifyGraphReleaseInputs(root, revision);
     return true;
   } catch {
     return false;
   }
 }
 
-export function prepareG6Package(root, revision, { autoBuild = false } = {}) {
+function verifyGraphReleaseInputs(root, revision) {
   if (!/^[0-9a-f]{40}$/.test(revision)) throw new Error('Git HEAD must be an exact commit SHA');
   const release = join(root, 'afyx-graph', 'engine', 'release');
-
-  if (autoBuild && !checkGraphReleaseValid(root, revision)) {
-    buildGraphReleaseArtifacts(root, revision);
-  }
-
   const manifest = JSON.parse(readFileSync(join(release, 'RELEASE-MANIFEST.json'), 'utf8'));
   const expected = new Map(graphManifestTargets(manifest).map((target) => [graphArchiveName(target), target]));
   const graphVersion = JSON.parse(readFileSync(join(root, 'afyx-graph', 'engine', 'package.json'), 'utf8')).version;
@@ -236,6 +211,14 @@ export function prepareG6Package(root, revision, { autoBuild = false } = {}) {
       throw new Error(`SHA256SUMS mismatch: ${artifact.file}`);
     }
   }
+}
+
+export function prepareG6Package(root, revision, { autoBuild = false } = {}) {
+  if (!/^[0-9a-f]{40}$/.test(revision)) throw new Error('Git HEAD must be an exact commit SHA');
+  if (autoBuild && !checkGraphReleaseValid(root, revision)) {
+    buildGraphReleaseArtifacts(root, revision);
+  }
+  verifyGraphReleaseInputs(root, revision);
   const marker = join(root, '.afyx-source-revision');
   if (existsSync(marker)) {
     if (!lstatSync(marker).isFile()) {
