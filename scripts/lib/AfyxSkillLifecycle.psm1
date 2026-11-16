@@ -208,7 +208,7 @@ function Adopt-AfyxLegacySkill {
         -LegacyVersion $LegacyVersion -LegacyContentSha256 $LegacyContentSha256 `
         -SourceRepository $SourceRepository -SourceRevision $SourceRevision
     if ($provenance -ne 'MATCH') { throw "Refusing to adopt $Component because legacy provenance is $provenance." }
-    $backup = Backup-AfyxSkill -Component $Component -Target $Target
+    $backup = Backup-AfyxSkill -Component $Component -Target $Target -Protect
     if ((Get-AfyxSkillDigest -Directory $backup) -ne (Get-AfyxSkillDigest -Directory $Target)) {
         throw "$Component adoption backup verification failed."
     }
@@ -235,39 +235,109 @@ function Adopt-AfyxLegacySkill {
         }
         throw
     }
+    Remove-Item -LiteralPath "$backup.afyx-active" -Force -ErrorAction Stop
     return "ADOPTED backup=$backup"
+}
+
+function Assert-AfyxBackupPath {
+    param([Parameter(Mandatory)][string]$Path)
+    $current = [IO.Path]::GetFullPath($Path)
+    while ($current) {
+        $item = Get-Item -LiteralPath $current -Force -ErrorAction SilentlyContinue
+        if ($null -ne $item) {
+            if ($item.Attributes -band [IO.FileAttributes]::ReparsePoint) {
+                throw "Refusing reparse-point backup path: $current"
+            }
+        }
+        $parent = Split-Path -Parent $current
+        if ($parent -eq $current) { break }
+        $current = $parent
+    }
+}
+
+# Unlike the skill ownership digest, recovery verification includes ownership
+# markers, .git, hidden files and empty directories. Links are never followed.
+function Get-AfyxBackupDigest {
+    param([Parameter(Mandatory)][string]$Directory)
+    Assert-AfyxBackupPath -Path $Directory
+    $root = [IO.Path]::GetFullPath($Directory).TrimEnd('\', '/')
+    if (-not (Test-Path -LiteralPath $root -PathType Container)) { throw "Backup source directory missing: $root" }
+    $pending = New-Object 'System.Collections.Generic.Stack[string]'
+    $pending.Push($root)
+    $lines = New-Object 'System.Collections.Generic.List[string]'
+    while ($pending.Count) {
+        foreach ($item in @(Get-ChildItem -LiteralPath $pending.Pop() -Force -ErrorAction Stop)) {
+            if ($item.Attributes -band [IO.FileAttributes]::ReparsePoint) { throw "Refusing reparse-point backup content: $($item.FullName)" }
+            $relative = $item.FullName.Substring($root.Length).TrimStart('\', '/').Replace('\', '/')
+            if ($relative -match '[\r\n]') { throw 'Backup paths containing newlines are unsupported.' }
+            if ($item.PSIsContainer) {
+                $lines.Add("D  $relative")
+                $pending.Push($item.FullName)
+            } else {
+                $digest = (Get-FileHash -LiteralPath $item.FullName -Algorithm SHA256 -ErrorAction Stop).Hash.ToLowerInvariant()
+                $lines.Add("F $digest  $relative")
+            }
+        }
+    }
+    $lines.Sort([StringComparer]::Ordinal)
+    $sha = [Security.Cryptography.SHA256]::Create()
+    try { return ([BitConverter]::ToString($sha.ComputeHash([Text.Encoding]::UTF8.GetBytes(($lines -join "`n") + "`n")))).Replace('-', '').ToLowerInvariant() }
+    finally { $sha.Dispose() }
 }
 
 function Backup-AfyxSkill {
     [CmdletBinding()]
-    param([Parameter(Mandatory)][string]$Component, [Parameter(Mandatory)][string]$Target)
+    param([Parameter(Mandatory)][ValidatePattern('^[a-z0-9][a-z0-9-]*$')][string]$Component, [Parameter(Mandatory)][string]$Target, [switch]$Protect)
     $componentRoot = Join-Path (Get-AfyxBackupRoot) $Component
-    New-Item -ItemType Directory -Force -Path $componentRoot | Out-Null
+    Assert-AfyxBackupPath -Path $componentRoot
+    New-Item -ItemType Directory -Force -Path $componentRoot -ErrorAction Stop | Out-Null
+    Assert-AfyxBackupPath -Path $componentRoot
     $limit = if ($env:AFYX_BACKUP_LIMIT -match '^\d+$') { [int]$env:AFYX_BACKUP_LIMIT } else { 20 }
     if ($limit -le 0) { $limit = 20 }
-    $existing = @(Get-ChildItem -LiteralPath $componentRoot -Directory -Force)
-    if ($existing.Count -ge $limit) {
-        $eligible = @($existing | Where-Object {
-            $_.Name -match '^\d{8}-\d{6}-[\w-]+$' -and
-            -not ($_.Attributes -band [IO.FileAttributes]::ReparsePoint)
-        } | Sort-Object -Property CreationTime, LastWriteTime, Name)
-
-        $toPrune = ($existing.Count - $limit) + 1
-        $pruned = 0
-        foreach ($oldBackup in $eligible) {
-            if ($pruned -ge $toPrune) { break }
-            try {
-                Remove-Item -LiteralPath $oldBackup.FullName -Recurse -Force -ErrorAction Stop
-                $pruned++
-                Write-Verbose "Pruned historical backup: $($oldBackup.FullName)"
-            } catch {
-                Write-Warning "Could not prune historical backup $($oldBackup.FullName): $_"
-            }
+    $lockPath = Join-Path $componentRoot '.afyx-backup.lock'
+    try { $lock = [IO.File]::Open($lockPath, [IO.FileMode]::CreateNew, [IO.FileAccess]::Write, [IO.FileShare]::None) }
+    catch { throw "Backup already active or stale lock requires inspection: $lockPath" }
+    try {
+        $before = Get-AfyxBackupDigest -Directory $Target
+        $destination = Join-Path $componentRoot "$(Get-Date -Format 'yyyyMMdd-HHmmss')-$([guid]::NewGuid().ToString('N'))"
+        Copy-Item -LiteralPath $Target -Destination $destination -Recurse -Force -ErrorAction Stop
+        $copied = Get-AfyxBackupDigest -Directory $destination
+        if ($copied -ne $before -or (Get-AfyxBackupDigest -Directory $Target) -ne $before) {
+            throw "Backup verification failed; history and incomplete copy preserved: $destination"
         }
+        $receipt = "$destination.afyx-backup"
+        [IO.File]::WriteAllText($receipt, "AfyxSkillBackup/v1`n$Component`n$(Split-Path -Leaf $destination)`n$copied`n", (New-Object Text.UTF8Encoding($false)))
+        if ($Protect) { [IO.File]::WriteAllText("$destination.afyx-active", 'active rollback', (New-Object Text.UTF8Encoding($false))) }
+        # Only completed, still-verifiable AFYX receipts count toward retention.
+        # Legacy, modified, active and foreign entries are preserved separately.
+        $eligible = @(foreach ($entry in @(Get-ChildItem -LiteralPath $componentRoot -Directory -Force)) {
+            $candidate = $entry.FullName
+            if ($entry.Name -notmatch '^\d{8}-\d{6}-[\w-]+$' -or ($null -ne (Get-Item -LiteralPath "$candidate.afyx-active" -Force -ErrorAction SilentlyContinue))) { continue }
+            try {
+                Assert-AfyxBackupPath -Path "$candidate.afyx-backup"
+                $record = [IO.File]::ReadAllLines("$candidate.afyx-backup")
+                if ($record.Count -eq 4 -and $record[0] -eq 'AfyxSkillBackup/v1' -and $record[1] -eq $Component -and
+                    $record[2] -eq $entry.Name -and $record[3] -match '^[0-9a-f]{64}$' -and
+                    (Get-AfyxBackupDigest -Directory $candidate) -eq $record[3]) { $entry }
+            } catch { Write-Verbose "Preserving unverified backup: $candidate" }
+        }) | Sort-Object Name
+        # Reserve a slot for this verified transaction backup; after successful
+        # unpinning it must not leave ordinary completed history over the limit.
+        $toPrune = @($eligible).Count + [int][bool]$Protect - $limit
+        foreach ($entry in @($eligible)) {
+            if ($toPrune -le 0) { break }
+            if ($entry.FullName -eq $destination) { continue }
+            # Full path remains an immediate child of the validated component root.
+            Assert-AfyxBackupPath -Path $entry.FullName
+            Remove-Item -LiteralPath $entry.FullName -Recurse -Force -ErrorAction Stop
+            Remove-Item -LiteralPath "$($entry.FullName).afyx-backup" -Force -ErrorAction Stop
+            $toPrune--
+        }
+        return $destination
+    } finally {
+        $lock.Dispose()
+        Remove-Item -LiteralPath $lockPath -Force -ErrorAction Stop
     }
-    $destination = Join-Path $componentRoot "$(Get-Date -Format 'yyyyMMdd-HHmmss')-$([guid]::NewGuid().ToString('N'))"
-    Copy-Item -LiteralPath $Target -Destination $destination -Recurse -Force -ErrorAction Stop
-    return $destination
 }
 
 function Install-AfyxSkillTransaction {
@@ -293,13 +363,13 @@ function Install-AfyxSkillTransaction {
     $old = Join-Path (Split-Path -Parent $Target) ".$((Split-Path -Leaf $Target)).afyx-old"
     $backup = ''
     $hadExisting = Test-Path -LiteralPath $Target
-    if ($hadExisting) { $backup = Backup-AfyxSkill -Component $Component -Target $Target; Move-Item -LiteralPath $Target -Destination $old -ErrorAction Stop }
+    if ($hadExisting) { $backup = Backup-AfyxSkill -Component $Component -Target $Target -Protect; Move-Item -LiteralPath $Target -Destination $old -ErrorAction Stop }
     try {
         Move-Item -LiteralPath $Stage -Destination $Target -ErrorAction Stop
         $installed = Get-AfyxSkillOwnership -Target $Target -Component $Component -ExpectedOwner $Owner
         if ($installed -notin @('AFYX_OWNED_UNMODIFIED', 'EXTERNAL_UPSTREAM')) { throw "$Name post-install ownership verification failed." }
         if ($hadExisting) { Remove-Item -LiteralPath $old -Recurse -Force -ErrorAction Stop }
-        if ($backup) { Write-Verbose "Backup: $backup" }
+        if ($backup) { Remove-Item -LiteralPath "$backup.afyx-active" -Force -ErrorAction SilentlyContinue; Write-Verbose "Backup: $backup" }
     } catch {
         if (Test-Path -LiteralPath $Target) { Remove-Item -LiteralPath $Target -Recurse -Force -ErrorAction SilentlyContinue }
         if ($hadExisting -and (Test-Path -LiteralPath $old) -and -not (Test-Path -LiteralPath $Target)) { Move-Item -LiteralPath $old -Destination $Target -ErrorAction SilentlyContinue }
@@ -316,8 +386,9 @@ function Remove-AfyxSkillSafely {
     if ($state -eq 'NOT_INSTALLED') { return }
     if ($state -notin @('AFYX_OWNED_UNMODIFIED', 'EXTERNAL_UPSTREAM')) { throw "Refusing to remove $Target because installed ownership is $state." }
     if ($PSCmdlet.ShouldProcess($Target, 'Back up and remove installed skill')) {
-        $backup = Backup-AfyxSkill -Component $Component -Target $Target
+        $backup = Backup-AfyxSkill -Component $Component -Target $Target -Protect
         Remove-Item -LiteralPath $Target -Recurse -Force -ErrorAction Stop
+        Remove-Item -LiteralPath "$backup.afyx-active" -Force -ErrorAction Stop
         Write-Host "Removed: $Target (backup: $backup)"
     }
 }

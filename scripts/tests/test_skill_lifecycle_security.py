@@ -104,8 +104,9 @@ class SkillLifecycleSecurityTests(unittest.TestCase):
         self.assertRegex(marker["content_sha256"], r"^[0-9a-f]{64}$")
 
         self.run_install("update")
-        copies = list((self.backups / "efficient-coding").iterdir())
+        copies = [path for path in (self.backups / "efficient-coding").iterdir() if path.is_dir()]
         self.assertEqual(len(copies), 1)
+        self.assertTrue(Path(str(copies[0]) + ".afyx-backup").is_file())
         self.assertTrue((copies[0] / ".afyx-install.json").is_file())
 
         shutil.rmtree(target)

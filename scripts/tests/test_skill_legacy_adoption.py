@@ -128,14 +128,14 @@ class LegacySkillAdoptionTests(unittest.TestCase):
                 marker = json.loads((target / ".afyx-install.json").read_text(encoding="utf-8"))
                 self.assertEqual((marker["component"], marker["owner"], marker["version"]), (component, "afyx", "1.1.0"))
                 self.assertEqual(self.content_snapshot(target), before)
-                backups = list((self.backups / component).iterdir())
+                backups = [path for path in (self.backups / component).iterdir() if path.is_dir()]
                 self.assertEqual(len(backups), 1)
                 self.assertFalse((backups[0] / ".afyx-install.json").exists())
                 self.assertEqual(self.content_snapshot(backups[0]), before)
 
                 repeated = self.run_install(component, "adopt")
                 self.assertIn("already adopted", (repeated.stdout + repeated.stderr).lower())
-                self.assertEqual(len(list((self.backups / component).iterdir())), 1)
+                self.assertEqual(len([path for path in (self.backups / component).iterdir() if path.is_dir()]), 1)
                 shutil.rmtree(target)
 
     def test_modified_foreign_and_backup_failure_are_refused(self) -> None:
@@ -208,7 +208,7 @@ class LegacySkillAdoptionTests(unittest.TestCase):
         self.assertEqual(subprocess.check_output(["git", "-C", str(target), "status", "--porcelain"], text=True).strip(), "")
         repeated = self.adopt_upstream()
         self.assertIn("ALREADY_ADOPTED", repeated.stdout + repeated.stderr)
-        self.assertEqual(len(list((self.backups / "prompt-master").iterdir())), 1)
+        self.assertEqual(len([path for path in (self.backups / "prompt-master").iterdir() if path.is_dir()]), 1)
 
     def provenance(self, repository: str, revision: str) -> str:
         env = {**self.env, "AFYX_TEST_EXPECTED_REPOSITORY": repository, "AFYX_TEST_EXPECTED_REVISION": revision}

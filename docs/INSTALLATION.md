@@ -222,6 +222,14 @@ is preserved and reported as blocked. Backups remain under `AFYX_BACKUP_ROOT` or
 the default `~/.afyx/backups`; restore the most recent component directory to its
 documented skill root if rollback is needed.
 
+Skill backup rotation verifies the replacement copy before pruning history. The
+default retention limit of 20 applies to completed, digest-verified AFYX backups;
+foreign, legacy/unverified, modified, and active rollback backups are preserved
+and excluded from pruning. A failed copy or verification preserves existing
+history. Concurrent backup operations fail closed on a component lock; an
+interrupted operation's lock and protected backup require inspection before
+recovery. Symlinked or reparse-point backup paths are rejected.
+
 ## Windows Native / PowerShell
 
 ### Interactive installer

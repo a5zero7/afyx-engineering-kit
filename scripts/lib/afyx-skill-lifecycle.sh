@@ -144,35 +144,95 @@ EOF
   fi
 }
 
-afyx_backup_skill() {
-  local component="$1" target="$2" destination count limit to_prune pruned
-  mkdir -p "$afyx_backup_root/$component" || return 1
-  limit="$afyx_backup_limit"
-  if [[ ! "$limit" =~ ^[0-9]+$ ]] || [[ "$limit" -le 0 ]]; then
-    limit=20
-  fi
-
-  count="$(find "$afyx_backup_root/$component" -mindepth 1 -maxdepth 1 -type d 2>/dev/null | wc -l | tr -d ' ')"
-  if [[ "$count" -ge "$limit" ]]; then
-    to_prune=$(( count - limit + 1 ))
-    pruned=0
-    while IFS= read -r dir_path; do
-      [[ -z "$dir_path" ]] && continue
-      [[ "$pruned" -ge "$to_prune" ]] && break
-      local base_name
-      base_name="$(basename "$dir_path")"
-      if [[ ! -L "$dir_path" ]] && [[ "$base_name" =~ ^[0-9]{8}-[0-9]{6}- ]]; then
-        rm -rf -- "$dir_path" 2>/dev/null && pruned=$(( pruned + 1 ))
-      fi
-    done < <(find "$afyx_backup_root/$component" -mindepth 1 -maxdepth 1 -type d 2>/dev/null | sort)
-  fi
-  local suffix
-  suffix="${RANDOM:-$$}-$$-$(date +%N 2>/dev/null || echo 0)"
-  destination="$afyx_backup_root/$component/$(date +%Y%m%d-%H%M%S)-$suffix"
-  cp -a "$target" "$destination" || return 1
-  printf '%s' "$destination"
+# Refuse symlinked ancestors as well as linked payload entries. Recovery copies
+# include .git, ownership markers, hidden files and empty directories.
+afyx_assert_backup_path() {
+  local current="$1"
+  [[ "$current" != *$'\n'* && "$current" != *$'\r'* ]] || return 1
+  [[ "$current" == /* ]] || current="$PWD/$current"
+  while [[ "$current" != / && -n "$current" ]]; do
+    [[ ! -L "$current" ]] || { printf 'Refusing symlinked backup path: %s\n' "$current" >&2; return 1; }
+    current="${current%/*}"
+  done
 }
 
+afyx_backup_digest() (
+  set -o pipefail
+  local directory="$1" listing relative digest
+  afyx_assert_backup_path "$directory" || exit 1
+  [[ -d "$directory" ]] || exit 1
+  listing="$(mktemp "${TMPDIR:-/tmp}/afyx-backup-digest.XXXXXX")" || exit 1
+  trap 'rm -f -- "$listing"' EXIT
+  (
+    cd "$directory" || exit 1
+    find . -mindepth 1 -print0 |
+    while IFS= read -r -d '' relative; do
+      [[ "$relative" != *$'\n'* && "$relative" != *$'\r'* ]] || exit 1
+      [[ ! -L "$relative" ]] || { printf 'Refusing linked backup content: %s\n' "$relative" >&2; exit 1; }
+      if [[ -d "$relative" ]]; then printf 'D  %s\n' "${relative#./}"
+      elif [[ -f "$relative" ]]; then
+        digest="$(afyx_sha256 "$relative")" || exit 1
+        printf 'F %s  %s\n' "$digest" "${relative#./}"
+      else printf 'Refusing special backup content: %s\n' "$relative" >&2; exit 1
+      fi
+    done
+  ) | LC_ALL=C sort >"$listing" || exit 1
+  # Match an empty-tree manifest explicitly rather than hashing no records.
+  [[ -s "$listing" ]] || printf '\n' >"$listing"
+  afyx_sha256 "$listing"
+)
+
+afyx_backup_skill() (
+  local component="$1" target="$2" protect="${3:-false}" root destination before copied limit
+  local candidate base receipt eligible count record_digest
+  [[ "$component" =~ ^[a-z0-9][a-z0-9-]*$ ]] || { printf 'Invalid backup component.\n' >&2; exit 1; }
+  root="$afyx_backup_root/$component"
+  afyx_assert_backup_path "$root" || exit 1
+  mkdir -p "$root" || exit 1
+  afyx_assert_backup_path "$root" || exit 1
+  # Atomic and deliberately fail-closed: interrupted locks require inspection.
+  mkdir "$root/.afyx-backup.lock" 2>/dev/null || { printf 'Backup already active or stale lock requires inspection: %s\n' "$root/.afyx-backup.lock" >&2; exit 1; }
+  eligible=''
+  trap '[[ -z "$eligible" ]] || rm -f -- "$eligible"; rmdir "$root/.afyx-backup.lock"' EXIT
+  limit="$afyx_backup_limit"
+  if [[ ! "$limit" =~ ^[0-9]+$ ]] || [[ "$limit" -le 0 ]]; then limit=20; fi
+  before="$(afyx_backup_digest "$target")" || exit 1
+  destination="$(mktemp -d "$root/$(date +%Y%m%d-%H%M%S)-XXXXXXXX")" || exit 1
+  # Copy contents into our exclusively created directory, including dotfiles.
+  cp -a "$target/." "$destination/" || exit 1
+  copied="$(afyx_backup_digest "$destination")" || exit 1
+  [[ "$before" == "$copied" && "$(afyx_backup_digest "$target")" == "$before" ]] || {
+    printf 'Backup verification failed; history and incomplete copy preserved: %s\n' "$destination" >&2; exit 1;
+  }
+  printf 'AfyxSkillBackup/v1\n%s\n%s\n%s\n' "$component" "${destination##*/}" "$copied" >"$destination.afyx-backup" || exit 1
+  [[ "$protect" != true ]] || printf 'active rollback' >"$destination.afyx-active" || exit 1
+  eligible="$(mktemp "${TMPDIR:-/tmp}/afyx-backup-retention.XXXXXX")" || exit 1
+  # Regex names alone never establish ownership. Count only completed receipts
+  # whose full current payload still verifies; legacy/active/foreign stays put.
+  for candidate in "$root"/*; do
+    [[ -d "$candidate" && ! -L "$candidate" ]] || continue
+    [[ ! -e "$candidate.afyx-active" && ! -L "$candidate.afyx-active" ]] || continue
+    base="${candidate##*/}"; receipt="$candidate.afyx-backup"
+    [[ "$base" =~ ^[0-9]{8}-[0-9]{6}-[a-zA-Z0-9_-]+$ && -f "$receipt" && ! -L "$receipt" ]] || continue
+    [[ "$(sed -n '1p' "$receipt")" == AfyxSkillBackup/v1 && "$(sed -n '2p' "$receipt")" == "$component" && "$(sed -n '3p' "$receipt")" == "$base" && "$(wc -l <"$receipt" | tr -d ' ')" == 4 ]] || continue
+    record_digest="$(sed -n '4p' "$receipt")"
+    [[ "$record_digest" =~ ^[0-9a-f]{64}$ ]] || continue
+    [[ "$(afyx_backup_digest "$candidate")" == "$record_digest" ]] || continue
+    printf '%s\n' "$candidate" >>"$eligible"
+  done
+  LC_ALL=C sort -o "$eligible" "$eligible" || exit 1
+  count="$(wc -l <"$eligible" | tr -d ' ')"
+  [[ "$protect" != true ]] || count=$((count + 1))
+  while IFS= read -r candidate; do
+    [[ "$count" -gt "$limit" ]] || break
+    [[ "$candidate" != "$destination" ]] || continue
+    afyx_assert_backup_path "$candidate" || exit 1
+    rm -rf -- "$candidate" || exit 1
+    rm -f -- "$candidate.afyx-backup" || exit 1
+    count=$((count - 1))
+  done <"$eligible"
+  printf '%s' "$destination"
+)
 afyx_adopt_legacy_skill() {
   local component="$1" target="$2" owner="$3" version="${4:-}" legacy_digest="${5:-}" legacy_version="${6:-}" repository="${7:-}" revision="${8:-}"
   local state backup before after exclude exclude_entry exclude_had=false exclude_tmp
@@ -187,7 +247,7 @@ afyx_adopt_legacy_skill() {
   [[ "$AFYX_LEGACY_PROVENANCE" == MATCH ]] || {
     printf 'Refusing to adopt %s because legacy provenance is %s.\n' "$component" "$AFYX_LEGACY_PROVENANCE" >&2; return 1;
   }
-  backup="$(afyx_backup_skill "$component" "$target")" || return 1
+  backup="$(afyx_backup_skill "$component" "$target" true)" || return 1
   before="$(afyx_skill_digest "$target")" || return 1
   after="$(afyx_skill_digest "$backup")" || return 1
   [[ "$before" == "$after" ]] || { printf '%s adoption backup verification failed.\n' "$component" >&2; return 1; }
@@ -213,6 +273,7 @@ afyx_adopt_legacy_skill() {
     printf '%s post-adoption ownership verification failed.\n' "$component" >&2
     return 1
   fi
+  rm -f -- "$backup.afyx-active" || return 1
   printf 'ADOPTED backup=%s' "$backup"
 }
 
@@ -235,7 +296,7 @@ afyx_promote_skill() {
         printf 'Refusing to take ownership of %s (%s).\n' "$target" "$state" >&2; return 1 ;;
       *) printf 'Refusing unsafe skill target %s (%s).\n' "$target" "$state" >&2; return 1 ;;
     esac
-    backup="$(afyx_backup_skill "$component" "$target")" || return 1
+    backup="$(afyx_backup_skill "$component" "$target" true)" || return 1
     parent="$(dirname "$target")"; old="$parent/.$(basename "$target").afyx-old"
     [[ ! -e "$old" ]] || { printf 'Transaction recovery path already exists: %s\n' "$old" >&2; return 1; }
     mv "$target" "$old" || return 1
@@ -252,7 +313,7 @@ afyx_promote_skill() {
     return 1
   fi
   if [[ -n "$old" && -e "$old" ]]; then rm -rf -- "$old"; fi
-  if [[ -n "$backup" ]]; then printf 'Backup: %s\n' "$backup" >&2; fi
+  if [[ -n "$backup" ]]; then rm -f -- "$backup.afyx-active" || return 1; printf 'Backup: %s\n' "$backup" >&2; fi
   return 0
 }
 
@@ -265,7 +326,8 @@ afyx_remove_skill() {
   [[ "$state" == AFYX_OWNED_UNMODIFIED || "$state" == EXTERNAL_UPSTREAM ]] || {
     printf 'Refusing to remove %s because installed ownership is %s.\n' "$target" "$state" >&2; return 1;
   }
-  backup="$(afyx_backup_skill "$component" "$target")" || return 1
+  backup="$(afyx_backup_skill "$component" "$target" true)" || return 1
   rm -rf -- "$target" || return 1
+  rm -f -- "$backup.afyx-active" || return 1
   printf 'Removed: %s (backup: %s)\n' "$target" "$backup"
 }
