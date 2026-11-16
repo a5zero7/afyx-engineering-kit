@@ -2505,8 +2505,8 @@
     {
       "path": "scripts/afyx-midnight-circuit.mjs",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "71782d90285c8aae4594d3cd0d2b8235d7bec702ced468fdb2705e9a82bc8e48",
-      "evidence": "Installer UX v2 (AFYX-345 hybrid visual refinement): independently implemented native ANSI layout, Midnight Circuit 24-bit base/panel/cyan-selection palette with 16-color and plain fallback, asynchronous AFYX backend integration, bounded progress display, and verification receipt. Reuses existing AFYX installer contracts; imports only Node built-ins and AFYX modules. No third-party source or visual asset embedded."
+      "reviewedSha256": "3e1dde8d673dd6fe2010e86a07869476b056475217fce9bbd651ec59906a6b44",
+      "evidence": "MB12 native-source review retained. MB14 AFYX-328 technical delta review: six existing pre-planning callbacks now forward keyboard focus and provider scroll offsets to the existing renderer; no new UI architecture, dependency, or upstream implementation. Regression confirms focus, visible row movement, safe cancellation and zero planning; 33 focused UI/inventory tests pass. Evidence AFYX-MB14-20261116; legal clearance remains separate."
     },
     {
       "path": "scripts/afyx-install-progress.mjs",

@@ -365,7 +365,7 @@ export async function runMidnightCircuit({ input = process.stdin, output = proce
   };
   while (true) {
     if (step === 0) {
-      const result = await choose({ input, output, frame: (rows) => frame(0, rows, ['Inspecting supported host installations.', 'No configuration changes before confirmation.'], 'Enter: continue  Esc: cancel  Ctrl+C: cancel'), options: [{ id: 'continue', label: 'Continue to selection' }] });
+      const result = await choose({ input, output, frame: (rows, _cursor, view) => frame(0, rows, ['Inspecting supported host installations.', 'No configuration changes before confirmation.'], 'Enter: continue  Esc: cancel  Ctrl+C: cancel', view), options: [{ id: 'continue', label: 'Continue to selection' }] });
       if (result === null) return null;
       step = 1;
     } else if (step === 1) {
@@ -375,18 +375,18 @@ export async function runMidnightCircuit({ input = process.stdin, output = proce
         { id: 'custom', label: 'Custom provider selection' },
         { id: 'skip', label: 'Skip provider integration' },
       ];
-      const chosen = await choose({ input, output, frame: (rows) => frame(1, rows, ['Provider selection is separate from component installation.'], '↑/↓: move  Enter: choose  Esc: back'), options, selected: options.findIndex((x) => x.id === providerMode) });
+      const chosen = await choose({ input, output, frame: (rows, _cursor, view) => frame(1, rows, ['Provider selection is separate from component installation.'], '↑/↓: move  Enter: choose  Esc: back', view), options, selected: options.findIndex((x) => x.id === providerMode) });
       if (chosen === null) { step = 0; continue; }
       providerMode = chosen;
       if (chosen === 'custom' && available.length) {
-        const customHosts = await choose({ input, output, frame: (rows) => frame(1, rows, ['Space: toggle available providers.'], '↑/↓: move  Space: toggle  Enter: confirm  Esc: back'), options: providers.filter((entry) => providerSelectable(entry, platform)).map((entry) => ({ id: entry.id, label: entry.name })), multiple: true });
+        const customHosts = await choose({ input, output, frame: (rows, _cursor, view) => frame(1, rows, ['Space: toggle available providers.'], '↑/↓: move  Space: toggle  Enter: confirm  Esc: back', view), options: providers.filter((entry) => providerSelectable(entry, platform)).map((entry) => ({ id: entry.id, label: entry.name })), multiple: true });
         if (customHosts === null) continue;
         provider = customHosts;
       } else provider = chosen === 'skip' ? [] : chosen === 'recommended' ? available.slice(0, 1) : [...available];
       step = 2;
     } else if (step === 2) {
       const choices = ['recommended', 'minimal', 'full', 'custom'].map((id) => ({ id, label: `${id[0].toUpperCase()}${id.slice(1)} — ${id === 'full' ? 'all applicable components' : id === 'custom' ? 'select exact components' : id === 'recommended' ? 'core skills + Engineering Expert' : 'core engineering skills'}` }));
-      const chosen = await choose({ input, output, frame: (rows) => frame(1, rows, ['Choose a component preset.'], '↑/↓: move  Enter: choose  Esc: back'), options: choices, selected: choices.findIndex((x) => x.id === preset) });
+      const chosen = await choose({ input, output, frame: (rows, _cursor, view) => frame(1, rows, ['Choose a component preset.'], '↑/↓: move  Enter: choose  Esc: back', view), options: choices, selected: choices.findIndex((x) => x.id === preset) });
       if (chosen === null) { step = 1; continue; }
       preset = chosen;
       const support = runtimeSupport(preset, platform, arch);
@@ -395,7 +395,7 @@ export async function runMidnightCircuit({ input = process.stdin, output = proce
         const all = JSON.parse(readFileSync(join(pkgRoot, 'scripts', 'components.json'), 'utf8')).components
           .filter((entry) => (entry.platforms === 'all' || (platform === 'win32' && entry.platforms === 'windows')) &&
             (entry.id !== 'codex-usage-tracking' || provider.includes('codex')));
-        const selected = await choose({ input, output, frame: (rows) => frame(2, rows, ['Space: toggle components.'], '↑/↓: move  Space: toggle  Enter: confirm  Esc: back'), options: all.map((entry) => ({ id: entry.id, label: entry.name || entry.id })), multiple: true });
+        const selected = await choose({ input, output, frame: (rows, _cursor, view) => frame(2, rows, ['Space: toggle components.'], '↑/↓: move  Space: toggle  Enter: confirm  Esc: back', view), options: all.map((entry) => ({ id: entry.id, label: entry.name || entry.id })), multiple: true });
         if (selected === null || selected.length === 0) continue;
         if (selected.includes('afyx-graph') && !runtimeSupport('full', platform, arch).supported) {
           output.write(`${runtimeSupport('full', platform, arch).reason}\n`);
@@ -407,7 +407,7 @@ export async function runMidnightCircuit({ input = process.stdin, output = proce
     } else if (step === 3) {
       const scopeOptions = [{ id: 'global', label: 'Global provider scope' }];
       if (!provider.includes('codex')) scopeOptions.push({ id: 'workspace', label: 'Workspace provider scope' });
-      const chosen = await choose({ input, output, frame: (rows) => frame(2, rows, [`Preset: ${preset}`, `Components: ${selectedComponents().join(', ')}`, `Provider: ${provider.join(', ') || 'skipped'}`], '↑/↓: move  Enter: choose  Esc: back'), options: scopeOptions, selected: Math.max(0, scopeOptions.findIndex((item) => item.id === scope)) });
+      const chosen = await choose({ input, output, frame: (rows, _cursor, view) => frame(2, rows, [`Preset: ${preset}`, `Components: ${selectedComponents().join(', ')}`, `Provider: ${provider.join(', ') || 'skipped'}`], '↑/↓: move  Enter: choose  Esc: back', view), options: scopeOptions, selected: Math.max(0, scopeOptions.findIndex((item) => item.id === scope)) });
       if (chosen === null) { step = 2; continue; }
       scope = chosen;
       step = 4;
