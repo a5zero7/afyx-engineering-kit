@@ -301,8 +301,15 @@ export class AfyxGraph {
     const instance = new AfyxGraph(db, queries, resolvedRoot);
 
     // Run initial indexing if requested
-    if (options.index) {
-      await instance.indexAll({ onProgress: options.onProgress });
+    try {
+      if (options.index) {
+        await instance.indexAll({ onProgress: options.onProgress });
+      }
+    } catch (error) {
+      // No caller owns the instance until init resolves. Release its database
+      // and lock on failure, preserving the original indexing diagnostic.
+      try { instance.close(); } catch { /* preserve the initialization error */ }
+      throw error;
     }
 
     return instance;

@@ -878,8 +878,8 @@
     {
       "path": "afyx-graph/engine/src/index.ts",
       "classification": "PUBLIC_API_BARREL",
-      "reviewedSha256": "1cc18a8fe68fd72331c478f17e4637b77e35b79b866e14428aa2dacbb70b9ead",
-      "evidence": "AFYX public module barrel export surface; exposes stable interface without independent algorithmic logic."
+      "reviewedSha256": "41982db8c1b55ab04ce26cf78925f8d011e3d58e8013612afa273f8784547bea",
+      "evidence": "MB15 Graph lifecycle: reviewed failed asynchronous initialization closing its unpublished database and file lock while preserving the original rejection; existing index ownership and success behavior unchanged."
     },
     {
       "path": "afyx-graph/engine/src/installer/config-writer.ts",
@@ -2373,8 +2373,8 @@
     {
       "path": "afyx-forge/src/workflow-refiner.js",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "40162936b3656c712d79aa5d20efa9976aa911a5a3716a76d3ff57b4c292b598",
-      "evidence": "MB12 review: authored from AFYX functional requirements and existing reviewed 251f73a contracts; no upstream implementation, prompts, assets or dependency imported. Trusted-host boundaries and negative/regression tests recorded in MB12-native-consolidation-20261114-r1."
+      "reviewedSha256": "1be651ecc3774d5b96edfc7e685ff8978521ac231f291b3fae36cc9bf0dab3be",
+      "evidence": "MB15 AFYX-324: reviewed lexical section boundaries, preserved safety instructions, explicit missing-criteria clarification and non-vacuous heuristic hints; trusted receipt authority unchanged."
     },
     {
       "path": "afyx-forge/src/workflow.js",
@@ -2469,8 +2469,8 @@
     {
       "path": "scripts/afyx-skill-engineering.mjs",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "4bc9ccf59b4af9a1ac4947af853664dcf4d67a07243d5b9eb41ddd15052a072f",
-      "evidence": "MB12 review: authored from AFYX functional requirements and existing reviewed 251f73a contracts; no upstream implementation, prompts, assets or dependency imported. Trusted-host boundaries and negative/regression tests recorded in MB12-native-consolidation-20261114-r1."
+      "reviewedSha256": "6604fcf2ce7e4faadb6f3cca3f7f5271494666b34cf09188abb642eddc9a7f76",
+      "evidence": "MB15 AFYX-313: independently reviewed authored UTF-8 resource validation, portable package paths and aggregate decoded-size bounds; no external implementation imported."
     },
     {
       "path": "scripts/afyx-universal-runtime.mjs",
