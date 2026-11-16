@@ -15,6 +15,7 @@ export const HOST_BRIDGE_FILES = Object.freeze([
   'afyx-host-bridge.mjs',
   'afyx-universal-runtime.mjs',
   'afyx-host-adapters.mjs',
+  'afyx-expert-guidance.mjs',
   'afyx-capability-orchestrator.mjs',
   'afyx-modular-integration.mjs',
   'afyx-modular-runtime.mjs',
