@@ -110,7 +110,7 @@ class ExpertBundleTests(unittest.TestCase):
 class ExpertLifecycleTests(unittest.TestCase):
     def setUp(self) -> None:
         self.temporary = tempfile.TemporaryDirectory()
-        self.base = Path(self.temporary.name)
+        self.base = Path(self.temporary.name).resolve()
         self.skills = self.base / "skills"
         self.backups = self.base / "backups"
         self.fake_bin = self.base / "bin"
@@ -197,7 +197,9 @@ class ExpertLifecycleTests(unittest.TestCase):
                          ("afyx-engineering-expert", "afyx", "0.1.1"))
 
         self.install("update")
-        self.assertEqual(len(list((self.backups / "afyx-engineering-expert").iterdir())), 1)
+        backups = [path for path in (self.backups / "afyx-engineering-expert").iterdir() if path.is_dir()]
+        self.assertEqual(len(backups), 1)
+        self.assertTrue(Path(str(backups[0]) + ".afyx-backup").is_file())
         (self.target / "workflows" / "review-audit.md").unlink()
         self.install("repair")
         self.assertTrue((self.target / "workflows" / "review-audit.md").is_file())

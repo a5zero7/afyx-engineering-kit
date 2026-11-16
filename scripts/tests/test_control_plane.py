@@ -48,7 +48,7 @@ def tree_digest(root: Path) -> str:
 class ControlPlaneContractTests(unittest.TestCase):
     def setUp(self) -> None:
         self.temporary = tempfile.TemporaryDirectory()
-        self.base = Path(self.temporary.name)
+        self.base = Path(self.temporary.name).resolve()
         self.skills = self.base / "skills"
         self.graph = self.base / "graph"
         self.codex = self.base / "codex"
@@ -405,7 +405,7 @@ class ControlPlaneContractTests(unittest.TestCase):
         repaired = self.install_preset()
         self.assertIn("repair=REPAIR", repaired.stdout)
         self.assertEqual(target.read_bytes(), (ROOT / "skills/efficient-coding/SKILL.md").read_bytes())
-        self.assertTrue(any((self.backups / "efficient-coding").iterdir()))
+        self.assertTrue(any(path.is_dir() for path in (self.backups / "efficient-coding").iterdir()))
         self.verify_preset()
         self.assertEqual((self.codex / "config.toml").read_bytes(), self.config_before)
 

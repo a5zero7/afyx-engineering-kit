@@ -27,7 +27,9 @@ def lifecycle_shell() -> str | None:
 class SkillLifecycleSecurityTests(unittest.TestCase):
     def setUp(self) -> None:
         self.temporary = tempfile.TemporaryDirectory()
-        self.base = Path(self.temporary.name)
+        # macOS exposes its owned temporary directory through /var -> /private/var.
+        # Use the fixture's physical path; production rejects linked ancestors.
+        self.base = Path(self.temporary.name).resolve()
         self.skills = self.base / "skills"
         self.backups = self.base / "backups"
         self.fake_bin = self.base / "fake-bin"

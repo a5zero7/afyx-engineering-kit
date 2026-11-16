@@ -5,6 +5,8 @@ SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 PACKAGE_ROOT="$(cd -- "$SCRIPT_DIR/../.." && pwd)"
 
 TEST_TEMP="$(mktemp -d /tmp/afyx-test-backup-rot-XXXXXX)"
+# Resolve only our newly created fixture (macOS /tmp is an OS symlink).
+TEST_TEMP="$(cd "$TEST_TEMP" && pwd -P)"
 cleanup() {
   rm -rf -- "$TEST_TEMP" 2>/dev/null || true
 }

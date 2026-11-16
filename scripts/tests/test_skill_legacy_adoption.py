@@ -26,7 +26,7 @@ def lifecycle_shell() -> str | None:
 class LegacySkillAdoptionTests(unittest.TestCase):
     def setUp(self) -> None:
         self.temporary = tempfile.TemporaryDirectory()
-        self.base = Path(self.temporary.name)
+        self.base = Path(self.temporary.name).resolve()
         self.skills = self.base / "skills"
         self.backups = self.base / "backups"
         self.fake_bin = self.base / "fake-bin"
