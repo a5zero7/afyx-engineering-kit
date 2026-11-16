@@ -110,6 +110,31 @@ process.exit(1);\n`,
     }
   });
 
+  it('rejects foreign literal arguments that only look equivalent after path normalization', async () => {
+    const { integrateClaude, inspectClaude } = await import(moduleUrl);
+    for (const scope of ['global', 'workspace']) {
+      const claudeConfigDir = join(tempRoot, `literal-${scope}`);
+      const workspaceRoot = join(tempRoot, `literal-workspace-${scope}`);
+      mkdirSync(claudeConfigDir, { recursive: true });
+      mkdirSync(workspaceRoot, { recursive: true });
+      const config = scope === 'global' ? join(claudeConfigDir, '.claude.json') : join(workspaceRoot, '.mcp.json');
+      const options = { claudeConfigDir, workspaceRoot, scope, extensionOnly: true,
+        node: process.execPath, entry: fakeServerScript };
+      const variants = [[fakeServerScript, './serve', '--mcp'],
+        [fakeServerScript, 'serve', './--mcp'], [fakeServerScript, 'serve', { flag: '--mcp' }]];
+      if (process.platform === 'win32') variants.push([fakeServerScript, 'SERVE', '--MCP']);
+      for (const args of variants) {
+        writeFileSync(config, JSON.stringify({ mcpServers: { afyx_graph: { type: 'stdio', command: process.execPath, args } } }));
+        const before = readFileSync(config);
+        assert.equal(inspectClaude(options).state, 'MCP_BLOCKED');
+        const result = await integrateClaude({ ...options, operation: 'verify' });
+        assert.equal(result.status, 'BLOCKED');
+        assert.equal(result.reason, 'FOREIGN_ENTRY');
+        assert.deepEqual(readFileSync(config), before);
+      }
+    }
+  });
+
   it('performs complete Claude Code lifecycle: inspect, plan, register, verify, uninstall', async () => {
     const { integrateClaude, inspectClaude } = await import(moduleUrl);
 
