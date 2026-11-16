@@ -100,7 +100,13 @@ if ($located.Evidence -eq '.git' -and (Get-Command git -ErrorAction SilentlyCont
     $match = [regex]::Match($branch, $pattern)
     if ($match.Success) { $evidence.Add([ordered]@{ source = 'git branch'; strength = 'weak'; major = [int]$match.Groups[1].Value; count = 1; priority = 4 }) }
     else {
-        $tag = (& git -C $root describe --tags --abbrev=0 2>$null) -join ''
+        # No reachable tag is a normal absence of weak version evidence. Windows
+        # PowerShell 5.1 turns native stderr into a terminating RemoteException.
+        try {
+            $tag = (& git -C $root describe --tags --abbrev=0 2>$null) -join ''
+        } catch [System.Management.Automation.RemoteException] {
+            $tag = ''
+        }
         $match = [regex]::Match($tag, $pattern)
         if ($match.Success) { $evidence.Add([ordered]@{ source = 'git tag'; strength = 'weak'; major = [int]$match.Groups[1].Value; count = 1; priority = 4 }) }
     }

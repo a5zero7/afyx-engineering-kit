@@ -10,6 +10,7 @@ agree with the presence of FAIL lines) because CI hosts have no Codex CLI.
 from __future__ import annotations
 
 import hashlib
+import os
 import shutil
 import subprocess
 import tempfile
@@ -46,7 +47,7 @@ def run_bash(skills: Path, project: Path) -> tuple[int, str]:
 
 
 def run_pwsh(skills: Path, project: Path) -> tuple[int, str]:
-    pwsh = shutil.which("pwsh") or shutil.which("powershell")
+    pwsh = shutil.which(os.environ["AFYX_TEST_POWERSHELL"]) if "AFYX_TEST_POWERSHELL" in os.environ else shutil.which("pwsh") or shutil.which("powershell")
     if not pwsh:
         return -1, ""
     # Force UTF-8 for this child process only, so the report decodes identically on every host.
@@ -109,8 +110,9 @@ class DoctorTests(unittest.TestCase):
     def test_healthy_core_is_reported_with_versions(self) -> None:
         self.install_core()
         for shell, (_code, out) in self.doctors().items():
-            self.assertIn("[OK] Efficient Coding — 1.2.2", out, shell)
-            self.assertIn("[OK] Odoo Engineering — 1.2.0", out, shell)
+            separator = "—" if shell == "bash" else "-"
+            self.assertIn(f"[OK] Efficient Coding {separator} 1.2.2", out, shell)
+            self.assertIn(f"[OK] Odoo Engineering {separator} 1.2.0", out, shell)
             self.assertNotIn("[FAIL] Efficient Coding", out, shell)
 
     def test_optional_expert_is_reported_without_affecting_core_readiness(self) -> None:
@@ -121,7 +123,8 @@ class DoctorTests(unittest.TestCase):
 
         shutil.copytree(ROOT / "skills" / "afyx-engineering-expert", self.skills / "afyx-engineering-expert")
         for shell, (_code, out) in self.doctors().items():
-            self.assertIn("[OK] Afyx Engineering Expert — 0.1.1", out, shell)
+            separator = "—" if shell == "bash" else "-"
+            self.assertIn(f"[OK] Afyx Engineering Expert {separator} 0.1.1", out, shell)
 
     def test_verdict_agrees_with_fail_lines(self) -> None:
         self.install_core()
@@ -176,13 +179,15 @@ class DoctorTests(unittest.TestCase):
         write(self.project / "odoo" / "release.py", "version_info = (17, 0, 0, FINAL, 0, '')\n")
         for shell, (_code, out) in self.doctors().items():
             self.assertIn("[OK] Odoo detected", out, shell)
-            self.assertIn("[OK] Version: 17 — proven by source evidence", out, shell)
+            separator = "—" if shell == "bash" else "-"
+            self.assertIn(f"[OK] Version: 17 {separator} proven by source evidence", out, shell)
 
     def test_conflicting_odoo_evidence_is_a_warning_not_a_guess(self) -> None:
         write(self.project / "addons" / "a" / "__manifest__.py", "{'version': '15.0.1.0.0'}\n")
         write(self.project / "addons" / "b" / "__manifest__.py", "{'version': '16.0.1.0.0'}\n")
         for shell, (_code, out) in self.doctors().items():
-            self.assertIn("[WARN] Version — conflicting evidence", out, shell)
+            separator = "—" if shell == "bash" else "-"
+            self.assertIn(f"[WARN] Version {separator} conflicting evidence", out, shell)
             self.assertNotIn("[OK] Version:", out, shell)
 
     def test_doctor_is_read_only(self) -> None:
