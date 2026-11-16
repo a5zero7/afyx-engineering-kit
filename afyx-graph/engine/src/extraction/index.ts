@@ -1389,7 +1389,7 @@ function collectGitStatus(repoDir: string, prefix: string, out: GitChanges, over
   // repo-relative `rel` at each recursion level mirrors getGitVisibleFiles'
   // ScopeIgnore: every embedded repo is judged by ITS OWN rules, never the
   // parent's. (#766)
-  const ig = buildDefaultIgnore(repoDir);
+  let ig: ReturnType<typeof buildDefaultIgnore> | undefined;
 
   // One classifier for both candidate sources below, so a committed change is
   // filtered by exactly the rules a working-tree change is (#766, #999, #1829).
@@ -1407,7 +1407,7 @@ function collectGitStatus(repoDir: string, prefix: string, out: GitChanges, over
 
     // Added (`??`) / modified files inside an excluded dir must not enter the
     // index — match against the repo-relative path, same as the full scan. (#766)
-    if (ig.ignores(rel)) return;
+    if ((ig ??= buildDefaultIgnore(repoDir)).ignores(rel)) return;
     // User `afyx-graph.json` `exclude` (#999) is project-root-relative, so it's
     // matched against the full path — sync must not re-add a tracked file the
     // full index now keeps out. Deletions above stay unfiltered so a file that
@@ -2970,6 +2970,9 @@ export class ExtractionOrchestrator {
       // have been recreated locally; a previously indexed dirty path may have
       // vanished from git status after restore. Classify current disk vs DB once.
       const candidates = new Set([...gitChanges.deleted, ...gitChanges.modified, ...gitChanges.added, ...dirtyPaths!]);
+      // Git freshness and persisted dirty paths have both been checked. With
+      // no candidates, ignore-policy discovery cannot affect the result.
+      if (candidates.size === 0) return { added, modified, removed };
       const scope = this.scopedSyncMatcher();
       const overrides = loadExtensionOverrides(this.rootDir);
       for (const filePath of candidates) {

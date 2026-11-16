@@ -427,8 +427,8 @@
     {
       "path": "afyx-graph/engine/src/extraction/index.ts",
       "classification": "PUBLIC_API_BARREL",
-      "reviewedSha256": "e372612764bf3413f74ad58e03c4d915b8bebc670829096f0de84a2909dfcdd6",
-      "evidence": "AFYX public module barrel export surface; exposes stable interface without independent algorithmic logic."
+      "reviewedSha256": "5d13dea9aeabfe8c4fa2dcb772f3bc986692a56dad8d1324b4aa4ab571c4d976",
+      "evidence": "MB15 Windows Git RCA: reviewed lazy ignore-policy evaluation and empty-candidate short circuit only after Git freshness plus persisted dirty paths are checked; no cross-call cache, permission, checksum or restored-edit semantics changed. Positive/negative Git and ignore regressions retained."
     },
     {
       "path": "afyx-graph/engine/src/extraction/languages/c-cpp.ts",
