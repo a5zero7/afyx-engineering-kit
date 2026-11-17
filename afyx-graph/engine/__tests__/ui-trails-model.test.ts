@@ -1,5 +1,5 @@
 /**
- * What a saved trail's row says, without a browser (CG-60).
+ * What a saved trail's row says, without a browser (AFYX Graph exploration trails).
  *
  * The endpoint's own behaviour is pinned in `ui-trails.test.ts` against a real
  * index; this is the wording layer, and the rule it exists to protect is that

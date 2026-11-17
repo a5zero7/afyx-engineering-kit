@@ -2259,14 +2259,14 @@
     {
       "path": "afyx-graph/engine/ui/src/lib/trail-codec.ts",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "bcd849497d7d34541aff75a92e6abf2fa87262c900e8ebd236b74e4503803718",
-      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+      "reviewedSha256": "f3110ec6cd2327dec9cbd580bb484d4f17ec69b00e24eb6088c6bf8c34b7af30",
+      "evidence": "MB17 Wave 1 (AFYX-5, AFYX-157, AFYX-320): independently authored exploration trail wire codec; deterministic direction prefixes, safe URL encoding, resilient raw-token fallback for malformed parameters, and zero third-party dependencies."
     },
     {
       "path": "afyx-graph/engine/ui/src/lib/trails-model.ts",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "b3e84ab2149ad4f1a3a2518be0cdda54e0795d5dbd32f7a490856dcc091b4902",
-      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+      "reviewedSha256": "312ec3149fde55e1d5d4e9fe6c9fc76c1f8a20a57fdab82d9c3f9be503c7587d",
+      "evidence": "MB17 Wave 1 (AFYX-5, AFYX-157, AFYX-320): independently authored exploration trail presentation model; deterministic codebase drift decay analysis (missing/ambiguous/moved), partial open range calculation, and portable JSON trail export."
     },
     {
       "path": "afyx-graph/engine/ui/src/lib/walk.ts",
