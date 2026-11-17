@@ -2,7 +2,7 @@
   "schema": 1,
   "baselineRevision": "c4e4d8e29de239a2fcbc0db8ac65eea2276e7b00",
   "scope": "AFYX-320 comprehensive production source inventory",
-  "totalProductionFiles": 424,
+  "totalProductionFiles": 430,
   "entries": [
     {
       "path": "afyx-context/src/budget.js",
@@ -13,8 +13,8 @@
     {
       "path": "afyx-context/src/documentation.js",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "ad4f24a035456b5e4e788c955d71f871c9b61461bf2232cad71bfdf8502fbfc2",
-      "evidence": "MB12 review: authored from AFYX functional requirements and existing reviewed 251f73a contracts; no upstream implementation, prompts, assets or dependency imported. Trusted-host boundaries and negative/regression tests recorded in MB12-native-consolidation-20261114-r1."
+      "reviewedSha256": "b00b324a18a601b8e166b7b30e4c0c1213bad5bf9887feca8b15ac2cfad2c1ac",
+      "evidence": "MB18 AFYX-335/347: reviewed optional trusted async converter boundary using the existing catalog, admission, source hash, bounded in-memory content cache, selection and exact recovery; no decoder or network engine in Context."
     },
     {
       "path": "afyx-context/src/index.js",
@@ -2391,8 +2391,8 @@
     {
       "path": "scripts/afyx-browser-devtools.mjs",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "34414d2653bc6ad7ba09de89e4c608c79d4dd36543c025fb3e3ae1ad026cdb86",
-      "evidence": "MB17 Wave 3 Extended (AFYX-190, AFYX-105, AFYX-320): independently authored AFYX native Chrome DevTools Protocol engine; zero-third-party CDP client, isolated profile sandbox, safe URL scheme validation, console/network telemetry, and deterministic process teardown."
+      "reviewedSha256": "7da2768d958487894124fb94594d90d58d670c152e4344154a0ac64d2ae52cb0",
+      "evidence": "MB18 AFYX-190: reviewed independently designed owned CDP endpoint/profile manager, exact-origin interception, bounded interaction/trace/export and lifecycle-specific stale request handling. Apache-2.0 reference ec0abfc only read in external REA; no source imported, full parity and universal egress isolation not asserted."
     },
     {
       "path": "scripts/afyx-capability-orchestrator.mjs",
@@ -2427,14 +2427,14 @@
     {
       "path": "scripts/afyx-host-bridge-lifecycle.mjs",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "0833a935a0d7433a8b6211163f7684e3c9918a2fabd46970c2a6159767ae95fb",
-      "evidence": "MB16 AFYX-283: reviewed HOST_BRIDGE_FILES inclusion of afyx-expert-guidance.mjs for standalone installed artifact integrity."
+      "reviewedSha256": "33c52ee746c5f20f2abe5c66031ba4a7cd4438e2493324717c187207ceb92bde",
+      "evidence": "MB18 AFYX-105/347: reviewed complete installed flat bundle includes browser manager, optional host boundary and five native document modules; verified installed conversion and selective uninstall in disposable fixtures."
     },
     {
       "path": "scripts/afyx-host-bridge.mjs",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "9be7e513a6220ef956c6dcb285796bef4e7184b098c4c5e05f035eda17a9ff4b",
-      "evidence": "MB17 Wave 3 Extended: Universal host bridge connecting AI coding hosts; added native afyx_browser MCP tool and CLI dispatch alongside existing afyx_workflow. No upstream implementation, prompts, assets or dependencies imported."
+      "reviewedSha256": "a5e9ca1d76cb18feebe4cd42b71af0445472e6372e662167f51c5fc6b9300447",
+      "evidence": "MB18 AFYX-190/347: reviewed default-OFF optional tool exposure, host-only authority, persistent browser ownership, bounded document calls, image transport and truthful shutdown; existing workflow and one MCP server preserved."
     },
     {
       "path": "scripts/afyx-install-backend.mjs",
@@ -2475,8 +2475,8 @@
     {
       "path": "scripts/afyx-modular-integration.mjs",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "95ca83d3f1ed42c98286f1e558f004c9807e8ddfc265e74f0e47b3f7f5eb3065",
-      "evidence": "MB12 review: authored from AFYX functional requirements and existing reviewed 251f73a contracts; no upstream implementation, prompts, assets or dependency imported. Trusted-host boundaries and negative/regression tests recorded in MB12-native-consolidation-20261114-r1."
+      "reviewedSha256": "29fce8981f945009f148feac7b5fe657d2b411341f334687c3995025173957c3",
+      "evidence": "MB18 AFYX-105/190/347: reviewed versioned browser/document inventory entries, SOURCE_READY maturity and ON_DEMAND activation without changing installed presets or triggering unrelated capabilities."
     },
     {
       "path": "scripts/afyx-modular-runtime.mjs",
@@ -2555,6 +2555,42 @@
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
       "reviewedSha256": "1a317d7a18f1d886fb4084336d84a24279d8f5a700a7cdf7cce96a32dbcb5cb2",
       "evidence": "MB12 review: authored from AFYX functional requirements and existing reviewed 251f73a contracts; no upstream implementation, prompts, assets or dependency imported. Trusted-host boundaries and negative/regression tests recorded in MB12-native-consolidation-20261114-r1."
+    },
+    {
+      "path": "scripts/afyx-optional-capabilities.mjs",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "5f607afbf134ff9f9570f616ce306e19ea126dbbafd75167607ddae72aa38a24",
+      "evidence": "MB18 AFYX-190/347: original bounded host dispatcher reuses one browser manager and standalone converter; snapshots host policy, prevents task JSON authority escalation and serializes browser calls without duplicate MCP/runtime engines."
+    },
+    {
+      "path": "scripts/afyx-document-intelligence.mjs",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "2fbd0e40b76ee08671ed5f89bdb7ea0e392c352855352a226a7384db599b9598",
+      "evidence": "MB18 AFYX-347: original file/bytes/stream admission and worker API with workspace, provenance and bounded conversion; read-only MarkItDown MIT reference ed178952 informed functional contracts, not imported source."
+    },
+    {
+      "path": "scripts/afyx-document-worker.mjs",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "512fc2130cc7d835199b36b95fd9e78877985144b0b4cf2c88988a8fd24841ad",
+      "evidence": "MB18 AFYX-347: original isolated conversion worker with wall-clock, V8 heap and output bounds; no subprocess parser, plugins, network or upstream engine. Uses Node runtime primitives with their existing licenses."
+    },
+    {
+      "path": "scripts/afyx-document-formats.mjs",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "bb119f31419bf39487f5851a019e6b9ca59f5818738ef8e3e5a599e01137fb91",
+      "evidence": "MB18 AFYX-347: original deterministic text, HTML, CSV, JSON, XML and Office subset mapping from format contracts; explicitly rejects unsupported complex formats, invalid OOXML roots and external execution."
+    },
+    {
+      "path": "scripts/afyx-document-archive.mjs",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "3be2fc099fb6fc5b52b96c71b985c1a3a2efbedf5c237d0d95d799cc5e5a3c7a",
+      "evidence": "MB18 AFYX-347: original bounded ZIP admission validates central/local identity, sizes, CRC, paths, collisions and unsafe members; built-in Node zlib is a runtime prerequisite, no archive dependency/source vendored."
+    },
+    {
+      "path": "scripts/afyx-document-xml.mjs",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "7e824a5e257d68491dd37a9e5f73a511e01e861e27b7684849f687e76061286b",
+      "evidence": "MB18 AFYX-347: original bounded XML tokenizer/tree traversal for document structure; rejects DTD and unsupported entity expansion, malformed nesting and excessive depth rather than executing external resolvers."
     }
   ]
 }

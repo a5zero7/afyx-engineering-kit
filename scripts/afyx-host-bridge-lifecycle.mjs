@@ -13,6 +13,13 @@ export const AFYX_HOST_BRIDGE_PRODUCT = 'Afyx Universal Host Bridge';
 export const AFYX_HOST_BRIDGE_CONTRACT = 'AfyxHostBridge/v1';
 export const HOST_BRIDGE_FILES = Object.freeze([
   'afyx-host-bridge.mjs',
+  'afyx-optional-capabilities.mjs',
+  'afyx-browser-devtools.mjs',
+  'afyx-document-intelligence.mjs',
+  'afyx-document-archive.mjs',
+  'afyx-document-xml.mjs',
+  'afyx-document-formats.mjs',
+  'afyx-document-worker.mjs',
   'afyx-universal-runtime.mjs',
   'afyx-host-adapters.mjs',
   'afyx-expert-guidance.mjs',

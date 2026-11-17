@@ -11,6 +11,7 @@
  */
 
 import { existsSync, readFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import readline from 'node:readline';
@@ -18,7 +19,7 @@ import readline from 'node:readline';
 import {
   runInstalledAfyxWorkflow,
 } from './afyx-universal-runtime.mjs';
-import { AfyxBrowserSession, findChromeBinary } from './afyx-browser-devtools.mjs';
+import { createOptionalCapabilityHost } from './afyx-optional-capabilities.mjs';
 
 export const AFYX_HOST_BRIDGE_CONTRACT = 'AfyxHostBridge/v1';
 
@@ -98,6 +99,9 @@ export async function invokeHostWorkflow({
  * @param {string} [serverOptions.provider]
  */
 export function serveHostMcpBridge(serverOptions = {}) {
+  const optional = createOptionalCapabilityHost({ projectRoot: serverOptions.projectRoot,
+    browser: serverOptions.trustedCapabilities?.browser,
+    document: serverOptions.trustedCapabilities?.document });
   const rl = readline.createInterface({
     input: process.stdin,
     output: process.stdout,
@@ -108,9 +112,18 @@ export function serveHostMcpBridge(serverOptions = {}) {
     process.stdout.write(`${JSON.stringify(response)}\n`);
   };
 
-  rl.on('close', () => {
-    process.exit(0);
-  });
+  let shuttingDown = false;
+  const shutdown = () => {
+    if (shuttingDown) return;
+    shuttingDown = true;
+    optional.close().then(() => process.exit(0), () => {
+      process.stderr.write('AFYX_OPTIONAL_CLEANUP_FAILED\n');
+      process.exit(1);
+    });
+  };
+  rl.on('close', shutdown);
+  process.once('SIGTERM', shutdown);
+  process.once('SIGINT', shutdown);
 
   rl.on('line', async (line) => {
     const trimmed = line.trim();
@@ -179,33 +192,9 @@ export function serveHostMcpBridge(serverOptions = {}) {
                   required: ['task'],
                 },
               },
-              {
-                name: 'afyx_browser',
-                description: 'Perform web application inspection, JavaScript evaluation, console/network telemetry collection, or screenshot capture via isolated Chrome DevTools session.',
-                inputSchema: {
-                  type: 'object',
-                  properties: {
-                    action: {
-                      type: 'string',
-                      enum: ['inspect', 'evaluate', 'console', 'network', 'screenshot'],
-                      description: 'Action to perform in the browser session',
-                    },
-                    url: {
-                      type: 'string',
-                      description: 'Target URL to navigate (http, https, file, or about)',
-                    },
-                    expression: {
-                      type: 'string',
-                      description: 'JavaScript expression for evaluate action',
-                    },
-                    headless: {
-                      type: 'boolean',
-                      description: 'Whether to run browser in headless mode (default: true)',
-                    },
-                  },
-                  required: ['action', 'url'],
-                },
-              },
+              { name: 'afyx_capabilities', description: 'Discover authorized optional capabilities for a task intent without starting them.',
+                inputSchema: { type: 'object', additionalProperties: false, properties: { intent: { type: 'string', enum: ['browser', 'document-conversion'] } }, required: ['intent'] } },
+              ...optional.tools(),
             ],
           },
         });
@@ -213,43 +202,22 @@ export function serveHostMcpBridge(serverOptions = {}) {
       }
 
       case 'tools/call': {
-        if (params?.name === 'afyx_browser') {
-          const args = params.arguments || {};
-          const session = new AfyxBrowserSession({ headless: args.headless !== false });
+        if (params?.name === 'afyx_capabilities' || params?.name === 'afyx_browser' || params?.name === 'afyx_document') {
           try {
-            await session.launch();
-            await session.navigate(args.url);
-            let actionResult;
-            if (args.action === 'inspect') {
-              actionResult = await session.inspectPage();
-            } else if (args.action === 'evaluate') {
-              if (!args.expression) throw new Error('Action "evaluate" requires "expression" parameter');
-              actionResult = { value: await session.evaluate(args.expression) };
-            } else if (args.action === 'console') {
-              actionResult = { messages: session.getConsoleMessages() };
-            } else if (args.action === 'network') {
-              actionResult = { requests: session.getNetworkRequests() };
-            } else if (args.action === 'screenshot') {
-              actionResult = { screenshotBase64: await session.takeScreenshot() };
-            } else {
-              throw new Error(`Unknown browser action: ${args.action}`);
+            const value = params.name === 'afyx_capabilities'
+              ? { capabilities: optional.discover(params.arguments), started: false }
+              : await optional.call(params.name, params.arguments);
+            let structured = value && typeof value === 'object' && !Array.isArray(value) ? value : { result: value };
+            const images = [];
+            if (params.name === 'afyx_browser' && params.arguments?.action === 'screenshot' && typeof value?.screenshotBase64 === 'string') {
+              const bytes = Buffer.from(value.screenshotBase64, 'base64');
+              structured = { screenshot: { mimeType: 'image/png', bytes: bytes.length, sha256: createHash('sha256').update(bytes).digest('hex') } };
+              images.push({ type: 'image', mimeType: 'image/png', data: value.screenshotBase64 });
             }
-            await session.close();
-            sendResponse({
-              jsonrpc: '2.0',
-              id,
-              result: {
-                content: [{ type: 'text', text: JSON.stringify(actionResult, null, 2) }],
-                structuredContent: actionResult,
-              },
-            });
-          } catch (err) {
-            await session.close();
-            sendResponse({
-              jsonrpc: '2.0',
-              id,
-              error: { code: -32000, message: `Browser operation failed: ${err.message}` },
-            });
+            const output = { ...structured, contentTrust: 'untrusted-data' };
+            sendResponse({ jsonrpc: '2.0', id, result: { structuredContent: output, content: [{ type: 'text', text: JSON.stringify(output) }, ...images] } });
+          } catch (error) {
+            sendResponse({ jsonrpc: '2.0', id, result: { isError: true, content: [{ type: 'text', text: error instanceof Error ? error.message : String(error) }] } });
           }
           break;
         }
@@ -312,10 +280,19 @@ export function serveHostMcpBridge(serverOptions = {}) {
 
 function trustedLaunchCapabilities() {
   const repositories = (argumentValue('--github-repositories') || '').split(',').filter(Boolean);
-  if (!repositories.length) return {};
-  const github = { allowedRepositories: repositories };
-  const executable = argumentValue('--github-gh-executable');
-  return { github, githubExecutable: executable };
+  const enabled = new Set((argumentValue('--capabilities') || '').split(',').filter(Boolean));
+  for (const item of enabled) if (!['browser', 'document'].includes(item)) throw new Error('UNKNOWN_OPTIONAL_CAPABILITY');
+  const capabilities = {};
+  if (repositories.length) {
+    capabilities.github = { allowedRepositories: repositories };
+    capabilities.githubExecutable = argumentValue('--github-gh-executable');
+  }
+  if (enabled.has('document')) capabilities.document = { enabled: true };
+  if (enabled.has('browser')) capabilities.browser = { enabled: true,
+    allowedOrigins: (argumentValue('--browser-origins') || '').split(',').filter(Boolean),
+    allowEvaluation: process.argv.includes('--browser-evaluation'),
+    uploadRoot: argumentValue('--browser-upload-root'), exportRoot: argumentValue('--browser-export-root') };
+  return capabilities;
 }
 
 function argumentValue(flag) {
