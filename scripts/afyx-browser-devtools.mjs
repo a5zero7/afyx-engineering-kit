@@ -136,6 +136,7 @@ export class AfyxBrowserSession {
     this.isAttached = false; this.pendingCallbacks = new Map(); this.messageId = 1;
     this.pages = new Map(); this.selectedPage = null; this.consoleLogs = []; this.networkRequests = [];
     this.dialog = null; this.trace = null; this.commandCount = 0; this._queue = Promise.resolve();
+    this.interceptionDiagnostics = { staleRequests: 0, closedPageSessions: 0, fatalErrors: 0 };
     // Serialize public operations so page selection/navigation cannot race.
     for (const name of ['launch', 'close', 'listPages', 'newPage', 'selectPage', 'closePage', 'navigate', 'waitFor',
       'evaluate', 'inspectPage', 'snapshot', 'findElements', 'click', 'clickAt', 'drag', 'hover', 'fillForm', 'typeText', 'pressKey', 'handleDialog',
@@ -158,6 +159,7 @@ export class AfyxBrowserSession {
     if (this.process) throw new Error('BROWSER_ALREADY_RUNNING');
     if (!this.chromePath) throw new Error('BROWSER_EXECUTABLE_NOT_FOUND');
     this.commandCount = 0; this.consoleLogs = []; this.networkRequests = []; this.dialog = null; this.trace = null;
+    this.interceptionDiagnostics = { staleRequests: 0, closedPageSessions: 0, fatalErrors: 0 };
     this.userDataDir = mkdtempSync(join(tmpdir(), 'afyx-browser-session-'));
     const flags = ['--remote-debugging-address=127.0.0.1', '--remote-debugging-port=0', `--user-data-dir=${this.userDataDir}`,
       '--no-first-run', '--no-default-browser-check', '--disable-background-networking', '--disable-default-apps',
@@ -234,7 +236,11 @@ export class AfyxBrowserSession {
   _handleMessage(message) {
     if (message.id && this.pendingCallbacks.has(message.id)) {
       const entry = this.pendingCallbacks.get(message.id); clearTimeout(entry.timer); this.pendingCallbacks.delete(message.id);
-      if (message.error) entry.reject(new Error(`BROWSER_CDP_ERROR:${message.error.code}`)); else entry.resolve(message.result ?? {});
+      if (message.error) {
+        const error = new Error(`BROWSER_CDP_ERROR:${message.error.code}`);
+        error.cdpCode = message.error.code; error.cdpMessage = message.error.message;
+        entry.reject(error);
+      } else entry.resolve(message.result ?? {});
       return;
     }
     const event = message.params ?? {};
@@ -244,8 +250,8 @@ export class AfyxBrowserSession {
     } else if (message.method === 'Target.detachedFromTarget') {
       for (const [id, page] of this.pages) if (page.sessionId === event.sessionId) this.pages.delete(id);
     } else if (message.method === 'Fetch.requestPaused') {
-      try { this._allowed(event.request.url); void this.send('Fetch.continueRequest', { requestId: event.requestId }, message.sessionId).catch(() => this._close()); }
-      catch { void this.send('Fetch.failRequest', { requestId: event.requestId, errorReason: 'BlockedByClient' }, message.sessionId).catch(() => this._close()); }
+      try { this._allowed(event.request.url); void this.send('Fetch.continueRequest', { requestId: event.requestId }, message.sessionId).catch((error) => this._interceptionFailure(error, message.sessionId)); }
+      catch { void this.send('Fetch.failRequest', { requestId: event.requestId, errorReason: 'BlockedByClient' }, message.sessionId).catch((error) => this._interceptionFailure(error, message.sessionId)); }
     } else if (message.method === 'Page.javascriptDialogOpening') {
       this.dialog = { type: event.type, message: redact(event.message), sessionId: message.sessionId };
       for (const done of this._dialogWaiters ?? []) done();
@@ -270,6 +276,25 @@ export class AfyxBrowserSession {
         this.trace.events.push(clean); this.trace.bytes += bytes;
       }
     } else if (message.method === 'Tracing.tracingComplete') { this.trace?.complete?.(); }
+  }
+
+  _interceptionFailure(error, sessionId) {
+    // These exact responses were reproduced against owned Chrome: canceled
+    // requests cannot be resumed, and closed page sessions no longer exist.
+    // Neither response disables Fetch or authorizes another request. Keep all
+    // other protocol errors, timeouts and budget failures fail-closed.
+    if (error?.cdpCode === -32602 && error.cdpMessage === 'Invalid InterceptionId.') {
+      this.interceptionDiagnostics.staleRequests++; return;
+    }
+    if (error?.cdpCode === -32001 && error.cdpMessage === 'Session with given id not found.') {
+      this.interceptionDiagnostics.closedPageSessions++;
+      for (const [id, page] of this.pages) if (page.sessionId === sessionId) {
+        this.pages.delete(id); if (this.selectedPage === id) this.selectedPage = this.pages.keys().next().value;
+      }
+      return;
+    }
+    this.interceptionDiagnostics.fatalErrors++;
+    void this._close().catch(() => {});
   }
 
   async _attach(sessionId, target) {

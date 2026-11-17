@@ -50,6 +50,65 @@ test('native command and trace budgets fail truthfully without silently expandin
   await assert.rejects(session.fillForm([{ selector: '#one', value: 3 }]), /INVALID_FORM/);
 });
 
+test('only exact stale Fetch lifecycle responses spare the browser; interception failures remain fail-closed', () => {
+  const session = new AfyxBrowserSession(); let closed = 0;
+  session._close = async () => { closed++; };
+  session.pages.set('old-page', { sessionId: 'gone' });
+  session.pages.set('healthy-page', { sessionId: 'alive' }); session.selectedPage = 'old-page';
+  session._interceptionFailure({ cdpCode: -32602, cdpMessage: 'Invalid InterceptionId.' }, 'alive');
+  session._interceptionFailure({ cdpCode: -32001, cdpMessage: 'Session with given id not found.' }, 'gone');
+  assert.equal(closed, 0); assert.equal(session.selectedPage, 'healthy-page');
+  assert.equal(session.pages.has('old-page'), false); assert.equal(session.pages.has('healthy-page'), true);
+  for (const error of [
+    { cdpCode: -32602, cdpMessage: 'Invalid parameters' },
+    { cdpCode: -32000, cdpMessage: 'Interception is not enabled' },
+    { cdpCode: -32601, cdpMessage: 'Method not found' },
+    { cdpCode: -32001, cdpMessage: 'Other session failure' },
+    new Error('BROWSER_COMMAND_BUDGET_EXHAUSTED'), new Error('BROWSER_CDP_TIMEOUT:Fetch.failRequest'),
+  ]) session._interceptionFailure(error, 'alive');
+  assert.equal(closed, 6); assert.equal(session.interceptionDiagnostics.fatalErrors, 6);
+});
+
+test('real canceled and closed-page Fetch requests preserve a healthy owned page without widening origin policy', { timeout: 20000 }, async (t) => {
+  const chromePath = findChromeBinary(); if (!chromePath) { t.skip('NOT TESTED: compatible Chrome unavailable'); return; }
+  const server = createServer((_request, response) => response.end('AFYX lifecycle fixture'));
+  await new Promise((done) => server.listen(0, '127.0.0.1', done));
+  const origin = `http://127.0.0.1:${server.address().port}`;
+  const session = new AfyxBrowserSession({ chromePath, allowedOrigins: [origin] });
+  try {
+    await session.launch(); const healthyPage = session.selectedPage;
+    const nativeSend = session.send.bind(session);
+    for (const action of ['cancel-request', 'close-page']) {
+      let release; let paused;
+      const gate = new Promise((done) => { release = done; });
+      const seen = new Promise((done) => { paused = done; });
+      await session.newPage(); let held = false;
+      session.send = async (method, params, sessionId) => {
+        if (method === 'Fetch.continueRequest' && !held) { held = true; paused(); await gate; }
+        return nativeSend(method, params, sessionId);
+      };
+      const navigation = session.navigate(origin, { waitUntil: 'none' }).catch((error) => error.message);
+      try {
+        await seen;
+        if (action === 'cancel-request') await nativeSend('Page.stopLoading', {}, session.pages.get(session.selectedPage).sessionId);
+        else await nativeSend('Target.closeTarget', { targetId: session.selectedPage });
+      } finally { release(); }
+      await navigation;
+      const expected = action === 'cancel-request' ? 'staleRequests' : 'closedPageSessions';
+      const deadline = Date.now() + 2000;
+      while (session.interceptionDiagnostics[expected] === 0 && Date.now() < deadline) await new Promise((done) => setTimeout(done, 20));
+      assert.ok(session.interceptionDiagnostics[expected] > 0, `must observe reproduced ${action} protocol response`);
+      assert.equal(session.interceptionDiagnostics.fatalErrors, 0);
+      assert.equal(session.isAttached, true);
+      session.send = nativeSend;
+      await session.selectPage(healthyPage);
+      await session.navigate(origin);
+      assert.equal((await session.inspectPage()).url, `${origin}/`);
+      await assert.rejects(session.navigate('http://169.254.169.254/latest/meta-data/'), /ORIGIN_DENIED/);
+    }
+  } finally { await session.close(); server.closeAllConnections(); await new Promise((done) => server.close(done)); }
+});
+
 test('real owned Chrome: pages, DOM, interaction, diagnostics, trace, export and network-denial lifecycle', { timeout: 45000 }, async (t) => {
   const chromePath = findChromeBinary();
   if (!chromePath) { t.skip('NOT TESTED: compatible Chrome unavailable'); return; }
