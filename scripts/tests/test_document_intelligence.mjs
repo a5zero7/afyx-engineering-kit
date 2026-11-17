@@ -88,6 +88,26 @@ test('hardlinks and symlink/junction paths are rejected', async (t) => {
   rejected(await convertDocument({ path: join(alias, 'doc.txt') }, { workspaceRoot: root }), /SYMLINK_FORBIDDEN/);
 });
 
+test('trusted workspace tolerates an ancestor alias while root and descendant aliases stay forbidden', async (t) => {
+  const sandbox = mkdtempSync(join(tmpdir(), 'afyx-doc-root-alias-'));
+  t.after(() => rmSync(sandbox, { recursive: true, force: true }));
+  const physical = join(sandbox, 'physical'); const realRoot = join(physical, 'workspace');
+  mkdirSync(realRoot, { recursive: true }); writeFileSync(join(realRoot, 'doc.txt'), 'Authorized source');
+  const ancestorAlias = join(sandbox, 'system-alias');
+  symlinkSync(physical, ancestorAlias, process.platform === 'win32' ? 'junction' : 'dir');
+  const trustedRoot = join(ancestorAlias, 'workspace');
+  const result = await convertDocument({ path: 'doc.txt' }, { workspaceRoot: trustedRoot });
+  assert.equal(result.status, 'SUCCEEDED', JSON.stringify(result));
+  assert.equal(result.markdown, 'Authorized source');
+  assert.equal(result.source.path, join(realRoot, 'doc.txt'));
+  rejected(await convertDocument({ path: 'workspace/doc.txt' }, { workspaceRoot: ancestorAlias }), /SYMLINK_FORBIDDEN/);
+  const subdir = join(realRoot, 'data'); mkdirSync(subdir); writeFileSync(join(subdir, 'doc.txt'), 'Nested source');
+  const descendantAlias = join(realRoot, 'alias');
+  symlinkSync(subdir, descendantAlias, process.platform === 'win32' ? 'junction' : 'dir');
+  rejected(await convertDocument({ path: 'alias/doc.txt' }, { workspaceRoot: trustedRoot }), /SYMLINK_FORBIDDEN/);
+  rejected(await convertDocument({ path: '../outside.txt' }, { workspaceRoot: trustedRoot }), /OUTSIDE_WORKSPACE/);
+});
+
 test('ZIP stored and deflated text documents convert without extraction', async () => {
   for (const compressed of [false, true]) {
     const result = await convert('bundle.zip', zip([['notes.txt', 'Hello'], ['folder/data.csv', 'A,B\n1,2']], { compressed }));

@@ -55,7 +55,11 @@ function safeFile(path, policy, limits) {
   for (;;) {
     const info = lstatSync(cursor);
     if (info.isSymbolicLink()) throw new Error('DOCUMENT_SYMLINK_FORBIDDEN');
-    if (cursor === dirname(cursor)) break;
+    // Host-authorized root is the boundary; platform aliases above it carry no input authority.
+    if (cursor === root) {
+      if (!info.isDirectory()) throw new Error('DOCUMENT_WORKSPACE_NOT_DIRECTORY');
+      break;
+    }
     cursor = dirname(cursor);
   }
   const realRoot = realpathSync(root); const realTarget = realpathSync(target);
