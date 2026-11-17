@@ -28,14 +28,14 @@ test('AfyxBrowserSession enforces safe URL scheme validation', async () => {
   );
 });
 
-test('AfyxBrowserSession lifecycle: launch, evaluate, inspect, and clean teardown', async () => {
+test('AfyxBrowserSession lifecycle: launch, evaluate, inspect, and clean teardown', async (t) => {
   const binary = findChromeBinary();
   if (!binary) {
     // Skip live execution if no browser is present in container/environment
-    return;
+    t.skip('NOT TESTED: Chrome/Chromium executable unavailable'); return;
   }
 
-  const session = new AfyxBrowserSession({ headless: true, chromePath: binary });
+  const session = new AfyxBrowserSession({ headless: true, chromePath: binary, allowEvaluation: true });
   let dir = null;
 
   try {
