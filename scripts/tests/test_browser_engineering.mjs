@@ -106,7 +106,10 @@ test('real canceled and closed-page Fetch requests preserve a healthy owned page
       assert.equal((await session.inspectPage()).url, `${origin}/`);
       await assert.rejects(session.navigate('http://169.254.169.254/latest/meta-data/'), /ORIGIN_DENIED/);
     }
-  } finally { await session.close(); server.closeAllConnections(); await new Promise((done) => server.close(done)); }
+  } finally {
+    try { await session.close(); }
+    finally { server.closeAllConnections(); await new Promise((done) => server.close(done)); }
+  }
 });
 
 test('real owned Chrome: pages, DOM, interaction, diagnostics, trace, export and network-denial lifecycle', { timeout: 45000 }, async (t) => {
@@ -187,10 +190,13 @@ test('real owned Chrome: pages, DOM, interaction, diagnostics, trace, export and
     await new Promise((done) => setTimeout(done, 100));
     assert.equal(forbiddenHits, 0, 'subresource and redirect requests must fail before reaching untrusted origin');
   } finally {
-    await session.close();
-    await Promise.all([new Promise((done) => server.close(done)), new Promise((done) => forbidden.close(done))]);
-    assert.equal(dirname(directory), resolve(tmpdir())); assert.equal(lstatSync(directory).isSymbolicLink(), false);
-    rmSync(directory, { recursive: true, force: true });
+    try { await session.close(); }
+    finally {
+      server.closeAllConnections(); forbidden.closeAllConnections();
+      await Promise.all([new Promise((done) => server.close(done)), new Promise((done) => forbidden.close(done))]);
+      assert.equal(dirname(directory), resolve(tmpdir())); assert.equal(lstatSync(directory).isSymbolicLink(), false);
+      rmSync(directory, { recursive: true, force: true });
+    }
   }
   assert.equal(existsSync(profile), false);
   assert.equal(session.process, null);
