@@ -160,7 +160,7 @@ export class AfyxBrowserSession {
     if (!this.chromePath) throw new Error('BROWSER_EXECUTABLE_NOT_FOUND');
     this.commandCount = 0; this.consoleLogs = []; this.networkRequests = []; this.dialog = null; this.trace = null;
     this.interceptionDiagnostics = { staleRequests: 0, closedPageSessions: 0, fatalErrors: 0 };
-    this.userDataDir = mkdtempSync(join(tmpdir(), 'afyx-browser-session-'));
+    this.userDataDir = mkdtempSync(join(realpathSync(tmpdir()), 'afyx-browser-session-'));
     const flags = ['--remote-debugging-address=127.0.0.1', '--remote-debugging-port=0', `--user-data-dir=${this.userDataDir}`,
       '--no-first-run', '--no-default-browser-check', '--disable-background-networking', '--disable-default-apps',
       '--disable-sync', '--disable-component-update', '--disable-extensions', '--disable-domain-reliability',
