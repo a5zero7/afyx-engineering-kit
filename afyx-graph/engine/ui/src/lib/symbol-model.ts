@@ -1,9 +1,18 @@
 /**
- * AFYX Graph Engine - UI Symbol View Model & Code Projection
+ * AFYX Graph Native UI Symbol View Model & Code Windowing Projection
  *
- * Implements code windowing around outgoing call sites, source reference resolution,
- * caller/callee rail models, member outline grouping, and grammatical pluralization
- * for the focal symbol inspector in the AFYX viewer.
+ * Implements deterministic code windowing around outbound call sites, source line
+ * reference mapping, caller/callee relation rails, member hierarchy outlines, and
+ * grammatical categorization for the focal symbol inspector in the AFYX viewer.
+ *
+ * Architecture Highlights:
+ * - Pure DOM-independent view models decoupled from rendering surfaces.
+ * - Call-site driven context windowing: preserves whole bodies for concise functions (<= 260 lines),
+ *   while generating focused head windows and call-site clusters for expansive implementations.
+ * - Precise token reference binding: maps syntactic tokens to verified graph nodes and outside calls.
+ * - Deterministic rail partitioning: separates confirmed relations from heuristic/uncertain edges.
+ *
+ * Part of AFYX Native UI System (AFYX-5, AFYX-157, AFYX-320).
  */
 
 import type {
@@ -18,13 +27,25 @@ import type {
 // Windowing Thresholds & Configuration
 // =============================================================================
 
+/** Threshold in line count below which an entire function body is presented without cuts. */
 export const FULL_BODY_LINES = 260;
+
+/** Size of the introductory code window when body windowing is activated. */
 export const HEAD_LINES = 80;
+
+/** Padding lines included before and after each call site. */
 export const WINDOW_CONTEXT = 4;
+
+/** Maximum gap between adjacent intervals before they are coalesced. */
 const WINDOW_MERGE_GAP = 2;
+
+/** Absolute ceiling on the number of discrete code windows presented. */
 const MAX_WINDOWS = 30;
+
+/** Maximum line count for container symbols before their body is collapsed. */
 export const CONTAINER_BODY_LINES = 80;
 
+/** Kinds classified as structural containers rather than individual callable units. */
 export const CONTAINER_KINDS: ReadonlySet<string> = new Set([
   'file',
   'module',
@@ -38,6 +59,7 @@ export const CONTAINER_KINDS: ReadonlySet<string> = new Set([
   'union',
 ]);
 
+/** Member kinds visually dimmed as state or declarative metadata rather than logic. */
 const QUIET_MEMBER_KINDS: ReadonlySet<string> = new Set([
   'property',
   'field',
@@ -47,9 +69,12 @@ const QUIET_MEMBER_KINDS: ReadonlySet<string> = new Set([
 ]);
 
 // =============================================================================
-// Relationship Labeling & Formatter Helpers
+// Relation Formatting & Edge Semantics
 // =============================================================================
 
+/**
+ * Maps a graph edge kind into a concise human-readable relation descriptor.
+ */
 export function edgeWord(edge: WireEdge): string {
   switch (edge.kind) {
     case 'calls':
@@ -65,30 +90,39 @@ export function edgeWord(edge: WireEdge): string {
   }
 }
 
+/**
+ * Extracts unique relation descriptors across all edges in a relation.
+ */
 export function relationWords(relation: WireRelation): string[] {
-  const words: string[] = [];
+  const result: string[] = [];
   for (const edge of relation.edges) {
     const word = edgeWord(edge);
-    if (word && !words.includes(word)) {
-      words.push(word);
+    if (word && !result.includes(word)) {
+      result.push(word);
     }
   }
-  return words;
+  return result;
 }
 
+/**
+ * Extracts unique execution condition qualifiers, capped at 3 conditions.
+ */
 export function relationWhens(relation: WireRelation): string[] {
   const conditions: string[] = [];
   for (const edge of relation.edges) {
     if (edge.when && !conditions.includes(edge.when)) {
       conditions.push(edge.when);
-    }
-    if (conditions.length === 3) {
-      break;
+      if (conditions.length === 3) {
+        break;
+      }
     }
   }
   return conditions;
 }
 
+/**
+ * Returns heuristic synthesizer attribution for synthesized relations, or null if grounded.
+ */
 export function synthesizedBy(relation: WireRelation): string | null {
   if (!relation.synthesized) {
     return null;
@@ -97,25 +131,33 @@ export function synthesizedBy(relation: WireRelation): string | null {
   return heuristicEdge?.synthesizedBy ?? heuristicEdge?.via ?? 'synthesized';
 }
 
+/**
+ * Extracts the file basename from a path string.
+ */
 export function basename(path: string): string {
-  const lastSlashIndex = path.lastIndexOf('/');
-  return lastSlashIndex >= 0 ? path.slice(lastSlashIndex + 1) : path;
+  const slashPos = path.lastIndexOf('/');
+  return slashPos >= 0 ? path.slice(slashPos + 1) : path;
 }
 
+/**
+ * Extracts the trailing segment of a qualified name separated by dots.
+ */
 export function lastSegment(name: string): string {
-  const dotIndex = name.lastIndexOf('.');
-  return dotIndex < 0 ? name : name.slice(dotIndex + 1);
+  const dotPos = name.lastIndexOf('.');
+  return dotPos < 0 ? name : name.slice(dotPos + 1);
 }
 
 // =============================================================================
-// Source Code Windowing Synthesis
+// Source Code Windowing Projection
 // =============================================================================
 
+/** Continuous segment of source code lines positioned at an explicit starting line. */
 export interface SourceWindow {
   start: number;
   lines: string[];
 }
 
+/** Structured presentation of a code block with windowed segments and gaps. */
 export interface CodeBlock {
   windows: SourceWindow[];
   gapsAfter: number[];
@@ -123,70 +165,82 @@ export interface CodeBlock {
   whole: boolean;
 }
 
+/**
+ * Assembles a deterministic CodeBlock projecting source lines around relevant call sites.
+ */
 export function buildCodeBlock(
   startLine: number,
   lines: readonly string[],
   callLines: readonly number[],
 ): CodeBlock {
-  const endLine = startLine + lines.length - 1;
-  const extractSlice = (from: number, to: number): SourceWindow => ({
+  const lineCount = lines.length;
+  const endLine = startLine + lineCount - 1;
+
+  const sliceLines = (from: number, to: number): SourceWindow => ({
     start: from,
     lines: lines.slice(from - startLine, to - startLine + 1),
   });
 
-  if (lines.length <= FULL_BODY_LINES) {
+  // Small bodies are rendered in their entirety
+  if (lineCount <= FULL_BODY_LINES) {
     return {
-      windows: lines.length > 0 ? [extractSlice(startLine, endLine)] : [],
+      windows: lineCount > 0 ? [sliceLines(startLine, endLine)] : [],
       gapsAfter: [],
       tailGap: 0,
       whole: true,
     };
   }
 
+  // Construct leading head window
   const headEnd = Math.min(endLine, startLine + HEAD_LINES - 1);
-  const rawIntervals: Array<[number, number]> = [[startLine, headEnd]];
+  const rawSpans: Array<[number, number]> = [[startLine, headEnd]];
 
-  const sortedSites = [...new Set(callLines)]
+  // Generate bounded windows around call sites beyond the head window
+  const activeCallSites = Array.from(new Set(callLines))
     .filter((line) => line > headEnd && line <= endLine)
     .sort((a, b) => a - b);
 
-  for (const line of sortedSites) {
-    rawIntervals.push([
-      Math.max(startLine, line - WINDOW_CONTEXT),
-      Math.min(endLine, line + WINDOW_CONTEXT),
+  for (const callLine of activeCallSites) {
+    rawSpans.push([
+      Math.max(startLine, callLine - WINDOW_CONTEXT),
+      Math.min(endLine, callLine + WINDOW_CONTEXT),
     ]);
   }
 
-  const mergedIntervals: Array<[number, number]> = [];
-  for (const interval of rawIntervals) {
-    const previous = mergedIntervals[mergedIntervals.length - 1];
-    if (previous && interval[0] <= previous[1] + WINDOW_MERGE_GAP) {
-      previous[1] = Math.max(previous[1], interval[1]);
+  // Merge overlapping or closely adjacent intervals
+  const mergedSpans: Array<[number, number]> = [];
+  for (const span of rawSpans) {
+    const last = mergedSpans[mergedSpans.length - 1];
+    if (last && span[0] <= last[1] + WINDOW_MERGE_GAP) {
+      last[1] = Math.max(last[1], span[1]);
     } else {
-      mergedIntervals.push([...interval] as [number, number]);
+      mergedSpans.push([span[0], span[1]]);
     }
   }
 
-  const boundedWindows = mergedIntervals.slice(0, MAX_WINDOWS);
-  const windows = boundedWindows.map(([from, to]) => extractSlice(from, to));
-  const gapsAfter = boundedWindows
-    .slice(0, -1)
-    .map((range, idx) => (boundedWindows[idx + 1] as [number, number])[0] - range[1] - 1);
+  // Enforce window limit
+  const boundedSpans = mergedSpans.slice(0, MAX_WINDOWS);
+  const windows = boundedSpans.map(([from, to]) => sliceLines(from, to));
 
-  const finalWindowEnd = boundedWindows[boundedWindows.length - 1]?.[1] ?? endLine;
+  const gapsAfter = boundedSpans
+    .slice(0, -1)
+    .map((span, idx) => (boundedSpans[idx + 1] as [number, number])[0] - span[1] - 1);
+
+  const lastSpanEnd = boundedSpans[boundedSpans.length - 1]?.[1] ?? endLine;
 
   return {
     windows,
     gapsAfter,
-    tailGap: Math.max(0, endLine - finalWindowEnd),
+    tailGap: Math.max(0, endLine - lastSpanEnd),
     whole: false,
   };
 }
 
 // =============================================================================
-// Source Line Reference Mapping
+// Source Line Reference Resolution
 // =============================================================================
 
+/** Annotated reference at a specific line in source code. */
 export interface LineRef {
   ident: string;
   col: number | null;
@@ -196,60 +250,72 @@ export interface LineRef {
   title: string;
 }
 
+/**
+ * Builds a lookup map of line numbers to code references for outgoing relations.
+ */
 export function refsByLine(payload: WireSymbolPayload): Map<number, LineRef[]> {
-  const lineReferenceMap = new Map<number, LineRef[]>();
-  const appendReference = (lineNum: number, item: LineRef): void => {
-    const bucket = lineReferenceMap.get(lineNum);
-    if (bucket) {
-      bucket.push(item);
+  const referenceMap = new Map<number, LineRef[]>();
+
+  const registerRef = (line: number, ref: LineRef): void => {
+    const existing = referenceMap.get(line);
+    if (existing) {
+      existing.push(ref);
     } else {
-      lineReferenceMap.set(lineNum, [item]);
+      referenceMap.set(line, [ref]);
     }
   };
 
-  const allRelations = [...payload.outgoing.items, ...payload.typesUsed];
-  for (const relation of allRelations) {
+  const outboundRelations = [...payload.outgoing.items, ...payload.typesUsed];
+  for (const relation of outboundRelations) {
     for (const edge of relation.edges) {
       if (!edge.line) {
         continue;
       }
-      const word = edgeWord(edge);
-      appendReference(edge.line, {
+      const descriptor = edgeWord(edge);
+      const confDesc = edge.confidence != null ? ` · confidence ${edge.confidence}` : '';
+      const resDesc = edge.resolvedBy ? ` · resolved by ${edge.resolvedBy}` : '';
+      const actionTitle = `${descriptor || 'calls'} ${relation.node.qualifiedName} — ${relation.node.file}:${relation.node.line}${confDesc}${resDesc}`;
+
+      registerRef(edge.line, {
         ident: lastSegment(relation.node.name),
         col: typeof edge.col === 'number' ? edge.col : null,
         targetId: relation.node.id,
         uncertain: relation.uncertain,
         outside: false,
-        title:
-          `${word || 'calls'} ${relation.node.qualifiedName} — ${relation.node.file}:${relation.node.line}` +
-          (edge.confidence != null ? ` · confidence ${edge.confidence}` : '') +
-          (edge.resolvedBy ? ` · resolved by ${edge.resolvedBy}` : ''),
+        title: actionTitle,
       });
     }
   }
 
+  // Include unresolved external package calls
   for (const unindexed of outsideRefs(payload.outsideIndex)) {
-    appendReference(unindexed.line, unindexed.ref);
+    registerRef(unindexed.line, unindexed.ref);
   }
 
-  return lineReferenceMap;
+  return referenceMap;
 }
 
+/**
+ * Collects and sorts all distinct source lines with outgoing relations.
+ */
 export function graphCallLines(payload: WireSymbolPayload): number[] {
-  const callLineSet = new Set<number>();
+  const lineSet = new Set<number>();
   const activeRelations = [...payload.outgoing.items, ...payload.typesUsed];
 
   for (const relation of activeRelations) {
     for (const line of relation.lines) {
-      callLineSet.add(line);
+      lineSet.add(line);
     }
   }
 
-  return [...callLineSet].sort((a, b) => a - b);
+  return Array.from(lineSet).sort((a, b) => a - b);
 }
 
+/**
+ * Converts external index sample records into LineRef entries.
+ */
 function outsideRefs(outside: WireOutsideIndex): Array<{ line: number; ref: LineRef }> {
-  const results: Array<{ line: number; ref: LineRef }> = [];
+  const items: Array<{ line: number; ref: LineRef }> = [];
 
   for (const sample of outside.samples) {
     if (!sample.line) {
@@ -259,7 +325,7 @@ function outsideRefs(outside: WireOutsideIndex): Array<{ line: number; ref: Line
     if (!/^[A-Za-z_$][\w$]*$/.test(ident)) {
       continue;
     }
-    results.push({
+    items.push({
       line: sample.line,
       ref: {
         ident,
@@ -272,23 +338,28 @@ function outsideRefs(outside: WireOutsideIndex): Array<{ line: number; ref: Line
     });
   }
 
-  return results;
+  return items;
 }
 
+/**
+ * Binds LineRef descriptors to matching syntax tokens on a rendered line.
+ */
 export function assignRefs(
   tokens: ReadonlyArray<{ cls: string; text: string; col: number }>,
   refs: readonly LineRef[],
 ): Map<number, LineRef> {
-  const claimedTokenMap = new Map<number, LineRef>();
+  const assigned = new Map<number, LineRef>();
 
   for (const ref of refs) {
     const candidateIndices: number[] = [];
-    tokens.forEach((token, index) => {
+
+    tokens.forEach((token, idx) => {
+      // Disregard string literals and comments
       if (token.cls === 'comment' || token.cls === 'string') {
         return;
       }
       if (token.text === ref.ident) {
-        candidateIndices.push(index);
+        candidateIndices.push(idx);
       }
     });
 
@@ -296,41 +367,47 @@ export function assignRefs(
       continue;
     }
 
-    let selectedIndex: number | undefined;
+    let matchIdx: number | undefined;
 
     if (ref.col !== null) {
       const targetCol = ref.col;
-      selectedIndex = candidateIndices.find((i) => {
-        const token = tokens[i] as { text: string; col: number };
-        return token.col <= targetCol && targetCol < token.col + token.text.length;
+      // Prefer exact column span match
+      matchIdx = candidateIndices.find((idx) => {
+        const tok = tokens[idx] as { text: string; col: number };
+        return tok.col <= targetCol && targetCol < tok.col + tok.text.length;
       });
-      if (selectedIndex === undefined) {
-        selectedIndex = candidateIndices.find(
-          (i) => (tokens[i] as { col: number }).col >= targetCol,
+      // Fallback to nearest following token
+      if (matchIdx === undefined) {
+        matchIdx = candidateIndices.find(
+          (idx) => (tokens[idx] as { col: number }).col >= targetCol,
         );
       }
     }
 
-    if (selectedIndex === undefined) {
-      selectedIndex = candidateIndices.find((i) => !claimedTokenMap.has(i));
+    // Fallback to first unassigned candidate
+    if (matchIdx === undefined) {
+      matchIdx = candidateIndices.find((idx) => !assigned.has(idx));
     }
-    if (selectedIndex === undefined) {
-      selectedIndex = candidateIndices[candidateIndices.length - 1];
+    // Fallback to last available candidate
+    if (matchIdx === undefined) {
+      matchIdx = candidateIndices[candidateIndices.length - 1];
     }
-    if (selectedIndex === undefined || claimedTokenMap.has(selectedIndex)) {
+
+    if (matchIdx === undefined || assigned.has(matchIdx)) {
       continue;
     }
 
-    claimedTokenMap.set(selectedIndex, ref);
+    assigned.set(matchIdx, ref);
   }
 
-  return claimedTokenMap;
+  return assigned;
 }
 
 // =============================================================================
-// Callee Rail Synthesis
+// Callee Relation Rail
 // =============================================================================
 
+/** Presentation model for an individual outbound callee relation. */
 export interface CalleeRow {
   relation: WireRelation;
   anchor: number | null;
@@ -340,6 +417,7 @@ export interface CalleeRow {
   when: string[];
 }
 
+/** Aggregate presentation model for outbound callee relations. */
 export interface CalleeRailModel {
   rows: CalleeRow[];
   uncertain: CalleeRow[];
@@ -348,9 +426,12 @@ export interface CalleeRailModel {
   outsideTypeRefs: number;
 }
 
+/**
+ * Builds the outbound callee rail, separating confirmed relations from uncertain candidates.
+ */
 export function buildCalleeRail(payload: WireSymbolPayload): CalleeRailModel {
-  const confirmedRows: CalleeRow[] = [];
-  const uncertainRows: CalleeRow[] = [];
+  const confirmedList: CalleeRow[] = [];
+  const uncertainList: CalleeRow[] = [];
 
   for (const relation of payload.outgoing.items) {
     const row: CalleeRow = {
@@ -361,28 +442,31 @@ export function buildCalleeRail(payload: WireSymbolPayload): CalleeRailModel {
       via: synthesizedBy(relation),
       when: relationWhens(relation),
     };
+
     if (relation.uncertain) {
-      uncertainRows.push(row);
+      uncertainList.push(row);
     } else {
-      confirmedRows.push(row);
+      confirmedList.push(row);
     }
   }
 
   const typeRefCount = payload.outsideIndex.byKind['references'] ?? 0;
+  const outsideCallCount = Math.max(0, payload.outsideIndex.total - typeRefCount);
 
   return {
-    rows: confirmedRows,
-    uncertain: uncertainRows,
+    rows: confirmedList,
+    uncertain: uncertainList,
     hiddenGroups: payload.outgoing.total - payload.outgoing.shown,
-    outsideCalls: Math.max(0, payload.outsideIndex.total - typeRefCount),
+    outsideCalls: outsideCallCount,
     outsideTypeRefs: typeRefCount,
   };
 }
 
 // =============================================================================
-// Caller Rail Synthesis
+// Caller Relation Rail
 // =============================================================================
 
+/** Presentation model for an inbound caller relation. */
 export interface CallerRow {
   relation: WireRelation;
   words: string[];
@@ -391,12 +475,14 @@ export interface CallerRow {
   when: string[];
 }
 
+/** Group of inbound caller relations originating from the same source file. */
 export interface CallerFileGroup {
   file: string;
   same: boolean;
   rows: CallerRow[];
 }
 
+/** Aggregate presentation model for inbound caller relations. */
 export interface CallerRailModel {
   groups: CallerFileGroup[];
   uncertain: CallerRow[];
@@ -405,9 +491,12 @@ export interface CallerRailModel {
   hiddenGroups: number;
 }
 
+/**
+ * Builds the inbound caller rail, grouping by source file and isolating test callers.
+ */
 export function buildCallerRail(payload: WireSymbolPayload): CallerRailModel {
-  const currentFile = payload.node.file;
-  const fileGroupingMap = new Map<string, CallerRow[]>();
+  const hostFile = payload.node.file;
+  const fileGroups = new Map<string, CallerRow[]>();
   const uncertainRows: CallerRow[] = [];
   const testRows: CallerRow[] = [];
 
@@ -424,30 +513,36 @@ export function buildCallerRail(payload: WireSymbolPayload): CallerRailModel {
       uncertainRows.push(row);
       continue;
     }
+
     if (relation.node.test) {
       testRows.push(row);
       continue;
     }
 
-    const group = fileGroupingMap.get(relation.node.file);
-    if (group) {
-      group.push(row);
+    const file = relation.node.file;
+    const bucket = fileGroups.get(file);
+    if (bucket) {
+      bucket.push(row);
     } else {
-      fileGroupingMap.set(relation.node.file, [row]);
+      fileGroups.set(file, [row]);
     }
   }
 
-  const groups: CallerFileGroup[] = [...fileGroupingMap.entries()]
-    .map(([file, rows]) => ({ file, same: file === currentFile, rows }))
+  // Sort groups: same-file callers precede external files, followed by alphabetical order
+  const sortedGroups: CallerFileGroup[] = Array.from(fileGroups.entries())
+    .map(([file, rows]) => ({ file, same: file === hostFile, rows }))
     .sort((a, b) => (a.same ? -1 : b.same ? 1 : a.file.localeCompare(b.file)));
 
+  const testCallSum = testRows.reduce((acc, r) => acc + r.relation.edgeCount, 0);
+  const testFilePaths = Array.from(new Set(testRows.map((r) => r.relation.node.file))).sort();
+
   return {
-    groups,
+    groups: sortedGroups,
     uncertain: uncertainRows,
     tests: {
       rows: testRows,
-      calls: testRows.reduce((sum, r) => sum + r.relation.edgeCount, 0),
-      files: [...new Set(testRows.map((r) => r.relation.node.file))].sort(),
+      calls: testCallSum,
+      files: testFilePaths,
     },
     total: payload.incoming.total,
     hiddenGroups: payload.incoming.total - payload.incoming.shown,
@@ -455,9 +550,10 @@ export function buildCallerRail(payload: WireSymbolPayload): CallerRailModel {
 }
 
 // =============================================================================
-// Connectors & Visual Outlines
+// Visual Connectors & Outlines
 // =============================================================================
 
+/** Visual SVG path connector specification between code tokens and rail rows. */
 export interface Connector {
   d: string;
   targetId: string;
@@ -466,12 +562,16 @@ export interface Connector {
   origin: boolean;
 }
 
+/** Single row item in a symbol container member outline. */
 export interface OutlineRow {
   member: WireMember;
   nested: boolean;
   dimmed: boolean;
 }
 
+/**
+ * Builds the member outline rows for container symbols with nesting and dimming flags.
+ */
 export function buildOutline(payload: WireSymbolPayload): OutlineRow[] {
   return payload.members.items.map((member) => ({
     member,
@@ -480,10 +580,16 @@ export function buildOutline(payload: WireSymbolPayload): OutlineRow[] {
   }));
 }
 
+/**
+ * Determines whether the body of a symbol should be expanded by default.
+ */
 export function showsBody(kind: string, lines: number): boolean {
   return !(CONTAINER_KINDS.has(kind) && lines > CONTAINER_BODY_LINES);
 }
 
+/**
+ * Formats symbol declaration modifiers into a human-readable title phrase.
+ */
 export function kindPhrase(node: {
   kind: string;
   async?: boolean;
@@ -507,6 +613,9 @@ export function kindPhrase(node: {
   return parts.join(' · ');
 }
 
+/**
+ * Produces grammatically correct singular or plural phrasing.
+ */
 export function plural(count: number, one: string, many = `${one}s`): string {
   return `${count} ${count === 1 ? one : many}`;
 }

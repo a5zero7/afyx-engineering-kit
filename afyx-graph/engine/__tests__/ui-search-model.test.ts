@@ -1,5 +1,5 @@
 /**
- * The search palette and the trail, without a browser (CG-45).
+ * The search palette and the trail, without a browser.
  *
  * Two things here can be silently wrong rather than merely ugly. The palette's
  * flat item list must be exactly the concatenation of the sections it draws, or

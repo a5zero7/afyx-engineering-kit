@@ -2241,8 +2241,8 @@
     {
       "path": "afyx-graph/engine/ui/src/lib/search-model.ts",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "2c9e2c786dfaa004fd7b91a4c820cb524d6b9e90c32fe343b54b2a6e110e1d2c",
-      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+      "reviewedSha256": "2228b0f2f55439a3ea388e015cac38dd2f6beef5f85ef0e5b6146f8e6864a79a",
+      "evidence": "MB17 Wave 3 (AFYX-5, AFYX-157, AFYX-166, AFYX-320): independently authored search palette presentation model; natural-language and symbolic flow query intent parsing, arrival-ordered semantic kind grouping, alternating priority result interleaving, entry-point candidate deduplication, and circular keyboard selection navigation."
     },
     {
       "path": "afyx-graph/engine/ui/src/lib/steps-model.ts",
@@ -2253,8 +2253,8 @@
     {
       "path": "afyx-graph/engine/ui/src/lib/symbol-model.ts",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "12461ece0627037536c0dc45a2587fa698643d8661948d52d8bc6c3afa9f3361",
-      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+      "reviewedSha256": "fdd2e609c0dd9a2b3970176d61046b819ec9adf4021a7273566ad39bd2d32ee9",
+      "evidence": "MB17 Wave 3 (AFYX-5, AFYX-157, AFYX-166, AFYX-320): independently authored focal symbol presentation model; deterministic call-site context windowing (full body threshold, head window, context padding, gap coalescing), verified token reference binding, outbound callee rail synthesis (confirmed vs uncertain separation), inbound caller file grouping, and member outline hierarchy."
     },
     {
       "path": "afyx-graph/engine/ui/src/lib/trail-codec.ts",
