@@ -2,7 +2,7 @@
   "schema": 1,
   "baselineRevision": "c4e4d8e29de239a2fcbc0db8ac65eea2276e7b00",
   "scope": "AFYX-320 comprehensive production source inventory",
-  "totalProductionFiles": 422,
+  "totalProductionFiles": 423,
   "entries": [
     {
       "path": "afyx-graph/engine/src/bin/afyx-graph.ts",
@@ -2401,16 +2401,22 @@
       "evidence": "MB12 review: authored from AFYX functional requirements and existing reviewed 251f73a contracts; no upstream implementation, prompts, assets or dependency imported. Trusted-host boundaries and negative/regression tests recorded in MB12-native-consolidation-20261114-r1."
     },
     {
+      "path": "scripts/afyx-expert-guidance.mjs",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "9e2b2cf6b813e3ae2efe6684a883410d5f5f1dd31b054e8c6857681e7d16faf8",
+      "evidence": "MB16 AFYX-283: independently reviewed bounded Expert guidance helper; lexical reference selection, trusted host budget ceilings, and telemetry disclosure."
+    },
+    {
       "path": "scripts/afyx-host-adapters.mjs",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "be11fa003cde2cd1bc0b61d6910a00c930db2fd37c371759a99b4b6ed8bf54ec",
-      "evidence": "MB12 review: authored from AFYX functional requirements and existing reviewed 251f73a contracts; no upstream implementation, prompts, assets or dependency imported. Trusted-host boundaries and negative/regression tests recorded in MB12-native-consolidation-20261114-r1."
+      "reviewedSha256": "113151dd9917702680d31013f006644aca59f3d9da43985e027c46967d56ab07",
+      "evidence": "MB16 AFYX-283: reviewed bounded Engineering Expert selection, lexical domain hints, and host ceiling consumption; no external logic imported."
     },
     {
       "path": "scripts/afyx-host-bridge-lifecycle.mjs",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "5cf0695b2dceadbe4cd38e1530ffe59784e36ebe5d834a1991adf6bdd802f5fd",
-      "evidence": "MB12 review: authored from AFYX functional requirements and existing reviewed 251f73a contracts; no upstream implementation, prompts, assets or dependency imported. Trusted-host boundaries and negative/regression tests recorded in MB12-native-consolidation-20261114-r1."
+      "reviewedSha256": "0833a935a0d7433a8b6211163f7684e3c9918a2fabd46970c2a6159767ae95fb",
+      "evidence": "MB16 AFYX-283: reviewed HOST_BRIDGE_FILES inclusion of afyx-expert-guidance.mjs for standalone installed artifact integrity."
     },
     {
       "path": "scripts/afyx-host-bridge.mjs",
