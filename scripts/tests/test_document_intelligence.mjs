@@ -153,6 +153,9 @@ for (const [label, name, input, code] of [
   ['ZIP nesting', 'a.zip', zip([['nested.zip', zip([])]]), /RECURSION_FORBIDDEN/],
   ['ZIP bomb', 'a.zip', zip([['big.txt', 'A'.repeat(100_000)]], { compressed: true }), /EXPANSION_LIMIT/],
   ['OOXML missing part', 'a.docx', zip([types]), /REQUIRED_PART_MISSING/],
+  ['OOXML wrong content types', 'a.docx', zip([['[Content_Types].xml', '<garbage/>'], ['word/document.xml', '<w:document><w:body/></w:document>']]), /OOXML_ROOT_INVALID/],
+  ['OOXML wrong document root', 'a.docx', zip([types, ['word/document.xml', '<garbage/>']]), /OOXML_ROOT_INVALID/],
+  ['OOXML missing body', 'a.docx', zip([types, ['word/document.xml', '<w:document/>']]), /OOXML_BODY_INVALID/],
   ['binary spoof', 'a.txt', Buffer.from([0, 1, 2]), /BINARY_TEXT/],
 ]) test(`reject ${label} truthfully`, async () => rejected(await convert(name, input), code));
 

@@ -102,6 +102,9 @@ const memberXml = (entries, name, check) => {
   const bytes = entries.get(name); if (!bytes) throw new Error(`OOXML_REQUIRED_PART_MISSING:${name}`);
   return readXml(decodeText(bytes), check);
 };
+function assertRoot(document, name) {
+  if (localName(children(document)[0]) !== name) throw new Error('OOXML_ROOT_INVALID');
+}
 function relationshipMap(entries, path, check) {
   const map = new Map();
   if (!entries.has(path)) return map;
@@ -118,6 +121,8 @@ function safeTarget(base, target) {
 }
 function word(entries, check) {
   const doc = memberXml(entries, 'word/document.xml', check); const blocks = [];
+  assertRoot(doc, 'document');
+  if (children(children(doc)[0], 'body').length !== 1) throw new Error('OOXML_BODY_INVALID');
   const paragraph = (p) => {
     let value = '';
     const walk = (node) => {
@@ -145,6 +150,7 @@ function word(entries, check) {
 }
 function spreadsheet(entries, check) {
   const workbook = memberXml(entries, 'xl/workbook.xml', check);
+  assertRoot(workbook, 'workbook');
   const relationships = relationshipMap(entries, 'xl/_rels/workbook.xml.rels', check);
   const strings = entries.has('xl/sharedStrings.xml') ? descendants(memberXml(entries, 'xl/sharedStrings.xml', check), 'si').map((n) => descendants(n, 't').map(textOf).join('')) : [];
   const references = []; const sections = [];
@@ -153,7 +159,8 @@ function spreadsheet(entries, check) {
     const target = relationships.get(sheet.attrs['r:id']);
     const part = safeTarget('xl', target); const name = sheet.attrs.name ?? 'Unnamed sheet';
     const rows = [];
-    for (const row of descendants(memberXml(entries, part, check), 'row')) {
+    const worksheet = memberXml(entries, part, check); assertRoot(worksheet, 'worksheet');
+    for (const row of descendants(worksheet, 'row')) {
       if (rows.length >= 50_000) throw new Error('DOCUMENT_TABLE_ROW_LIMIT');
       const cells = []; let previous = -1;
       for (const c of children(row, 'c')) {
@@ -179,11 +186,13 @@ function spreadsheet(entries, check) {
 }
 function presentation(entries, check) {
   const doc = memberXml(entries, 'ppt/presentation.xml', check);
+  assertRoot(doc, 'presentation');
   const relationships = relationshipMap(entries, 'ppt/_rels/presentation.xml.rels', check);
   const sections = []; const references = [];
   for (const slide of descendants(doc, 'sldId')) {
     const part = safeTarget('ppt', relationships.get(slide.attrs['r:id']));
     const xml = memberXml(entries, part, check);
+    assertRoot(xml, 'sld');
     const blocks = descendants(xml, 'p').map((p) => descendants(p, 't').map((t) => escape(textOf(t))).join('')).filter(Boolean);
     const index = sections.length + 1;
     sections.push(`## Slide ${index}\n\n${blocks.join('\n\n')}`);
@@ -203,7 +212,7 @@ export function convertBytes(bytes, format, limits, check) {
         .filter((rel) => rel.attrs.TargetMode === 'External').length;
     }
     if (format !== 'zip') {
-      memberXml(entries, '[Content_Types].xml', check);
+      assertRoot(memberXml(entries, '[Content_Types].xml', check), 'Types');
       const result = format === 'docx' ? word(entries, check) : format === 'xlsx' ? spreadsheet(entries, check) : presentation(entries, check);
       const properties = {};
       if (entries.has('docProps/core.xml')) {
