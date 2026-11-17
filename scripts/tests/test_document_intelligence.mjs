@@ -1,9 +1,10 @@
 import assert from 'node:assert/strict';
-import { linkSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { linkSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { deflateRawSync } from 'node:zlib';
 import { spawnSync } from 'node:child_process';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import test from 'node:test';
 import { convertDocument, inspectDocument, listSupportedFormats } from '../afyx-document-intelligence.mjs';
 import { crc32 } from '../afyx-document-archive.mjs';
@@ -99,7 +100,7 @@ test('trusted workspace tolerates an ancestor alias while root and descendant al
   const result = await convertDocument({ path: 'doc.txt' }, { workspaceRoot: trustedRoot });
   assert.equal(result.status, 'SUCCEEDED', JSON.stringify(result));
   assert.equal(result.markdown, 'Authorized source');
-  assert.equal(result.source.path, join(realRoot, 'doc.txt'));
+  assert.equal(result.source.path, realpathSync(join(realRoot, 'doc.txt')));
   rejected(await convertDocument({ path: 'workspace/doc.txt' }, { workspaceRoot: ancestorAlias }), /SYMLINK_FORBIDDEN/);
   const subdir = join(realRoot, 'data'); mkdirSync(subdir); writeFileSync(join(subdir, 'doc.txt'), 'Nested source');
   const descendantAlias = join(realRoot, 'alias');
@@ -217,6 +218,23 @@ test('stalled stream returns bounded timeout without awaiting hostile cleanup', 
 test('CLI help is a read-only versioned capability listing', () => {
   const result = spawnSync(process.execPath, [new URL('../afyx-document-intelligence.mjs', import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1'), '--help'], { encoding: 'utf8' });
   assert.equal(result.status, 0, result.stderr); assert.equal(JSON.parse(result.stdout).contract, 'AfyxDocument/v1');
+});
+
+test('CLI starts through an ancestor alias while imported API never autoruns', (t) => {
+  const sandbox = mkdtempSync(join(tmpdir(), 'afyx-doc-cli-alias-'));
+  t.after(() => rmSync(sandbox, { recursive: true, force: true }));
+  const scripts = fileURLToPath(new URL('..', import.meta.url));
+  const alias = join(sandbox, 'scripts-alias');
+  symlinkSync(scripts, alias, process.platform === 'win32' ? 'junction' : 'dir');
+  const entry = join(alias, 'afyx-document-intelligence.mjs');
+  const cli = spawnSync(process.execPath, [entry, '--help'], { encoding: 'utf8', timeout: 5000 });
+  assert.equal(cli.status, 0, cli.stderr);
+  assert.equal(JSON.parse(cli.stdout).contract, 'AfyxDocument/v1');
+  const importer = join(sandbox, 'caller.mjs');
+  writeFileSync(importer, `import { DOCUMENT_CONTRACT } from ${JSON.stringify(pathToFileURL(entry).href)}; console.log('IMPORTED:' + DOCUMENT_CONTRACT);\n`);
+  const imported = spawnSync(process.execPath, [importer, '--help'], { encoding: 'utf8', timeout: 5000 });
+  assert.equal(imported.status, 0, imported.stderr);
+  assert.equal(imported.stdout.trim(), 'IMPORTED:AfyxDocument/v1');
 });
 
 test('malformed deep XML and missing paths report bounded diagnostics without source excerpts', async (t) => {

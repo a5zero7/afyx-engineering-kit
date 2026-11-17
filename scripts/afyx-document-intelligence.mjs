@@ -164,7 +164,12 @@ export async function inspectDocument(input, policy = {}) {
   return { ...result, outputBytes: Buffer.byteLength(markdown, 'utf8') };
 }
 
-if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+function isMainModule() {
+  try { return !!process.argv[1] && realpathSync(process.argv[1]) === realpathSync(fileURLToPath(import.meta.url)); }
+  catch { return false; }
+}
+
+if (isMainModule()) {
   const [command, path, root] = process.argv.slice(2);
   let result;
   if (command === 'formats' || command === '--help' || command === '-h') result = listSupportedFormats();
