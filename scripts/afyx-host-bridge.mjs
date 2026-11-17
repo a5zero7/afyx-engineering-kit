@@ -18,6 +18,7 @@ import readline from 'node:readline';
 import {
   runInstalledAfyxWorkflow,
 } from './afyx-universal-runtime.mjs';
+import { AfyxBrowserSession, findChromeBinary } from './afyx-browser-devtools.mjs';
 
 export const AFYX_HOST_BRIDGE_CONTRACT = 'AfyxHostBridge/v1';
 
@@ -178,6 +179,33 @@ export function serveHostMcpBridge(serverOptions = {}) {
                   required: ['task'],
                 },
               },
+              {
+                name: 'afyx_browser',
+                description: 'Perform web application inspection, JavaScript evaluation, console/network telemetry collection, or screenshot capture via isolated Chrome DevTools session.',
+                inputSchema: {
+                  type: 'object',
+                  properties: {
+                    action: {
+                      type: 'string',
+                      enum: ['inspect', 'evaluate', 'console', 'network', 'screenshot'],
+                      description: 'Action to perform in the browser session',
+                    },
+                    url: {
+                      type: 'string',
+                      description: 'Target URL to navigate (http, https, file, or about)',
+                    },
+                    expression: {
+                      type: 'string',
+                      description: 'JavaScript expression for evaluate action',
+                    },
+                    headless: {
+                      type: 'boolean',
+                      description: 'Whether to run browser in headless mode (default: true)',
+                    },
+                  },
+                  required: ['action', 'url'],
+                },
+              },
             ],
           },
         });
@@ -185,6 +213,47 @@ export function serveHostMcpBridge(serverOptions = {}) {
       }
 
       case 'tools/call': {
+        if (params?.name === 'afyx_browser') {
+          const args = params.arguments || {};
+          const session = new AfyxBrowserSession({ headless: args.headless !== false });
+          try {
+            await session.launch();
+            await session.navigate(args.url);
+            let actionResult;
+            if (args.action === 'inspect') {
+              actionResult = await session.inspectPage();
+            } else if (args.action === 'evaluate') {
+              if (!args.expression) throw new Error('Action "evaluate" requires "expression" parameter');
+              actionResult = { value: await session.evaluate(args.expression) };
+            } else if (args.action === 'console') {
+              actionResult = { messages: session.getConsoleMessages() };
+            } else if (args.action === 'network') {
+              actionResult = { requests: session.getNetworkRequests() };
+            } else if (args.action === 'screenshot') {
+              actionResult = { screenshotBase64: await session.takeScreenshot() };
+            } else {
+              throw new Error(`Unknown browser action: ${args.action}`);
+            }
+            await session.close();
+            sendResponse({
+              jsonrpc: '2.0',
+              id,
+              result: {
+                content: [{ type: 'text', text: JSON.stringify(actionResult, null, 2) }],
+                structuredContent: actionResult,
+              },
+            });
+          } catch (err) {
+            await session.close();
+            sendResponse({
+              jsonrpc: '2.0',
+              id,
+              error: { code: -32000, message: `Browser operation failed: ${err.message}` },
+            });
+          }
+          break;
+        }
+
         if (params?.name !== 'afyx_workflow') {
           sendResponse({
             jsonrpc: '2.0',
