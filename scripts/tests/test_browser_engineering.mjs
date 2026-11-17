@@ -71,7 +71,12 @@ test('only exact stale Fetch lifecycle responses spare the browser; interception
 
 test('real canceled and closed-page Fetch requests preserve a healthy owned page without widening origin policy', { timeout: 20000 }, async (t) => {
   const chromePath = findChromeBinary(); if (!chromePath) { t.skip('NOT TESTED: compatible Chrome unavailable'); return; }
-  const server = createServer((_request, response) => response.end('AFYX lifecycle fixture'));
+  const canceledHits = { 'cancel-request': 0, 'close-page': 0 };
+  const server = createServer((request, response) => {
+    const action = request.url.slice(1);
+    if (action in canceledHits) canceledHits[action]++;
+    response.end('AFYX lifecycle fixture');
+  });
   await new Promise((done) => server.listen(0, '127.0.0.1', done));
   const origin = `http://127.0.0.1:${server.address().port}`;
   const session = new AfyxBrowserSession({ chromePath, allowedOrigins: [origin] });
@@ -82,22 +87,40 @@ test('real canceled and closed-page Fetch requests preserve a healthy owned page
       let release; let paused;
       const gate = new Promise((done) => { release = done; });
       const seen = new Promise((done) => { paused = done; });
-      await session.newPage(); let held = false;
+      let completed; let outcome;
+      const continuation = new Promise((done) => { completed = done; });
+      await session.newPage(); const closingPage = session.selectedPage; let held = false;
       session.send = async (method, params, sessionId) => {
-        if (method === 'Fetch.continueRequest' && !held) { held = true; paused(); await gate; }
+        if (method === 'Fetch.continueRequest' && !held) {
+          held = true; paused(); await gate;
+          try {
+            const result = await nativeSend(method, params, sessionId);
+            outcome = { status: 'ACKNOWLEDGED' }; return result;
+          } catch (error) {
+            outcome = { status: 'STALE_RESPONSE', code: error.cdpCode, message: error.cdpMessage }; throw error;
+          } finally { completed(); }
+        }
         return nativeSend(method, params, sessionId);
       };
-      const navigation = session.navigate(origin, { waitUntil: 'none' }).catch((error) => error.message);
+      const navigation = session.navigate(`${origin}/${action}`, { waitUntil: 'none' }).catch((error) => error.message);
       try {
         await seen;
         if (action === 'cancel-request') await nativeSend('Page.stopLoading', {}, session.pages.get(session.selectedPage).sessionId);
-        else await nativeSend('Target.closeTarget', { targetId: session.selectedPage });
+        else assert.equal((await nativeSend('Target.closeTarget', { targetId: closingPage })).success, true);
       } finally { release(); }
-      await navigation;
-      const expected = action === 'cancel-request' ? 'staleRequests' : 'closedPageSessions';
-      const deadline = Date.now() + 2000;
-      while (session.interceptionDiagnostics[expected] === 0 && Date.now() < deadline) await new Promise((done) => setTimeout(done, 20));
-      assert.ok(session.interceptionDiagnostics[expected] > 0, `must observe reproduced ${action} protocol response`);
+      await navigation; await continuation;
+      t.diagnostic(JSON.stringify({ action, continuation: outcome }));
+      if (outcome.status === 'STALE_RESPONSE') {
+        assert.ok((outcome.code === -32602 && outcome.message === 'Invalid InterceptionId.')
+          || (outcome.code === -32001 && outcome.message === 'Session with given id not found.'),
+        'only exact known stale lifecycle errors may spare the browser');
+      } else assert.equal(outcome.status, 'ACKNOWLEDGED');
+      if (action === 'close-page') {
+        const deadline = Date.now() + 2000;
+        while (session.pages.has(closingPage) && Date.now() < deadline) await new Promise((done) => setTimeout(done, 20));
+        assert.equal(session.pages.has(closingPage), false, 'acknowledged closed page must leave the owned page map');
+        assert.ok(!(await nativeSend('Target.getTargets')).targetInfos.some((target) => target.targetId === closingPage));
+      }
       assert.equal(session.interceptionDiagnostics.fatalErrors, 0);
       assert.equal(session.isAttached, true);
       session.send = nativeSend;
@@ -105,6 +128,7 @@ test('real canceled and closed-page Fetch requests preserve a healthy owned page
       await session.navigate(origin);
       assert.equal((await session.inspectPage()).url, `${origin}/`);
       await assert.rejects(session.navigate('http://169.254.169.254/latest/meta-data/'), /ORIGIN_DENIED/);
+      assert.equal(canceledHits[action], 0, 'a canceled/closed paused request must never reach its fixture endpoint');
     }
   } finally {
     try { await session.close(); }
