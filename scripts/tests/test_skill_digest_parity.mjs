@@ -34,10 +34,14 @@ for (const format of ['canonical', 'legacy-nls']) {
         `[ordered]@{canonical=(Get-AfyxSkillDigest -Directory $Skill);legacy=(Get-AfyxSkillDigest -Directory $Skill -LegacyNls);ownership=(Get-AfyxSkillOwnership -Target $Skill -Component afyx-engineering-expert -ExpectedOwner afyx);provenance=(Get-AfyxLegacySkillProvenance -Target $Unmarked -Component afyx-engineering-expert -Owner afyx -LegacyContentSha256 $marker.content_sha256)}|ConvertTo-Json -Compress\n`);
       const inspect = (expected) => {
         for (const shell of ['powershell.exe', 'pwsh.exe']) {
+          const started = performance.now();
           const result = spawnSync(shell, ['-NoProfile', '-File', probe, '-Module',
             join(PACKAGE_ROOT, 'scripts/lib/AfyxSkillLifecycle.psm1'), '-Skill', skill, '-Unmarked', unmarked], {
             encoding: 'utf8', timeout: 20_000, windowsHide: true, env: subprocessEnvironment(shell),
           });
+          t.diagnostic(JSON.stringify({ shell, format, expected, elapsedMs: Math.round(performance.now() - started),
+            status: result.status, signal: result.signal, error: result.error?.code }));
+          assert.ifError(result.error);
           assert.equal(result.status, 0, `${shell}: ${result.stdout}\n${result.stderr}`);
           const actual = JSON.parse(result.stdout);
           assert.equal(actual.ownership, expected, `${shell}: ${JSON.stringify(actual)}`);

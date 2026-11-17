@@ -83,6 +83,15 @@ test('real canceled and closed-page Fetch requests preserve a healthy owned page
   try {
     await session.launch(); const healthyPage = session.selectedPage;
     const nativeSend = session.send.bind(session);
+    const lifecycle = [];
+    const handleMessage = session._handleMessage.bind(session);
+    session._handleMessage = (message) => {
+      if (['Fetch.requestPaused', 'Target.detachedFromTarget', 'Target.targetDestroyed'].includes(message.method)) {
+        lifecycle.push({ method: message.method, sessionId: message.params?.sessionId ?? message.sessionId,
+          targetId: message.params?.targetId, requestId: message.params?.requestId });
+      }
+      return handleMessage(message);
+    };
     for (const action of ['cancel-request', 'close-page']) {
       let release; let paused;
       const gate = new Promise((done) => { release = done; });
@@ -105,11 +114,22 @@ test('real canceled and closed-page Fetch requests preserve a healthy owned page
       const navigation = session.navigate(`${origin}/${action}`, { waitUntil: 'none' }).catch((error) => error.message);
       try {
         await seen;
+        assert.equal(canceledHits[action], 0, 'intercepted request must still be paused before cancellation');
         if (action === 'cancel-request') await nativeSend('Page.stopLoading', {}, session.pages.get(session.selectedPage).sessionId);
-        else assert.equal((await nativeSend('Target.closeTarget', { targetId: closingPage })).success, true);
+        else {
+          assert.equal((await nativeSend('Target.closeTarget', { targetId: closingPage })).success, true);
+          lifecycle.push({ method: 'Target.closeTarget:ack', targetId: closingPage });
+          // closeTarget acknowledges the command before asynchronous target
+          // teardown finishes. Do not resume a request on a still-closing page.
+          const deadline = Date.now() + 2000;
+          while (session.pages.has(closingPage) && Date.now() < deadline) await new Promise((done) => setTimeout(done, 20));
+          assert.equal(session.pages.has(closingPage), false, 'closed page must detach before releasing its paused request');
+          assert.ok(!(await nativeSend('Target.getTargets')).targetInfos.some((target) => target.targetId === closingPage));
+          assert.equal(canceledHits[action], 0, 'target teardown must not transmit the paused request');
+        }
       } finally { release(); }
       await navigation; await continuation;
-      t.diagnostic(JSON.stringify({ action, continuation: outcome }));
+      t.diagnostic(JSON.stringify({ action, closingPage, continuation: outcome, lifecycle: lifecycle.splice(0) }));
       if (outcome.status === 'STALE_RESPONSE') {
         assert.ok((outcome.code === -32602 && outcome.message === 'Invalid InterceptionId.')
           || (outcome.code === -32001 && outcome.message === 'Session with given id not found.'),

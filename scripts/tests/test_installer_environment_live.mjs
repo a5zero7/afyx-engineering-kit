@@ -13,7 +13,8 @@ for (const shell of windows ? ['powershell.exe', 'pwsh.exe', 'cmd.exe'] : ['bash
     t.after(() => rmSync(root, { recursive: true, force: true }));
     const probe = join(root, 'observe.mjs');
     writeFileSync(probe, `import {detectInstallerEnvironment} from ${JSON.stringify(new URL('../afyx-installer-environment.mjs', import.meta.url).href)};\n` +
-      `const state=await detectInstallerEnvironment({pkgRoot:${JSON.stringify(PACKAGE_ROOT)}});\n` +
+      `import {execFile} from 'node:child_process'; import {promisify} from 'node:util'; const execute=promisify(execFile);\n` +
+      `const state=await detectInstallerEnvironment({pkgRoot:${JSON.stringify(PACKAGE_ROOT)},executeCommand:async(program,args,{signal}={})=>{const start=performance.now();try{return (await execute(program,args,{encoding:'utf8',timeout:4000,maxBuffer:32768,windowsHide:true,signal})).stdout.trim();}catch(error){console.error('AFYX_ENVIRONMENT_OBSERVATION '+JSON.stringify({program,elapsedMs:Math.round(performance.now()-start),code:error.code,signal:error.signal,killed:error.killed}));throw error;}}});\n` +
       `if(process.platform==='darwin'&&state.invokingShell.name==='Unknown'){const {execFileSync}=await import('node:child_process');for(const [program,args] of [['/bin/ps',['-p',String(process.ppid),'-o','ppid=','-o','comm=']],['/usr/sbin/lsof',['-a','-p',String(process.ppid),'-d','txt','-Fn']]]){try{console.error('AFYX_PARENT_OBSERVATION '+JSON.stringify({program,output:execFileSync(program,args,{encoding:'utf8',timeout:4000,maxBuffer:32768})}));}catch(error){console.error('AFYX_PARENT_OBSERVATION '+JSON.stringify({program,code:error.code}));}}}\n` +
       `console.log('AFYX_ENVIRONMENT_JSON '+JSON.stringify(state));\n`);
     let args, input;
