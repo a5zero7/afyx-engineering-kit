@@ -1,8 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { spawn } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import { createInterface } from 'node:readline';
-import { mkdtempSync, writeFileSync, rmSync } from 'node:fs';
+import { mkdtempSync, writeFileSync, rmSync, symlinkSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { installHostBridge, uninstallHostBridge } from '../afyx-host-bridge-lifecycle.mjs';
@@ -58,4 +58,21 @@ test('installed bridge preserves workflow and lazily exposes only host-authorize
     await active.close(); active = undefined;
     assert.equal(uninstallHostBridge(runtimeRoot).status, 'NOT_INSTALLED');
   } finally { if (active) await active.close(); rmSync(root, { recursive: true, force: true, maxRetries: 3, retryDelay: 50 }); }
+});
+
+test('installed MCP executable starts through an ancestor alias instead of silently importing as a library', () => {
+  const root = mkdtempSync(join(tmpdir(), 'afyx-mcp-entry-alias-'));
+  try {
+    const runtimeRoot = join(root, 'runtime');
+    installHostBridge({ sourceRoot: resolve('scripts'), runtimeRoot, sourceRevision: 'alias-fixture' });
+    symlinkSync(runtimeRoot, join(root, 'alias'), process.platform === 'win32' ? 'junction' : 'dir');
+    const messages = [{ jsonrpc: '2.0', id: 1, method: 'initialize', params: {} },
+      { jsonrpc: '2.0', id: 2, method: 'tools/list', params: {} }];
+    const result = spawnSync(process.execPath, [join(root, 'alias', 'current', 'afyx-host-bridge.mjs'), 'serve', '--mcp', '--project-root', root],
+      { encoding: 'utf8', input: messages.map((message) => JSON.stringify(message)).join('\n') + '\n', timeout: 5000, windowsHide: true });
+    assert.equal(result.status, 0, result.stderr);
+    const responses = result.stdout.trim().split('\n').filter(Boolean).map((line) => JSON.parse(line));
+    assert.deepEqual(responses.map((message) => message.id), [1, 2]);
+    assert.equal(responses[1].result.tools[0].name, 'afyx_workflow');
+  } finally { rmSync(root, { recursive: true, force: true, maxRetries: 3, retryDelay: 50 }); }
 });

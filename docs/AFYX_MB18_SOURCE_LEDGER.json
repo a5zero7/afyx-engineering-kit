@@ -48,7 +48,7 @@
     {
       "path": "scripts/afyx-host-bridge.mjs",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "a5e9ca1d76cb18feebe4cd42b71af0445472e6372e662167f51c5fc6b9300447",
+      "reviewedSha256": "1d5d626fbd3a95146cd3b168de01a09c27e740b66c3e2608a0de88f3882338c3",
       "evidence": "MB18 AFYX-190/347: reviewed default-OFF optional tool exposure, host-only authority, persistent browser ownership, bounded document calls, image transport and truthful shutdown; existing workflow and one MCP server preserved."
     },
     {
@@ -66,7 +66,7 @@
     {
       "path": "scripts/afyx-document-intelligence.mjs",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "59efcb3f7063c6eca4a49548ead33d4124bdf6f62acc7526f187bdd09147ae1b",
+      "reviewedSha256": "0519982e577a0e40de2eb23689c8c2f957741eac0e92860bf72177d6c0443b3b",
       "evidence": "MB18 AFYX-347: original file/bytes/stream admission and worker API with workspace, provenance and bounded conversion; read-only MarkItDown MIT reference ed178952 informed functional contracts, not imported source."
     },
     {

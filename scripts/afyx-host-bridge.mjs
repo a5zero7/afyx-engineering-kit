@@ -10,7 +10,7 @@
  * 3. JSON-RPC 2.0 Stdio MCP Server: node scripts/afyx-host-bridge.mjs serve --mcp
  */
 
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, realpathSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -370,7 +370,13 @@ async function main() {
   }
 }
 
-if (process.argv[1] && fileURLToPath(import.meta.url) === resolve(process.argv[1])) {
+function isMainModule() {
+  if (!process.argv[1]) return false;
+  try { return realpathSync(fileURLToPath(import.meta.url)) === realpathSync(resolve(process.argv[1])); }
+  catch { return false; }
+}
+
+if (isMainModule()) {
   main().catch((error) => {
     process.stderr.write(`${error instanceof Error ? error.message : String(error)}\n`);
     process.exitCode = 1;
