@@ -2149,8 +2149,8 @@
     {
       "path": "afyx-graph/engine/ui/src/lib/entry-model.ts",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "2ed5df87c6e86f362cb83c13ad03647904209331927372ac51a7201d68773389",
-      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+      "reviewedSha256": "4431b1d8d5ec6297c2be7b2a776f9616196cef7b50eb6b2b3cafa4aad356e8b6",
+      "evidence": "MB17 Wave 2 (AFYX-5, AFYX-157, AFYX-166, AFYX-320): independently authored entry-points presentation model; deterministic first-seen group ordering preserving server rankings, clean route handler metadata resolution, safe callable symbol flow-pair validation, and bounded command-palette candidate search."
     },
     {
       "path": "afyx-graph/engine/ui/src/lib/export-image.ts",
@@ -2168,8 +2168,8 @@
     {
       "path": "afyx-graph/engine/ui/src/lib/file-model.ts",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "d626c5e8e0f64714448150c599de2d35ffebc48a660019347696ef0a7ad347c0",
-      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+      "reviewedSha256": "f59de2a1e002694f0bd9da3e44a44be8c871c9e3e71fddbbac3fc42e97271417",
+      "evidence": "MB17 Wave 2 (AFYX-5, AFYX-157, AFYX-166, AFYX-320): independently authored file view presentation model; deterministic dependency rail partitioning (production vs test), symbol enrichment without false file nodes, isolated external import aggregation, and clamped hierarchical outline projection."
     },
     {
       "path": "afyx-graph/engine/ui/src/lib/filecode-model.ts",
