@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createServer } from 'node:http';
-import { existsSync, lstatSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
-import { dirname, join, resolve } from 'node:path';
+import { existsSync, lstatSync, mkdtempSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { AfyxBrowserSession, findChromeBinary } from '../afyx-browser-devtools.mjs';
 
@@ -115,7 +115,7 @@ test('real canceled and closed-page Fetch requests preserve a healthy owned page
 test('real owned Chrome: pages, DOM, interaction, diagnostics, trace, export and network-denial lifecycle', { timeout: 45000 }, async (t) => {
   const chromePath = findChromeBinary();
   if (!chromePath) { t.skip('NOT TESTED: compatible Chrome unavailable'); return; }
-  const directory = mkdtempSync(join(tmpdir(), 'afyx-browser-engineering-'));
+  const directory = realpathSync(mkdtempSync(join(tmpdir(), 'afyx-browser-engineering-')));
   let forbiddenHits = 0;
   const forbidden = createServer((_request, response) => { forbiddenHits++; response.end('should never be fetched'); });
   await new Promise((done) => forbidden.listen(0, '127.0.0.1', done));
@@ -194,7 +194,7 @@ test('real owned Chrome: pages, DOM, interaction, diagnostics, trace, export and
     finally {
       server.closeAllConnections(); forbidden.closeAllConnections();
       await Promise.all([new Promise((done) => server.close(done)), new Promise((done) => forbidden.close(done))]);
-      assert.equal(dirname(directory), resolve(tmpdir())); assert.equal(lstatSync(directory).isSymbolicLink(), false);
+      assert.equal(dirname(directory), realpathSync(tmpdir())); assert.equal(lstatSync(directory).isSymbolicLink(), false);
       rmSync(directory, { recursive: true, force: true });
     }
   }
