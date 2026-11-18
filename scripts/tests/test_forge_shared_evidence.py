@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import copy
+import hashlib
 import io
 import json
 import tempfile
@@ -65,21 +66,22 @@ def _write_exec_jsonl(
     )
 
 
-def _write_annotations_jsonl(path: Path, complete: bool = True) -> None:
+def _write_annotations_jsonl(path: Path, event_file: Path) -> None:
     records = []
-    if complete:
-        records.append(
-            {
-                "type": "coverage",
-                "complete_categories": [
-                    "human_intervention",
-                    "policy_denial",
-                    "agent_fallback",
-                    "rework",
-                    "explicit_retry",
-                ],
-            }
-        )
+    records.append(
+        {
+            "type": "coverage",
+            "source_sha256": hashlib.sha256(event_file.read_bytes()).hexdigest(),
+            "receipt_sha256": hashlib.sha256(b"synthetic Forge coverage receipt").hexdigest(),
+            "complete_categories": [
+                "human_intervention",
+                "policy_denial",
+                "agent_fallback",
+                "rework",
+                "explicit_retry",
+            ],
+        }
+    )
     records.append(
         {
             "event_type": "agent_fallback",
@@ -193,7 +195,7 @@ class SharedEvidenceTests(unittest.TestCase):
             event_file = tmp_path / f"rollout-{SAMPLE_UUID}.jsonl"
             ann_file = tmp_path / "annotations.jsonl"
             _write_exec_jsonl(event_file, SAMPLE_UUID, with_usage=True)
-            _write_annotations_jsonl(ann_file, complete=True)
+            _write_annotations_jsonl(ann_file, event_file)
 
             discovery = phase8_evidence_discovery.discover(
                 tmp_path, [SAMPLE_UUID]
@@ -319,7 +321,7 @@ class SharedEvidenceTests(unittest.TestCase):
                 tool_status="failed",
                 exit_code=1,
             )
-            _write_annotations_jsonl(ann_file, complete=True)
+            _write_annotations_jsonl(ann_file, event_file)
 
             ledger = shared_evidence.analyze_exec_events_strict(
                 run_id,
