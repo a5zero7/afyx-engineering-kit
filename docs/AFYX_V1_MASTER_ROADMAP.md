@@ -1,5 +1,12 @@
 # Afyx v1 Master Roadmap
 
+**Checkpoint AFYX-348, 19 November 2026.** Baseline integrasi
+`bc4debba494358d099da4cce4c123f653388f20e` memuat PR #19 dan #20. Disposisi per
+file, bukti pengganti, dan port terbatas lima PR historis dicatat pada
+[rekonsiliasi AFYX-348](AFYX_348_HELD_PR_RECONCILIATION.md). Batch berikut
+melanjutkan penerimaan provider T12 dengan fixture terisolasi. Gate legal,
+distribusi, dan penerimaan pengguna eksternal tetap dinilai terpisah.
+
 > **MB8.1 decision, 2026-11-10:** Project Owner approved A8 **GO** for the local-first Forge Planner and adaptive assistive guidance architecture. The prior formal 36-cell campaign remains `0/36 NOT_RUN` and was waived for this scoped decision; historical requirements and evidence below remain unchanged. MB8 benchmark evidence is limited to five local classification/latency fixtures. Autonomous source mutation is not authorized, provider token savings are unmeasured, and public npm publication is deferred. This decision does not assert Stable v1 release acceptance.
 
 Status: **V1 FINALIZATION ACTIVE — unified Alpha source promoted; expanded v1 acceptance pending**
