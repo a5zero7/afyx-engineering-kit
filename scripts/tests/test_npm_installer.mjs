@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
+import './test_macos_installer_parity.mjs';
 import {
   getPackageVersion,
   getHelpText,
