@@ -189,12 +189,21 @@ export class AfyxBrowserSession {
       });
       const activePort = join(this.userDataDir, 'DevToolsActivePort');
       const deadline = Date.now() + 15000;
-      while (!existsSync(activePort)) {
+      let activePortContent = '';
+      while (true) {
         if (!this.process || this.process.exitCode !== null || Date.now() > deadline) throw new Error('BROWSER_LAUNCH_FAILED');
+        if (existsSync(activePort)) {
+          try {
+            activePortContent = readFileSync(activePort, 'utf8').trim();
+            if (activePortContent.includes('\n')) break;
+          } catch (e) {
+            if (e.code !== 'EBUSY' && e.code !== 'EPERM') throw e;
+          }
+        }
         await delay(50);
       }
       if (lstatSync(activePort).isSymbolicLink()) throw new Error('BROWSER_ENDPOINT_OWNERSHIP_FAILED');
-      const [port, endpoint] = readFileSync(activePort, 'utf8').trim().split(/\r?\n/);
+      const [port, endpoint] = activePortContent.split(/\r?\n/);
       if (!/^\d+$/.test(port) || +port < 1 || +port > 65535 || !/^\/devtools\/browser\/[a-zA-Z0-9-]+$/.test(endpoint)) throw new Error('BROWSER_ENDPOINT_OWNERSHIP_FAILED');
       this.port = +port; this.wsUrl = `ws://127.0.0.1:${port}${endpoint}`;
       await this._connect();
