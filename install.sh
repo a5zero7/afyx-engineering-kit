@@ -369,21 +369,29 @@ if [[ -n "$preset" ]]; then
     printf '%s: desired=%s; actual=%s; drift=%s; ownership=%s; repair=%s\n' "$plan_id" "$AFYX_DESIRED" "$plan_state" "$AFYX_DRIFT" "$AFYX_ACTUAL_OWNERSHIP" "$AFYX_REPAIR"
   done
 fi
+codex_cli_detected=false; command -v codex >/dev/null 2>&1 && codex_cli_detected=true
+antigravity_detected=false; { command -v agy >/dev/null 2>&1 || command -v antigravity >/dev/null 2>&1; } && antigravity_detected=true
+claude_cli_detected=false; command -v claude >/dev/null 2>&1 && claude_cli_detected=true
+claude_vscode_detected=false
+for extension in "$HOME"/.vscode/extensions/anthropic.claude-code-*; do [[ -d "$extension" ]] && { claude_vscode_detected=true; break; }; done
+vscode_extension_detected=false
+for extension in "$HOME"/.vscode/extensions/openai.chatgpt-*; do [[ -d "$extension" ]] && { vscode_extension_detected=true; break; }; done
+
 printf '\nProvider Plan\n'
 if "$skip_provider_configuration"; then printf 'Provider configuration: skipped (requested or no implicit host)\n'; fi
 old_ifs=$IFS; IFS=','
 for provider_id in $provider_list; do
   if [[ "$provider_id" == codex ]]; then
     provider_name=Codex
-    command -v codex >/dev/null 2>&1 && provider_detected=true || provider_detected=false
+    if "$codex_cli_detected" || "$vscode_extension_detected"; then provider_detected=true; else provider_detected=false; fi
     provider_path="${CODEX_HOME:-$HOME/.codex}/config.toml"
   elif [[ "$provider_id" == antigravity ]]; then
     provider_name=Antigravity
-    { command -v agy >/dev/null 2>&1 || command -v antigravity >/dev/null 2>&1; } && provider_detected=true || provider_detected=false
+    provider_detected="$antigravity_detected"
     [[ "$provider_scope" == workspace ]] && provider_path="$workspace_root/.agents/mcp_config.json" || provider_path="$gemini_home/config/mcp_config.json"
   elif [[ "$provider_id" == claude ]]; then
     provider_name="Claude Code"
-    command -v claude >/dev/null 2>&1 && provider_detected=true || provider_detected=false
+    if "$claude_cli_detected" || "$claude_vscode_detected"; then provider_detected=true; else provider_detected=false; fi
     if [[ "$provider_scope" == workspace ]]; then
       provider_path="$workspace_root/.mcp.json"
     else
@@ -424,14 +432,6 @@ if ! "$skip_graph_mcp" && ! "$skip_provider_configuration" && [[ ",$provider_lis
     exit 1
   fi
 fi
-
-codex_cli_detected=false; command -v codex >/dev/null 2>&1 && codex_cli_detected=true
-antigravity_detected=false; { command -v agy >/dev/null 2>&1 || command -v antigravity >/dev/null 2>&1; } && antigravity_detected=true
-claude_cli_detected=false; command -v claude >/dev/null 2>&1 && claude_cli_detected=true
-claude_vscode_detected=false
-for extension in "$HOME"/.vscode/extensions/anthropic.claude-code-*; do [[ -d "$extension" ]] && { claude_vscode_detected=true; break; }; done
-vscode_extension_detected=false
-for extension in "$HOME"/.vscode/extensions/openai.chatgpt-*; do [[ -d "$extension" ]] && { vscode_extension_detected=true; break; }; done
 
 printf '\nPrerequisite Inventory\n'
 printf '[REQUIRED] OS/architecture: %s / %s\n' "$(uname -s)" "$(uname -m)"
