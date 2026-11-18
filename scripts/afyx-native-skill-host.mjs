@@ -50,6 +50,8 @@ export function createNativeSkillHostAdapter(config = {}) {
       || typeof spec.body !== 'string'
       || !Array.isArray(spec.triggers)
       || spec.triggers.some((trigger) => typeof trigger !== 'string')
+      || (spec.resources !== undefined && (!spec.resources || typeof spec.resources !== 'object'
+        || Array.isArray(spec.resources) || Object.values(spec.resources).some((value) => typeof value !== 'string')))
       || !Array.isArray(peerRoots)) {
     throw new Error('TRUSTED_SKILL_HOST_CONFIG_INVALID');
   }
@@ -62,6 +64,7 @@ export function createNativeSkillHostAdapter(config = {}) {
   const skillSpec = Object.freeze({
     name: spec.name, description: spec.description,
     triggers: Object.freeze([...spec.triggers]), body: spec.body,
+    resources: Object.freeze({ ...(spec.resources ?? {}) }),
   });
   const planDigest = digest(JSON.stringify(skillSpec));
   const sourceIdentity = 'sha256:' + digest(Buffer.concat([

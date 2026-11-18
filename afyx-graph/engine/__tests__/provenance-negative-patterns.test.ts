@@ -8,15 +8,63 @@
 
 import { describe, it, expect } from 'vitest';
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, writeFileSync, rmSync, cpSync } from 'node:fs';
-import { join } from 'node:path';
+import { mkdtempSync, writeFileSync, rmSync, copyFileSync, mkdirSync } from 'node:fs';
+import { dirname, join } from 'node:path';
 import { tmpdir } from 'node:os';
 
 const REPO_ROOT = join(__dirname, '..', '..', '..');
 const VERIFIER_SCRIPT = join(REPO_ROOT, 'scripts', 'verify-native-source-ownership.mjs');
 const MANIFEST_PATH = join(REPO_ROOT, 'scripts', 'native-source-ownership.json');
 
+function copyProvenanceFixture(tempDir: string) {
+  // The verifier reads source bytes, not tests, build payloads or other tooling.
+  // Keep the full reviewed manifest and every source it owns, including Context/Forge.
+  const manifest = JSON.parse(readFileSyncSafe(MANIFEST_PATH));
+  const files = new Set<string>([
+    'scripts/verify-native-source-ownership.mjs',
+    'scripts/native-source-ownership.json',
+    ...manifest.entries.map((entry: { path: string }) => entry.path),
+  ]);
+  for (const file of files) {
+    const destination = join(tempDir, file);
+    mkdirSync(dirname(destination), { recursive: true });
+    copyFileSync(join(REPO_ROOT, file), destination);
+  }
+}
+
 describe('Native Provenance Negative Gate Enforcement', () => {
+  it('passes on the complete source-only fixture before any mutation', () => {
+    const tempDir = mkdtempSync(join(tmpdir(), 'afyx-prov-clean-'));
+    try {
+      copyProvenanceFixture(tempDir);
+      const result = execFileSync(process.execPath, [
+        join(tempDir, 'scripts', 'verify-native-source-ownership.mjs'), '--root', tempDir,
+      ], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
+      expect(result).toMatch(/PASS: \d+ production files match/);
+    } finally {
+      rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  it('still rejects unclassified production source added to the source-only fixture', () => {
+    const tempDir = mkdtempSync(join(tmpdir(), 'afyx-prov-extra-'));
+    try {
+      copyProvenanceFixture(tempDir);
+      writeFileSync(join(tempDir, 'afyx-graph', 'engine', 'src', 'unclassified.ts'), 'export const extra = true;');
+      let diagnostic = '';
+      try {
+        execFileSync(process.execPath, [
+          join(tempDir, 'scripts', 'verify-native-source-ownership.mjs'), '--root', tempDir,
+        ], { stdio: 'pipe' });
+      } catch (error: unknown) {
+        diagnostic = String((error as { stderr?: Buffer }).stderr ?? '');
+      }
+      expect(diagnostic).toContain('FAIL: unclassified production source file detected: afyx-graph/engine/src/unclassified.ts');
+    } finally {
+      rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
   it('passes on the clean authoritative repository baseline', () => {
     const result = execFileSync(process.execPath, [VERIFIER_SCRIPT, '--root', REPO_ROOT], {
       encoding: 'utf8',
@@ -29,14 +77,7 @@ describe('Native Provenance Negative Gate Enforcement', () => {
     const tempDir = mkdtempSync(join(tmpdir(), 'afyx-prov-neg-'));
     try {
       // Create minimal sandbox mirror
-      cpSync(join(REPO_ROOT, 'scripts'), join(tempDir, 'scripts'), {
-        recursive: true,
-        filter: (src) => !src.includes('node_modules') && !src.includes('.afyx-build') && !src.includes('dist'),
-      });
-      cpSync(join(REPO_ROOT, 'afyx-graph'), join(tempDir, 'afyx-graph'), {
-        recursive: true,
-        filter: (src) => !src.includes('node_modules') && !src.includes('.afyx-build') && !src.includes('dist'),
-      });
+      copyProvenanceFixture(tempDir);
 
       const targetFile = join(tempDir, 'afyx-graph', 'engine', 'src', 'ui-server', 'api', 'effects.ts');
       // Inject prohibited historical pattern
@@ -75,14 +116,7 @@ describe('Native Provenance Negative Gate Enforcement', () => {
   it('rejects a regex-encoded inherited domain rule even when its hash is self-declared', () => {
     const tempDir = mkdtempSync(join(tmpdir(), 'afyx-prov-regex-'));
     try {
-      cpSync(join(REPO_ROOT, 'scripts'), join(tempDir, 'scripts'), {
-        recursive: true,
-        filter: (src) => !src.includes('node_modules') && !src.includes('.afyx-build') && !src.includes('dist'),
-      });
-      cpSync(join(REPO_ROOT, 'afyx-graph'), join(tempDir, 'afyx-graph'), {
-        recursive: true,
-        filter: (src) => !src.includes('node_modules') && !src.includes('.afyx-build') && !src.includes('dist'),
-      });
+      copyProvenanceFixture(tempDir);
 
       const targetFile = join(tempDir, 'afyx-graph', 'engine', 'src', 'ui-server', 'api', 'effects.ts');
       const inheritedRule =
@@ -117,14 +151,7 @@ describe('Native Provenance Negative Gate Enforcement', () => {
   it('fails closed when a file reverts to the unreviewed baseline hash', () => {
     const tempDir = mkdtempSync(join(tmpdir(), 'afyx-prov-base-'));
     try {
-      cpSync(join(REPO_ROOT, 'scripts'), join(tempDir, 'scripts'), {
-        recursive: true,
-        filter: (src) => !src.includes('node_modules') && !src.includes('.afyx-build') && !src.includes('dist'),
-      });
-      cpSync(join(REPO_ROOT, 'afyx-graph'), join(tempDir, 'afyx-graph'), {
-        recursive: true,
-        filter: (src) => !src.includes('node_modules') && !src.includes('.afyx-build') && !src.includes('dist'),
-      });
+      copyProvenanceFixture(tempDir);
 
       const manifestPath = join(tempDir, 'scripts', 'native-source-ownership.json');
       const manifest = JSON.parse(readFileSyncSafe(manifestPath));
@@ -161,14 +188,7 @@ describe('Native Provenance Negative Gate Enforcement', () => {
   it('fails closed when an entry has PROVENANCE_REVIEW_REQUIRED classification', () => {
     const tempDir = mkdtempSync(join(tmpdir(), 'afyx-prov-unres-'));
     try {
-      cpSync(join(REPO_ROOT, 'scripts'), join(tempDir, 'scripts'), {
-        recursive: true,
-        filter: (src) => !src.includes('node_modules') && !src.includes('.afyx-build') && !src.includes('dist'),
-      });
-      cpSync(join(REPO_ROOT, 'afyx-graph'), join(tempDir, 'afyx-graph'), {
-        recursive: true,
-        filter: (src) => !src.includes('node_modules') && !src.includes('.afyx-build') && !src.includes('dist'),
-      });
+      copyProvenanceFixture(tempDir);
 
       const manifestPath = join(tempDir, 'scripts', 'native-source-ownership.json');
       const manifest = JSON.parse(readFileSyncSafe(manifestPath));

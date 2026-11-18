@@ -16,6 +16,25 @@ const MAX_FILES = 1000;
 const SHA256 = (data) => createHash('sha256').update(data).digest('hex');
 
 function fail(code) { throw new Error(code); }
+// Packages must retain the same meaning on case-insensitive Windows filesystems.
+function portablePaths(paths) {
+  const seen = new Map();
+  for (const path of paths) {
+    if (typeof path !== 'string' || !/^[A-Za-z0-9._/-]+$/.test(path)
+        || path.split('/').some((part) => !part || part === '.' || part === '..'
+          || /[. ]$/.test(part) || /^(?:con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\.|$)/i.test(part)
+          || part.toLowerCase() === '.afyx-skill-ownership.json')) fail('PACKAGE_PATH_INVALID');
+    const key = path.toLowerCase();
+    if (seen.has(key)) fail('PACKAGE_PATH_INVALID');
+    seen.set(key, path);
+  }
+  for (const key of seen.keys()) {
+    const parts = key.split('/');
+    for (let i = 1; i < parts.length; i++) {
+      if (seen.has(parts.slice(0, i).join('/'))) fail('PACKAGE_PATH_INVALID');
+    }
+  }
+}
 function itemAt(path) {
   try { return lstatSync(path); }
   catch (error) { if (error?.code === 'ENOENT') return null; throw error; }
@@ -114,6 +133,7 @@ function checkedReferences(content, paths, sourcePath = 'SKILL.md') {
 
 export function validateSkill(source, { peerRoots = [], allowDirectoryMismatch = false } = {}) {
   const files = filesOf(source);
+  portablePaths(files.map((file) => file.path));
   const manifest = files.find((file) => file.path === 'SKILL.md');
   if (!manifest) fail('SKILL_MANIFEST_MISSING');
   const metadata = metadataOf(manifest.bytes.toString('utf8'));
@@ -134,7 +154,7 @@ export function validateSkill(source, { peerRoots = [], allowDirectoryMismatch =
   return Object.freeze({ contract: SKILL_ENGINEERING_CONTRACT, ...metadata, digest, inventory });
 }
 
-export function createSkill(directory, { name, description, triggers = [], body = '' }) {
+export function createSkill(directory, { name, description, triggers = [], body = '', resources = {} }) {
   if (itemAt(directory)) fail('TARGET_ALREADY_EXISTS');
   if (basename(resolve(directory)) !== name) fail('SKILL_DIRECTORY_NAME_MISMATCH');
   safeRoot(dirname(directory));
@@ -143,10 +163,30 @@ export function createSkill(directory, { name, description, triggers = [], body 
   const parsed = metadataOf(text);
   if (parsed.name !== name || parsed.description !== description
       || JSON.stringify(parsed.triggers) !== JSON.stringify(triggers)) fail('SKILL_METADATA_INVALID');
-  checkedReferences(text, new Set(['SKILL.md']));
+  if (!resources || typeof resources !== 'object' || Array.isArray(resources)
+      || Object.values(resources).some((value) => typeof value !== 'string')) fail('INVALID_RESOURCES');
+  const files = [{ path: 'SKILL.md', bytes: Buffer.from(text) },
+    ...Object.entries(resources).map(([path, value]) => ({ path, bytes: Buffer.from(value) }))];
+  portablePaths(files.map((file) => file.path));
+  if (files.length > MAX_FILES || files.some((file) => file.bytes.length > MAX_FILE_BYTES)
+      || files.reduce((sum, file) => sum + file.bytes.length, 0) > MAX_PACKAGE_BYTES) fail('PACKAGE_TOO_LARGE');
+  const paths = new Set(files.map((file) => file.path));
+  for (const file of files.filter((file) => file.path.endsWith('.md'))) {
+    checkedReferences(file.bytes.toString('utf8'), paths, file.path);
+  }
   mkdirSync(directory);
-  writeFileSync(join(directory, 'SKILL.md'), text, { flag: 'wx' });
-  return validateSkill(directory);
+  try {
+    for (const file of files) {
+      const destination = join(directory, ...file.path.split('/'));
+      safePart(destination, directory);
+      mkdirSync(dirname(destination), { recursive: true });
+      writeFileSync(destination, file.bytes, { flag: 'wx' });
+    }
+    return validateSkill(directory);
+  } catch (error) {
+    rmSync(directory, { recursive: true, force: true });
+    throw error;
+  }
 }
 
 /** Revision/repair is a host-approved source edit with exact-byte restoration on failure. */
@@ -186,6 +226,8 @@ export function inspectSkillPackage(packageBytes) {
   if (!Buffer.isBuffer(packageBytes) || packageBytes.length > MAX_PACKAGE_BYTES * 2) fail('PACKAGE_INVALID');
   const payload = JSON.parse(packageBytes.toString('utf8'));
   if (payload.contract !== SKILL_ENGINEERING_CONTRACT || !Array.isArray(payload.files)) fail('PACKAGE_INVALID');
+  if (payload.files.length > MAX_FILES || payload.files.some((file) => !file || typeof file !== 'object')) fail('PACKAGE_INVALID');
+  portablePaths(payload.files.map((file) => file.path));
   const names = new Set();
   const inventory = payload.files.map((file) => {
     if (typeof file.path !== 'string' || !/^[A-Za-z0-9._/-]+$/.test(file.path) || file.path.startsWith('/') || file.path === '.afyx-skill-ownership.json' || file.path.split('/').some((part) => part === '..' || part === '.' || !part) || names.has(file.path)) fail('PACKAGE_PATH_INVALID');
@@ -194,7 +236,8 @@ export function inspectSkillPackage(packageBytes) {
     if (bytes.toString('base64') !== file.data || bytes.length > MAX_FILE_BYTES) fail('PACKAGE_INVALID');
     return { path: file.path, sha256: SHA256(bytes), size: bytes.length };
   });
-  if (inventory.length > MAX_FILES || !names.has('SKILL.md')
+  if (inventory.length > MAX_FILES || inventory.reduce((sum, file) => sum + file.size, 0) > MAX_PACKAGE_BYTES
+      || !names.has('SKILL.md')
       || SHA256(Buffer.from(JSON.stringify(inventory))) !== payload.metadata?.digest
       || JSON.stringify(inventory) !== JSON.stringify(payload.metadata?.inventory)) fail('PACKAGE_INTEGRITY_FAILED');
   const manifest = payload.files.find((file) => file.path === 'SKILL.md');

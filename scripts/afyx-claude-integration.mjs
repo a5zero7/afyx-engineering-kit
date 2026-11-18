@@ -60,9 +60,13 @@ function normalizedPath(value) {
 function entryEquivalent(actual, expected) {
   return actual && typeof actual === 'object' && !Array.isArray(actual)
     && (actual.type === undefined || actual.type === 'stdio')
+    && typeof actual.command === 'string'
     && normalizedPath(actual.command) === normalizedPath(expected.command)
     && Array.isArray(actual.args) && actual.args.length === expected.args.length
-    && actual.args.every((value, index) => normalizedPath(value) === normalizedPath(expected.args[index]));
+    && actual.args.every((value, index) => typeof value === 'string'
+      && (isAbsolute(expected.args[index])
+        ? isAbsolute(value) && normalizedPath(value) === normalizedPath(expected.args[index])
+        : value === expected.args[index]));
 }
 
 function inside(base, candidate) {

@@ -36,6 +36,25 @@ describe('git index currency across commits and restores (#1829)', () => {
   }, 20_000);
   afterEach(() => { vi.restoreAllMocks(); cg?.close(); fs.rmSync(root, { recursive: true, force: true, maxRetries: 10, retryDelay: 50 }); });
 
+  it('resolves ignore policy only when Git has source candidates to classify', () => {
+    const exec = vi.mocked(cp.execFileSync);
+    const ignoreReads = () => exec.mock.calls.filter(([command, args]) => command === 'git'
+      && Array.isArray(args) && args.includes('--get') && args.includes('core.excludesFile'));
+    exec.mockClear();
+    clean();
+    expect(ignoreReads()).toHaveLength(0);
+
+    // A real candidate still reads the current ignore policy; no cross-call cache.
+    const excludes = path.join(root, 'custom.ignore');
+    fs.writeFileSync(excludes, 'source.ts\n');
+    git('config', 'core.excludesFile', excludes);
+    write('source.ts', 'excludedEdit');
+    clean();
+    expect(ignoreReads().length).toBeGreaterThan(0);
+    fs.writeFileSync(excludes, '');
+    expect(cg.getChangedFiles().modified).toEqual(['source.ts']);
+  });
+
   it.each(['index', 'sync', 'scoped'] as const)('sees a restored indexed dirty edit after %s', async mode => {
     write('source.ts', 'dirtyVersion');
     if (mode === 'index') await cg.indexAll();

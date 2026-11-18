@@ -427,8 +427,8 @@
     {
       "path": "afyx-graph/engine/src/extraction/index.ts",
       "classification": "PUBLIC_API_BARREL",
-      "reviewedSha256": "e372612764bf3413f74ad58e03c4d915b8bebc670829096f0de84a2909dfcdd6",
-      "evidence": "AFYX public module barrel export surface; exposes stable interface without independent algorithmic logic."
+      "reviewedSha256": "5d13dea9aeabfe8c4fa2dcb772f3bc986692a56dad8d1324b4aa4ab571c4d976",
+      "evidence": "MB15 Windows Git RCA: reviewed lazy ignore-policy evaluation and empty-candidate short circuit only after Git freshness plus persisted dirty paths are checked; no cross-call cache, permission, checksum or restored-edit semantics changed. Positive/negative Git and ignore regressions retained."
     },
     {
       "path": "afyx-graph/engine/src/extraction/languages/c-cpp.ts",
@@ -878,8 +878,8 @@
     {
       "path": "afyx-graph/engine/src/index.ts",
       "classification": "PUBLIC_API_BARREL",
-      "reviewedSha256": "1cc18a8fe68fd72331c478f17e4637b77e35b79b866e14428aa2dacbb70b9ead",
-      "evidence": "AFYX public module barrel export surface; exposes stable interface without independent algorithmic logic."
+      "reviewedSha256": "41982db8c1b55ab04ce26cf78925f8d011e3d58e8013612afa273f8784547bea",
+      "evidence": "MB15 Graph lifecycle: reviewed failed asynchronous initialization closing its unpublished database and file lock while preserving the original rejection; existing index ownership and success behavior unchanged."
     },
     {
       "path": "afyx-graph/engine/src/installer/config-writer.ts",
@@ -2373,8 +2373,8 @@
     {
       "path": "afyx-forge/src/workflow-refiner.js",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "40162936b3656c712d79aa5d20efa9976aa911a5a3716a76d3ff57b4c292b598",
-      "evidence": "MB12 review: authored from AFYX functional requirements and existing reviewed 251f73a contracts; no upstream implementation, prompts, assets or dependency imported. Trusted-host boundaries and negative/regression tests recorded in MB12-native-consolidation-20261114-r1."
+      "reviewedSha256": "1be651ecc3774d5b96edfc7e685ff8978521ac231f291b3fae36cc9bf0dab3be",
+      "evidence": "MB15 AFYX-324: reviewed lexical section boundaries, preserved safety instructions, explicit missing-criteria clarification and non-vacuous heuristic hints; trusted receipt authority unchanged."
     },
     {
       "path": "afyx-forge/src/workflow.js",
@@ -2469,8 +2469,8 @@
     {
       "path": "scripts/afyx-skill-engineering.mjs",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "4bc9ccf59b4af9a1ac4947af853664dcf4d67a07243d5b9eb41ddd15052a072f",
-      "evidence": "MB12 review: authored from AFYX functional requirements and existing reviewed 251f73a contracts; no upstream implementation, prompts, assets or dependency imported. Trusted-host boundaries and negative/regression tests recorded in MB12-native-consolidation-20261114-r1."
+      "reviewedSha256": "6604fcf2ce7e4faadb6f3cca3f7f5271494666b34cf09188abb642eddc9a7f76",
+      "evidence": "MB15 AFYX-313: independently reviewed authored UTF-8 resource validation, portable package paths and aggregate decoded-size bounds; no external implementation imported."
     },
     {
       "path": "scripts/afyx-universal-runtime.mjs",
@@ -2505,8 +2505,8 @@
     {
       "path": "scripts/afyx-midnight-circuit.mjs",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "71782d90285c8aae4594d3cd0d2b8235d7bec702ced468fdb2705e9a82bc8e48",
-      "evidence": "Installer UX v2 (AFYX-345 hybrid visual refinement): independently implemented native ANSI layout, Midnight Circuit 24-bit base/panel/cyan-selection palette with 16-color and plain fallback, asynchronous AFYX backend integration, bounded progress display, and verification receipt. Reuses existing AFYX installer contracts; imports only Node built-ins and AFYX modules. No third-party source or visual asset embedded."
+      "reviewedSha256": "3e1dde8d673dd6fe2010e86a07869476b056475217fce9bbd651ec59906a6b44",
+      "evidence": "MB12 native-source review retained. MB14 AFYX-328 technical delta review: six existing pre-planning callbacks now forward keyboard focus and provider scroll offsets to the existing renderer; no new UI architecture, dependency, or upstream implementation. Regression confirms focus, visible row movement, safe cancellation and zero planning; 33 focused UI/inventory tests pass. Evidence AFYX-MB14-20261116; legal clearance remains separate."
     },
     {
       "path": "scripts/afyx-install-progress.mjs",

@@ -39,6 +39,8 @@ async function fixture(run) {
 
 test('trusted host can create, package, install and verify a scoped native skill', async () => {
   await fixture(async (fx) => {
+    fx.spec.body = '# Procedure\n\nRead [guide](references/guide.md).\n';
+    fx.spec.resources = { 'references/guide.md': '# Guide\n\nInspect source evidence.\n' };
     const approvals = [];
     const trustedSkillEngineering = fx.hostPlan((proposal) => {
       approvals.push(proposal.action);
@@ -55,6 +57,7 @@ test('trusted host can create, package, install and verify a scoped native skill
     });
     assert.equal(installed.status, 'VERIFIED');
     assert.equal(installed.digest, skill.output.digest);
+    assert.equal(readFileSync(join(fx.skillsRoot, fx.spec.name, 'references', 'guide.md'), 'utf8'), fx.spec.resources['references/guide.md']);
     assert.match(skill.provenance.componentSourceIdentity, /^sha256:[0-9a-f]{64}$/);
   });
 });

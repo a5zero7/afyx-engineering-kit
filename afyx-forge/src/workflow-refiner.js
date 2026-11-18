@@ -13,10 +13,10 @@ const BOILERPLATE_PATTERNS = [
   // Strip only a complete role-title line. Free-form role instructions may
   // contain safety/scope constraints and must remain in the refined directive.
   /^[ \t]*(?:Please\s+)?(?:act\s+as|you\s+are)\s+(?:an?\s+)?(?:(?:senior|principal|expert|lead|staff)\s+)*(?:software engineer|security engineer|engineer|architect|developer|reviewer)(?:\s+and\s+(?:(?:senior|principal|expert|lead|staff)\s+)*(?:software engineer|security engineer|engineer|architect|developer|reviewer))*[.!]?[ \t]*\r?$/gim,
-  /^\s*(?:Please\s+)?make\s+sure\s+you\s+(?:think\s+step\s+by\s+step|are\s+very\s+careful)[.\n]?/gim,
-  /^\s*(?:Remember\s+to\s+)?always\s+follow\s+best\s+practices[.\n]?/gim,
-  /^\s*(?:In\s+this\s+task,\s+)?we\s+need\s+to\s+carefully[.\n]?/gim,
-  /^\s*(?:Note\s+that\s+)?quality\s+is\s+of\s+utmost\s+importance[.\n]?/gim,
+  /^[ \t]*(?:Please\s+)?make\s+sure\s+you\s+(?:think\s+step\s+by\s+step|are\s+very\s+careful)[.!]?[ \t]*\r?$/gim,
+  /^[ \t]*(?:Remember\s+to\s+)?always\s+follow\s+best\s+practices[.!]?[ \t]*\r?$/gim,
+  /^[ \t]*(?:In\s+this\s+task,\s+)?we\s+need\s+to\s+carefully[.!]?[ \t]*\r?$/gim,
+  /^[ \t]*(?:Note\s+that\s+)?quality\s+is\s+of\s+utmost\s+importance[.!]?[ \t]*\r?$/gim,
 ];
 
 /**
@@ -47,43 +47,40 @@ export function extractStructuredCriteria(taskText) {
     if (!trimmed) continue;
 
     // Detect section headers
-    if (/^(?:#+\s*)?(?:acceptance\s+criteria|requirements|kriteria\s+penerimaan)\s*:?\s*$/i.test(trimmed)) {
+    if (/^(?:#+\s*)?(?:acceptance\s+criteria|requirements|kriteria\s+penerimaan|persyaratan)\s*:?\s*$/i.test(trimmed)) {
       currentSection = 'criteria';
       continue;
     } else if (/^(?:#+\s*)?(?:constraints|restrictions|batasan|larangan)\s*:?\s*$/i.test(trimmed)) {
       currentSection = 'constraints';
       continue;
-    } else if (/^(?:#+\s*)?(?:objective|goals|tujuan|mission)\s*:?\s*$/i.test(trimmed)) {
+    } else if (/^(?:#+\s*)?(?:objective|goals|tujuan|mission|misi)\s*:?\s*$/i.test(trimmed)) {
       currentSection = 'objective';
       continue;
     }
 
-    // Bullet points / numbered lists
-    const content = trimmed.replace(/^[-*•]\s+|^\[[ xX]\]\s+|^\d+\.\s+/, '').trim();
+    // Unknown Markdown headings end the preceding section. Preserve their
+    // content too: a heading can itself carry a safety instruction.
+    const heading = /^#{1,6}\s+/.test(trimmed);
+    if (heading) currentSection = 'general';
+    const content = trimmed.replace(/^#{1,6}\s+/, '')
+      .replace(/^(?:[-*•]|\d+[.)])\s+/, '')
+      .replace(/^\[[ xX]\]\s+/, '').trim();
+    if (!content) continue;
 
-    if (!trimmed.startsWith('#')) {
-      if (currentSection === 'constraints' || /\b(?:must\s+not|never|do\s+not|no\s+|larang|jangan|tidak\s+boleh)\b/i.test(content)) {
-        constraints.push({ id: `CONST-${constraints.length + 1}`, text: content });
-      } else if (currentSection === 'criteria') {
+    if (currentSection === 'constraints' || /\b(?:must\s+not|never|do\s+not|don't|cannot|can't|may\s+not|should\s+not|no\s+|larang|dilarang|jangan|tidak\s+(?:boleh|diizinkan)|without\s+(?:permission|authorization)|tanpa\s+(?:izin|otorisasi))\b/i.test(content)) {
+      constraints.push({ id: `CONST-${constraints.length + 1}`, text: content });
+    } else if (currentSection === 'criteria') {
+      criteria.push({ id: `AC-${criteria.length + 1}`, text: content });
+    } else if (currentSection === 'objective') {
+      objectives.push(content);
+    } else {
+      // Infer from keywords, without rewriting the user's requirement.
+      if (/\b(?:must|shall|verify|test|prove|harus|pastikan|verifikasi|buktikan)\b/i.test(content)) {
         criteria.push({ id: `AC-${criteria.length + 1}`, text: content });
-      } else if (currentSection === 'objective') {
-        objectives.push(content);
       } else {
-        // Infer from keywords
-        if (/\b(?:must\s+not|never|no\s+|larang|jangan)\b/i.test(content)) {
-          constraints.push({ id: `CONST-${constraints.length + 1}`, text: content });
-        } else if (/\b(?:must|shall|verify|test|prove|harus|pastikan)\b/i.test(content)) {
-          criteria.push({ id: `AC-${criteria.length + 1}`, text: content });
-        } else {
-          objectives.push(content);
-        }
+        objectives.push(content);
       }
     }
-  }
-
-  // Ensure default criteria if none parsed
-  if (criteria.length === 0) {
-    criteria.push({ id: 'AC-1', text: 'Implementation passes automated tests and regression checks' });
   }
 
   return {
@@ -111,6 +108,8 @@ export function refineTaskDirective(rawTaskText) {
     objectives: structured.objectives,
     acceptanceCriteria: structured.criteria,
     constraints: structured.constraints,
+    clarificationRequired: structured.criteria.length === 0,
+    clarificationReasons: structured.criteria.length === 0 ? ['ACCEPTANCE_CRITERIA_UNSPECIFIED'] : [],
     definitionOfDone: [
       'All source changes match native architecture contracts',
       'No third-party proprietary implementation files imported',
@@ -129,8 +128,8 @@ export function evaluateTaskCompletion(criteriaList, verifiedEvidence = []) {
     // Check key terms from criterion in verified evidence
     const words = criterion.text.toLowerCase().split(/\s+/).filter((w) => w.length > 3);
     const matchedWords = words.filter((w) => evidenceText.includes(w));
-    const denied = /\b(?:(?:do(?:es)?|did)\s+not\s+pass|not\s+(?:verified|passed|passing|successful)|failed|failure|gagal|belum\s+(?:lulus|terverifikasi)|tidak\s+(?:lulus|berhasil))\b/i.test(evidenceText);
-    const satisfied = !denied && matchedWords.length >= Math.ceil(words.length * 0.5);
+    const denied = /\b(?:(?:do(?:es)?|did)\s+not\s+pass|not\s+(?:verified|passed|passing|successful|tested|run|executed|confirmed)|failed|failure|gagal|belum\s+(?:lulus|terverifikasi|diuji|dijalankan)|tidak\s+(?:lulus|berhasil|diuji|dijalankan))\b/i.test(evidenceText);
+    const satisfied = !denied && words.length > 0 && matchedWords.length >= Math.ceil(words.length * 0.5);
     return {
       id: criterion.id,
       text: criterion.text,
@@ -140,7 +139,7 @@ export function evaluateTaskCompletion(criteriaList, verifiedEvidence = []) {
   });
 
   const satisfiedCount = evaluation.filter((e) => e.satisfied).length;
-  const score = criteriaList.length > 0 ? satisfiedCount / criteriaList.length : 1.0;
+  const score = criteriaList.length > 0 ? satisfiedCount / criteriaList.length : 0;
 
   return {
     assurance: 'TEXT_HEURISTIC_ONLY',

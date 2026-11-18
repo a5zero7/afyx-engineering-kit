@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { EventEmitter } from 'node:events';
 import { PassThrough } from 'node:stream';
+import { stripVTControlCharacters } from 'node:util';
 import { parseCliArgs } from '../afyx-npm-installer.mjs';
 import { presetComponents, providerSelectable, renderFrame, runMidnightCircuit, runtimeSupport, terminalMode } from '../afyx-midnight-circuit.mjs';
 
@@ -64,6 +65,29 @@ test('review activity keyboard scrolling preserves selection and requires explic
   assert.equal(result.expectedPlan, 'fixture-plan');
   assert.equal(result.skipProviderConfiguration, true);
   assert.match(terminal.output.text, /ACTIVITY FOCUS/);
+  assert.equal(terminal.input.rawMode, false);
+});
+
+test('provider inventory focus and overflow scroll work before installation planning', { timeout: 5000 }, async () => {
+  const terminal = fakeTerminal(['tab', 'tab', 'down', 'down', 'return', 'escape']);
+  terminal.output.columns = 100;
+  terminal.output.rows = 24;
+  let plans = 0;
+  const result = await runMidnightCircuit({ ...terminal,
+    hosts: [{ id: 'codex', name: 'Codex', supported: true,
+      products: Array.from({ length: 30 }, (_, index) => ({ type: 'VS Code Extension', version: `1.0.${index}` })) }],
+    backend: { plan: async () => { plans++; throw new Error('Planning must remain idle'); } },
+  });
+  assert.equal(result, null);
+  assert.equal(plans, 0);
+  assert.match(terminal.output.text, /PROVIDERS FOCUS/);
+  const patches = [...terminal.output.text.matchAll(/\x1b\[(\d+);1H\x1b\[2K([\s\S]*?)(?=\x1b\[\d+;1H|$)/g)]
+    .map((match) => ({ row: Number(match[1]), text: stripVTControlCharacters(match[2]) }));
+  const initialProviderRow = patches.find((patch) => patch.text.includes('Codex: detected'));
+  assert.ok(initialProviderRow);
+  assert.ok(patches.some((patch) => patch.row === initialProviderRow.row && patch.text.includes('VS Code Extension 1.0.1')),
+    'Two downward scrolls must move the first visible provider row without changing the selected option');
+  assert.doesNotMatch(terminal.output.text, /REVIEW \/ APPLY \[/);
   assert.equal(terminal.input.rawMode, false);
 });
 
