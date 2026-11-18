@@ -1,5 +1,30 @@
 # Phase 8 — Paired engineering evidence intake
 
+## Audit integritas metrik DEV-S02
+
+| Temuan | Lokasi | Koreksi |
+|---|---|---|
+| Angka token diperkirakan dari byte, kemudian diberi label penghematan token | `scripts/dogfood_engineering_comparison.mjs`, diagnostik pilot manual | Laporkan `sourceBytesRead` dan `stdoutBytes` dengan batas pengukuran masing-masing. Token dan penghematan sesi `null`. |
+| Angka 350 menggantikan hasil Graph yang gagal diparse | Diagnostik pilot, `parseInventoryCount` | Count dari satu header inventaris yang valid. Kegagalan proses, header hilang atau ganda menghasilkan `null`. Count merupakan keluaran Graph, belum diperiksa terhadap oracle. |
+| Akurasi 100%, jumlah panggilan dan keberhasilan selalu ditulis tetap | Diagnostik pilot dan `scripts/phase8-representative-workload.mjs`, bagian laporan | Skor akurasi pilot `null`. Runner menyatakan hasil pemeriksaan fungsional fixture dan memakai hasil indeks aktual. Jumlah panggilan agent `null`. |
+| Panjang string dianggap byte, tokenizer lokal dilabeli token generik | Runner Phase 8 yang aktif di CI | Pakai panjang UTF-8 dan `localTokenizerTokens` dengan provenance tokenizer o200k_base. Durasi `performance.now` hanya mencakup operasi skrip. |
+| Delta masih muncul saat kualitas gagal, dan label privat disalin ke ringkasan | `scripts/phase8-paired-evidence.mjs`, `evaluateManifest` | Gagalkan perbandingan saat correctness, tes atau security FAIL. Untuk sesi owner, tahan delta jika kualitas belum lengkap. Simpan label sebagai digest. |
+| Cakupan parsial dan timing replay | Recorder, ledger dan verifier DEV-S01 | Pertahankan resi cakupan terikat trace, per-turn delta, dan `null` saat pengukuran hilang. |
+
+Contoh sintetis. Sebelumnya output dapat mencantumkan `tokenReductionPct: 90`,
+`matchesFound: 350`, dan `accuracy: "100%"` dari byte atau konstanta.
+Sekarang kegagalan parsing menghasilkan `reportedDeclarationCount: null` dan
+`countAvailability: "NOT_AVAILABLE"`, dengan byte stdout dan durasi proses
+dilaporkan sesuai observasi. `providerTokens` dan `tokenSavings` tetap `null`.
+
+`SYNTHETIC_ONLY` menandai jenis bukti. `FUNCTIONAL_PASS` menandai pemeriksaan
+fixture yang benar-benar lulus. `OBSERVED_PARTIAL` menandai data lokal yang
+masih perlu ditinjau. `HARD_GATE_FAILED` mengalahkan klaim efisiensi dan
+`NOT_AVAILABLE` menandai metrik yang belum didukung. Verifier tidak menerbitkan
+`INDEPENDENTLY_VERIFIED` dari resi yang hanya dideklarasikan. Ringkasan menyertakan
+SHA sumber dan hash trace serta hash byte manifest saat dibaca lewat file.
+Arsip laporan historis tetap tersedia dengan kontrak aslinya.
+
 ## Kontrak bukti AFYX-69
 
 Recorder menerima metadata terstruktur. Gunakan ID buram dan SHA-256 heksadesimal

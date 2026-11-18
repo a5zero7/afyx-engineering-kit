@@ -7,6 +7,7 @@ on:
     branches: [dev, alpha, main]
     paths:
       - 'scripts/phase8-paired-evidence.mjs'
+      - 'scripts/dogfood_engineering_comparison.mjs'
       - 'scripts/tests/test_phase8_paired_evidence.mjs'
       - 'scripts/phase8-session-recorder.mjs'
       - 'scripts/tests/test_phase8_session_recorder.mjs'
@@ -16,6 +17,7 @@ on:
     branches: [dev, alpha, main]
     paths:
       - 'scripts/phase8-paired-evidence.mjs'
+      - 'scripts/dogfood_engineering_comparison.mjs'
       - 'scripts/tests/test_phase8_paired_evidence.mjs'
       - 'scripts/phase8-session-recorder.mjs'
       - 'scripts/tests/test_phase8_session_recorder.mjs'

@@ -18,6 +18,19 @@ assert.equal(pos.status, 0, `Expected exit code 0 for positive run, got ${pos.st
 const posReport = JSON.parse(pos.stdout.trim());
 assert.equal(posReport.acceptanceMatrix['P08-8_ACE_BYTE_EXACT_RECOVERY'], 'PASS');
 assert.equal(posReport.acceptanceMatrix['P08-6_ACE_DEFAULT_OFF'], 'PASS');
+assert.equal(posReport.evidenceStatus, 'SYNTHETIC_ONLY');
+assert.equal(posReport.functionalStatus, 'FUNCTIONAL_PASS');
+assert.equal(posReport.providerTokens, null);
+assert.equal(posReport.tokenSavings, null);
+assert.equal(posReport.agentToolCalls, null);
+assert.equal(posReport.metricProvenance.localTokenizerTokens, 'JS_TIKTOKEN_O200K_BASE_LOCAL_TEXT');
+for (const scenario of Object.values(posReport.scenarios)) {
+  if (!scenario.control_direct) continue;
+  assert.ok(scenario.control_direct.utf8Bytes > 0);
+  assert.ok(scenario.treatment_graph.localTokenizerTokens > 0);
+  assert.equal(scenario.control_direct.correctness, 'NOT_MEASURED');
+  assert.equal(scenario.treatment_graph.tokens, undefined);
+}
 console.log('✔ Positive run passed and derived PASS dynamically.');
 
 // 2. Negative Run (--inject-failure fail-recovery)
@@ -29,6 +42,7 @@ assert.equal(negRec.status, 1, `Expected exit code 1 for injected recovery failu
 const negRecReport = JSON.parse(negRec.stdout.trim());
 assert.equal(negRecReport.acceptanceMatrix['P08-8_ACE_BYTE_EXACT_RECOVERY'], 'FAIL');
 assert.equal(negRecReport.contextEngineEvaluation.overallVerdict, 'FAIL');
+assert.equal(negRecReport.functionalStatus, 'HARD_GATE_FAILED');
 console.log('✔ Negative test for recovery failure verified (exit code 1, matrix FAIL).');
 
 // 3. Negative Run (--inject-failure fail-default-off)

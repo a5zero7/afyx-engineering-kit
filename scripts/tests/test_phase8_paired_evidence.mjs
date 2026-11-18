@@ -7,6 +7,7 @@ import { spawnSync } from 'node:child_process';
 import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { loadManifest } from '../phase8-paired-evidence.mjs';
+import { inventoryObservation, parseInventoryCount } from '../dogfood_engineering_comparison.mjs';
 
 const sha = value => createHash('sha256').update(value).digest('hex');
 const at = n => new Date(Date.UTC(2026,9,31,0,0,n)).toISOString();
@@ -66,9 +67,52 @@ test('security and correctness are hard gates even if ON uses fewer resources', 
   const f=setup(t);
   f.manifest.runs[1].quality.security='FAIL';f.save();
   assert.equal(loadManifest(f.file).verdict,'HARD_GATE_FAILED');
+  assert.equal(loadManifest(f.file).comparativeMetrics.inputTokens.deltaOnMinusOff,null);
   const cli=fileURLToPath(new URL('../phase8-paired-evidence.mjs',import.meta.url));
   const p=spawnSync(process.execPath,[cli,'--input',f.file],{encoding:'utf8'});
   assert.equal(p.status,1);
+});
+
+test('synthetic hard failure takes precedence over classification and suppresses comparisons', t => {
+  const f=setup(t,'synthetic_fixture');
+  f.manifest.runs[1].quality.correctness='FAIL';
+  f.save();
+  const report=loadManifest(f.file);
+  assert.equal(report.verdict,'HARD_GATE_FAILED');
+  assert.equal(report.evidenceStatus,'SYNTHETIC_ONLY');
+  assert.equal(report.comparativeMetrics.wallMs.percentOnMinusOff,null);
+});
+
+test('summary binds manifest bytes and hashes private labels without changing trace-derived observations', t => {
+  const f=setup(t);
+  f.manifest.model='private-model-label';
+  f.manifest.effort='private-effort-label';
+  f.manifest.caseId='private-case-label';
+  f.save();
+  const report=loadManifest(f.file);
+  assert.equal(report.manifestSha256,sha(fs.readFileSync(f.file)));
+  assert.equal(report.evidenceStatus,'OBSERVED_PARTIAL');
+  assert.equal(report.independentAcceptance,'NOT_VERIFIED');
+  assert.equal(report.comparativeMetrics.inputTokens.deltaOnMinusOff,10);
+  assert.ok(!JSON.stringify(report).includes('private-'));
+  assert.deepEqual(loadManifest(f.file),report);
+});
+
+test('inventory diagnostics preserve measured bytes and refuse missing or contradictory counts', () => {
+  const stdout=Buffer.from('**Matches:** 7 declarations; 2 files; 1 modules\nringkasané');
+  const observation=inventoryObservation({status:0,stdout},12.5);
+  assert.equal(observation.reportedDeclarationCount,7);
+  assert.equal(observation.stdoutBytes,stdout.length);
+  assert.equal(observation.stdoutSha256,sha(stdout));
+  assert.equal(observation.accuracy,null);
+  assert.equal(observation.durationMs,12.5);
+  assert.equal(parseInventoryCount('**Matches:** 0 declarations; 0 files; 0 modules'),0);
+  for (const text of ['', 'Matches: bogus declarations', 'Matches: 7 declarations\nMatches: 8 declarations',
+    'Matches: 9999999999999999999 declarations']) {
+    assert.equal(parseInventoryCount(text),null);
+  }
+  assert.equal(inventoryObservation({status:1,stdout},4).reportedDeclarationCount,null);
+  assert.equal(inventoryObservation({status:0,stdout:Buffer.from('unknown')},4).countAvailability,'NOT_AVAILABLE');
 });
 test('NOT_RUN quality blocks review eligibility', t => {
   const f=setup(t);

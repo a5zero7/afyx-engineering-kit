@@ -276,20 +276,23 @@ export function evaluateManifest(manifest, file) {
   const root = fs.realpathSync.native(path.dirname(path.resolve(file)));
   const pairedReferences = new Set();
   const [off, on] = manifest.runs.map(run => capture(run, root, pairedReferences));
+  const qualities = [off,on].flatMap(run => ['correctness','tests','security'].map(k => run.quality[k]));
+  const synthetic = manifest.evidenceClass === 'synthetic_fixture';
+  const failed = qualities.includes('FAIL');
+  const incomplete = qualities.includes('NOT_RUN');
+  const comparable = !failed && (synthetic || !incomplete);
   const metrics = {};
   for (const key of Object.keys(off.observations)) {
     const a = off.observations[key], b = on.observations[key];
-    metrics[key] = a !== null && b !== null
+    metrics[key] = comparable && a !== null && b !== null
       ? {off:a,on:b,deltaOnMinusOff:b-a,percentOnMinusOff:a>0?Number(((b-a)*100/a).toFixed(2)):null}
-      : {off:a,on:b,deltaOnMinusOff:null,percentOnMinusOff:null,status:'NOT_AVAILABLE'};
+      : {off:a,on:b,deltaOnMinusOff:null,percentOnMinusOff:null,status:failed ? 'HARD_GATE_FAILED' : 'NOT_AVAILABLE'};
   }
-  const qualities = [off,on].flatMap(run => ['correctness','tests','security'].map(k => run.quality[k]));
-  const verdict = manifest.evidenceClass === 'synthetic_fixture' ? 'SYNTHETIC_ONLY'
-    : qualities.includes('FAIL') ? 'HARD_GATE_FAILED'
-    : qualities.includes('NOT_RUN') ? 'QUALITY_EVIDENCE_INCOMPLETE' : 'ELIGIBLE_FOR_INDEPENDENT_REVIEW';
+  const verdict = failed ? 'HARD_GATE_FAILED' : synthetic ? 'SYNTHETIC_ONLY'
+    : incomplete ? 'QUALITY_EVIDENCE_INCOMPLETE' : 'ELIGIBLE_FOR_INDEPENDENT_REVIEW';
   return {
     contract:'afyx.phase8.paired-summary/v1',
-    caseId:manifest.caseId,
+    caseIdDigest:digest(manifest.caseId),
     evidenceClass:manifest.evidenceClass,
     sourceRevision:manifest.sourceRevision,
     pairing:{
@@ -297,9 +300,21 @@ export function evaluateManifest(manifest, file) {
       oracleSha256:manifest.oracleSha256,
       permissionsSha256:manifest.permissionsSha256,
       environmentSha256:manifest.environmentSha256,
-      model:manifest.model, effort:manifest.effort,
+      modelDigest:digest(manifest.model), effortDigest:digest(manifest.effort),
     },
     off,on,comparativeMetrics:metrics,verdict,
+    evidenceStatus:synthetic ? 'SYNTHETIC_ONLY'
+      : Object.values(metrics).some(metric => metric.off !== null || metric.on !== null) ||
+        [off,on].some(run => Object.values(run.eventEvidence).some(event => event.observedMinimum !== null))
+        ? 'OBSERVED_PARTIAL' : 'NOT_AVAILABLE',
+    measurementProvenance:{
+      scope:synthetic ? 'SYNTHETIC_FIXTURE_PAIR' : 'DECLARED_LOCAL_PAIR',
+      wallMs:'TRACE_BOUNDARIES_WITH_DECLARED_LIVE_RECEIPT',
+      tokens:'PROVIDER_REPORTED_PER_TURN_DELTA_DECLARED_BY_HOST',
+      toolCalls:'TYPED_CAPTURE_WITH_DECLARED_COVERAGE',
+      interventionAndRework:'TYPED_CAPTURE_WITH_TRACE_BOUND_COVERAGE_RECEIPT',
+      providerCost:'NOT_AVAILABLE',
+    },
     independentAcceptance:'NOT_VERIFIED',
     provenance:'Local structured trace hashes verified; evaluator receipts and capture completeness are declared, not independently authenticated.',
     warnings:[
@@ -317,7 +332,7 @@ export function loadManifest(file) {
   const bytes = readFile(absolute);
   try { input = parseEvidenceJson(new TextDecoder('utf-8', {fatal:true}).decode(bytes)); }
   catch { throw Error('manifest JSON invalid'); }
-  return evaluateManifest(input, absolute);
+  return {...evaluateManifest(input, absolute), manifestSha256:digest(bytes)};
 }
 if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href) {
   if (process.argv.length !== 4 || process.argv[2] !== '--input') {

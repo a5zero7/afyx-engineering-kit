@@ -7,6 +7,7 @@ import process from 'node:process';
 import { performance } from 'node:perf_hooks';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { createRequire } from 'node:module';
+import { spawnSync } from 'node:child_process';
 
 // Paths
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -29,6 +30,15 @@ try {
 const encoder = getEncoding('o200k_base');
 const sha256 = (val) => crypto.createHash('sha256').update(val).digest('hex');
 const countTokens = (val) => encoder.encode(typeof val === 'string' ? val : JSON.stringify(val)).length;
+
+function sourceRevision() {
+  const options = {cwd:repositoryRoot, encoding:'utf8', timeout:4000, windowsHide:true};
+  const revision = spawnSync('git', ['rev-parse','HEAD'], options);
+  const status = spawnSync('git', ['status','--porcelain'], options);
+  const sha = revision.stdout?.trim();
+  return revision.status === 0 && status.status === 0 && !status.stdout.trim() &&
+    /^[a-f0-9]{40}$/.test(sha) ? sha : null;
+}
 
 function parseArgs() {
   const args = process.argv.slice(2);
@@ -279,9 +289,8 @@ async function runDirectSourceScenario1(repoDir) {
     found: matchedLine > 0,
     file: 'addons/base_accounting/models/account_move.py',
     line: matchedLine,
-    calls: 1,
-    bytes: content.length,
-    tokens: countTokens(content),
+    utf8Bytes: Buffer.byteLength(content, 'utf8'),
+    localTokenizerTokens: countTokens(content),
   };
 }
 
@@ -290,9 +299,8 @@ async function runGraphScenario1(handler) {
   const rawText = textOf(result);
   return {
     found: rawText.includes('AccountMove') && rawText.includes('account_move.py'),
-    calls: 1,
-    bytes: rawText.length,
-    tokens: countTokens(rawText),
+    utf8Bytes: Buffer.byteLength(rawText, 'utf8'),
+    localTokenizerTokens: countTokens(rawText),
     rawText,
   };
 }
@@ -330,11 +338,10 @@ async function runDirectSourceScenario2(repoDir) {
 
   const summary = JSON.stringify({ manifests, postCallers });
   return {
-    calls: 2,
     dependentsFound: manifests,
     callersFound: postCallers,
-    bytes: summary.length,
-    tokens: countTokens(summary),
+    utf8Bytes: Buffer.byteLength(summary, 'utf8'),
+    localTokenizerTokens: countTokens(summary),
   };
 }
 
@@ -345,10 +352,9 @@ async function runGraphScenario2(handler) {
   const exploreText = textOf(exploreResult);
   const combined = callersText + '\n' + exploreText;
   return {
-    calls: 2,
     callersFound: callersText.includes('sale_order.py') || callersText.includes('action_confirm_and_invoice'),
-    bytes: combined.length,
-    tokens: countTokens(combined),
+    utf8Bytes: Buffer.byteLength(combined, 'utf8'),
+    localTokenizerTokens: countTokens(combined),
     rawText: combined,
   };
 }
@@ -377,11 +383,10 @@ async function runDirectSourceScenario3(repoDir) {
 
   const summary = JSON.stringify({ pyMatches, xmlMatches });
   return {
-    calls: 2,
     pyInheritors: pyMatches,
     xmlViews: xmlMatches,
-    bytes: summary.length,
-    tokens: countTokens(summary),
+    utf8Bytes: Buffer.byteLength(summary, 'utf8'),
+    localTokenizerTokens: countTokens(summary),
   };
 }
 
@@ -392,11 +397,10 @@ async function runGraphScenario3(handler) {
   const xmlText = textOf(filesResult);
   const combined = invText + '\n' + xmlText;
   return {
-    calls: 2,
     inventoryComplete: invText.includes('sale_order.py') && invText.includes('COMPLETE FOR SUPPORTED LITERAL DECLARATIONS'),
     viewsFound: xmlText.includes('sale_order_views.xml'),
-    bytes: combined.length,
-    tokens: countTokens(combined),
+    utf8Bytes: Buffer.byteLength(combined, 'utf8'),
+    localTokenizerTokens: countTokens(combined),
   };
 }
 
@@ -418,10 +422,9 @@ async function runDirectSourceScenario4(repoDir) {
 
   const summary = JSON.stringify({ candidateTests: testFiles });
   return {
-    calls: 1,
     affectedTests: testFiles,
-    bytes: summary.length,
-    tokens: countTokens(summary),
+    utf8Bytes: Buffer.byteLength(summary, 'utf8'),
+    localTokenizerTokens: countTokens(summary),
   };
 }
 
@@ -432,11 +435,10 @@ async function runGraphScenario4(handler) {
   const exploreText = textOf(explore);
   const combined = impactText + '\n' + exploreText;
   return {
-    calls: 2,
     hasImpactTrail: impactText.length > 0,
     affectedTestsFound: combined.includes('test_sale_enterprise.py'),
-    bytes: combined.length,
-    tokens: countTokens(combined),
+    utf8Bytes: Buffer.byteLength(combined, 'utf8'),
+    localTokenizerTokens: countTokens(combined),
   };
 }
 
@@ -610,14 +612,24 @@ async function main() {
     const g8Pass = Boolean(contextEval.val.recoveryPass);
     const g9Pass = Boolean(contextEval.val.timeoutPass && contextEval.val.protectedToolBypassPass);
     const g10Pass = Boolean(zeroSourceMutationVerified && g1Pass && g2Pass && g3Pass && g4Pass && g5Pass);
-    const g11Pass = Boolean(s1DirectCold.durationMs > 0 && s1GraphCold.durationMs > 0 && s1DirectCold.val.tokens > 0);
+    const g11Pass = Boolean(s1DirectCold.durationMs > 0 && s1GraphCold.durationMs > 0 && s1DirectCold.val.localTokenizerTokens > 0);
 
-    const isOverallPass = g1Pass && g2Pass && g3Pass && g4Pass && g5Pass && g6Pass && g7Pass && g8Pass && g9Pass && g10Pass && g11Pass;
+    const indexPass = coldIndexMeasure.val.success === true && coldIndexMeasure.val.filesErrored === 0;
+    const isOverallPass = indexPass && g1Pass && g2Pass && g3Pass && g4Pass && g5Pass && g6Pass && g7Pass && g8Pass && g9Pass && g10Pass && g11Pass;
 
     const report = {
-      contract: 'afyx-p08.representative-dogfood/v1',
-      date: new Date().toISOString().split('T')[0],
-      gitBaseline: '65576c82000fabe6760a6113546c3540fd3eaa63',
+      contract: 'afyx-p08.representative-dogfood/v2',
+      evidenceStatus: 'SYNTHETIC_ONLY',
+      functionalStatus: isOverallPass ? 'FUNCTIONAL_PASS' : 'HARD_GATE_FAILED',
+      sourceRevision: sourceRevision(),
+      providerTokens: null,
+      tokenSavings: null,
+      agentToolCalls: null,
+      metricProvenance: {
+        duration: 'LOCAL_SCRIPT_PERFORMANCE_NOW',
+        utf8Bytes: 'FIXTURE_INPUT_OR_GRAPH_OUTPUT_UTF8',
+        localTokenizerTokens: 'JS_TIKTOKEN_O200K_BASE_LOCAL_TEXT',
+      },
       executionMode: options.ci ? 'CI_NON_MUTATING' : 'LOCAL',
       labIsolation: {
         lab: '<TEMP>/afyx-p08-dogfood-lab',
@@ -629,9 +641,9 @@ async function main() {
         zeroSourceMutationVerified,
       },
       graphIndexing: {
-        status: coldIndexMeasure.val?.fileCount ? 'PASS' : 'PASS',
+        status: indexPass ? 'PASS' : 'FAIL',
         coldIndexingDurationMs: coldIndexMeasure.durationMs,
-        indexedFiles: fixtureIdentityBefore.files.length,
+        indexedFiles: coldIndexMeasure.val.filesIndexed ?? null,
       },
       scenarios: {
         scenario1_known_lookup: {
@@ -639,77 +651,77 @@ async function main() {
           control_direct: {
             coldMs: s1DirectCold.durationMs,
             warmMs: s1DirectWarm.durationMs,
-            calls: s1DirectCold.val.calls,
-            tokens: s1DirectCold.val.tokens,
-            correctness: s1DirectCold.val.found ? 'CORRECT' : 'INCOMPLETE',
+            utf8Bytes: s1DirectCold.val.utf8Bytes,
+            localTokenizerTokens: s1DirectCold.val.localTokenizerTokens,
+            correctness: 'NOT_MEASURED',
           },
           treatment_graph: {
             coldMs: s1GraphCold.durationMs,
             warmMs: s1GraphWarm.durationMs,
-            calls: s1GraphCold.val.calls,
-            tokens: s1GraphCold.val.tokens,
-            correctness: s1GraphCold.val.found ? 'CORRECT' : 'INCOMPLETE',
+            utf8Bytes: s1GraphCold.val.utf8Bytes,
+            localTokenizerTokens: s1GraphCold.val.localTokenizerTokens,
+            correctness: 'NOT_MEASURED',
           },
-          verdict: 'DIRECT_SOURCE_PREFERRED (lowest overhead, identical correctness)',
+          verdict: g1Pass ? 'FUNCTIONAL_PASS' : 'HARD_GATE_FAILED',
         },
         scenario2_cross_module: {
           title: 'Cross-Module Dependency Analysis',
           control_direct: {
             coldMs: s2DirectCold.durationMs,
             warmMs: s2DirectWarm.durationMs,
-            calls: s2DirectCold.val.calls,
-            tokens: s2DirectCold.val.tokens,
-            correctness: s2DirectCold.val.callersFound.length > 0 ? 'HEURISTIC' : 'INCOMPLETE',
+            utf8Bytes: s2DirectCold.val.utf8Bytes,
+            localTokenizerTokens: s2DirectCold.val.localTokenizerTokens,
+            correctness: 'NOT_MEASURED',
           },
           treatment_graph: {
             coldMs: s2GraphCold.durationMs,
             warmMs: s2GraphWarm.durationMs,
-            calls: s2GraphCold.val.calls,
-            tokens: s2GraphCold.val.tokens,
-            correctness: s2GraphCold.val.callersFound ? 'STRUCTURALLY_EXACT' : 'INCOMPLETE',
+            utf8Bytes: s2GraphCold.val.utf8Bytes,
+            localTokenizerTokens: s2GraphCold.val.localTokenizerTokens,
+            correctness: 'NOT_MEASURED',
           },
-          verdict: 'GRAPH_PREFERRED (exact structural callers, eliminates false positives)',
+          verdict: g2Pass ? 'FUNCTIONAL_PASS' : 'HARD_GATE_FAILED',
         },
         scenario3_odoo_inheritance: {
           title: 'Odoo-like Inheritance and Relationship Analysis',
           control_direct: {
             coldMs: s3DirectCold.durationMs,
             warmMs: s3DirectWarm.durationMs,
-            calls: s3DirectCold.val.calls,
-            tokens: s3DirectCold.val.tokens,
-            correctness: s3DirectCold.val.pyInheritors.length > 0 ? 'PARTIAL_REGEX' : 'INCOMPLETE',
+            utf8Bytes: s3DirectCold.val.utf8Bytes,
+            localTokenizerTokens: s3DirectCold.val.localTokenizerTokens,
+            correctness: 'NOT_MEASURED',
           },
           treatment_graph: {
             coldMs: s3GraphCold.durationMs,
             warmMs: s3GraphWarm.durationMs,
-            calls: s3GraphCold.val.calls,
-            tokens: s3GraphCold.val.tokens,
-            correctness: s3GraphCold.val.inventoryComplete ? 'COMPLETE_DECLARATION' : 'INCOMPLETE',
+            utf8Bytes: s3GraphCold.val.utf8Bytes,
+            localTokenizerTokens: s3GraphCold.val.localTokenizerTokens,
+            correctness: 'NOT_MEASURED',
           },
-          verdict: 'GRAPH_PREFERRED (authoritative inventory guarantee for _inherit)',
+          verdict: g3Pass ? 'FUNCTIONAL_PASS' : 'HARD_GATE_FAILED',
         },
         scenario4_impact_tests: {
           title: 'Impact Analysis and Affected-Test Selection',
           control_direct: {
             coldMs: s4DirectCold.durationMs,
             warmMs: s4DirectWarm.durationMs,
-            calls: s4DirectCold.val.calls,
-            tokens: s4DirectCold.val.tokens,
-            correctness: s4DirectCold.val.affectedTests.length > 0 ? 'MANUAL_TRACE' : 'INCOMPLETE',
+            utf8Bytes: s4DirectCold.val.utf8Bytes,
+            localTokenizerTokens: s4DirectCold.val.localTokenizerTokens,
+            correctness: 'NOT_MEASURED',
           },
           treatment_graph: {
             coldMs: s4GraphCold.durationMs,
             warmMs: s4GraphWarm.durationMs,
-            calls: s4GraphCold.val.calls,
-            tokens: s4GraphCold.val.tokens,
-            correctness: s4GraphCold.val.affectedTestsFound ? 'TRANSITIVE_IMPACT' : 'INCOMPLETE',
+            utf8Bytes: s4GraphCold.val.utf8Bytes,
+            localTokenizerTokens: s4GraphCold.val.localTokenizerTokens,
+            correctness: 'NOT_MEASURED',
           },
-          verdict: 'GRAPH_PREFERRED (targeted test selection without guessing)',
+          verdict: g4Pass ? 'FUNCTIONAL_PASS' : 'HARD_GATE_FAILED',
         },
         scenario5_stale_unsupported: {
           title: 'Stale, Incomplete, and Unsupported Index Coverage',
           evidence: s5Coverage.val,
-          verdict: 'FAIL_CLOSED_CORRECT (direct source authoritative on stale; Graph does not hallucinate)',
+          verdict: g5Pass ? 'FUNCTIONAL_PASS' : 'HARD_GATE_FAILED',
         },
       },
       contextEngineEvaluation: {
@@ -744,8 +756,8 @@ async function main() {
     if (options.writeEvidence && !options.ci) {
       const evidenceDir = path.join(repositoryRoot, 'docs', 'evidence', 'afyx-64');
       fs.mkdirSync(evidenceDir, { recursive: true });
-      const evidenceFile = path.join(evidenceDir, 'phase8-representative-dogfood-closure-20261031.json');
-      fs.writeFileSync(evidenceFile, outJson, 'utf-8');
+      const evidenceFile = path.join(evidenceDir, 'phase8-representative-dogfood-v2.json');
+      fs.writeFileSync(evidenceFile, outJson, {encoding:'utf-8', flag:'wx'});
       console.log(`\nEvidence written to: ${evidenceFile}`);
     } else if (options.output) {
       fs.mkdirSync(path.dirname(options.output), { recursive: true });
