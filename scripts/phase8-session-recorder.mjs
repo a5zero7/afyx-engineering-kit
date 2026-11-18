@@ -3,8 +3,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
-import readline from 'node:readline';
 import { fileURLToPath } from 'node:url';
+import { parseEvidenceJson, telemetryState, validateTelemetry } from './phase8-paired-evidence.mjs';
 
 const SOURCE_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const SHA = input => crypto.createHash('sha256').update(input).digest('hex');
@@ -52,41 +52,29 @@ function parseOptions(args) {
   requireCapture(typeof out['--root'] === 'string', 'missing root');
   return out;
 }
-function exactKeys(input, keys) {
-  requireCapture(input && typeof input === 'object' && !Array.isArray(input), 'event must be an object');
-  requireCapture(Object.keys(input).sort().join('|') === keys.slice().sort().join('|'),
-    'unsupported event fields: capture only typed telemetry, no text or secrets');
-}
-function safeEvent(input) {
-  requireCapture(input && typeof input.kind === 'string', 'missing event kind');
-  if (input.kind === 'tool_call') {
-    exactKeys(input, ['kind','actor']);
-    requireCapture(input.actor === 'agent', 'tool call must be emitted by agent');
-    return {kind:'tool_call',actor:'agent'};
-  }
-  if (input.kind === 'human_intervention') {
-    exactKeys(input, ['kind','actor']);
-    requireCapture(input.actor === 'human', 'human intervention requires observed human actor');
-    return {kind:'human_intervention',actor:'human'};
-  }
-  if (input.kind === 'rework') {
-    exactKeys(input, ['kind','actor']);
-    requireCapture(input.actor === 'agent' || input.actor === 'human', 'invalid rework actor');
-    return {kind:'rework',actor:input.actor};
-  }
-  if (input.kind === 'provider_usage') {
-    exactKeys(input, ['kind','source','usageSemantics','inputTokens','cachedInputTokens','outputTokens']);
-    requireCapture(input.source === 'provider_report', 'provider counter provenance missing');
-    requireCapture(input.usageSemantics === 'per_turn_delta',
-      'provider counters must be independently verified per-turn deltas, not cumulative snapshots');
-    for (const k of ['inputTokens','cachedInputTokens','outputTokens']) {
-      requireCapture(Number.isSafeInteger(input[k]) && input[k] >= 0, 'invalid provider counter');
+// Bound stdin before decoding or buffering an entire line.
+async function* inputLines(stream) {
+  const decoder = new TextDecoder('utf-8', {fatal:true});
+  let buffer = Buffer.alloc(0), total = 0;
+  for await (const chunk of stream) {
+    total += chunk.length;
+    requireCapture(total <= MAX_BYTES, 'input exceeds 4 MiB');
+    let start = 0, end;
+    while ((end = chunk.indexOf(10, start)) !== -1) {
+      requireCapture(buffer.length + end - start <= MAX_INPUT_LINE, 'event line exceeds 4096 bytes');
+      yield decode(Buffer.concat([buffer, chunk.subarray(start,end)]));
+      buffer = Buffer.alloc(0);
+      start = end + 1;
     }
-    requireCapture(input.cachedInputTokens <= input.inputTokens, 'cached input exceeds total input');
-    return {kind:'provider_usage',source:'provider_report',usageSemantics:'per_turn_delta',inputTokens:input.inputTokens,
-      cachedInputTokens:input.cachedInputTokens,outputTokens:input.outputTokens};
+    requireCapture(buffer.length + chunk.length - start <= MAX_INPUT_LINE, 'event line exceeds 4096 bytes');
+    buffer = Buffer.concat([buffer, chunk.subarray(start)]);
   }
-  throw new CaptureError('unrecognized event kind');
+  if (buffer.length) yield decode(buffer);
+
+  function decode(line) {
+    try { return decoder.decode(line); }
+    catch { throw new CaptureError('invalid telemetry UTF-8'); }
+  }
 }
 export async function recordEvents({mode, runId, root, workspaceRoot, input}) {
   requireCapture(['OFF','ON'].includes(mode), 'invalid mode');
@@ -97,8 +85,13 @@ export async function recordEvents({mode, runId, root, workspaceRoot, input}) {
   const dest = path.join(outputRoot, filename);
   let fd = null, complete = false, bytes = 0, events = 0;
   const hash = crypto.createHash('sha256');
+  const state = telemetryState();
+  let previous = '';
   const add = record => {
-    const buffer = Buffer.from(JSON.stringify(record) + '\n');
+    const at = new Date().toISOString();
+    requireCapture(at >= previous, 'nonmonotonic capture clock');
+    previous = at;
+    const buffer = Buffer.from(JSON.stringify({...record, at}) + '\n');
     requireCapture(bytes + buffer.length <= MAX_BYTES, 'trace exceeds 4 MiB');
     fs.writeSync(fd, buffer);
     hash.update(buffer);
@@ -106,18 +99,20 @@ export async function recordEvents({mode, runId, root, workspaceRoot, input}) {
   };
   try {
     fd = fs.openSync(dest, 'wx', 0o600);
-    add({id:'evt-0',runId,at:new Date().toISOString(),kind:'start'});
+    add({id:'evt-0',runId,kind:'start'});
     for await (const line of input) {
       requireCapture(typeof line === 'string' && Buffer.byteLength(line,'utf8') <= MAX_INPUT_LINE,
         'event line exceeds 4096 bytes');
       if (!line.trim()) continue;
       requireCapture(events < MAX_EVENTS - 2, 'too many telemetry events');
       let raw;
-      try { raw = JSON.parse(line); } catch { throw new CaptureError('invalid telemetry JSON'); }
-      add({id:'evt-' + (events+1),runId,at:new Date().toISOString(),...safeEvent(raw)});
+      try { raw = parseEvidenceJson(line); } catch { throw new CaptureError('invalid telemetry JSON'); }
+      try { validateTelemetry(raw, state); }
+      catch (error) { throw new CaptureError(error.message); }
+      add({id:'evt-' + (events+1),runId,...raw});
       events++;
     }
-    add({id:'evt-' + (events+1),runId,at:new Date().toISOString(),kind:'end'});
+    add({id:'evt-' + (events+1),runId,kind:'end'});
     fs.fsyncSync(fd);
     complete = true;
     return {
@@ -139,10 +134,9 @@ export async function recordEvents({mode, runId, root, workspaceRoot, input}) {
 async function main() {
   try {
     const opts = parseOptions(process.argv.slice(2));
-    const lines = readline.createInterface({input:process.stdin,crlfDelay:Infinity,terminal:false});
     const result = await recordEvents({
       mode:opts['--mode'],runId:opts['--run-id'],root:opts['--root'],
-      workspaceRoot:opts['--workspace-root'],input:lines,
+      workspaceRoot:opts['--workspace-root'],input:inputLines(process.stdin),
     });
     process.stdout.write(JSON.stringify(result,null,2) + '\n');
   } catch (error) {

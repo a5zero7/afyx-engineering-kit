@@ -1,5 +1,40 @@
 # Phase 8 — Paired engineering evidence intake
 
+## Kontrak bukti AFYX-69
+
+Recorder menerima metadata terstruktur. Gunakan ID buram dan SHA-256 heksadesimal
+kecil. Simpan bukti asli secara privat dan berikan hash dari resi yang dapat
+diperiksa operator. Jangan masukkan prompt, path pelanggan, isi perubahan,
+transkrip, atau token autentikasi.
+
+| `kind` | `actor` | `source` | Syarat tambahan selain `evidenceSha256` |
+|---|---|---|---|
+| `human_intervention` | `human` | `human_observation` | Resi pengamatan tindakan manusia |
+| `policy_denial` | `policy` | `policy_event` | Resi keputusan kebijakan |
+| `agent_fallback`, `agent_recovery` | `agent` | `agent_event` | Resi fallback atau recovery |
+| `operation_attempt` | `agent` | `agent_event` | `operationSha256` dan `attemptIndex: 1` |
+| `explicit_retry` | `agent` | `agent_event` | Operasi yang sama dengan indeks lanjutan dan resi tersendiri |
+| `rework` | `agent` atau `human` | `artifact_revision` | `artifactSha256`, `revisionBeforeSha256`, `revisionAfterSha256` dengan rantai revisi yang konsisten |
+
+Untuk kategori AFYX-69, total dan perbandingan memerlukan flag cakupan dan
+`run.coverageReceipts[kategori] = { receiptSha256, traceSha256 }`, yang mengikat
+resi cakupan ke hash trace pada run itu. Kuncinya adalah `humanEvents`,
+`policyEvents`, `fallbackEvents`, `recoveryEvents`, `retryEvents`, dan
+`reworkEvents`. Tanpa cakupan, `eventEvidence` hanya menunjukkan batas bawah
+yang benar-benar teramati. Nol tool call juga membutuhkan resi `toolEvents`.
+Intake mempertahankan trace lama dengan label aktor sebagai data tak lengkap
+untuk human intervention dan rework.
+
+Ledger Python menerima anotasi dengan `event_type`, `actor`, `timestamp`
+ISO bertimezone, `evidence_ref`, `source`, dan `evidence_sha256`. Gunakan
+`attempt_group_id`/`attempt_index` untuk percobaan, atau
+`artifact_sha256`/`revision_before`/`revision_after` untuk revisi, dengan
+nilai hash untuk operasi, artefak, dan revisi. Baris cakupan mengikat
+`complete_categories` dan `receipt_sha256` ke `source_sha256` trace.
+Hash label item provider yang tidak dikenal dipakai untuk membedakan tipe secara
+privat. Timestamp recorder mengukur penerimaan input. Resi eksternal tetap perlu
+diperiksa untuk memverifikasi aktor, cakupan, dan durasi sesi.
+
 Status: **SOURCE PREPARATION ONLY** (2026-10-31). Jira: AFYX-8, AFYX-68, AFYX-69. No real A/B run, installed Alpha GO, Expert D.6 verdict, Forge A8 GO, or release approval is implied by this source.
 
 ## Purpose
@@ -33,8 +68,7 @@ Each event row must have id, runId, at (ISO-8601 with timezone), and kind. Suppo
 | Kind | Required additional fields | Meaning |
 |---|---|---|
 | tool_call | actor = agent | One tool invocation |
-| human_intervention | actor = human | One *human* action, not an agent retry/policy denial |
-| rework | actor = agent or human | One confirmed rework event |
+| AFYX-69 event kinds | See the typed evidence contract above | Separate intervention, denial, fallback, recovery, retry and revision lineage |
 | provider_usage | source = provider_report; usageSemantics = per_turn_delta; nonnegative inputTokens, cachedInputTokens, outputTokens | Provider-reported per-turn *increments* only; cumulative session snapshots must not be summed |
 
 Start/end timestamps define observed wall duration. Missing/partial category coverage outputs **null** and NOT_AVAILABLE; never silently infer zero. Delta = ON minus OFF; percentage only when OFF is positive. A quality/security/test FAIL blocks performance promotion regardless of costs. Actual owner-observed data is at most ELIGIBLE_FOR_INDEPENDENT_REVIEW; independentAcceptance remains NOT_VERIFIED even if both runs claim PASS. Synthetic fixtures always produce SYNTHETIC_ONLY.
@@ -66,6 +100,6 @@ Repeat independently with mode ON, a distinct run ID, isolated workspace and out
 
 **Timing caveat:** capture start/end measure the recorder input-listener interval. When input is a previously saved NDJSON file, this is merely replay time, **not agent execution wall time**. Wall time may be reported as real engineering duration only if an auditor verifies the recorder was attached for the full live agent session. Do not attribute a replay-duration measurement to the original task. The script does not guarantee security isolation by itself; the evaluator must enforce actual OS-level read/write/credential boundaries and verify the worktree is disposable and separate. Use no private customer data without authorization.
 
-To construct the OFF/ON manifest, copy the two private descriptor run objects, attach the pre-frozen task/source/rubric/environment identity and independently verified quality receipts. Set each coverage boolean true **only** if the full corresponding host-generated event stream was observed and confirmed. Then invoke the paired-evidence checker. Neither the capture script nor the checker may promote a result to accepted on its own.
+To construct the OFF/ON manifest, copy the two private descriptor run objects, attach the pre-frozen task/source/rubric/environment identity and independently verified quality receipts. Set each coverage boolean true **only** if the full corresponding host-generated event stream was observed and confirmed. Attach trace-bound coverage receipts as described above. Then invoke the paired-evidence checker. Neither the capture script nor the checker may promote a result to accepted on its own.
 
 Developer-only regression: node --test scripts/tests/test_phase8_session_recorder.mjs. CI exercises synthetic local streams and negative confidentiality/security paths on three OS; it does NOT operate an agent or measure a real comparative workload.

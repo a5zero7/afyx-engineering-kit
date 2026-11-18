@@ -7,6 +7,10 @@ on:
       - 'scripts/tests/test_phase8_event_ledger.py'
       - 'scripts/phase8_evidence_discovery.py'
       - 'scripts/tests/test_phase8_evidence_discovery.py'
+      - 'scripts/phase8-session-recorder.mjs'
+      - 'scripts/phase8-paired-evidence.mjs'
+      - 'scripts/tests/test_phase8_session_recorder.mjs'
+      - 'scripts/tests/test_phase8_paired_evidence.mjs'
       - '.github/workflows/phase8-ledger.yml'
   push:
     branches: [dev]
@@ -15,6 +19,10 @@ on:
       - 'scripts/tests/test_phase8_event_ledger.py'
       - 'scripts/phase8_evidence_discovery.py'
       - 'scripts/tests/test_phase8_evidence_discovery.py'
+      - 'scripts/phase8-session-recorder.mjs'
+      - 'scripts/phase8-paired-evidence.mjs'
+      - 'scripts/tests/test_phase8_session_recorder.mjs'
+      - 'scripts/tests/test_phase8_paired_evidence.mjs'
       - '.github/workflows/phase8-ledger.yml'
 
 permissions:
@@ -35,3 +43,8 @@ jobs:
           python-version: '3.12'
       - name: Verify offline ledger parser contract
         run: python -m unittest scripts.tests.test_phase8_event_ledger scripts.tests.test_phase8_evidence_discovery -v
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Verify typed capture and OFF/ON evidence intake
+        run: node --test scripts/tests/test_phase8_session_recorder.mjs scripts/tests/test_phase8_paired_evidence.mjs

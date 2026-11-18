@@ -147,3 +147,32 @@ test('malformed private manifest contents must not leak into CLI error output', 
   assert.ok(!(p.stderr+p.stdout).includes(secret));
   assert.ok(p.stderr.includes('manifest JSON invalid'));
 });
+
+test('legacy labels and bare coverage never invent zero or validate attribution', t => {
+  const f=setup(t);
+  const run=f.manifest.runs[0];
+  const file=path.join(f.dir,run.eventsFile);
+  const rows=fs.readFileSync(file,'utf8').trim().split('\n').map(JSON.parse);
+  rows[1].kind='human_intervention';
+  rows[1].actor='human';
+  run.coverage.humanEvents=true;
+  run.coverage.reworkEvents=true;
+  const saveTrace=()=>{
+    const bytes=rows.map(v=>JSON.stringify(v)).join('\n')+'\n';
+    fs.writeFileSync(file,bytes);
+    run.eventsSha256=sha(bytes);
+    f.save();
+  };
+  saveTrace();
+  const observed=loadManifest(f.file).off;
+  assert.equal(observed.observations.humanInterventions,null);
+  assert.equal(observed.observations.toolCalls,null);
+  assert.equal(observed.observations.reworkEvents,null);
+  rows[1].at='2026-02-30T00:00:01Z';
+  saveTrace();
+  assert.throws(()=>loadManifest(f.file),/invalid timestamp calendar/);
+  rows[1].at=at(1);
+  rows[1].prompt='PRIVATE';
+  saveTrace();
+  assert.throws(()=>loadManifest(f.file),/event fields|missing source/);
+});

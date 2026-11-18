@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import importlib.util
+import hashlib
 import json
 import subprocess
 import sys
@@ -101,6 +102,9 @@ class LedgerTests(unittest.TestCase):
     def test_complete_coverage_explicitly_allows_zero(self):
         notes = self.root / "annotations.jsonl"
         write_lines(notes, [{"type": "coverage", "complete_categories": ["human_intervention"]}])
+        self.assertIsNone(ledger.analyze("R", self.events, notes)["annotations"]["categories"]["human_intervention"]["total"])
+        write_lines(notes, [{"type": "coverage", "complete_categories": ["human_intervention"],
+                             "receipt_sha256": "a" * 64, "source_sha256": hashlib.sha256(self.events.read_bytes()).hexdigest()}])
         output = ledger.analyze("R", self.events, notes)["annotations"]["categories"]
         self.assertEqual(output["human_intervention"]["availability"], "AUTHORITATIVE")
         self.assertEqual(output["human_intervention"]["total"], 0)
@@ -111,13 +115,13 @@ class LedgerTests(unittest.TestCase):
         write_lines(notes, [{"actor": "human", "event_type": "policy_denial", "timestamp": "now", "evidence_ref": "x"}])
         with self.assertRaisesRegex(ledger.EvidenceError, "actor mismatch"):
             ledger.analyze("R", self.events, notes)
-        write_lines(notes, [{"actor": "agent", "event_type": "rework", "timestamp": "now", "evidence_ref": "x"}])
+        write_lines(notes, [{"actor": "agent", "event_type": "rework", "timestamp": "2026-10-29T01:00:00Z", "evidence_ref": "x"}])
         with self.assertRaisesRegex(ledger.EvidenceError, "lineage"):
             ledger.analyze("R", self.events, notes)
 
     def test_retry_requires_attempt_provenance(self):
         notes = self.root / "annotations.jsonl"
-        write_lines(notes, [{"actor": "agent", "event_type": "explicit_retry", "timestamp": "now", "evidence_ref": "x", "attempt_index": 2}])
+        write_lines(notes, [{"actor": "agent", "event_type": "explicit_retry", "timestamp": "2026-10-29T01:00:00Z", "evidence_ref": "x", "attempt_index": 2}])
         with self.assertRaisesRegex(ledger.EvidenceError, "retry provenance"):
             ledger.analyze("R", self.events, notes)
 
@@ -189,7 +193,58 @@ class LedgerTests(unittest.TestCase):
         write_lines(self.events, data)
         output = ledger.analyze("R", self.events)["tool_events"]
         self.assertEqual(output["availability"], "OBSERVED_ONLY")
-        self.assertEqual(output["unknown_item_types"], ["new_vendor_tool"])
+        self.assertEqual(output["unknown_item_types"], [hashlib.sha256(b"new_vendor_tool").hexdigest()])
+
+    def test_actor_provenance_retry_and_rework_stay_distinct(self):
+        notes = self.root / "annotations.jsonl"
+        def row(kind, actor, source, ref, **fields):
+            return dict(event_type=kind, actor=actor, source=source, timestamp="2026-10-29T01:00:00Z",
+                        evidence_ref=f"local:{ref}", evidence_sha256=ref * 64, **fields)
+        rows = [
+            row("human_intervention", "human", "human_observation", "1"),
+            row("policy_denial", "policy", "policy_event", "2"),
+            row("agent_recovery", "agent", "agent_event", "3"),
+            row("operation_attempt", "agent", "agent_event", "4", attempt_group_id="a" * 64, attempt_index=1),
+            row("explicit_retry", "agent", "agent_event", "5", attempt_group_id="a" * 64, attempt_index=2),
+        ]
+        write_lines(notes, rows)
+        categories = ledger.analyze("R", self.events, notes)["annotations"]["categories"]
+        for name in ("human_intervention", "policy_denial", "agent_recovery", "explicit_retry"):
+            self.assertEqual(categories[name], {"availability": "PARTIAL", "observed_minimum": 1, "total": None})
+        self.assertIsNone(categories["rework"]["observed_minimum"])
+        revision = row("rework", "agent", "artifact_revision", "6", artifact_sha256="b" * 64,
+                       revision_before="c" * 64, revision_after="d" * 64)
+        write_lines(notes, rows + [revision])
+        self.assertEqual(ledger.analyze("R", self.events, notes)["annotations"]["categories"]["rework"]["observed_minimum"], 1)
+        for entry, error in [
+            ({**rows[-1], "evidence_ref": "local:7", "evidence_sha256": "7" * 64}, "unlinked attempt"),
+            ({**revision, "revision_after": revision["revision_before"]}, "lineage"),
+            ({**revision, "timestamp": "2026-02-30T01:00:00Z"}, "calendar"),
+            ({**revision, "timestamp": "2026-10-29T00:59:59Z"}, "nonmonotonic"),
+            ({**revision, "evidence_ref": "local:4"}, "duplicate evidence"),
+        ]:
+            write_lines(notes, rows + [entry])
+            with self.assertRaisesRegex(ledger.EvidenceError, error):
+                ledger.analyze("R", self.events, notes)
+
+    def test_unbound_coverage_and_cumulative_counters_fail(self):
+        notes = self.root / "annotations.jsonl"
+        write_lines(notes, [{"type": "coverage", "complete_categories": ["human_intervention"],
+                             "receipt_sha256": "a" * 64, "source_sha256": "0" * 64}])
+        with self.assertRaisesRegex(ledger.EvidenceError, "coverage source"):
+            ledger.analyze("R", self.events, notes)
+        data = valid_events()
+        data[-1]["usage"]["usageSemantics"] = "cumulative_snapshot"
+        write_lines(self.events, data)
+        with self.assertRaisesRegex(ledger.EvidenceError, "per-turn delta"):
+            ledger.analyze("R", self.events)
+
+    def test_bounded_and_contradictory_json_is_rejected(self):
+        for contents, error in [(b" " * (ledger.MAX_BYTES + 1), "budget"),
+                                (b'{"type":"error","type":"turn.started"}', "invalid JSONL")]:
+            self.events.write_bytes(contents)
+            with self.assertRaisesRegex(ledger.EvidenceError, error):
+                ledger.analyze("R", self.events)
 
     def test_cli_creates_once_and_never_overwrites(self):
         output_path = self.root / "summary.json"

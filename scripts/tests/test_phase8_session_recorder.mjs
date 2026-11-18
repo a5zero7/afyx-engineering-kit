@@ -127,3 +127,65 @@ test('empty observed event stream does not imply complete observation',t=>{
   const rows=fs.readFileSync(path.join(root,'on.ndjson'),'utf8').trim().split('\n').map(JSON.parse);
   assert.deepEqual(rows.map(e=>e.kind),['start','end']);
 });
+
+const hex = char => char.repeat(64);
+const telemetry = (kind, actor, source, ref) => ({kind,actor,source,evidenceSha256:hex(ref)});
+const first = {...telemetry('operation_attempt','agent','agent_event','4'),operationSha256:hex('a'),attemptIndex:1};
+const retry = {...first,kind:'explicit_retry',evidenceSha256:hex('5'),attemptIndex:2};
+const revision = {...telemetry('rework','agent','artifact_revision','6'),artifactSha256:hex('b'),
+  revisionBeforeSha256:hex('c'),revisionAfterSha256:hex('d')};
+
+test('records distinct observed events, verifies lineage and compares only covered categories', t=>{
+  const root=setup(t);
+  const offResult=run(root,'OFF',[telemetry('human_intervention','human','human_observation','1'),
+    telemetry('policy_denial','policy','policy_event','2'),telemetry('agent_recovery','agent','agent_event','3'),first,retry]);
+  const onResult=run(root,'ON',[revision]);
+  assert.equal(offResult.status,0,offResult.stderr);
+  assert.equal(onResult.status,0,onResult.stderr);
+  const runs=[offResult,onResult].map(p=>JSON.parse(p.stdout).run);
+  const manifest={contract:'afyx.phase8.paired-evidence/v1',evidenceClass:'synthetic_fixture',
+    caseId:'typed-intervention',taskSha256:hex('a'),oracleSha256:hex('b'),permissionsSha256:hex('c'),
+    environmentSha256:hex('d'),sourceRevision:'e'.repeat(40),model:'stub',effort:'medium',runs};
+  const filename=path.join(root,'manifest.json');
+  const evaluate=()=>{
+    fs.writeFileSync(filename,JSON.stringify(manifest));
+    return loadManifest(filename);
+  };
+  let report=evaluate();
+  assert.equal(report.verdict,'SYNTHETIC_ONLY');
+  assert.equal(report.off.eventEvidence.policyDenials.observedMinimum,1);
+  assert.equal(report.off.eventEvidence.agentRecoveries.observedMinimum,1);
+  assert.equal(report.off.eventEvidence.explicitRetries.observedMinimum,1);
+  assert.equal(report.off.eventEvidence.reworkEvents.observedMinimum,null);
+  assert.equal(report.on.eventEvidence.reworkEvents.observedMinimum,1);
+  assert.equal(report.comparativeMetrics.humanInterventions.status,'NOT_AVAILABLE');
+  for (const run of runs) {
+    run.coverage.humanEvents=true;
+    run.coverageReceipts={humanEvents:{receiptSha256:hex('f'),traceSha256:run.eventsSha256}};
+  }
+  report=evaluate();
+  assert.deepEqual(report.comparativeMetrics.humanInterventions,{off:1,on:0,deltaOnMinusOff:-1,percentOnMinusOff:-100});
+  assert.deepEqual(evaluate(),report);
+  runs[1].coverageReceipts.humanEvents.traceSha256=runs[0].eventsSha256;
+  assert.throws(evaluate,/bind a declared complete category/);
+});
+
+test('rejects duplicate and orphan attempts, weak revisions and unbounded or ambiguous input', t=>{
+  const root=setup(t);
+  for (const [samples, reason] of [
+    [[retry],/unlinked attempt/],
+    [[first,retry,{...retry,evidenceSha256:hex('7')}],/unlinked attempt/],
+    [[{...revision,revisionAfterSha256:revision.revisionBeforeSha256}],/lineage/],
+    [[{kind:'rework',actor:'agent'}],/missing source/],
+    [[telemetry('human_intervention','human','policy_event','1')],/provenance/],
+    [[{...telemetry('human_intervention','human','human_observation','1'),text:'SECRET'}],/unsupported event fields/],
+    [['{"kind":"tool_call","actor":"policy","actor":"agent"}'],/invalid telemetry JSON/],
+    [['x'.repeat(4097)],/4096 bytes/],
+  ]) {
+    const p=run(root,'OFF',samples);
+    assert.equal(p.status,2,p.stderr);
+    assert.match(p.stderr,reason);
+    assert.ok(!p.stderr.includes('SECRET'));
+    assert.equal(fs.existsSync(path.join(root,'off.ndjson')),false);
+  }
+});
