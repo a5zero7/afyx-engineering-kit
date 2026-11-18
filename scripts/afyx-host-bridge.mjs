@@ -192,7 +192,7 @@ export function serveHostMcpBridge(serverOptions = {}) {
                   required: ['task'],
                 },
               },
-              { name: 'afyx_capabilities', description: 'Discover authorized optional capabilities for a task intent without starting them.',
+              { name: 'afyx_capabilities', description: 'Discover authorized optional capabilities (e.g. browser, document-conversion), canonical tool names, supported actions, argument schemas, and safe invocation examples without activating them.',
                 inputSchema: { type: 'object', additionalProperties: false, properties: { intent: { type: 'string', enum: ['browser', 'document-conversion'] } }, required: ['intent'] } },
               ...optional.tools(),
             ],
@@ -223,10 +223,19 @@ export function serveHostMcpBridge(serverOptions = {}) {
         }
 
         if (params?.name !== 'afyx_workflow') {
+          let hint = '';
+          if (typeof params?.name === 'string') {
+            if (params.name.startsWith('afyx_browser_') || params.name.startsWith('browser_')) {
+              const guessedAction = params.name.replace(/^(?:afyx_)?browser_/, '');
+              hint = ` Did you mean the canonical tool 'afyx_browser' with { action: '${guessedAction}' }?`;
+            } else if (params.name.startsWith('afyx_document_') || params.name.startsWith('document_')) {
+              hint = " Did you mean the canonical tool 'afyx_document' with an 'action' parameter?";
+            }
+          }
           sendResponse({
             jsonrpc: '2.0',
             id,
-            error: { code: -32601, message: `Unknown tool: ${params?.name}` },
+            error: { code: -32601, message: hint ? `Unknown tool: ${params?.name}.${hint}` : `Unknown tool: ${params?.name}` },
           });
           break;
         }
@@ -288,10 +297,19 @@ function trustedLaunchCapabilities() {
     capabilities.githubExecutable = argumentValue('--github-gh-executable');
   }
   if (enabled.has('document')) capabilities.document = { enabled: true };
+  const browserTimeoutArg = argumentValue('--browser-session-timeout-ms');
+  let browserSessionTimeoutMs;
+  if (browserTimeoutArg !== null) {
+    browserSessionTimeoutMs = Number(browserTimeoutArg);
+    if (!Number.isSafeInteger(browserSessionTimeoutMs) || browserSessionTimeoutMs < 300_000 || browserSessionTimeoutMs > 1_800_000) {
+      throw new TypeError('--browser-session-timeout-ms must be an integer between 300000 and 1800000');
+    }
+  }
   if (enabled.has('browser')) capabilities.browser = { enabled: true,
     allowedOrigins: (argumentValue('--browser-origins') || '').split(',').filter(Boolean),
     allowEvaluation: process.argv.includes('--browser-evaluation'),
-    uploadRoot: argumentValue('--browser-upload-root'), exportRoot: argumentValue('--browser-export-root') };
+    uploadRoot: argumentValue('--browser-upload-root'), exportRoot: argumentValue('--browser-export-root'),
+    ...(browserSessionTimeoutMs !== undefined ? { sessionTimeoutMs: browserSessionTimeoutMs } : {}) };
   return capabilities;
 }
 

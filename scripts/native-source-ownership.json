@@ -2391,8 +2391,8 @@
     {
       "path": "scripts/afyx-browser-devtools.mjs",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "41fb4316974f0e0f7222bccbf760db24f4db3c5c5bf56646662b7b272299bebb",
-      "evidence": "MB18 AFYX-190: reviewed independently designed owned CDP endpoint/profile manager, exact-origin interception, bounded interaction/trace/export and lifecycle-specific stale request handling. Apache-2.0 reference ec0abfc only read in external REA; no source imported, full parity and universal egress isolation not asserted."
+      "reviewedSha256": "13b800631825f3bbe3140115cd54a5dcaf469868529c1be81e02da8578f6972f",
+      "evidence": "MB18.3 AFYX-190/AFYX-105: reviewed budget diagnostics tracking (startedAt, deadline, closureReason, interruptionSource), structured timeout error classification, and bounded session receipt."
     },
     {
       "path": "scripts/afyx-capability-orchestrator.mjs",
@@ -2433,8 +2433,8 @@
     {
       "path": "scripts/afyx-host-bridge.mjs",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "1d5d626fbd3a95146cd3b168de01a09c27e740b66c3e2608a0de88f3882338c3",
-      "evidence": "MB18 AFYX-190/347: reviewed default-OFF optional tool exposure, host-only authority, persistent browser ownership, bounded document calls, image transport and truthful shutdown; existing workflow and one MCP server preserved."
+      "reviewedSha256": "c3c3ea3ef21f404453edc453a40cdce4f41b5f48a20508004350458bfd27a3f2",
+      "evidence": "MB18.3 AFYX-190/AFYX-105: reviewed single-tool capability discovery metadata, informative JSON-RPC -32601 tool-name hints without path disclosure, and bounded --browser-session-timeout-ms CLI validation."
     },
     {
       "path": "scripts/afyx-install-backend.mjs",
@@ -2559,8 +2559,8 @@
     {
       "path": "scripts/afyx-optional-capabilities.mjs",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "bd8cf0ea31e923db3c96699869e300b9112ea4e103011ded8980190e27f229e7",
-      "evidence": "MB18 AFYX-190/347: original bounded host dispatcher reuses one browser manager and standalone converter; snapshots host policy, prevents task JSON authority escalation and serializes browser calls without duplicate MCP/runtime engines."
+      "reviewedSha256": "d12ead0c4f3c4fbe7972e1df9fa3e131dc67cef99abde1fcc5322633ddc74b88",
+      "evidence": "MB18.3 AFYX-190/AFYX-105: reviewed rich discovery metadata with required/supported action signatures, safe example calls, single-tool guidance, and explicit required argument validation per action."
     },
     {
       "path": "scripts/afyx-document-intelligence.mjs",

@@ -137,6 +137,13 @@ export class AfyxBrowserSession {
     this.pages = new Map(); this.selectedPage = null; this.consoleLogs = []; this.networkRequests = [];
     this.dialog = null; this.trace = null; this.commandCount = 0; this._queue = Promise.resolve();
     this.interceptionDiagnostics = { staleRequests: 0, closedPageSessions: 0, fatalErrors: 0 };
+    this.budgetDiagnostics = {
+      sessionTimeoutMs: this.policy.sessionTimeoutMs,
+      startedAt: null,
+      deadline: null,
+      closureReason: null,
+      interruptionSource: null,
+    };
     // Serialize public operations so page selection/navigation cannot race.
     for (const name of ['launch', 'close', 'listPages', 'newPage', 'selectPage', 'closePage', 'navigate', 'waitFor',
       'evaluate', 'inspectPage', 'snapshot', 'findElements', 'click', 'clickAt', 'drag', 'hover', 'fillForm', 'typeText', 'pressKey', 'handleDialog',
@@ -160,6 +167,10 @@ export class AfyxBrowserSession {
     if (!this.chromePath) throw new Error('BROWSER_EXECUTABLE_NOT_FOUND');
     this.commandCount = 0; this.consoleLogs = []; this.networkRequests = []; this.dialog = null; this.trace = null;
     this.interceptionDiagnostics = { staleRequests: 0, closedPageSessions: 0, fatalErrors: 0 };
+    this.budgetDiagnostics.startedAt = Date.now();
+    this.budgetDiagnostics.deadline = this.budgetDiagnostics.startedAt + this.policy.sessionTimeoutMs;
+    this.budgetDiagnostics.closureReason = null;
+    this.budgetDiagnostics.interruptionSource = null;
     this.userDataDir = mkdtempSync(join(realpathSync(tmpdir()), 'afyx-browser-session-'));
     const flags = ['--remote-debugging-address=127.0.0.1', '--remote-debugging-port=0', `--user-data-dir=${this.userDataDir}`,
       '--no-first-run', '--no-default-browser-check', '--disable-background-networking', '--disable-default-apps',
@@ -199,11 +210,16 @@ export class AfyxBrowserSession {
       }
       await this._settleAttachments();
       this.selectedPage = this.pages.keys().next().value;
-      this._expiry = setTimeout(() => { void this._close(); }, this.policy.sessionTimeoutMs); this._expiry.unref();
+      this._expiry = setTimeout(() => {
+        this.budgetDiagnostics.closureReason = 'TIMEOUT';
+        this.budgetDiagnostics.interruptionSource = 'AFYX_SESSION_TIMEOUT';
+        void this._close();
+      }, this.policy.sessionTimeoutMs); this._expiry.unref();
       this._exitCleanup = () => { this.process?.kill(); };
       process.once('exit', this._exitCleanup);
       return { port: this.port, wsUrl: this.wsUrl, browser: version.product, protocolVersion: version.protocolVersion,
-        pageId: this.selectedPage, profile: 'ISOLATED_EPHEMERAL' };
+        pageId: this.selectedPage, profile: 'ISOLATED_EPHEMERAL',
+        budget: { sessionTimeoutMs: this.policy.sessionTimeoutMs, maxCommands: this.policy.maxCommands } };
     } catch (error) { await this._close(); throw error; }
   }
 
@@ -311,7 +327,12 @@ export class AfyxBrowserSession {
     const page = this.pages.get(target.targetId); if (page) page.ready = true;
   }
   async _settleAttachments() { await Promise.all([...(this._attachments ?? [])]); }
-  _page() { const page = this.pages.get(this.selectedPage); if (!page?.ready) throw new Error('BROWSER_PAGE_NOT_AVAILABLE'); return page.sessionId; }
+  _page() {
+    if (this.budgetDiagnostics.closureReason === 'TIMEOUT') {
+      throw new Error(`BROWSER_PAGE_NOT_AVAILABLE: Session terminated due to session timeout (${this.policy.sessionTimeoutMs}ms reached)`);
+    }
+    const page = this.pages.get(this.selectedPage); if (!page?.ready) throw new Error('BROWSER_PAGE_NOT_AVAILABLE'); return page.sessionId;
+  }
   async _eval(expression) {
     if (this.dialog?.sessionId === this._page()) throw new Error('BROWSER_DIALOG_REQUIRES_DECISION');
     const response = await this.send('Runtime.evaluate', { expression, returnByValue: true, awaitPromise: true, timeout: 5000 }, this._page());
@@ -518,6 +539,10 @@ export class AfyxBrowserSession {
   async _close() {
     clearTimeout(this._expiry); clearTimeout(this._traceExpiry);
     if (this._exitCleanup) process.removeListener('exit', this._exitCleanup);
+    if (!this.budgetDiagnostics.closureReason) {
+      this.budgetDiagnostics.closureReason = 'CLOSED';
+      this.budgetDiagnostics.interruptionSource = 'HOST_REQUEST';
+    }
     const child = this.process; this.process = null;
     this.ws?.close(); this.ws = null; this.isAttached = false; this._rejectPending('BROWSER_SESSION_CLOSED');
     if (child && child.exitCode === null) { child.kill(); await Promise.race([this._processExited, delay(3000)]);
@@ -528,7 +553,18 @@ export class AfyxBrowserSession {
       if (dirname(owned) !== realpathSync(tmpdir()) || !owned.includes('afyx-browser-session-') || lstatSync(owned).isSymbolicLink()) throw new Error('BROWSER_PROFILE_OWNERSHIP_FAILED');
       rmSync(owned, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 }); this.userDataDir = null;
     }
-    this.pages.clear(); this.selectedPage = null; return { closed: true, processExited: true, profileRemoved: this.userDataDir === null };
+    this.pages.clear(); this.selectedPage = null;
+    return {
+      closed: true, processExited: true, profileRemoved: this.userDataDir === null,
+      budget: {
+        sessionTimeoutMs: this.policy.sessionTimeoutMs,
+        durationMs: this.budgetDiagnostics.startedAt ? (Date.now() - this.budgetDiagnostics.startedAt) : 0,
+        closureReason: this.budgetDiagnostics.closureReason,
+        interruptionSource: this.budgetDiagnostics.interruptionSource,
+        commandCount: this.commandCount,
+        maxCommands: this.policy.maxCommands,
+      },
+    };
   }
   async close() { return this._close(); }
 }
@@ -553,6 +589,7 @@ Commands & Options:
   --screenshot <url>   Capture screenshot of target URL to output file
   --out <file>         Destination file path for screenshot
   --allow-origin <url> Explicit trusted HTTP(S) origin (repeatable); other origins denied
+  --session-timeout-ms <ms> Session lifetime budget in ms (300000..1800000, default: 300000)
   --headless           Run in headless mode (default: true)
   --no-headless        Run with visible browser window
   --version            Display version information
