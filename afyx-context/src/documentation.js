@@ -10,24 +10,29 @@ const words = (text) => String(text).toLowerCase().match(/[\p{L}\p{N}_]+/gu) || 
 function fail(code) { const error = new Error(code); error.code = code; throw error; }
 function contained(root, file) { const rel = relative(root, file); return rel !== '..' && !rel.startsWith(`..${sep}`) && !isAbsolute(rel); }
 
-export function createDocumentationCatalog({ projectRoot, sources = [], enabled = true, maxCacheEntries = 32, maxSourceBytes = 1_048_576, maxSearchSources = 32, maxSearchBytes = 4_194_304 } = {}) {
+export function createDocumentationCatalog({ projectRoot, sources = [], enabled = true, maxCacheEntries = 32, maxSourceBytes = 1_048_576, maxSearchSources = 32, maxSearchBytes = 4_194_304, documentConversion = null } = {}) {
   if (!Array.isArray(sources) || sources.length > 1000 || !Number.isSafeInteger(maxCacheEntries) || maxCacheEntries < 1 || maxCacheEntries > 1000
     || !Number.isSafeInteger(maxSourceBytes) || maxSourceBytes < 1 || maxSourceBytes > 16_777_216
     || !Number.isSafeInteger(maxSearchSources) || maxSearchSources < 1 || maxSearchSources > 1000
     || !Number.isSafeInteger(maxSearchBytes) || maxSearchBytes < 1 || maxSearchBytes > 16_777_216) fail('DOCUMENTATION_INVALID_CONFIG');
+  if (documentConversion !== null && (typeof documentConversion.convert !== 'function'
+    || typeof documentConversion.contract !== 'string' || !documentConversion.contract
+    || !Number.isSafeInteger(documentConversion.maxOutputBytes) || documentConversion.maxOutputBytes < 1
+    || documentConversion.maxOutputBytes > 16_777_216)) fail('DOCUMENTATION_INVALID_CONVERTER');
   const root = resolve(projectRoot || process.cwd());
   const registry = new Map();
   const cache = new Map();
+  const conversions = new Map();
   let sourceReads = 0, cacheHits = 0;
   for (const source of sources) {
     if (!source || typeof source.id !== 'string' || !source.id || source.id.length > 256 || typeof source.path !== 'string' || !source.path
       || source.path.includes('\0') || registry.has(source.id)) fail('DOCUMENTATION_INVALID_SOURCE');
     const file = resolve(root, source.path);
     if (!contained(root, file) || file === root) fail('DOCUMENTATION_UNSAFE_PATH');
-    registry.set(source.id, Object.freeze({ id: source.id, path: relative(root, file), domain: String(source.domain || ''), library: String(source.library || ''), version: String(source.version || '') }));
+    registry.set(source.id, Object.freeze({ id: source.id, path: relative(root, file), domain: String(source.domain || ''), library: String(source.library || ''), version: String(source.version || ''), ...(source.convert === true ? { convert: true } : {}) }));
   }
 
-  function read(source, { remainingBytes = Infinity, onInspect = () => {} } = {}) {
+  function read(source, { remainingBytes = Infinity, onInspect = () => {}, raw = false } = {}) {
     if (fs.lstatSync(root).isSymbolicLink()) fail('DOCUMENTATION_UNSAFE_PATH');
     const canonicalRoot = fs.realpathSync(root);
     let file = root;
@@ -42,7 +47,8 @@ export function createDocumentationCatalog({ projectRoot, sources = [], enabled 
     onInspect(Number(stat.size));
     const fingerprint = `${stat.size}:${stat.mtimeNs}:${stat.ctimeNs}:${stat.ino}`;
     const known = cache.get(source.id);
-    if (known?.fingerprint === fingerprint) { cacheHits++; cache.delete(source.id); cache.set(source.id, known); return known; }
+    if (!raw && known?.fingerprint === fingerprint) { cacheHits++; cache.delete(source.id); cache.set(source.id, known); return known; }
+    if (source.convert && !raw) fail('DOCUMENTATION_CONVERSION_REQUIRED');
     const handle = fs.openSync(file, fs.constants.O_RDONLY | (fs.constants.O_NOFOLLOW || 0));
     let bytes;
     try {
@@ -56,7 +62,11 @@ export function createDocumentationCatalog({ projectRoot, sources = [], enabled 
       bytes = buffer.subarray(0, length);
     } finally { fs.closeSync(handle); }
     sourceReads++;
-    if (bytes.length > maxSourceBytes || bytes.includes(0)) fail('DOCUMENTATION_SOURCE_LIMIT');
+    if (bytes.length > maxSourceBytes) fail('DOCUMENTATION_SOURCE_LIMIT');
+    const afterRead = fs.statSync(file, { bigint: true });
+    if (`${afterRead.size}:${afterRead.mtimeNs}:${afterRead.ctimeNs}:${afterRead.ino}` !== fingerprint) fail('DOCUMENTATION_SOURCE_CHANGED');
+    if (raw) return { ...source, bytes, sha256: hash(bytes), fingerprint };
+    if (bytes.includes(0)) fail('DOCUMENTATION_SOURCE_LIMIT');
     let text;
     try { text = new TextDecoder('utf-8', { fatal: true }).decode(bytes); } catch { fail('DOCUMENTATION_INVALID_ENCODING'); }
     const after = fs.statSync(file, { bigint: true });
@@ -65,6 +75,63 @@ export function createDocumentationCatalog({ projectRoot, sources = [], enabled 
     cache.set(source.id, record);
     while (cache.size > maxCacheEntries) cache.delete(cache.keys().next().value);
     return record;
+  }
+
+  async function convertedRead(source, options = {}) {
+    try { return read(source, options); } catch (error) {
+      if (error.code !== 'DOCUMENTATION_CONVERSION_REQUIRED') throw error;
+    }
+    if (!documentConversion) fail('DOCUMENTATION_CONVERSION_DISABLED');
+    const raw = read(source, { ...options, raw: true });
+    const key = documentConversion.contract + ':' + raw.sha256 + ':' + source.path;
+    let converted = conversions.get(key);
+    if (!converted) {
+      converted = await documentConversion.convert({ bytes: raw.bytes, name: source.path });
+      if (converted?.status !== 'SUCCEEDED' || typeof converted.markdown !== 'string'
+        || converted.source?.sha256 !== raw.sha256) fail('DOCUMENTATION_CONVERSION_FAILED');
+      if (Buffer.byteLength(converted.markdown) > documentConversion.maxOutputBytes) fail('DOCUMENTATION_SOURCE_LIMIT');
+      converted = { markdown: converted.markdown, references: structuredClone(converted.references || []), format: converted.format };
+      conversions.set(key, converted);
+      while (conversions.size > maxCacheEntries) conversions.delete(conversions.keys().next().value);
+    }
+    // Do not admit a conversion if the original file changed while it ran.
+    const current = read(source, { raw: true, remainingBytes: options.remainingBytes });
+    if (current.sha256 !== raw.sha256 || current.fingerprint !== raw.fingerprint) fail('DOCUMENTATION_SOURCE_CHANGED');
+    const record = { ...source, title: converted.markdown.match(/^#\s+(.+)$/m)?.[1] || source.id,
+      text: converted.markdown, sha256: raw.sha256, fingerprint: raw.fingerprint,
+      conversion: { contract: documentConversion.contract, format: converted.format, references: converted.references, contentTrust: 'untrusted-data' } };
+    cache.set(source.id, record);
+    while (cache.size > maxCacheEntries) cache.delete(cache.keys().next().value);
+    return record;
+  }
+
+  async function searchAsync(options = {}) {
+    if (!enabled) return search(options);
+    // Validate before any decoder work, using the same public query contract.
+    const { query = '', domain, library, version, limit = 5 } = options;
+    if (typeof query !== 'string' || !query.trim() || query.length > 4096 || !Number.isSafeInteger(limit) || limit < 1 || limit > 100) fail('DOCUMENTATION_INVALID_QUERY');
+    const beforeReads = sourceReads, beforeHits = cacheHits;
+    const failures = new Map(); let inspected = 0, bytes = 0;
+    for (const source of registry.values()) {
+      if ((domain !== undefined && source.domain !== domain) || (library !== undefined && source.library !== library) || (version !== undefined && source.version !== version)) continue;
+      if (inspected++ >= maxSearchSources) break;
+      try { await convertedRead(source, { remainingBytes: maxSearchBytes - bytes, onInspect: (size) => { bytes += size; } }); }
+      catch (error) { failures.set(source.id, error.code || 'DOCUMENTATION_CONVERSION_FAILED'); }
+    }
+    const result = search(options);
+    result.errors = result.errors.map((error) => failures.has(error.sourceId) ? { ...error, code: failures.get(error.sourceId) } : error);
+    result.metrics.sourceReads = sourceReads - beforeReads;
+    result.metrics.cacheHits = cacheHits - beforeHits;
+    return result;
+  }
+
+  async function retrieveAsync({ sourceId, sha256 } = {}) {
+    if (!enabled) fail('DOCUMENTATION_DISABLED');
+    const source = registry.get(sourceId);
+    if (!source || typeof sha256 !== 'string' || !/^[0-9a-f]{64}$/.test(sha256)) fail('DOCUMENTATION_INVALID_REFERENCE');
+    const record = await convertedRead(source);
+    if (record.sha256 !== sha256) fail('DOCUMENTATION_STALE_REFERENCE');
+    return record.text;
   }
 
   function search({ query = '', domain, library, version, budget = {}, limit = 5 } = {}) {
@@ -112,5 +179,5 @@ export function createDocumentationCatalog({ projectRoot, sources = [], enabled 
     if (record.sha256 !== sha256) fail('DOCUMENTATION_STALE_REFERENCE');
     return record.text;
   }
-  return Object.freeze({ list: () => enabled ? [...registry.values()].map((source) => ({ ...source })) : [], search, retrieve });
+  return Object.freeze({ list: () => enabled ? [...registry.values()].map((source) => ({ ...source })) : [], search, retrieve, searchAsync, retrieveAsync });
 }

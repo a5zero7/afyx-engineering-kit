@@ -1,5 +1,5 @@
 /**
- * The File view's models, without a browser (CG-46).
+ * The File view's models, without a browser.
  *
  * The decision under test throughout is the rails' source of truth: they are
  * built from `dependencies` / `dependents` — the engine's own

@@ -10,7 +10,8 @@
  * 3. JSON-RPC 2.0 Stdio MCP Server: node scripts/afyx-host-bridge.mjs serve --mcp
  */
 
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, realpathSync } from 'node:fs';
+import { createHash } from 'node:crypto';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import readline from 'node:readline';
@@ -18,6 +19,7 @@ import readline from 'node:readline';
 import {
   runInstalledAfyxWorkflow,
 } from './afyx-universal-runtime.mjs';
+import { createOptionalCapabilityHost } from './afyx-optional-capabilities.mjs';
 
 export const AFYX_HOST_BRIDGE_CONTRACT = 'AfyxHostBridge/v1';
 
@@ -97,6 +99,9 @@ export async function invokeHostWorkflow({
  * @param {string} [serverOptions.provider]
  */
 export function serveHostMcpBridge(serverOptions = {}) {
+  const optional = createOptionalCapabilityHost({ projectRoot: serverOptions.projectRoot,
+    browser: serverOptions.trustedCapabilities?.browser,
+    document: serverOptions.trustedCapabilities?.document });
   const rl = readline.createInterface({
     input: process.stdin,
     output: process.stdout,
@@ -107,9 +112,18 @@ export function serveHostMcpBridge(serverOptions = {}) {
     process.stdout.write(`${JSON.stringify(response)}\n`);
   };
 
-  rl.on('close', () => {
-    process.exit(0);
-  });
+  let shuttingDown = false;
+  const shutdown = () => {
+    if (shuttingDown) return;
+    shuttingDown = true;
+    optional.close().then(() => process.exit(0), () => {
+      process.stderr.write('AFYX_OPTIONAL_CLEANUP_FAILED\n');
+      process.exit(1);
+    });
+  };
+  rl.on('close', shutdown);
+  process.once('SIGTERM', shutdown);
+  process.once('SIGINT', shutdown);
 
   rl.on('line', async (line) => {
     const trimmed = line.trim();
@@ -178,6 +192,9 @@ export function serveHostMcpBridge(serverOptions = {}) {
                   required: ['task'],
                 },
               },
+              { name: 'afyx_capabilities', description: 'Discover authorized optional capabilities (e.g. browser, document-conversion), canonical tool names, supported actions, argument schemas, and safe invocation examples without activating them.',
+                inputSchema: { type: 'object', additionalProperties: false, properties: { intent: { type: 'string', enum: ['browser', 'document-conversion'] } }, required: ['intent'] } },
+              ...optional.tools(),
             ],
           },
         });
@@ -185,11 +202,40 @@ export function serveHostMcpBridge(serverOptions = {}) {
       }
 
       case 'tools/call': {
+        if (params?.name === 'afyx_capabilities' || params?.name === 'afyx_browser' || params?.name === 'afyx_document') {
+          try {
+            const value = params.name === 'afyx_capabilities'
+              ? { capabilities: optional.discover(params.arguments), started: false }
+              : await optional.call(params.name, params.arguments);
+            let structured = value && typeof value === 'object' && !Array.isArray(value) ? value : { result: value };
+            const images = [];
+            if (params.name === 'afyx_browser' && params.arguments?.action === 'screenshot' && typeof value?.screenshotBase64 === 'string') {
+              const bytes = Buffer.from(value.screenshotBase64, 'base64');
+              structured = { screenshot: { mimeType: 'image/png', bytes: bytes.length, sha256: createHash('sha256').update(bytes).digest('hex') } };
+              images.push({ type: 'image', mimeType: 'image/png', data: value.screenshotBase64 });
+            }
+            const output = { ...structured, contentTrust: 'untrusted-data' };
+            sendResponse({ jsonrpc: '2.0', id, result: { structuredContent: output, content: [{ type: 'text', text: JSON.stringify(output) }, ...images] } });
+          } catch (error) {
+            sendResponse({ jsonrpc: '2.0', id, result: { isError: true, content: [{ type: 'text', text: error instanceof Error ? error.message : String(error) }] } });
+          }
+          break;
+        }
+
         if (params?.name !== 'afyx_workflow') {
+          let hint = '';
+          if (typeof params?.name === 'string') {
+            if (params.name.startsWith('afyx_browser_') || params.name.startsWith('browser_')) {
+              const guessedAction = params.name.replace(/^(?:afyx_)?browser_/, '');
+              hint = ` Did you mean the canonical tool 'afyx_browser' with { action: '${guessedAction}' }?`;
+            } else if (params.name.startsWith('afyx_document_') || params.name.startsWith('document_')) {
+              hint = " Did you mean the canonical tool 'afyx_document' with an 'action' parameter?";
+            }
+          }
           sendResponse({
             jsonrpc: '2.0',
             id,
-            error: { code: -32601, message: `Unknown tool: ${params?.name}` },
+            error: { code: -32601, message: hint ? `Unknown tool: ${params?.name}.${hint}` : `Unknown tool: ${params?.name}` },
           });
           break;
         }
@@ -243,10 +289,28 @@ export function serveHostMcpBridge(serverOptions = {}) {
 
 function trustedLaunchCapabilities() {
   const repositories = (argumentValue('--github-repositories') || '').split(',').filter(Boolean);
-  if (!repositories.length) return {};
-  const github = { allowedRepositories: repositories };
-  const executable = argumentValue('--github-gh-executable');
-  return { github, githubExecutable: executable };
+  const enabled = new Set((argumentValue('--capabilities') || '').split(',').filter(Boolean));
+  for (const item of enabled) if (!['browser', 'document'].includes(item)) throw new Error('UNKNOWN_OPTIONAL_CAPABILITY');
+  const capabilities = {};
+  if (repositories.length) {
+    capabilities.github = { allowedRepositories: repositories };
+    capabilities.githubExecutable = argumentValue('--github-gh-executable');
+  }
+  if (enabled.has('document')) capabilities.document = { enabled: true };
+  const browserTimeoutArg = argumentValue('--browser-session-timeout-ms');
+  let browserSessionTimeoutMs;
+  if (browserTimeoutArg !== null) {
+    browserSessionTimeoutMs = Number(browserTimeoutArg);
+    if (!Number.isSafeInteger(browserSessionTimeoutMs) || browserSessionTimeoutMs < 300_000 || browserSessionTimeoutMs > 1_800_000) {
+      throw new TypeError('--browser-session-timeout-ms must be an integer between 300000 and 1800000');
+    }
+  }
+  if (enabled.has('browser')) capabilities.browser = { enabled: true,
+    allowedOrigins: (argumentValue('--browser-origins') || '').split(',').filter(Boolean),
+    allowEvaluation: process.argv.includes('--browser-evaluation'),
+    uploadRoot: argumentValue('--browser-upload-root'), exportRoot: argumentValue('--browser-export-root'),
+    ...(browserSessionTimeoutMs !== undefined ? { sessionTimeoutMs: browserSessionTimeoutMs } : {}) };
+  return capabilities;
 }
 
 function argumentValue(flag) {
@@ -324,7 +388,13 @@ async function main() {
   }
 }
 
-if (process.argv[1] && fileURLToPath(import.meta.url) === resolve(process.argv[1])) {
+function isMainModule() {
+  if (!process.argv[1]) return false;
+  try { return realpathSync(fileURLToPath(import.meta.url)) === realpathSync(resolve(process.argv[1])); }
+  catch { return false; }
+}
+
+if (isMainModule()) {
   main().catch((error) => {
     process.stderr.write(`${error instanceof Error ? error.message : String(error)}\n`);
     process.exitCode = 1;

@@ -147,15 +147,17 @@ for (const phase of ['after-lock-acquired', 'before-session-commit', 'after-sess
       stateDir,
       ownerId: 'graph-owner',
       sessionId: 'graph-session',
-      timeoutMs: 2_000,
     };
     const healthy = createGraphAceConsumer(base);
     const established = await healthy.execute({ ...query, executeGraph: async () => stable });
-    assert.equal(established.status, 'optimized');
+    assert.equal(established.status, 'optimized', JSON.stringify({ phase, status: established.status, failureCode: established.failureCode }));
     const stableReference = established.ace.items[0].reference;
 
     const interrupted = createGraphAceConsumer({
       ...base,
+      // Apply the fault window only to the paused worker. Healthy setup uses
+      // the normal consumer budget; the recovery budget below is unchanged.
+      timeoutMs: 2_000,
       aceRunner: (message, options) => nativeAceRunner({
         ...message,
         testControl: { phase, readyPath },

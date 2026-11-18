@@ -1,67 +1,114 @@
 /**
- * The trail's wire format — the part with no state in it.
+ * AFYX Graph Engine - Exploration Trail Wire Format Codec
  *
- * Split from live state so it can be tested as a pure codec:
- * the round-trip through the URL is the whole reason the trail is shareable,
- * and it is the one part of the trail that can be silently wrong.
- *
- * Encoding: comma-separated tokens, each `<dir><encoded id>` where dir is
- * `s` (start) | `d` (stepped down, into a call) | `u` (stepped up, to a
- * caller). The dir char is ALWAYS present — an id may itself begin with 'd'
- * or 'u' (`union:…`), so an optional prefix would be ambiguous.
+ * Implements deterministic serialization and URL encoding for interactive graph
+ * exploration trails, allowing complex multi-hop investigation paths to be shared,
+ * bookmarked, and restored without server-side session dependencies.
  */
 
 export type HopDirection = 'start' | 'down' | 'up';
 
 export interface TrailHop {
+  /** Unique symbol or file identifier for this hop. */
   id: string;
-  /** null until the node is fetched; render `hopLabel()` rather than this. */
+  /** Human-readable symbol name, or null if unresolved. */
   name: string | null;
+  /** Symbol kind descriptor, or null if unresolved. */
   kind: string | null;
+  /** Direction of the exploration step relative to the previous hop. */
   dir: HopDirection;
 }
 
-const DIR_TO_CHAR: Record<HopDirection, string> = { start: 's', down: 'd', up: 'u' };
-const CHAR_TO_DIR: Record<string, HopDirection> = { s: 'start', d: 'down', u: 'up' };
+const DIRECTION_PREFIX_MAP: Readonly<Record<HopDirection, string>> = Object.freeze({
+  start: 's',
+  down: 'd',
+  up: 'u',
+});
+
+const PREFIX_DIRECTION_MAP: Readonly<Record<string, HopDirection>> = Object.freeze({
+  s: 'start',
+  d: 'down',
+  u: 'up',
+});
+
+const HEX_HASH_PATTERN = /^[0-9a-f]{16,}$/i;
 
 /**
- * A readable stand-in for a hop whose name has not been resolved yet.
- *
- * Only ever seen for a moment: a cold load asks `/api/nodes` for the names of
- * every hop it restored from the URL. It still has to be readable, because a
- * slow answer would otherwise put a 32-character hash in the trail bar.
+ * Derives a readable display label for a trail hop, providing resilient fallbacks
+ * when the node name has not yet been resolved from the index.
  */
 export function hopLabel(hop: TrailHop): string {
-  if (hop.name) return hop.name;
-  const body = hop.id.includes(':') ? hop.id.slice(hop.id.indexOf(':') + 1) : hop.id;
-  // Path-shaped ids (`file:src/mcp/tools.ts`) read best as their basename.
-  const basename = body.slice(body.lastIndexOf('/') + 1);
-  if (basename.length === 0 || basename.length > 40) return `${body.slice(0, 8)}…`;
-  // A content hash is not a name: shown whole it is a wall of hex wide enough
-  // to push the rest of the trail off screen.
-  if (/^[0-9a-f]{16,}$/.test(basename)) return `${basename.slice(0, 8)}…`;
-  return basename;
-}
-
-export function encodeTrail(hops: readonly TrailHop[]): string {
-  return hops.map((h) => DIR_TO_CHAR[h.dir] + encodeURIComponent(h.id)).join(',');
-}
-
-export function decodeTrail(encoded: string | null): TrailHop[] {
-  if (!encoded) return [];
-  const hops: TrailHop[] = [];
-  for (const token of encoded.split(',')) {
-    if (token.length < 2) continue;
-    const dir = CHAR_TO_DIR[token[0] as string];
-    if (!dir) continue;
-    let id: string;
-    try {
-      id = decodeURIComponent(token.slice(1));
-    } catch {
-      id = token.slice(1);
-    }
-    if (id) hops.push({ id, name: null, kind: null, dir });
+  if (hop.name) {
+    return hop.name;
   }
+
+  const rawIdentifier = hop.id;
+  const separatorIndex = rawIdentifier.indexOf(':');
+  const entityBody = separatorIndex >= 0 ? rawIdentifier.slice(separatorIndex + 1) : rawIdentifier;
+
+  const slashIndex = entityBody.lastIndexOf('/');
+  const baseSegment = slashIndex >= 0 ? entityBody.slice(slashIndex + 1) : entityBody;
+
+  if (baseSegment.length === 0 || baseSegment.length > 40) {
+    return `${entityBody.slice(0, 8)}…`;
+  }
+
+  if (HEX_HASH_PATTERN.test(baseSegment)) {
+    return `${baseSegment.slice(0, 8)}…`;
+  }
+
+  return baseSegment;
+}
+
+/**
+ * Encodes an ordered sequence of trail hops into a compact, URL-safe comma-separated string.
+ */
+export function encodeTrail(hops: readonly TrailHop[]): string {
+  return hops
+    .map((hop) => {
+      const prefix = DIRECTION_PREFIX_MAP[hop.dir] ?? 'd';
+      return `${prefix}${encodeURIComponent(hop.id)}`;
+    })
+    .join(',');
+}
+
+/**
+ * Parses an encoded trail string into structured trail hops, failing closed on malformed tokens.
+ */
+export function decodeTrail(encoded: string | null): TrailHop[] {
+  if (!encoded || typeof encoded !== 'string') {
+    return [];
+  }
+
+  const hops: TrailHop[] = [];
+  const rawTokens = encoded.split(',');
+
+  for (const token of rawTokens) {
+    if (token.length < 2) {
+      continue;
+    }
+
+    const directionChar = token.charAt(0);
+    const direction = PREFIX_DIRECTION_MAP[directionChar];
+    if (!direction) {
+      continue;
+    }
+
+    let decodedId: string;
+    try {
+      decodedId = decodeURIComponent(token.slice(1));
+    } catch {
+      // Retain the unencoded token segment so malformed params do not silently drop positions
+      decodedId = token.slice(1);
+    }
+
+    hops.push({
+      id: decodedId,
+      name: null,
+      kind: null,
+      dir: direction,
+    });
+  }
+
   return hops;
 }
-

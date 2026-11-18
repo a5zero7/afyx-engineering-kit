@@ -79,18 +79,15 @@ if { "$plan_json" || [[ -n "$expected_plan" ]]; } && [[ -z "$preset" ]]; then
   printf 'Structured planning requires an explicit preset.\n' >&2; exit 2
 fi
 
-if [[ "$provider_explicit" == false && -t 0 && -t 1 && -z "${CI:-}" ]]; then
-  detected_providers=
+if [[ "$provider_explicit" == false && "$skip_provider_configuration" == false && -z "$preset" && -t 0 && -t 1 && -z "${CI:-}" && "${AFYX_INSTALL_UI_OWNER:-}" != node ]]; then
   if command -v node >/dev/null 2>&1; then
-    printf 'PROVIDERS / HOST\n'
-    node "$PACKAGE_ROOT/scripts/afyx-provider-inventory.mjs" --lines
-    detected_providers="$(node "$PACKAGE_ROOT/scripts/afyx-provider-inventory.mjs" --selected)"
-  else
-    if command -v agy >/dev/null 2>&1 || command -v antigravity >/dev/null 2>&1; then detected_providers=antigravity; fi
-    if command -v claude >/dev/null 2>&1; then detected_providers="${detected_providers:+$detected_providers,}claude"; fi
-    if command -v codex >/dev/null 2>&1; then detected_providers="${detected_providers:+$detected_providers,}codex"; fi
-    printf 'Provider hosts detected: %s\n' "${detected_providers:-none}"
+    exec node "$PACKAGE_ROOT/bin/afyx-engineering-kit.mjs" install
   fi
+  detected_providers=
+  if command -v agy >/dev/null 2>&1 || command -v antigravity >/dev/null 2>&1; then detected_providers=antigravity; fi
+  if command -v claude >/dev/null 2>&1; then detected_providers="${detected_providers:+$detected_providers,}claude"; fi
+  if command -v codex >/dev/null 2>&1; then detected_providers="${detected_providers:+$detected_providers,}codex"; fi
+  printf 'Provider hosts detected: %s\n' "${detected_providers:-none}"
   read -r -p 'Provider selection: [A] All detected / [R] Recommended Codex / [C] Custom / [S] Skip [A]: ' provider_choice || provider_choice=
   case "$provider_choice" in
     [aA]|[aA][lL][lL]) provider_list="${detected_providers:-codex}" ;;
@@ -369,21 +366,29 @@ if [[ -n "$preset" ]]; then
     printf '%s: desired=%s; actual=%s; drift=%s; ownership=%s; repair=%s\n' "$plan_id" "$AFYX_DESIRED" "$plan_state" "$AFYX_DRIFT" "$AFYX_ACTUAL_OWNERSHIP" "$AFYX_REPAIR"
   done
 fi
+codex_cli_detected=false; command -v codex >/dev/null 2>&1 && codex_cli_detected=true
+antigravity_detected=false; { command -v agy >/dev/null 2>&1 || command -v antigravity >/dev/null 2>&1; } && antigravity_detected=true
+claude_cli_detected=false; command -v claude >/dev/null 2>&1 && claude_cli_detected=true
+claude_vscode_detected=false
+for extension in "$HOME"/.vscode/extensions/anthropic.claude-code-*; do [[ -d "$extension" ]] && { claude_vscode_detected=true; break; }; done
+vscode_extension_detected=false
+for extension in "$HOME"/.vscode/extensions/openai.chatgpt-*; do [[ -d "$extension" ]] && { vscode_extension_detected=true; break; }; done
+
 printf '\nProvider Plan\n'
 if "$skip_provider_configuration"; then printf 'Provider configuration: skipped (requested or no implicit host)\n'; fi
 old_ifs=$IFS; IFS=','
 for provider_id in $provider_list; do
   if [[ "$provider_id" == codex ]]; then
     provider_name=Codex
-    command -v codex >/dev/null 2>&1 && provider_detected=true || provider_detected=false
+    if "$codex_cli_detected" || "$vscode_extension_detected"; then provider_detected=true; else provider_detected=false; fi
     provider_path="${CODEX_HOME:-$HOME/.codex}/config.toml"
   elif [[ "$provider_id" == antigravity ]]; then
     provider_name=Antigravity
-    { command -v agy >/dev/null 2>&1 || command -v antigravity >/dev/null 2>&1; } && provider_detected=true || provider_detected=false
+    provider_detected="$antigravity_detected"
     [[ "$provider_scope" == workspace ]] && provider_path="$workspace_root/.agents/mcp_config.json" || provider_path="$gemini_home/config/mcp_config.json"
   elif [[ "$provider_id" == claude ]]; then
     provider_name="Claude Code"
-    command -v claude >/dev/null 2>&1 && provider_detected=true || provider_detected=false
+    if "$claude_cli_detected" || "$claude_vscode_detected"; then provider_detected=true; else provider_detected=false; fi
     if [[ "$provider_scope" == workspace ]]; then
       provider_path="$workspace_root/.mcp.json"
     else
@@ -424,14 +429,6 @@ if ! "$skip_graph_mcp" && ! "$skip_provider_configuration" && [[ ",$provider_lis
     exit 1
   fi
 fi
-
-codex_cli_detected=false; command -v codex >/dev/null 2>&1 && codex_cli_detected=true
-antigravity_detected=false; { command -v agy >/dev/null 2>&1 || command -v antigravity >/dev/null 2>&1; } && antigravity_detected=true
-claude_cli_detected=false; command -v claude >/dev/null 2>&1 && claude_cli_detected=true
-claude_vscode_detected=false
-for extension in "$HOME"/.vscode/extensions/anthropic.claude-code-*; do [[ -d "$extension" ]] && { claude_vscode_detected=true; break; }; done
-vscode_extension_detected=false
-for extension in "$HOME"/.vscode/extensions/openai.chatgpt-*; do [[ -d "$extension" ]] && { vscode_extension_detected=true; break; }; done
 
 printf '\nPrerequisite Inventory\n'
 printf '[REQUIRED] OS/architecture: %s / %s\n' "$(uname -s)" "$(uname -m)"

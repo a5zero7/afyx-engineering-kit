@@ -160,6 +160,8 @@ export const PRODUCT_INVENTORY = Object.freeze({
     providers: Object.freeze(['codex', 'antigravity', 'claude']),
   }),
   'afyx-native-github': Object.freeze({ id: 'afyx-native-github', canonicalName: 'Afyx Native GitHub', type: 'runtime', primaryCapability: 'scoped-github-evidence', ownershipClass: 'AFYX', maturity: 'SOURCE_READY', activationMode: 'ON_DEMAND' }),
+  'afyx-browser-devtools': Object.freeze({ id: 'afyx-browser-devtools', canonicalName: 'Afyx Browser DevTools', type: 'runtime', primaryCapability: 'authorized-browser-engineering', ownershipClass: 'AFYX', maturity: 'SOURCE_READY', activationMode: 'ON_DEMAND', contract: 'AfyxBrowser/v1' }),
+  'afyx-document-intelligence': Object.freeze({ id: 'afyx-document-intelligence', canonicalName: 'Afyx Document Intelligence', type: 'runtime', primaryCapability: 'bounded-document-conversion', ownershipClass: 'AFYX', maturity: 'SOURCE_READY', activationMode: 'ON_DEMAND', contract: 'AfyxDocument/v1' }),
   'afyx-native-execution': Object.freeze({ id: 'afyx-native-execution', canonicalName: 'Afyx Native Execution', type: 'runtime', primaryCapability: 'validated-local-execution', ownershipClass: 'AFYX', maturity: 'SOURCE_READY', activationMode: 'ON_DEMAND' }),
   'afyx-security-auditor': Object.freeze({ id: 'afyx-security-auditor', canonicalName: 'Afyx Security Auditor', type: 'runtime', primaryCapability: 'source-security-candidates', ownershipClass: 'AFYX', maturity: 'SOURCE_READY', activationMode: 'ON_DEMAND' }),
   'afyx-credential-broker': Object.freeze({

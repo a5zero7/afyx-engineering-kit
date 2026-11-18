@@ -1,5 +1,5 @@
 /**
- * The Symbol view's decisions, without a browser (CG-44).
+ * The Symbol view's decisions, without a browser.
  *
  * Everything the screen does that could be wrong rather than merely ugly lives
  * in `ui/src/lib/` as plain functions over the `/api/node` payload: which lines

@@ -1,5 +1,5 @@
 /**
- * The entry-points panel's grouping, without a browser (CG-54).
+ * The entry-points panel's grouping, without a browser.
  *
  * The half of `ui-entrypoints-api.test.ts` that needs no index: given a
  * payload, which rows exist, what they say, where they group, and which of them

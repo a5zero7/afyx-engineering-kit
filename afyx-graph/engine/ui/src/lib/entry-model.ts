@@ -1,26 +1,16 @@
 /**
- * What the entry-points panel decides, without a browser.
+ * AFYX Graph Native UI Entry Points Presentation Model
  *
- * `/api/entrypoints` answers four questions about where a project starts —
- * routes, files that run something, tests, hubs — as four flat ranked lists.
- * The panel draws them as file groups, because the first thing a reader wants
- * from twenty routes is *which router registers them*, and from twelve
- * executable files *which directory they live in*. That regrouping is the whole
- * of this module: it is presentation, it needs no round-trip, and it is a pure
- * function so it can be tested without a DOM.
+ * Implements deterministic entry-points grouping, classification, routing presentation,
+ * and command-palette candidate matching for graph exploration views.
  *
- * Two rules it keeps:
+ * Design principles:
+ * - Pure, DOM-independent view presentation model.
+ * - Robust grouping preserving first-seen ranking order computed by the graph engine.
+ * - Explicit accessibility: non-navigable rows are clearly presented without synthetic targets.
+ * - Safe flow derivation: only named callable symbols can initiate graph flow exploration.
  *
- * - **A row that cannot be opened is not offered as if it could.** A route
- *   whose handler never resolved to a node still appears — "this URL exists and
- *   we could not place it" is true and worth saying — but it carries no target
- *   and the panel draws it as text.
- * - **A row only offers a flow if it names a callable symbol.** `/api/flow`
- *   searches the graph by NAME, and a file has no name the path finder can
- *   look up, so a "start a flow here" affordance on a file row would be a
- *   button that always fails.
- *
- * Tested in `__tests__/ui-entry-model.test.ts`.
+ * Part of AFYX Native UI System (AFYX-5, AFYX-157, AFYX-320).
  */
 
 import type {
@@ -33,133 +23,162 @@ import type {
 } from './api';
 import { basename, plural } from './symbol-model';
 
-/* ---------------------------------------------------------------- shapes -- */
+/* ------------------------------------------------------------------ Types -- */
 
-/** Where a row goes when it is clicked. */
+/** Target specification when an entry row is activated or navigated. */
 export type EntryTarget =
   | { type: 'symbol'; id: string; name: string; kind: string }
   | { type: 'file'; path: string }
   | null;
 
+/** Single rendered item in an entry points panel section. */
 export interface EntryRow {
-  /** Stable across refetches — the panel keys on it. */
+  /** Deterministic identifier for stable keyed rendering across refreshes. */
   id: string;
-  /** The row's own name column: a URL, a basename, a symbol name. */
+  /** Primary label: URL route pattern, file basename, or symbol identifier. */
   name: string;
-  /** The verb, drawn ahead of the name in the same mono. Routes only. */
+  /** HTTP method verb when applicable (routes only). */
   method: string | null;
-  /** One line under the name: handler + `file:line`, counts, what it reaches. */
+  /** Secondary contextual metadata line (handler location, counts, dependencies). */
   meta: string;
-  /** Glyph kind — a NodeKind string, or 'route'. */
+  /** Visual category or NodeKind. */
   kind: string;
+  /** Navigation destination target, or null if unresolvable. */
   target: EntryTarget;
-  /**
-   * The symbol name a flow would start from, when this row names one.
-   * Null on file rows: the path finder looks symbols up by name.
-   */
+  /** Origin symbol identifier for flow tracing, or null if non-callable/file. */
   flowFrom: string | null;
-  /** Hover text: the fuller truth the row had to shorten. */
+  /** Complete descriptive tooltip title. */
   title: string;
 }
 
+/** Grouped collection of rows sharing a common file or directory container. */
 export interface EntryGroup {
-  /** The file or directory the rows share. */
+  /** Common container path (directory or source file). */
   path: string;
-  /** The file to open when the group heading is clicked, when there is one. */
+  /** Source file to navigate when the group header is selected, if any. */
   file: string | null;
+  /** Rows belonging to this group. */
   rows: EntryRow[];
 }
 
+/** Complete section representing an entry classification category. */
 export interface EntrySection {
   id: 'routes' | 'files' | 'tests' | 'hubs';
   title: string;
-  /** The header's right-hand meta: counts, and the framework when detected. */
+  /** Right-hand descriptive count and optional framework badge. */
   meta: string;
-  /** A sentence saying what the section is derived from. */
+  /** Explanatory description of section criteria. */
   note: string;
+  /** Grouped row hierarchy. */
   groups: EntryGroup[];
-  /** Rows drawn, and the real total behind them. */
+  /** Count of rows currently displayed. */
   shown: number;
+  /** Total matching items in graph index. */
   total: number;
-  /** `total` is a lower bound the server could not tighten. */
+  /** True when total represents a lower-bound estimate. */
   floor: boolean;
 }
 
+/** Aggregate presentation model for the entry points panel. */
 export interface EntryPanel {
   sections: EntrySection[];
-  /** Every row, in the order the sections draw them. */
+  /** Flattened list of all rows in visual draw sequence. */
   rows: EntryRow[];
-  /** Nothing to show, and why. Null when there is something. */
+  /** Empty state message when no entries match, or null when populated. */
   empty: string | null;
 }
 
-/* -------------------------------------------------------------- grouping -- */
+/* --------------------------------------------------------------- Grouping -- */
 
-/** `src/bin/afyx-graph.ts` -> `src/bin`; a root file -> `project root`. */
+/**
+ * Extracts directory component from a file path, defaulting to 'project root'.
+ */
 export function directoryOf(path: string): string {
-  const cut = path.lastIndexOf('/');
-  return cut < 0 ? 'project root' : path.slice(0, cut);
+  const lastSlash = path.lastIndexOf('/');
+  return lastSlash < 0 ? 'project root' : path.slice(0, lastSlash);
 }
 
 /**
- * Fold rows into groups, first-seen order.
- *
- * First-seen rather than alphabetical, so the ranking the server computed is
- * still visible: the busiest router file, or the directory holding the highest
- * ranked executable, leads the section.
+ * Groups rows preserving arrival (first-seen) ranking order.
  */
 export function groupRows(
   placed: ReadonlyArray<{ row: EntryRow; path: string; file: string | null }>
 ): EntryGroup[] {
   const groups: EntryGroup[] = [];
-  const byPath = new Map<string, EntryGroup>();
-  for (const { row, path, file } of placed) {
-    let group = byPath.get(path);
+  const groupIndex = new Map<string, EntryGroup>();
+
+  for (const item of placed) {
+    let group = groupIndex.get(item.path);
     if (!group) {
-      group = { path, file, rows: [] };
-      byPath.set(path, group);
+      group = {
+        path: item.path,
+        file: item.file,
+        rows: [],
+      };
+      groupIndex.set(item.path, group);
       groups.push(group);
     }
-    group.rows.push(row);
+    group.rows.push(item.row);
   }
+
   return groups;
 }
 
-/* ------------------------------------------------------------------ rows -- */
+/* ------------------------------------------------------------- Row Builders - */
 
+/**
+ * Constructs an EntryRow representing an inbound route endpoint.
+ */
 export function routeRow(route: WireEntryRoute): EntryRow {
-  const where = `${basename(route.file)}:${route.line}`;
+  const filePos = `${basename(route.file)}:${route.line}`;
+  const meta = route.handlerId
+    ? `${route.handler} · ${filePos}`
+    : `${route.handler} · not in the index`;
+
+  const target: EntryTarget = route.handlerId
+    ? {
+        type: 'symbol',
+        id: route.handlerId,
+        name: route.handler,
+        kind: route.handlerKind,
+      }
+    : null;
+
   return {
     id: `route:${route.routeId}`,
     name: route.path,
     method: route.method,
     kind: 'route',
-    // The handler is the answer to "what serves this URL", so it leads the
-    // meta line; the file only says where to find it.
-    meta: route.handlerId ? `${route.handler} · ${where}` : `${route.handler} · not in the index`,
-    target: route.handlerId
-      ? { type: 'symbol', id: route.handlerId, name: route.handler, kind: route.handlerKind }
-      : null,
+    meta,
+    target,
     flowFrom: route.handlerId ? route.handler : null,
     title: `${route.url} → ${route.handler} (${route.file}:${route.line}), registered at ${route.routeFile}:${route.routeLine}`,
   };
 }
 
+/**
+ * Constructs an EntryRow for a top-level executable module file.
+ */
 export function fileRow(file: WireEntryFile): EntryRow {
+  const callsDesc = `${plural(file.calls, 'call')} at module level`;
+  const reachesDesc = `reaches ${plural(file.reaches, 'file')}`;
+  const unusedDesc = file.dependents === 0 ? ' · nothing imports it' : '';
+
   return {
     id: `file:${file.file}`,
     name: basename(file.file),
     method: null,
     kind: 'file',
-    meta: `${plural(file.calls, 'call')} at module level · reaches ${plural(file.reaches, 'file')}${
-      file.dependents === 0 ? ' · nothing imports it' : ''
-    }`,
+    meta: `${callsDesc} · ${reachesDesc}${unusedDesc}`,
     target: { type: 'file', path: file.file },
     flowFrom: null,
     title: file.file,
   };
 }
 
+/**
+ * Constructs an EntryRow for a test suite or verification file.
+ */
 export function testRow(test: WireEntryTest): EntryRow {
   return {
     id: `test:${test.file}`,
@@ -173,6 +192,9 @@ export function testRow(test: WireEntryTest): EntryRow {
   };
 }
 
+/**
+ * Constructs an EntryRow for a high-centrality dependency hub symbol.
+ */
 export function hubRow(hub: WireEntryHub): EntryRow {
   return {
     id: `hub:${hub.id}`,
@@ -180,35 +202,45 @@ export function hubRow(hub: WireEntryHub): EntryRow {
     method: null,
     kind: hub.kind,
     meta: `${plural(hub.dependents, 'dependent')} · ${basename(hub.file)}:${hub.line}`,
-    target: { type: 'symbol', id: hub.id, name: hub.name, kind: hub.kind },
+    target: {
+      type: 'symbol',
+      id: hub.id,
+      name: hub.name,
+      kind: hub.kind,
+    },
     flowFrom: hub.name,
     title: `${hub.qualifiedName} — ${hub.file}:${hub.line}`,
   };
 }
 
-/* ----------------------------------------------------------------- panel -- */
+/* ------------------------------------------------------------- Presentation - */
 
-/** "42 of 208" when the list was cut, "42" when it was not. */
-function countMeta(list: { shown: number; total: number }, floor: boolean): string {
-  if (list.shown >= list.total) return `${list.shown}`;
-  return `${list.shown} of ${floor ? 'at least ' : ''}${list.total}`;
+/**
+ * Formats count summary, acknowledging lower bounds where applicable.
+ */
+function formatCountSummary(list: { shown: number; total: number }, floor: boolean): string {
+  if (list.shown >= list.total) {
+    return `${list.shown}`;
+  }
+  const prefix = floor ? 'at least ' : '';
+  return `${list.shown} of ${prefix}${list.total}`;
 }
 
 /**
- * "gin", "express and spring" — the frameworks behind a route list.
- *
- * Named because a route list is a claim about a framework's conventions; a
- * reader who knows the app is Gin and sees "spring" learns something useful
- * about the index rather than being quietly misled by it.
+ * Joins framework identifiers into a natural readable list phrase.
  */
 export function frameworkPhrase(frameworks: readonly string[]): string {
-  if (frameworks.length === 0) return '';
-  if (frameworks.length === 1) return frameworks[0] as string;
-  if (frameworks.length === 2) return `${frameworks[0]} and ${frameworks[1]}`;
-  return `${frameworks.slice(0, -1).join(', ')} and ${frameworks[frameworks.length - 1]}`;
+  const count = frameworks.length;
+  if (count === 0) return '';
+  if (count === 1) return frameworks[0] as string;
+  if (count === 2) return `${frameworks[0]} and ${frameworks[1]}`;
+  return `${frameworks.slice(0, -1).join(', ')} and ${frameworks[count - 1]}`;
 }
 
-function section(
+/**
+ * Assembles an EntrySection container from underlying items and groupings.
+ */
+function createSection(
   id: EntrySection['id'],
   title: string,
   note: string,
@@ -217,11 +249,11 @@ function section(
   floor: boolean,
   extraMeta = ''
 ): EntrySection {
-  const counts = countMeta(list, floor);
+  const summary = formatCountSummary(list, floor);
   return {
     id,
     title,
-    meta: extraMeta ? `${counts} · ${extraMeta}` : counts,
+    meta: extraMeta ? `${summary} · ${extraMeta}` : summary,
     note,
     groups,
     shown: list.shown,
@@ -230,128 +262,133 @@ function section(
   };
 }
 
+/**
+ * Evaluates and builds the aggregate EntryPanel view model from API response.
+ */
 export function buildEntryPanel(entries: WireEntryPoints | null): EntryPanel {
-  if (!entries) return { sections: [], rows: [], empty: null };
+  if (!entries) {
+    return { sections: [], rows: [], empty: null };
+  }
+
   const sections: EntrySection[] = [];
 
-  // A project with fewer than three resolvable routes is not a routed app, and
-  // the engine says so rather than half-answering. No Routes heading at all in
-  // that case — an empty box under a heading reads as a failure, and this is
-  // the ordinary shape of a library.
+  // Route section - rendered only when the project is recognized as a routed application.
   if (entries.routes.routed && entries.routes.items.items.length > 0) {
+    const allScreenRoutes = entries.routes.items.items.every((r) => !r.method);
+    const routeNote = allScreenRoutes
+      ? 'A screen of the app — its path, and the component that renders it.'
+      : 'A request from outside arrives here — the URL, and the symbol that serves it.';
+
+    const routeGroups = groupRows(
+      entries.routes.items.items.map((route) => ({
+        row: routeRow(route),
+        path: route.routeFile,
+        file: route.routeFile,
+      }))
+    );
+
     sections.push(
-      section(
+      createSection(
         'routes',
         'Routes',
-        entries.routes.items.items.every((r) => !r.method)
-          ? 'A screen of the app — its path, and the component that renders it.'
-          : 'A request from outside arrives here — the URL, and the symbol that serves it.',
+        routeNote,
         entries.routes.items,
-        groupRows(
-          entries.routes.items.items.map((route) => ({
-            row: routeRow(route),
-            // Grouped by where the URL is REGISTERED, not by where it is
-            // served: a router file is the shape a reader already has in mind,
-            // and handlers scatter across a package.
-            path: route.routeFile,
-            file: route.routeFile,
-          }))
-        ),
+        routeGroups,
         false,
         frameworkPhrase(entries.frameworks)
       )
     );
   }
 
+  // Top-level executable files with module-level calls.
   if (entries.files.items.length > 0) {
+    const fileGroups = groupRows(
+      entries.files.items.map((file) => ({
+        row: fileRow(file),
+        path: directoryOf(file.file),
+        file: null,
+      }))
+    );
+
     sections.push(
-      section(
+      createSection(
         'files',
         'Top-level files with calls',
         'Statements at the top level of the file — a CLI, a worker entry, a script.',
         entries.files,
-        groupRows(
-          entries.files.items.map((file) => ({
-            row: fileRow(file),
-            path: directoryOf(file.file),
-            file: null,
-          }))
-        ),
+        fileGroups,
         true
       )
     );
   }
 
+  // Test suite suites and fixtures.
   if (entries.tests.items.length > 0) {
+    const testGroups = groupRows(
+      entries.tests.items.map((test) => ({
+        row: testRow(test),
+        path: directoryOf(test.file),
+        file: null,
+      }))
+    );
+
     sections.push(
-      section(
+      createSection(
         'tests',
         'Tests',
         'What already exercises this code, widest reach first.',
         entries.tests,
-        groupRows(
-          entries.tests.items.map((test) => ({
-            row: testRow(test),
-            path: directoryOf(test.file),
-            file: null,
-          }))
-        ),
+        testGroups,
         false
       )
     );
   }
 
+  // Central dependency hubs.
   if (entries.hubs.items.length > 0) {
+    const hubGroups = groupRows(
+      entries.hubs.items.map((hub) => ({
+        row: hubRow(hub),
+        path: hub.file,
+        file: hub.file,
+      }))
+    );
+
     sections.push(
-      section(
+      createSection(
         'hubs',
         'Most depended on',
         'Not where the project starts — where a change radiates furthest.',
         entries.hubs,
-        groupRows(
-          entries.hubs.items.map((hub) => ({
-            row: hubRow(hub),
-            path: hub.file,
-            file: hub.file,
-          }))
-        ),
+        hubGroups,
         true
       )
     );
   }
 
+  const allRows = sections.flatMap((sec) => sec.groups.flatMap((grp) => grp.rows));
+  const emptyMessage =
+    sections.length === 0
+      ? 'This index has no routes, no file that runs anything at module level, no test that reaches outside itself, and nothing depended on yet.'
+      : null;
+
   return {
     sections,
-    rows: sections.flatMap((s) => s.groups.flatMap((g) => g.rows)),
-    empty:
-      sections.length === 0
-        ? 'This index has no routes, no file that runs anything at module level, no test that reaches outside itself, and nothing depended on yet.'
-        : null,
+    rows: allRows,
+    empty: emptyMessage,
   };
 }
 
-/* --------------------------------------------------------------- palette -- */
+/* --------------------------------------------------------- Palette Matching - */
 
-/** Entry-point rows the palette shows under a typed query, ranked and capped. */
+/** Match candidate produced for command palette entry point queries. */
 export interface EntryMatch {
   row: EntryRow;
-  /** Which list it came from, for the row's location column. */
   origin: 'route' | 'file' | 'test' | 'hub';
 }
 
 /**
- * Entry points that mention what was typed.
- *
- * The palette already searches the graph, and route nodes, files and symbols
- * all come back from that search — so what this adds is not the row but its
- * CONTEXT: a `/api/search` hit on `POST /v1/payroll/cycles/{cycleID}/run` is a
- * route node with no handler attached, and this one carries the handler, its
- * file and line, and a target that opens the code rather than the URL.
- *
- * Matching is a plain case-insensitive substring over the text the row draws.
- * Anything cleverer would rank differently from the search above it, and two
- * different rankings of the same words in one panel is how a palette stops
- * being predictable.
+ * Searches and ranks entry points matching a user search query.
  */
 export function matchEntries(
   entries: WireEntryPoints | null,
@@ -361,25 +398,33 @@ export function matchEntries(
   const needle = query.trim().toLowerCase();
   if (!entries || needle === '') return [];
 
-  const pools: Array<[EntryMatch['origin'], EntryRow[]]> = [
+  const candidatePools: Array<[EntryMatch['origin'], EntryRow[]]> = [
     ['route', entries.routes.routed ? entries.routes.items.items.map(routeRow) : []],
     ['file', entries.files.items.map(fileRow)],
     ['test', entries.tests.items.map(testRow)],
     ['hub', entries.hubs.items.map(hubRow)],
   ];
 
-  const matches: EntryMatch[] = [];
-  for (const [origin, rows] of pools) {
+  const results: EntryMatch[] = [];
+
+  for (const [origin, rows] of candidatePools) {
     for (const row of rows) {
-      if (matches.length >= limit) return matches;
-      const haystack = `${row.method ?? ''} ${row.name} ${row.meta} ${row.title}`.toLowerCase();
-      if (haystack.includes(needle)) matches.push({ row, origin });
+      if (results.length >= limit) {
+        return results;
+      }
+      const searchSpace = `${row.method ?? ''} ${row.name} ${row.meta} ${row.title}`.toLowerCase();
+      if (searchSpace.includes(needle)) {
+        results.push({ row, origin });
+      }
     }
   }
-  return matches;
+
+  return results;
 }
 
-/** The location column for a palette entry row — where it came from. */
+/**
+ * Returns human-readable origin label for palette search result attribution.
+ */
 export function originLabel(origin: EntryMatch['origin']): string {
   switch (origin) {
     case 'route':
@@ -393,16 +438,22 @@ export function originLabel(origin: EntryMatch['origin']): string {
   }
 }
 
-/* ------------------------------------------------------------------ flow -- */
+/* ----------------------------------------------------------- Flow Affordance - */
 
 /**
- * The href a flow between two named symbols opens at, or null when the pair is
- * not a question. Same name twice has no path to draw, and `/api/flow` refuses
- * it — better to disable the button than to navigate into a 400.
+ * Validates whether two symbol names form a valid distinct flow exploration pair.
  */
 export function flowPair(from: string, to: string): { from: string; to: string } | null {
-  const a = from.trim();
-  const b = to.trim();
-  if (!a || !b || a.toLowerCase() === b.toLowerCase()) return null;
-  return { from: a, to: b };
+  const source = from.trim();
+  const destination = to.trim();
+
+  if (!source || !destination) {
+    return null;
+  }
+
+  if (source.toLowerCase() === destination.toLowerCase()) {
+    return null;
+  }
+
+  return { from: source, to: destination };
 }

@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
+import './test_macos_installer_parity.mjs';
 import {
   getPackageVersion,
   getHelpText,
@@ -246,4 +247,40 @@ test('CLI executable rejects unsupported option for command with exit code 1', (
   const run = spawnSync(process.execPath, [CLI_BIN, 'doctor', '--preset', 'minimal'], { encoding: 'utf8' });
   assert.equal(run.status, 1);
   assert.match(run.stderr, /Option "--preset" is not supported for command "doctor"/);
+});
+
+test('POSIX Bash installer does not throw unbound variable for claude_vscode_detected under set -u', () => {
+  const bashPaths = [
+    'bash',
+    'C:\\Program Files\\Git\\bin\\bash.exe',
+    'C:\\Program Files\\Git\\usr\\bin\\bash.exe',
+  ];
+  let bashExe = null;
+  for (const candidate of bashPaths) {
+    const probe = spawnSync(candidate, ['-c', 'echo ok'], { encoding: 'utf8' });
+    if (!probe.error && probe.status === 0) {
+      bashExe = candidate;
+      break;
+    }
+  }
+
+  if (!bashExe) {
+    // Skip if bash is unavailable in this test environment
+    return;
+  }
+
+  const installSh = join(PACKAGE_ROOT, 'install.sh');
+  const run = spawnSync(
+    bashExe,
+    [installSh, '--dry-run', '--preset', 'recommended', '--provider', 'claude', '--validate-only'],
+    {
+      encoding: 'utf8',
+      cwd: PACKAGE_ROOT,
+      env: { ...process.env, CI: '1', NO_COLOR: '1' },
+    }
+  );
+
+  assert.equal(run.status, 0, `install.sh failed with status ${run.status}: ${run.stderr}`);
+  assert.doesNotMatch(run.stderr, /unbound variable/i);
+  assert.match(run.stdout, /Claude Code/);
 });

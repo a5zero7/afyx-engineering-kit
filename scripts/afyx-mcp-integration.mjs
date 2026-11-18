@@ -19,7 +19,8 @@ function argument(name, fallback = '') {
 }
 
 function normalized(value) {
-  return normalize(String(value || '')).toLowerCase();
+  const path = normalize(String(value || ''));
+  return process.platform === 'win32' ? path.toLowerCase() : path;
 }
 
 function inside(base, candidate) {
@@ -54,7 +55,10 @@ export function classifyEntry(existing, expected) {
   const expectedArgs = explicitArgs ? expected.args.map(String) : [expected.entry, 'serve', '--mcp'];
   const afyxShape = explicitArgs
     ? transport.type === 'stdio' && args.length === expectedArgs.length
-      && args.every((value, index) => normalized(value) === normalized(expectedArgs[index]))
+      && args.every((value, index) => typeof value === 'string'
+        && (isAbsolute(expectedArgs[index])
+          ? isAbsolute(value) && normalized(value) === normalized(expectedArgs[index])
+          : value === expectedArgs[index]))
     : transport.type === 'stdio' && args.length === 3
       && /(?:^|[\\/])(?:lib|engine)[\\/]dist[\\/]bin[\\/]afyx-graph\.js$/i.test(String(args[0]))
       && args[1] === 'serve' && args[2] === '--mcp';

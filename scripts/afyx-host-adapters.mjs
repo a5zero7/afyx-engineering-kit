@@ -18,6 +18,7 @@ import { existsSync, readFileSync, statSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
+import { loadExpertGuidance } from './afyx-expert-guidance.mjs';
 
 export const AFYX_HOST_ADAPTERS_CONTRACT = 'AfyxHostAdapters/v1';
 
@@ -547,35 +548,8 @@ export function createInstalledHostAdapters({
         return success(result, 'cross-disciplinary-expertise');
       }
 
-      const skillFile = join(expertSkillDir, 'SKILL.md');
-      if (!existsSync(skillFile)) {
-        return { status: 'FAILED', reason: 'EXPERT_SKILL_FILE_NOT_FOUND', output: null };
-      }
-
-      const skillContent = readFileSync(skillFile, 'utf8');
-      const followUpRequests = [];
-
-      // Expert can delegate framework questions to Odoo and record telemetry
-      if (request.task?.project?.isOdoo || request.intent?.toLowerCase().includes('odoo')) {
-        followUpRequests.push({
-          targetComponentId: 'odoo-engineering',
-          invocationReason: 'Request Odoo framework domain constraints',
-        });
-      }
-
-      return {
-        status: 'SUCCESS',
-        output: {
-          authority: 'cross-disciplinary-expertise',
-          expertGuidance: 'Multi-disciplinary systems architecture and workflow selection',
-        },
-        contextBytes: 256,
-        evidence: [
-          { kind: 'skill-manifest', path: skillFile },
-          { kind: 'skill-size-bytes', value: statSync(skillFile).size },
-        ],
-        followUpRequests,
-      };
+      return loadExpertGuidance({ skillRoot: expertSkillDir, request,
+        hostOptions: trustedCapabilities.expert });
     },
 
     /**

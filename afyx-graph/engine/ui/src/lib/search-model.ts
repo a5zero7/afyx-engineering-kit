@@ -1,9 +1,20 @@
 /**
- * AFYX Graph Engine - UI Search Palette Model & Keyboard Navigation
+ * AFYX Graph Native UI Search Palette Presentation Model & Navigation
  *
- * Implements search result categorization, flow query parsing, ranked item
- * interleaving, entry point synthesis, and circular keyboard selection for the
- * interactive palette view.
+ * Implements search result categorisation, flow query intent parsing, ranked result
+ * interleaving, entry-point candidate integration, and circular keyboard selection
+ * for the interactive command palette in the AFYX viewer.
+ *
+ * Architecture Highlights:
+ * - Pure DOM-independent view models decoupled from component rendering.
+ * - Natural flow intent extraction: translates relational syntax ("A -> B", "how does A reach B")
+ *   into structured flow exploration queries.
+ * - Deterministic kind grouping: clusters symbol search results by semantic node kind
+ *   preserving arrival ranking order.
+ * - Flat item projection: guarantees palette items array matches visual section draw order
+ *   for 1:1 parity with keyboard navigation.
+ *
+ * Part of AFYX Native UI System (AFYX-5, AFYX-157, AFYX-320).
  */
 
 import type {
@@ -15,47 +26,67 @@ import type {
 import { matchEntries, originLabel, type EntryRow } from './entry-model';
 import { basename, plural } from './symbol-model';
 
+// =============================================================================
+// Flow Query Intent Parsing
+// =============================================================================
+
+/** Parsed relational flow intent between two distinct symbols. */
 export interface FlowQuery {
   from: string;
   to: string;
 }
 
-const FLOW_QUERY_PATTERNS = [
+/** Regular expression patterns recognizing natural language or symbolic flow queries. */
+const FLOW_INTENT_PATTERNS = [
   /^\s*(?:how\s+(?:does|do|would|can)\s+)?([\w$.]+)\s+(?:reach|reaches|call|calls|hit|hits|get\s+to|end\s+up\s+(?:in|at))\s+([\w$.]+)\s*\??\s*$/i,
   /^\s*([\w$.]+)\s*(?:->|→|=>)\s*([\w$.]+)\s*\??\s*$/,
 ];
 
-function extractTerminalIdentifier(symbolPath: string): string {
-  const dotIndex = symbolPath.lastIndexOf('.');
-  return dotIndex < 0 ? symbolPath : symbolPath.slice(dotIndex + 1);
+/**
+ * Extracts the terminal identifier from a qualified path string.
+ */
+function extractTerminalName(qualifiedPath: string): string {
+  const dotIndex = qualifiedPath.lastIndexOf('.');
+  return dotIndex < 0 ? qualifiedPath : qualifiedPath.slice(dotIndex + 1);
 }
 
+/**
+ * Parses user input query to determine if it expresses a flow trajectory request.
+ */
 export function parseFlowQuery(query: string): FlowQuery | null {
-  for (const regex of FLOW_QUERY_PATTERNS) {
-    const matched = regex.exec(query);
-    if (matched) {
-      const startSym = extractTerminalIdentifier(matched[1] as string);
-      const endSym = extractTerminalIdentifier(matched[2] as string);
-      if (startSym && endSym && startSym !== endSym) {
-        return { from: startSym, to: endSym };
+  for (const pattern of FLOW_INTENT_PATTERNS) {
+    const match = pattern.exec(query);
+    if (match) {
+      const sourceSymbol = extractTerminalName(match[1] as string);
+      const targetSymbol = extractTerminalName(match[2] as string);
+
+      if (sourceSymbol && targetSymbol && sourceSymbol !== targetSymbol) {
+        return { from: sourceSymbol, to: targetSymbol };
       }
     }
   }
   return null;
 }
 
+// =============================================================================
+// Palette Item & Section Types
+// =============================================================================
+
+/** Unified item representation across symbol, route, flow, and entry categories. */
 export type PaletteItem =
   | { type: 'symbol'; id: string; node: WireNodeRef; name: string; meta: string; location: string }
   | { type: 'route'; id: string; url: string; handler: string; location: string; nodeId: string | null }
   | { type: 'flow'; id: string; from: string; to: string; name: string; meta: string; location: string }
   | { type: 'entry'; id: string; row: EntryRow; name: string; meta: string; location: string };
 
+/** Grouped section of items displayed under a category header. */
 export interface PaletteSection {
   title: string;
   note?: string;
   items: PaletteItem[];
 }
 
+/** Aggregate presentation model for the command palette. */
 export interface Palette {
   sections: PaletteSection[];
   items: PaletteItem[];
@@ -63,21 +94,34 @@ export interface Palette {
   empty: string | null;
 }
 
+// =============================================================================
+// Header Formatting & Location Helpers
+// =============================================================================
+
+/**
+ * Formats a pluralized section title for a given node kind.
+ */
 export function kindGroupTitle(kind: string, count: number): string {
-  const formattedKind = kind.replace(/_/g, ' ');
-  const pluralForm = formattedKind.endsWith('s') ? `${formattedKind}es` : `${formattedKind}s`;
-  const baseTitle = count === 1 ? formattedKind : pluralForm;
-  return baseTitle.charAt(0).toUpperCase() + baseTitle.slice(1);
+  const cleanKind = kind.replace(/_/g, ' ');
+  const pluralSuffix = cleanKind.endsWith('s') ? `${cleanKind}es` : `${cleanKind}s`;
+  const baseLabel = count === 1 ? cleanKind : pluralSuffix;
+  return baseLabel.charAt(0).toUpperCase() + baseLabel.slice(1);
 }
 
+/**
+ * Derives the location badge for a graph node reference.
+ */
 export function locationOf(node: WireNodeRef): string {
   if (node.kind !== 'file') {
     return `${basename(node.file)}:${node.line}`;
   }
-  const lastSlash = node.file.lastIndexOf('/');
-  return lastSlash < 0 ? 'project root' : node.file.slice(0, lastSlash);
+  const slashPos = node.file.lastIndexOf('/');
+  return slashPos < 0 ? 'project root' : node.file.slice(0, slashPos);
 }
 
+/**
+ * Creates a standard PaletteItem for a symbol node.
+ */
 function createSymbolItem(node: WireNodeRef, customMeta = ''): PaletteItem {
   return {
     type: 'symbol',
@@ -89,68 +133,89 @@ function createSymbolItem(node: WireNodeRef, customMeta = ''): PaletteItem {
   };
 }
 
+/**
+ * Formats a single-line truncated signature string for symbol previews.
+ */
 function formatTruncatedSignature(node: WireNodeRef): string {
   if (!node.signature) {
     return '';
   }
-  const cleanLine = node.signature.replace(/\s+/g, ' ').trim();
-  return cleanLine.length > 72 ? `${cleanLine.slice(0, 71)}…` : cleanLine;
+  const collapsed = node.signature.replace(/\s+/g, ' ').trim();
+  return collapsed.length > 72 ? `${collapsed.slice(0, 71)}…` : collapsed;
 }
 
+// =============================================================================
+// Search Results Organization
+// =============================================================================
+
+/**
+ * Interleaves two ranked search result lists preserving alternating priority.
+ */
 export function interleaveResults(
   left: readonly WireSearchResult[],
   right: readonly WireSearchResult[],
 ): WireSearchResult[] {
-  const interleaved: WireSearchResult[] = [];
-  const registeredIds = new Set<string>();
-  const maxLength = Math.max(left.length, right.length);
+  const combined: WireSearchResult[] = [];
+  const seenIds = new Set<string>();
+  const maxBound = Math.max(left.length, right.length);
 
-  for (let idx = 0; idx < maxLength; idx++) {
-    for (const sourceList of [left, right]) {
-      const candidate = sourceList[idx];
-      if (candidate && !registeredIds.has(candidate.id)) {
-        registeredIds.add(candidate.id);
-        interleaved.push(candidate);
+  for (let idx = 0; idx < maxBound; idx++) {
+    for (const source of [left, right]) {
+      const item = source[idx];
+      if (item && !seenIds.has(item.id)) {
+        seenIds.add(item.id);
+        combined.push(item);
       }
     }
   }
 
-  return interleaved;
+  return combined;
 }
 
+/**
+ * Groups search results by node kind preserving initial arrival order.
+ */
 export function groupByKind(results: readonly WireSearchResult[]): PaletteSection[] {
   const sectionList: PaletteSection[] = [];
-  const kindToSectionMap = new Map<string, PaletteSection>();
+  const sectionIndex = new Map<string, PaletteSection>();
 
   for (const item of results) {
-    let section = kindToSectionMap.get(item.kind);
+    let section = sectionIndex.get(item.kind);
     if (!section) {
       section = { title: '', items: [] };
-      kindToSectionMap.set(item.kind, section);
+      sectionIndex.set(item.kind, section);
       sectionList.push(section);
     }
     section.items.push(createSymbolItem(item));
   }
 
-  for (const [kindKey, sectionRef] of kindToSectionMap) {
-    sectionRef.title = kindGroupTitle(kindKey, sectionRef.items.length);
+  for (const [kindKey, secRef] of sectionIndex) {
+    secRef.title = kindGroupTitle(kindKey, secRef.items.length);
   }
 
   return sectionList;
 }
 
+// =============================================================================
+// Palette Builders
+// =============================================================================
+
+/**
+ * Assembles the full interactive search palette view model.
+ */
 export function buildSearchPalette(
   answers: readonly WireSearch[],
   flow: FlowQuery | null,
   entryOpts: { entries: WireEntryPoints | null; query: string; entryRows: number } | null = null,
 ): Palette {
-  const aggregatedResults =
+  const mergedResults =
     answers.length > 1
       ? interleaveResults(answers[0]?.results.items ?? [], answers[1]?.results.items ?? [])
       : answers[0]?.results.items ?? [];
 
-  const sections = groupByKind(aggregatedResults);
+  const sections = groupByKind(mergedResults);
 
+  // Prepend flow trajectory prompt when flow intent was detected
   if (flow) {
     sections.unshift({
       title: 'Flow',
@@ -169,11 +234,14 @@ export function buildSearchPalette(
     });
   }
 
+  // Append entry-point suggestions if requested and distinct from direct search hits
   if (entryOpts) {
-    const presentResultIds = new Set(aggregatedResults.map((r) => r.id));
-    const matchingEntries = matchEntries(entryOpts.entries, entryOpts.query, entryOpts.entryRows).filter(
-      (m) => !(m.row.target?.type === 'symbol' && presentResultIds.has(m.row.target.id)),
-    );
+    const existingResultIds = new Set(mergedResults.map((r) => r.id));
+    const matchingEntries = matchEntries(
+      entryOpts.entries,
+      entryOpts.query,
+      entryOpts.entryRows,
+    ).filter((m) => !(m.row.target?.type === 'symbol' && existingResultIds.has(m.row.target.id)));
 
     if (matchingEntries.length > 0) {
       sections.push({
@@ -191,7 +259,7 @@ export function buildSearchPalette(
     }
   }
 
-  const flattenedItems = sections.flatMap((section) => section.items);
+  const flattenedItems = sections.flatMap((sec) => sec.items);
   const narrativeHint = flow
     ? `Reading the path from ${flow.from} to ${flow.to}. Below it, what each name matches.`
     : null;
@@ -204,6 +272,9 @@ export function buildSearchPalette(
   };
 }
 
+/**
+ * Assembles an initial entry-points palette when the search box is focused without a query.
+ */
 export function buildEntryPalette(
   entries: WireEntryPoints | null,
   opts: { perSection?: number } = {},
@@ -213,18 +284,19 @@ export function buildEntryPalette(
   }
 
   const limitThreshold = opts.perSection ?? Number.POSITIVE_INFINITY;
-  const truncateList = <T>(collection: readonly T[]): T[] =>
-    Number.isFinite(limitThreshold) ? collection.slice(0, limitThreshold) : [...collection];
+  const truncate = <T>(list: readonly T[]): T[] =>
+    Number.isFinite(limitThreshold) ? list.slice(0, limitThreshold) : Array.from(list);
 
   const sections: PaletteSection[] = [];
 
+  // Routes section
   if (entries.routes.routed && entries.routes.items.items.length > 0) {
     sections.push({
       title: 'Routes',
       note: entries.routes.items.items.every((r) => !r.method)
         ? 'A screen of the app.'
         : 'A request from outside arrives here.',
-      items: truncateList(entries.routes.items.items).map((route) => ({
+      items: truncate(entries.routes.items.items).map((route) => ({
         type: 'route',
         id: `route:${route.routeId}`,
         url: route.url,
@@ -235,11 +307,12 @@ export function buildEntryPalette(
     });
   }
 
+  // Executable files with top-level calls
   if (entries.files.items.length > 0) {
     sections.push({
       title: 'Files that run something',
       note: 'Statements at the top level of the file — a CLI, a worker entry, a script.',
-      items: truncateList(entries.files.items).map((file) =>
+      items: truncate(entries.files.items).map((file) =>
         createSymbolItem(
           file,
           `${plural(file.calls, 'call')} at module level · reaches ${plural(file.reaches, 'file')}`,
@@ -248,27 +321,29 @@ export function buildEntryPalette(
     });
   }
 
+  // Tests
   if (entries.tests.items.length > 0) {
     sections.push({
       title: 'Tests',
       note: 'What already exercises this code, widest reach first.',
-      items: truncateList(entries.tests.items).map((test) =>
+      items: truncate(entries.tests.items).map((test) =>
         createSymbolItem(test, `exercises ${plural(test.reaches, 'file')}`),
       ),
     });
   }
 
+  // Central dependency hubs
   if (entries.hubs.items.length > 0) {
     sections.push({
       title: 'Most depended on',
       note: 'The symbols a change radiates furthest from.',
-      items: truncateList(entries.hubs.items).map((hub) =>
+      items: truncate(entries.hubs.items).map((hub) =>
         createSymbolItem(hub, `${plural(hub.dependents, 'dependent')}`),
       ),
     });
   }
 
-  const flattened = sections.flatMap((section) => section.items);
+  const flattened = sections.flatMap((sec) => sec.items);
 
   return {
     sections,
@@ -281,6 +356,13 @@ export function buildEntryPalette(
   };
 }
 
+// =============================================================================
+// Keyboard Navigation
+// =============================================================================
+
+/**
+ * Calculates deterministic circular index navigation for palette keyboard selection.
+ */
 export function moveSelection(index: number, delta: number, length: number): number {
   if (length === 0) {
     return 0;
