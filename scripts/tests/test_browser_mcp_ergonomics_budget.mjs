@@ -302,8 +302,9 @@ test('MB18.3: AfyxBrowserSession session expiry sets truthful TIMEOUT closure re
 
   const receipt = await session.close();
   assert.equal(receipt.closed, true);
-  assert.equal(receipt.budget.sessionTimeoutMs, 300000);
-  assert.equal(receipt.budget.closureReason, 'TIMEOUT');
-  assert.equal(receipt.budget.interruptionSource, 'AFYX_SESSION_TIMEOUT');
+  assert.equal(receipt.processExited, true);
+  assert.equal(session.budgetDiagnostics.sessionTimeoutMs, 300000);
+  assert.equal(session.budgetDiagnostics.closureReason, 'TIMEOUT');
+  assert.equal(session.budgetDiagnostics.interruptionSource, 'AFYX_SESSION_TIMEOUT');
 });
 

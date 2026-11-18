@@ -2391,7 +2391,7 @@
     {
       "path": "scripts/afyx-browser-devtools.mjs",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "13b800631825f3bbe3140115cd54a5dcaf469868529c1be81e02da8578f6972f",
+      "reviewedSha256": "d17c03df26a4141a2c934a2b44f77b76e534123d6442edb030cbdcb9a8617228",
       "evidence": "MB18.3 AFYX-190/AFYX-105: reviewed budget diagnostics tracking (startedAt, deadline, closureReason, interruptionSource), structured timeout error classification, and bounded session receipt."
     },
     {
@@ -2559,7 +2559,7 @@
     {
       "path": "scripts/afyx-optional-capabilities.mjs",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "d12ead0c4f3c4fbe7972e1df9fa3e131dc67cef99abde1fcc5322633ddc74b88",
+      "reviewedSha256": "c7b69dc7bb99ba05f9913375602cad83d0afef0ad32efc038004fe92c77820c5",
       "evidence": "MB18.3 AFYX-190/AFYX-105: reviewed rich discovery metadata with required/supported action signatures, safe example calls, single-tool guidance, and explicit required argument validation per action."
     },
     {

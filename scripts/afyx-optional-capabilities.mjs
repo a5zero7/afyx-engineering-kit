@@ -142,7 +142,21 @@ export function createOptionalCapabilityHost({ projectRoot = process.cwd(), brow
       throw new Error(`UNKNOWN_BROWSER_ACTION: '${args.action}'. Supported actions: ${BROWSER_ACTIONS.join(', ')}`);
     }
     if (args.action === 'close') {
-      if (session) { const receipt = await session.close(); session = undefined; return { status: 'CLOSED', ...receipt }; }
+      if (session) {
+        const diagnostics = session.budgetDiagnostics || {};
+        const receipt = await session.close();
+        session = undefined;
+        return {
+          status: 'CLOSED',
+          ...receipt,
+          budget: {
+            sessionTimeoutMs: browserPolicy.sessionTimeoutMs ?? 300000,
+            durationMs: diagnostics.startedAt ? (Date.now() - diagnostics.startedAt) : 0,
+            closureReason: diagnostics.closureReason || 'CLOSED',
+            interruptionSource: diagnostics.interruptionSource || 'HOST_REQUEST',
+          },
+        };
+      }
       return { status: 'CLOSED', started: false, budget: { sessionTimeoutMs: browserPolicy.sessionTimeoutMs ?? 300000, closureReason: 'NOT_STARTED' } };
     }
     if (args.action === 'navigate' && (typeof args.url !== 'string' || !args.url)) {

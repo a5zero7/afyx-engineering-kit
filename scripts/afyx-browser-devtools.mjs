@@ -554,17 +554,7 @@ export class AfyxBrowserSession {
       rmSync(owned, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 }); this.userDataDir = null;
     }
     this.pages.clear(); this.selectedPage = null;
-    return {
-      closed: true, processExited: true, profileRemoved: this.userDataDir === null,
-      budget: {
-        sessionTimeoutMs: this.policy.sessionTimeoutMs,
-        durationMs: this.budgetDiagnostics.startedAt ? (Date.now() - this.budgetDiagnostics.startedAt) : 0,
-        closureReason: this.budgetDiagnostics.closureReason,
-        interruptionSource: this.budgetDiagnostics.interruptionSource,
-        commandCount: this.commandCount,
-        maxCommands: this.policy.maxCommands,
-      },
-    };
+    return { closed: true, processExited: true, profileRemoved: this.userDataDir === null };
   }
   async close() { return this._close(); }
 }
