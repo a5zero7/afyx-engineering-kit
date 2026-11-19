@@ -13,6 +13,7 @@
         "-File",
         "${env:USERPROFILE}\\.codex\\tools\\codex-usage-watch.ps1"
       ],
+      "options": { "cwd": "${userHome}" },
       "isBackground": true,
       "problemMatcher": [],
       "presentation": {

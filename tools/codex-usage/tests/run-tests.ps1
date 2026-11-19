@@ -109,15 +109,17 @@ function Start-TestWatcher {
 }
 
 function Invoke-TestScript {
-    param([string]$Path, [string[]]$Arguments = @(), [string]$StandardInput, [hashtable]$Environment = @{})
+    param([string]$Path, [string[]]$Arguments = @(), [string]$StandardInput, [hashtable]$Environment = @{}, [string]$WorkingDirectory)
 
     $psi = [Diagnostics.ProcessStartInfo]::new()
     $psi.FileName = (Get-Command pwsh).Source
+    if ($WorkingDirectory) { $psi.WorkingDirectory = $WorkingDirectory }
     $psi.UseShellExecute = $false
     $psi.CreateNoWindow = $true
     $psi.RedirectStandardOutput = $true
     $psi.RedirectStandardError = $true
     $psi.RedirectStandardInput = $true
+    $psi.StandardInputEncoding = [Text.UTF8Encoding]::new($false)
     foreach ($name in $Environment.Keys) { $psi.Environment[[string]$name] = [string]$Environment[$name] }
     foreach ($argument in @('-NoLogo', '-NoProfile', '-File', $Path) + $Arguments) { [void]$psi.ArgumentList.Add($argument) }
     $process = [Diagnostics.Process]::new()
@@ -242,7 +244,7 @@ try {
 $integrationRoot = Join-Path ([IO.Path]::GetTempPath()) ('codex-usage-integration-' + [guid]::NewGuid().ToString('N'))
 [IO.Directory]::CreateDirectory($integrationRoot) | Out-Null
 try {
-    $codexHome = Join-Path $integrationRoot '.codex'
+    $codexHome = Join-Path $integrationRoot 'Profil Codex é'
     $sessionIdA = '01a00000-0000-7000-8000-000000000001'
     $sessionIdB = '01a00000-0000-7000-8000-000000000002'
     $integrationSessions = Join-Path $codexHome 'sessions'
@@ -357,11 +359,46 @@ try {
     } | ConvertTo-Json -Depth 20
     [IO.File]::WriteAllText($hooksPath, $existingHooks, [Text.UTF8Encoding]::new($false))
 
+    $foreignTask = @{ label = 'Foreign task'; type = 'process'; command = 'foreign-program' }
+    [IO.Directory]::CreateDirectory((Split-Path -Parent $tasksPath)) | Out-Null
+    @{ version = '2.0.0'; tasks = @($foreignTask) } | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $tasksPath
+
     $installArguments = @('-CodexHome', $codexHome, '-HooksPath', $hooksPath, '-VSCodeUserTasksPath', $tasksPath, '-Confirm:$false')
     $install1 = Invoke-TestScript $trackerInstallerPath $installArguments $null
     Assert-Equal $install1.ExitCode 0 "Tracker installer first run; stderr: $($install1.Error)"
+    $firstTaskBytes = Get-FileHash -LiteralPath $tasksPath
     $install2 = Invoke-TestScript $trackerInstallerPath $installArguments $null
     Assert-Equal $install2.ExitCode 0 "Tracker installer repeat run; stderr: $($install2.Error)"
+    $tasks = (Get-Content -Raw -LiteralPath $tasksPath | ConvertFrom-Json -Depth 50).tasks
+    $usageTask = @($tasks | Where-Object label -eq 'Codex: Watch Token Usage')
+    Assert-Equal $usageTask.Count 1 'Idempotensi task watcher'
+    Assert-Equal (Get-FileHash -LiteralPath $tasksPath).Hash $firstTaskBytes.Hash 'Byte task stabil setelah instalasi ulang'
+    Assert-Equal @($tasks | Where-Object label -eq 'Foreign task').Count 1 'Task milik pengguna tetap tersedia'
+    Assert-Equal $usageTask[0].options.cwd ([IO.Path]::GetFullPath($codexHome)) 'Direktori kerja task mengikuti profil instalasi'
+    Assert-Equal $usageTask[0].args[-1] ([IO.Path]::GetFullPath($codexHome)) 'Watcher memakai profil instalasi yang eksplisit'
+    if (-not (Test-Path -LiteralPath $usageTask[0].command -PathType Leaf)) { throw 'Executable PowerShell task tidak tersedia.' }
+    Assert-Equal $usageTask[0].args[-3] (Join-Path $codexHome 'tools/codex-usage-watch.ps1') 'Task memakai skrip watcher yang terpasang'
+    if ($IsWindows) {
+        $launchArgs = @('-CodexHome', $codexHome, '-RetryCount', '0')
+        $started = Invoke-TestScript $stopHookPath $launchArgs $eventA -WorkingDirectory $usageTask[0].options.cwd
+        Assert-Equal $started.ExitCode 0 'Hook berjalan dengan direktori valid dan jalur profil Unicode'
+        $startedResult = $started.Output | ConvertFrom-Json -ErrorAction Stop
+        Assert-Equal $startedResult.continue $true 'Hook tidak memblokir pekerjaan agent'
+        if (-not $startedResult.systemMessage) { throw 'Hook valid tidak menghasilkan ringkasan.' }
+        $nativeCode = $null
+        try {
+            [void](Invoke-TestScript $stopHookPath $launchArgs $eventA -WorkingDirectory (Join-Path $integrationRoot 'workspace-dihapus'))
+        } catch {
+            $baseException = $_.Exception.GetBaseException()
+            if ($baseException -isnot [ComponentModel.Win32Exception]) { throw }
+            $nativeCode = $baseException.NativeErrorCode
+        }
+        Assert-Equal $nativeCode 267 'Direktori hilang ditolak sebelum PowerShell memulai hook'
+    }
+    $originalTasks = @(Get-ChildItem -LiteralPath (Split-Path -Parent $tasksPath) -File -Filter 'tasks.json.bak-*')
+    Assert-Equal $originalTasks.Count 1 'Satu cadangan task dibuat'
+    Assert-Equal @((Get-Content -Raw -LiteralPath $originalTasks[0].FullName | ConvertFrom-Json).tasks).Count 1 'Cadangan memuat task asli saja'
+
     $mergedHooks = Get-Content -Raw -LiteralPath $hooksPath | ConvertFrom-Json -Depth 50
     Assert-Equal @($mergedHooks.hooks.PreToolUse).Count 1 'Custom PreToolUse preservation'
     Assert-Equal @($mergedHooks.hooks.Stop | ForEach-Object { $_.hooks } | Where-Object { $_.command -eq 'custom-stop' }).Count 1 'Custom Stop preservation'
@@ -399,6 +436,9 @@ try {
 
     $uninstall = Invoke-TestScript $trackerInstallerPath ($installArguments + '-Uninstall') $null
     Assert-Equal $uninstall.ExitCode 0 "Tracker uninstall; stderr: $($uninstall.Error)"
+    $tasksAfterUninstall = (Get-Content -Raw -LiteralPath $tasksPath | ConvertFrom-Json).tasks
+    Assert-Equal @($tasksAfterUninstall | Where-Object label -eq 'Foreign task').Count 1 'Task asing dipertahankan saat uninstall'
+    Assert-Equal @($tasksAfterUninstall | Where-Object label -eq 'Codex: Watch Token Usage').Count 0 'Task AFYX dihapus saat uninstall'
     $afterUninstall = Get-Content -Raw -LiteralPath $hooksPath | ConvertFrom-Json -Depth 50
     Assert-Equal @($afterUninstall.hooks.PreToolUse).Count 1 'Uninstall custom PreToolUse preservation'
     Assert-Equal @($afterUninstall.hooks.Stop | ForEach-Object { $_.hooks } | Where-Object { $_.command -eq 'custom-stop' }).Count 1 'Uninstall custom Stop preservation'
