@@ -73,7 +73,7 @@
     {
       "path": "afyx-graph/engine/src/bin/cli-path.ts",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "9502d0c8ef3d4bccc75cac2b1034b095e32141966ff759e15b095c6ea435d72d",
+      "reviewedSha256": "26c61cd5d7c19ccefafc17005887268dcaa4559586180c99a8a66379929162ff",
       "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
     },
     {
