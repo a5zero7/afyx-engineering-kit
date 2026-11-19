@@ -12,6 +12,7 @@
  */
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import { createHash } from 'node:crypto';
 import os from 'node:os';
 import path from 'node:path';
 import { spawn, spawnSync } from 'node:child_process';
@@ -31,8 +32,11 @@ const env = {
   NO_COLOR: '1',
 };
 
+delete env.AFYX_GRAPH_STATE_DIR;
+
 const project = fs.mkdtempSync(path.join(os.tmpdir(), 'afyx-graph-smoke-'));
 fs.mkdirSync(path.join(project, 'src'), { recursive: true });
+fs.writeFileSync(path.join(project, 'src', 'parent.py'), 'class ParentSmoke:\n    _inherit = "afyx.smoke"\n');
 fs.writeFileSync(path.join(project, 'src', 'parser.ts'), 'export function parseToken(raw: string) { return raw.trim(); }\n');
 fs.writeFileSync(
   path.join(project, 'src', 'service.ts'),
@@ -138,6 +142,36 @@ try {
   ok('impact');
   assert.match(cli(['files', '--path', project]), /service\.ts/);
   ok('files');
+
+  const parentInventory = ['inventory', '_inherit', 'afyx.smoke', '--path'];
+  const subdir = path.join(project, 'src');
+  assert.match(cli([...parentInventory, subdir]), /ParentSmoke/);
+  ok('explicit subdirectory can use its own repository index');
+
+  const independent = path.join(project, 'independent');
+  const linked = path.join(project, 'linked');
+  const git = (cwd, args) => {
+    const run = spawnSync('git', args, { cwd, env: gitEnv, encoding: 'utf8' });
+    assert.equal(run.status, 0, run.stderr);
+  };
+  fs.mkdirSync(independent);
+  git(independent, ['init', '-q']);
+  git(project, ['worktree', 'add', '-q', '--detach', linked, 'HEAD']);
+  const digest = (file) => createHash('sha256').update(fs.readFileSync(file)).digest('hex');
+  const database = path.join(stateDir, 'afyx-graph.db');
+  const beforeDenied = digest(database);
+  for (const target of [independent, linked]) {
+    const run = spawnSync(process.execPath, [bin, ...parentInventory, target], {
+      cwd: project, env, encoding: 'utf8', timeout: 20_000,
+    });
+    assert.equal(run.status, 1, 'must reject scope ' + target + ': ' + run.stdout + run.stderr);
+    assert.match(run.stderr, /not initialized/);
+    assert.doesNotMatch(run.stdout, /ParentSmoke/);
+    assert.ok(!fs.existsSync(path.join(target, '.afyx-graph')), 'created an index for ' + target);
+  }
+  assert.equal(digest(database), beforeDenied, 'a rejected command changed the ancestor database');
+  git(project, ['worktree', 'remove', linked]);
+  ok('explicit unindexed nested repository and linked worktree do not open ancestor index');
 
   console.log('MCP');
   const initializeParams = {
