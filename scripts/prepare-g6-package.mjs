@@ -25,6 +25,7 @@ import { verifyReleaseReady } from '../afyx-graph/engine/scripts/release-readine
 import { createDeterministicArchive } from '../afyx-graph/engine/scripts/deterministic-archive.mjs';
 import { stampArtifact } from './afyx-graph-artifact.mjs';
 import { resolveAndStageGitReleaseArtifacts } from './resolve-git-release-artifacts.mjs';
+import { graphArchiveIdentity, verifyGraphArchivePaths } from './verify-graph-archive.mjs';
 
 import { GRAPH_PACKAGE_TARGETS, graphArchiveName, graphManifestTargets } from './afyx-graph-targets.mjs';
 
@@ -206,10 +207,13 @@ function verifyGraphReleaseInputs(root, revision) {
     if (!sumEntry) {
       throw new Error(`Missing SHA256SUMS entry: ${artifact.file}`);
     }
-    const digest = createHash('sha256').update(readFileSync(join(release, artifact.file))).digest('hex');
+    const bytes = readFileSync(join(release, artifact.file));
+    const digest = createHash('sha256').update(bytes).digest('hex');
     if (digest !== artifact.sha256 || digest !== sumEntry) {
       throw new Error(`SHA256SUMS mismatch: ${artifact.file}`);
     }
+    const identity = graphArchiveIdentity(manifest, artifact);
+    if (identity) verifyGraphArchivePaths(bytes, artifact.file, identity);
   }
 }
 
