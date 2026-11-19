@@ -137,6 +137,34 @@ pwsh -NoProfile -File "$env:USERPROFILE\.codex\tools\codex-usage-watch.ps1" `
 
 `-NoSnapshot` makes replay read-only. Omit it during normal watcher use when `codex-usage-latest.json` should be updated.
 
+## Pemulihan Stop hook dan tampilan VS Code di Windows
+
+Jalankan doctor dari direktori yang masih ada. Jika VS Code menampilkan
+`The directory name is invalid. (os error 267)` pada Stop hook, periksa bahwa
+folder sesi masih tersedia. Buka folder yang valid dan mulai sesi Codex baru
+setelah relokasi, penghapusan, atau perubahan nama workspace. Pada Codex CLI
+dengan kontrak launch yang sama, mulai sesi baru dari direktori yang valid.
+Codex 0.167.0 memasang direktori sesi pada proses hook sebelum menjalankan shell.
+Jika Windows menolak tahap tersebut, skrip PowerShell belum mulai dan tidak
+dapat mengganti direktori dari dalam hook.
+
+Task **Codex: Watch Token Usage** yang dibuat installer menunjuk executable
+PowerShell 7, watcher terpasang, dan profil Codex yang dipilih saat instalasi.
+Direktori task mengikuti profil tersebut. Task dibuka manual di terminal VS Code
+dan menampilkan ringkasan ketika metadata turn selesai ditulis. Gunakan
+`-ReplayLatestCompletedTurns 1 -NoSnapshot` untuk membaca hasil turn yang sudah
+selesai tanpa menjalankan model atau mengubah snapshot. Hentikan task lewat
+**Tasks: Terminate Task** ketika tidak lagi dibutuhkan.
+
+Periksa indikator secara berurutan. Dokter memeriksa registrasi, korelasi turn,
+observasi token, pembuatan ringkasan, dan replay. Kartu hook menunjukkan status
+eksekusi. Visibilitas `systemMessage` perlu diperiksa pada klien yang dipakai.
+Jika kartu muncul tanpa ringkasan, gunakan task watcher atau replay di terminal.
+Konfigurasi hook yang berubah tetap memerlukan review trust melalui `/hooks`.
+
+Harga dengan label **API-equivalent** menggunakan tabel lokal, bukan tagihan
+langganan. Model dengan harga yang belum diketahui ditampilkan sebagai `N/A`.
+
 ## Doctor and optional diagnostics
 
 Run the read-only doctor first:

@@ -113,6 +113,11 @@ function Update-VSCodeTaskDocument {
     } else {
         $template = Get-Content -Raw -LiteralPath (Join-Path $sourceRoot 'vscode-user-task.json') | ConvertFrom-Json -Depth 20
         $newTask = $template.tasks[0]
+    $installedHome = [IO.Path]::GetFullPath($CodexHome)
+    $newTask.command = Join-Path $PSHOME $(if ($IsWindows) { 'pwsh.exe' } else { 'pwsh' })
+    $newTask.options.cwd = $installedHome
+    $newTask.args[-1] = Join-Path $installedHome 'tools/codex-usage-watch.ps1'
+    $newTask.args = @($newTask.args) + @('-CodexHome', $installedHome)
         if ($null -eq $document) { $document = $template }
         else {
             if (-not $document.PSObject.Properties['tasks']) { $document | Add-Member -NotePropertyName tasks -NotePropertyValue @() }
