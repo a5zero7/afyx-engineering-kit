@@ -64,6 +64,8 @@ function Write-HookResult {
 try {
     Write-DebugStage -Stage 'HOOK_OBSERVED'
     # last_assistant_message is intentionally never accessed, copied, logged, or hashed.
+    # Codex mengirim payload JSON dalam UTF-8, termasuk saat code page Windows berbeda.
+    [Console]::InputEncoding = [Text.UTF8Encoding]::new($false)
     $rawEvent = [Console]::In.ReadToEnd()
     if ([string]::IsNullOrWhiteSpace($rawEvent)) {
         Write-DebugStage -Stage 'PAYLOAD_INVALID' -Message 'empty hook payload'

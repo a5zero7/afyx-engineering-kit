@@ -119,6 +119,7 @@ function Invoke-TestScript {
     $psi.RedirectStandardOutput = $true
     $psi.RedirectStandardError = $true
     $psi.RedirectStandardInput = $true
+    $psi.StandardInputEncoding = [Text.UTF8Encoding]::new($false)
     foreach ($name in $Environment.Keys) { $psi.Environment[[string]$name] = [string]$Environment[$name] }
     foreach ($argument in @('-NoLogo', '-NoProfile', '-File', $Path) + $Arguments) { [void]$psi.ArgumentList.Add($argument) }
     $process = [Diagnostics.Process]::new()
