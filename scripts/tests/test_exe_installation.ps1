@@ -108,6 +108,13 @@ my_custom_env = "production"
     $extractedPayload = Join-Path $disposable 'embedded-payload-check'
     & $exePath --extract $extractedPayload
     if ($LASTEXITCODE -ne 0) { throw "Embedded payload extraction failed with exit code $LASTEXITCODE" }
+    $sourceLicense = Join-Path $repoRoot 'LICENSE'
+    $payloadLicense = Join-Path $extractedPayload 'LICENSE'
+    if (-not (Test-Path -LiteralPath $payloadLicense -PathType Leaf) -or
+        (Get-FileHash -LiteralPath $payloadLicense -Algorithm SHA256).Hash -ne
+        (Get-FileHash -LiteralPath $sourceLicense -Algorithm SHA256).Hash) {
+        throw "Embedded kit LICENSE is missing or differs from the repository LICENSE."
+    }
     foreach ($skill in @('efficient-coding', 'odoo-engineering', 'afyx-engineering-expert', 'afyx-forge', 'afyx-context')) {
         $sourceSkill = Join-Path $repoRoot "skills\\$skill\\SKILL.md"
         if (-not (Test-Path -LiteralPath $sourceSkill -PathType Leaf)) { continue }

@@ -75,6 +75,7 @@ if (!pkg?.filename || !Array.isArray(pkg.files)) throw new Error('npm pack did n
 const fileNames = new Set(pkg.files.map((file) => file.path));
 for (const required of ['.afyx-source-revision', 'bin/afyx-engineering-kit.mjs',
   `${release.replaceAll('\\', '/')}/RELEASE-MANIFEST.json`,
+  `${release.replaceAll('\\', '/')}/SHA256SUMS`,
   `${release.replaceAll('\\', '/')}/afyx-graph-win32-x64.zip`,
   ...GRAPH_PACKAGE_TARGETS.filter((target) => target.startsWith('darwin')).map((target) => `${release.replaceAll('\\', '/')}/${graphArchiveName(target)}`),
   `${release.replaceAll('\\', '/')}/afyx-graph-linux-x64.tar.gz`]) {

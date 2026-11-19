@@ -22,7 +22,7 @@ import {
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { tmpdir } from 'node:os';
-import { verifyGraphArchivePaths } from './verify-graph-archive.mjs';
+import { graphArchiveIdentity, verifyGraphArchivePaths } from './verify-graph-archive.mjs';
 import { graphManifestTargets, graphArchiveName } from './afyx-graph-targets.mjs';
 
 const CANONICAL_REPO = 'a5zero7/afyx-engineering-kit';
@@ -261,7 +261,6 @@ export async function resolveAndStageGitReleaseArtifacts(root, revision, options
     for (const archiveName of archivesToDownload) {
       const archiveUrl = `${downloadBase}/${resolvedTag}/${archiveName}`;
       const archiveBuf = await fetchArtifact(archiveUrl, { timeoutMs: 60000 });
-      verifyGraphArchivePaths(archiveBuf, archiveName);
 
       // Verify SHA256 against SHA256SUMS and manifest
       const computedSha = createHash('sha256').update(archiveBuf).digest('hex').toLowerCase();
@@ -282,6 +281,7 @@ export async function resolveAndStageGitReleaseArtifacts(root, revision, options
         throw new Error(`SHA256SUMS mismatch: ${archiveName}`);
       }
 
+      verifyGraphArchivePaths(archiveBuf, archiveName, graphArchiveIdentity(manifestObj, manifestEntry));
       writeFileSync(join(tempStage, archiveName), archiveBuf);
     }
 

@@ -2535,19 +2535,19 @@
     {
       "path": "scripts/prepare-g6-package.mjs",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "336e924b59324194aab7766c88e968f7c671ea9c9d126080b61905e861ae8839",
+      "reviewedSha256": "38a1dfdfc5035cf44f307dd1d51e7e0bab815d9c19d35440c896c6d682fd5cdf",
       "evidence": "MB12 native-source review retained. MB14 AFYX-331 technical delta review: existing AFYX checksum validation extracted into a shared read-only verifier; no upstream source or dependency imported. Six negative checksum regressions and unchanged-marker assertions pass; evidence AFYX-MB14-20261116. Hash integrity is not legal clearance; AFYX-320/167 remain separate gates."
     },
     {
       "path": "scripts/resolve-git-release-artifacts.mjs",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "7ec82968b38acbdf47db7355ba83f25cc66757cc0b9175329ffb6055042ae0c7",
+      "reviewedSha256": "fde1df2756ebe53d6f4c00a21d89b04291a2893d2563eb49fffeeb8c137a8955",
       "evidence": "MB12 review: authored from AFYX functional requirements and existing reviewed 251f73a contracts; no upstream implementation, prompts, assets or dependency imported. Trusted-host boundaries and negative/regression tests recorded in MB12-native-consolidation-20261114-r1."
     },
     {
       "path": "scripts/stage-npm-release.mjs",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "eb011dc68a4ab355bddc050d84d27103ee84d51918663dd246364b4561e61b46",
+      "reviewedSha256": "ccb4102368e1463460036c9cd24906de662c1357776ff4192b1f59b999047cfd",
       "evidence": "MB12 review: authored from AFYX functional requirements and existing reviewed 251f73a contracts; no upstream implementation, prompts, assets or dependency imported. Trusted-host boundaries and negative/regression tests recorded in MB12-native-consolidation-20261114-r1."
     },
     {

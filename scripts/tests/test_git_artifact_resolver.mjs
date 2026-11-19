@@ -1,7 +1,11 @@
+import { artifactPlan, DISTRIBUTION_PRODUCT } from '../../afyx-graph/engine/scripts/distribution-contract.mjs';
+import { createDeterministicArchive } from '../../afyx-graph/engine/scripts/deterministic-archive.mjs';
+import { checkGraphReleaseValid } from '../prepare-g6-package.mjs';
+import { GRAPH_PACKAGE_TARGETS, graphArchiveName } from '../afyx-graph-targets.mjs';
 import test, { describe } from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync, mkdirSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { gzipSync } from 'node:zlib';
 import {
@@ -167,3 +171,71 @@ test('archive inspection rejects traversal, truncation, and symlink-style entrie
   assert.throws(() => verifyGraphArchivePaths(tinyTar('/absolute'), linuxName), /Unsafe/);
   assert.throws(() => verifyGraphArchivePaths(Buffer.from('bad'), winName), /central directory/);
 });
+
+for (const [name, override, invalidManifest] of [
+  ['identitas internal konsisten', {}, {}],
+  ['revisi internal berbeda', { source_revision: '0'.repeat(40) }, {}],
+  ['target internal berbeda', { artifact_target: 'linux-x64' }, {}],
+  ['versi internal berbeda', { product_version: '9.1.0' }, {}],
+  ['identitas build berbeda', { build_identity: 'unrelated' }, {}],
+  ['metadata hilang', null, {}],
+  ['CLI arsip hilang', {}, {}],
+  ['kanal internal berbeda', { release_channel: 'stable' }, {}],
+  ['produk manifest berbeda', {}, { product: 'Other Graph' }],
+  ['skema tidak didukung', {}, { schema: 3 }],
+]) {
+  test('provenance schema 2: ' + name, async () => {
+    const root = mkdtempSync(join(tmpdir(), 'afyx-schema2-provenance-'));
+    try {
+      const engine = join(root, 'afyx-graph/engine');
+      const release = join(engine, 'release');
+      mkdirSync(release, { recursive: true });
+      writeFileSync(join(engine, 'package.json'), JSON.stringify({ version: '1.0.0' }));
+      const archives = {};
+      const artifacts = GRAPH_PACKAGE_TARGETS.map((target, index) => {
+        const file = graphArchiveName(target);
+        const bundle = join(root, 'afyx-graph-' + target);
+        mkdirSync(bundle);
+        const plan = artifactPlan(target);
+        const entries = [plan.launcherPath, 'lib/package.json', 'lib/dist/viewer/index.html',
+          ...DISTRIBUTION_PRODUCT.engineSentinels.map((file) => 'lib/dist/' + file),
+          ...plan.legalFiles.map(({ bundlePath }) => bundlePath)];
+        for (const file of entries) {
+          if (index === 0 && name === 'CLI arsip hilang' && file === plan.launcherPath) continue;
+          const path = join(bundle, file);
+          mkdirSync(dirname(path), { recursive: true });
+          writeFileSync(path, 'Fixture');
+        }
+        const metadata = {
+          product_name: 'Afyx Graph', product_version: '1.0.0', package: '@a5zero7/afyx-graph',
+          cli: 'afyx-graph', release_channel: 'technical-alpha', artifact_identity_schema: 1, artifact_target: target,
+          source_revision: revision, build_identity: 'git:' + revision,
+        };
+        if (index !== 0 || override !== null) {
+          writeFileSync(join(bundle, 'metadata.json'), JSON.stringify({ ...metadata, ...(index === 0 ? override : {}) }));
+        }
+        const output = join(release, file);
+        createDeterministicArchive({ source: bundle, target, output });
+        const bytes = readFileSync(output);
+        archives[file] = bytes;
+        return { file, target, sha256: digest(bytes) };
+      });
+      const manifest = { schema: 2, product: 'Afyx Graph', product_version: '1.0.0',
+        source_revision: revision, artifacts, ...invalidManifest };
+      const sums = artifacts.map(({ sha256, file }) => sha256 + '  ' + file).join('\n');
+      writeFileSync(join(release, 'RELEASE-MANIFEST.json'), JSON.stringify(manifest));
+      writeFileSync(join(release, 'SHA256SUMS'), sums);
+      const good = name === 'identitas internal konsisten';
+      const destination = join(root, 'download');
+      const remote = resolveAndStageGitReleaseArtifacts(destination, revision, {
+        fetchBuffer: fixture({ archives, manifest, sums }).fetchBuffer,
+      });
+      if (good) assert.equal((await remote).success, true);
+      else {
+        await assert.rejects(remote, /Graph archive identity|Graph release manifest|Unsupported Graph release schema/);
+        assert.throws(() => readFileSync(join(destination, 'afyx-graph/engine/release', winName)), /ENOENT/);
+      }
+      assert.equal(checkGraphReleaseValid(root, revision), good);
+    } finally { rmSync(root, { recursive: true, force: true }); }
+  });
+}
