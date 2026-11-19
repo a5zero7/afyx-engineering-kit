@@ -64,8 +64,8 @@ try {
     Write-Host "[1/4] Preparing Clean 7-Component Distribution Staging..." -ForegroundColor Yellow
     New-Item -ItemType Directory -Path $stagingDir -Force | Out-Null
 
-    # Root scripts
-    foreach ($file in @('install.ps1', 'verify.ps1', 'update.ps1', 'uninstall.ps1')) {
+    # Root scripts and their distribution license.
+    foreach ($file in @('install.ps1', 'verify.ps1', 'update.ps1', 'uninstall.ps1', 'LICENSE')) {
         Copy-Item -LiteralPath (Join-Path $repoRoot $file) -Destination (Join-Path $stagingDir $file) -Force
     }
     $currentRevision = ((& git -C $repoRoot rev-parse HEAD 2>$null) -join '').Trim()
