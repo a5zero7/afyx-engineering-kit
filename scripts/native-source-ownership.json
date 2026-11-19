@@ -2,7 +2,7 @@
   "schema": 1,
   "baselineRevision": "c4e4d8e29de239a2fcbc0db8ac65eea2276e7b00",
   "scope": "AFYX-320 comprehensive production source inventory",
-  "totalProductionFiles": 430,
+  "totalProductionFiles": 433,
   "entries": [
     {
       "path": "afyx-context/src/budget.js",
@@ -417,6 +417,12 @@
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
       "reviewedSha256": "54a6bf1b5ab8164f444a3ed01cc77397e041e5fb5e667988fed3a9668faef489",
       "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/extraction/angular-extractor.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "075b305a3436bcac2d33d205908fe9778e81c4c924c1c74805549fc86e990572",
+      "evidence": "V1-CAPABILITY-CLOSURE-C01 (AFYX-223): Native deterministic Angular semantic extractor covering @Component, @NgModule, @Injectable, @Directive, @Pipe, @Input/@Output, DI, and routing without third-party parsers."
     },
     {
       "path": "afyx-graph/engine/src/extraction/astro-extractor.ts",
@@ -1392,10 +1398,22 @@
       "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
     },
     {
+      "path": "afyx-graph/engine/src/resolution/cross-repo.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "d74e2d22ef2129e15473fdae80bb2ed44af4bfc5cb78e747d629ae7c20fb1018",
+      "evidence": "V1-CAPABILITY-CLOSURE-C01 (AFYX-193/103): Native deterministic cross-repository dependency graph synthesis with workspace isolation and cycle-bounded traversal."
+    },
+    {
       "path": "afyx-graph/engine/src/resolution/expo-router-synthesizer.ts",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
       "reviewedSha256": "92ec7b4862e7754f6567c8c1d6ee80e034ffa0c35db908b72d8583f40cc48f50",
       "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/resolution/frameworks/angular.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "01f091fa44bb21ba8b66670c6e7726a610225e2c38b707f2d035dd85c021fa00",
+      "evidence": "V1-CAPABILITY-CLOSURE-C01 (AFYX-223): Native Angular framework resolver connecting AngularExtractor to FrameworkResolver registry."
     },
     {
       "path": "afyx-graph/engine/src/resolution/frameworks/astro.ts",
@@ -1466,8 +1484,8 @@
     {
       "path": "afyx-graph/engine/src/resolution/frameworks/index.ts",
       "classification": "PUBLIC_API_BARREL",
-      "reviewedSha256": "ce8c1cf2a75a21e4ff0f39be3cd99ffb2045e4f17a6926a63d8fa655456c6e46",
-      "evidence": "AFYX public module barrel export surface; exposes stable interface without independent algorithmic logic."
+      "reviewedSha256": "6d353a98517f351fc08d9a3e50236b19bf7c7a482b105c632b759aba06d136f7",
+      "evidence": "V1-CAPABILITY-CLOSURE-C01 (AFYX-223): Registered native angularResolver in framework resolver registry."
     },
     {
       "path": "afyx-graph/engine/src/resolution/frameworks/java.ts",
@@ -2401,6 +2419,36 @@
       "evidence": "MB12 review: authored from AFYX functional requirements and existing reviewed 251f73a contracts; no upstream implementation, prompts, assets or dependency imported. Trusted-host boundaries and negative/regression tests recorded in MB12-native-consolidation-20261114-r1."
     },
     {
+      "path": "scripts/afyx-document-archive.mjs",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "3be2fc099fb6fc5b52b96c71b985c1a3a2efbedf5c237d0d95d799cc5e5a3c7a",
+      "evidence": "MB18 AFYX-347: original bounded ZIP admission validates central/local identity, sizes, CRC, paths, collisions and unsafe members; built-in Node zlib is a runtime prerequisite, no archive dependency/source vendored."
+    },
+    {
+      "path": "scripts/afyx-document-formats.mjs",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "bb119f31419bf39487f5851a019e6b9ca59f5818738ef8e3e5a599e01137fb91",
+      "evidence": "MB18 AFYX-347: original deterministic text, HTML, CSV, JSON, XML and Office subset mapping from format contracts; explicitly rejects unsupported complex formats, invalid OOXML roots and external execution."
+    },
+    {
+      "path": "scripts/afyx-document-intelligence.mjs",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "0519982e577a0e40de2eb23689c8c2f957741eac0e92860bf72177d6c0443b3b",
+      "evidence": "MB18 AFYX-347: original file/bytes/stream admission and worker API with workspace, provenance and bounded conversion; read-only MarkItDown MIT reference ed178952 informed functional contracts, not imported source."
+    },
+    {
+      "path": "scripts/afyx-document-worker.mjs",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "512fc2130cc7d835199b36b95fd9e78877985144b0b4cf2c88988a8fd24841ad",
+      "evidence": "MB18 AFYX-347: original isolated conversion worker with wall-clock, V8 heap and output bounds; no subprocess parser, plugins, network or upstream engine. Uses Node runtime primitives with their existing licenses."
+    },
+    {
+      "path": "scripts/afyx-document-xml.mjs",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "7e824a5e257d68491dd37a9e5f73a511e01e861e27b7684849f687e76061286b",
+      "evidence": "MB18 AFYX-347: original bounded XML tokenizer/tree traversal for document structure; rejects DTD and unsupported entity expansion, malformed nesting and excessive depth rather than executing external resolvers."
+    },
+    {
       "path": "scripts/afyx-expert-guidance.mjs",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
       "reviewedSha256": "9e2b2cf6b813e3ae2efe6684a883410d5f5f1dd31b054e8c6857681e7d16faf8",
@@ -2503,6 +2551,12 @@
       "evidence": "Installer UX v2: reviewed existing AFYX installer adapter plus validated catalog-based component serialization and Windows case-insensitive subprocess module-path isolation. Native argv API; no copied third-party implementation."
     },
     {
+      "path": "scripts/afyx-optional-capabilities.mjs",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "c7b69dc7bb99ba05f9913375602cad83d0afef0ad32efc038004fe92c77820c5",
+      "evidence": "MB18.3 AFYX-190/AFYX-105: reviewed rich discovery metadata with required/supported action signatures, safe example calls, single-tool guidance, and explicit required argument validation per action."
+    },
+    {
       "path": "scripts/afyx-provider-inventory.mjs",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
       "reviewedSha256": "0991b191c3ea22b602568ca5fed28125071b89b4196dc1ef638fb570d3e48f2b",
@@ -2555,42 +2609,6 @@
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
       "reviewedSha256": "1a317d7a18f1d886fb4084336d84a24279d8f5a700a7cdf7cce96a32dbcb5cb2",
       "evidence": "MB12 review: authored from AFYX functional requirements and existing reviewed 251f73a contracts; no upstream implementation, prompts, assets or dependency imported. Trusted-host boundaries and negative/regression tests recorded in MB12-native-consolidation-20261114-r1."
-    },
-    {
-      "path": "scripts/afyx-optional-capabilities.mjs",
-      "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "c7b69dc7bb99ba05f9913375602cad83d0afef0ad32efc038004fe92c77820c5",
-      "evidence": "MB18.3 AFYX-190/AFYX-105: reviewed rich discovery metadata with required/supported action signatures, safe example calls, single-tool guidance, and explicit required argument validation per action."
-    },
-    {
-      "path": "scripts/afyx-document-intelligence.mjs",
-      "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "0519982e577a0e40de2eb23689c8c2f957741eac0e92860bf72177d6c0443b3b",
-      "evidence": "MB18 AFYX-347: original file/bytes/stream admission and worker API with workspace, provenance and bounded conversion; read-only MarkItDown MIT reference ed178952 informed functional contracts, not imported source."
-    },
-    {
-      "path": "scripts/afyx-document-worker.mjs",
-      "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "512fc2130cc7d835199b36b95fd9e78877985144b0b4cf2c88988a8fd24841ad",
-      "evidence": "MB18 AFYX-347: original isolated conversion worker with wall-clock, V8 heap and output bounds; no subprocess parser, plugins, network or upstream engine. Uses Node runtime primitives with their existing licenses."
-    },
-    {
-      "path": "scripts/afyx-document-formats.mjs",
-      "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "bb119f31419bf39487f5851a019e6b9ca59f5818738ef8e3e5a599e01137fb91",
-      "evidence": "MB18 AFYX-347: original deterministic text, HTML, CSV, JSON, XML and Office subset mapping from format contracts; explicitly rejects unsupported complex formats, invalid OOXML roots and external execution."
-    },
-    {
-      "path": "scripts/afyx-document-archive.mjs",
-      "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "3be2fc099fb6fc5b52b96c71b985c1a3a2efbedf5c237d0d95d799cc5e5a3c7a",
-      "evidence": "MB18 AFYX-347: original bounded ZIP admission validates central/local identity, sizes, CRC, paths, collisions and unsafe members; built-in Node zlib is a runtime prerequisite, no archive dependency/source vendored."
-    },
-    {
-      "path": "scripts/afyx-document-xml.mjs",
-      "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "7e824a5e257d68491dd37a9e5f73a511e01e861e27b7684849f687e76061286b",
-      "evidence": "MB18 AFYX-347: original bounded XML tokenizer/tree traversal for document structure; rejects DTD and unsupported entity expansion, malformed nesting and excessive depth rather than executing external resolvers."
     }
   ]
 }
