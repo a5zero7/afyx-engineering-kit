@@ -2637,7 +2637,7 @@
     {
       "path": "scripts/afyx-evidence-envelope.mjs",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "f6fe2521451906ab3bcc5088b5e8d6d7f8fb7b652ad4cf38291747de878975f7",
+      "reviewedSha256": "cb0474e62dcee2df95c1be023524d84a30e8f9f4f1394a3079ab1837dead2a3c",
       "evidence": "AFYX native source: authored from AFYX functional requirements; verified clean room implementation with zero third-party code import."
     },
     {
@@ -2835,7 +2835,7 @@
     {
       "path": "tools/afyx-usage-intelligence/AfyxUsageIntelligence.psm1",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "d7232af63753ec0b99cb95cc98228e0034e237b1ac22c7be67d8182dd743deb8",
+      "reviewedSha256": "20d346251634c6d40499076b2e105992746553ebaad7ca02c6a2d9e4bd972955",
       "evidence": "AFYX native source: authored from AFYX functional requirements; verified clean room implementation with zero third-party code import."
     },
     {

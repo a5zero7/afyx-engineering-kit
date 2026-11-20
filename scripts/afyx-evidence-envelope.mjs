@@ -1,14 +1,15 @@
 /**
  * AFYX Single-Pass Evidence Pipeline & Evidence Envelope (AfyxEvidenceEnvelope/v1)
  *
- * Implements deterministic evidence reuse, deduplication, and strict isolation
+ * Implements deterministic evidence reuse, deduplication, and strict fail-closed isolation
  * across cooperating AFYX capabilities (Forge, Graph, Context, Domain Skills, Usage).
  *
  * Governing Principles:
  * - Reuse valid source evidence between cooperating modules without re-reading unchanged files.
  * - Invalidate evidence immediately on source revision or permission changes.
- * - Strict multi-tenant boundaries: zero cross-repository or cross-user leakage.
- * - Enforce explicit session and caller-permission boundaries; no key-only authorization bypass.
+ * - Strict multi-tenant boundaries: zero cross-repository, cross-user, or cross-session leakage.
+ * - Fail-closed caller context: require complete valid sessionId, userId, repositoryId, and permissions.
+ * - Do not rely on default identities (default-user, default-session, default-repo) to authorize protected evidence.
  * - Bounded resource budgets: fixed in-memory capacity with LRU eviction.
  * - Pure evidence metadata: never persists raw user prompts or full transcripts.
  */
@@ -17,8 +18,26 @@ import { createHash } from 'node:crypto';
 
 export const AFYX_EVIDENCE_ENVELOPE_CONTRACT = 'AfyxEvidenceEnvelope/v1';
 
+const RESERVED_DEFAULT_IDENTITIES = new Set([
+  'default-session',
+  'default-user',
+  'default-repo',
+]);
+
 function sha256(text) {
   return createHash('sha256').update(typeof text === 'string' ? text : JSON.stringify(text)).digest('hex');
+}
+
+function isPlainObject(value) {
+  return value !== null && typeof value === 'object' && !Array.isArray(value);
+}
+
+function isValidIdentity(value) {
+  if (typeof value !== 'string') {
+    return false;
+  }
+  const trimmed = value.trim();
+  return trimmed.length > 0 && !RESERVED_DEFAULT_IDENTITIES.has(trimmed);
 }
 
 /**
@@ -27,16 +46,16 @@ function sha256(text) {
 export function createEvidenceEnvelope(params = {}) {
   const {
     taskId = 'anonymous-task',
-    sessionId = 'default-session',
-    userId = 'default-user',
-    repositoryId = 'default-repo',
+    sessionId = null,
+    userId = null,
+    repositoryId = null,
     commitId = 'HEAD',
     capability,
     sourcePath = null,
     contentHash = null,
     evidenceType = 'source-evidence',
     provenance = 'afyx-native',
-    permissions = { authorized: true },
+    permissions = null,
     freshness = 'FRESH',
     normalizedResult = null,
     contextBudgetBytes = 65_536,
@@ -49,24 +68,32 @@ export function createEvidenceEnvelope(params = {}) {
     throw new Error('Evidence envelope requires a valid capability string');
   }
 
+  const normalizedSessionId = isValidIdentity(sessionId) ? sessionId.trim() : null;
+  const normalizedUserId = isValidIdentity(userId) ? userId.trim() : null;
+  const normalizedRepositoryId = isValidIdentity(repositoryId) ? repositoryId.trim() : null;
+
   const effectiveDedupeKey = deduplicationKey ||
-    (scope === 'session' && sessionId !== 'default-session'
-      ? `${repositoryId}::${commitId}::${sessionId}::${sourcePath || 'global'}::${capability}`
-      : `${repositoryId}::${commitId}::${sourcePath || 'global'}::${capability}`);
+    (scope === 'session' && normalizedSessionId
+      ? `${normalizedRepositoryId || 'unscoped-repo'}::${commitId}::${normalizedSessionId}::${sourcePath || 'global'}::${capability}`
+      : `${normalizedRepositoryId || 'unscoped-repo'}::${commitId}::${sourcePath || 'global'}::${capability}`);
+
+  const frozenPermissions = isPlainObject(permissions)
+    ? Object.freeze({ ...permissions })
+    : Object.freeze({ authorized: false });
 
   return Object.freeze({
     contract: AFYX_EVIDENCE_ENVELOPE_CONTRACT,
     taskId: String(taskId),
-    sessionId: String(sessionId),
-    userId: String(userId),
-    repositoryId: String(repositoryId),
+    sessionId: normalizedSessionId,
+    userId: normalizedUserId,
+    repositoryId: normalizedRepositoryId,
     commitId: String(commitId),
     capability: String(capability),
     sourcePath: sourcePath ? String(sourcePath) : null,
     contentHash: contentHash ? String(contentHash) : (normalizedResult ? sha256(normalizedResult) : null),
     evidenceType: String(evidenceType),
     provenance: String(provenance),
-    permissions: Object.freeze({ ...permissions }),
+    permissions: frozenPermissions,
     freshness: String(freshness),
     normalizedResult: normalizedResult !== null && typeof normalizedResult === 'object'
       ? Object.freeze(JSON.parse(JSON.stringify(normalizedResult)))
@@ -80,7 +107,8 @@ export function createEvidenceEnvelope(params = {}) {
 }
 
 /**
- * In-memory shared evidence pipeline with LRU eviction, session isolation, and caller-scope authorization.
+ * In-memory shared evidence pipeline with LRU eviction, fail-closed caller context,
+ * session/user/repository isolation, and permission scope enforcement.
  */
 export function createSharedEvidencePipeline(options = {}) {
   const maxEntries = Number.isSafeInteger(options.maxEntries) && options.maxEntries > 0 ? options.maxEntries : 500;
@@ -99,8 +127,9 @@ export function createSharedEvidencePipeline(options = {}) {
 
     const { deduplicationKey, repositoryId, commitId } = envelope;
 
-    // Track latest revision for repository
-    repoRevisions.set(repositoryId, commitId);
+    if (repositoryId) {
+      repoRevisions.set(repositoryId, commitId);
+    }
 
     // LRU eviction if budget exceeded
     if (store.size >= maxEntries && !store.has(deduplicationKey)) {
@@ -112,15 +141,7 @@ export function createSharedEvidencePipeline(options = {}) {
     return envelope;
   }
 
-  function get(deduplicationKey, callerContext = {}) {
-    const {
-      repositoryId,
-      currentCommitId,
-      sessionId,
-      userId,
-      permissions,
-    } = callerContext;
-
+  function get(deduplicationKey, callerContext) {
     if (!store.has(deduplicationKey)) {
       missCount++;
       return null;
@@ -136,42 +157,62 @@ export function createSharedEvidencePipeline(options = {}) {
       return null;
     }
 
-    // 2. Caller Authorization & Permission Downgrade check
-    // Caller cannot override authorization merely by providing matching deduplication key
-    if (permissions && permissions.authorized === false) {
-      missCount++;
-      return null;
-    }
-    if (envelope.permissions) {
-      for (const [permKey, requiredVal] of Object.entries(envelope.permissions)) {
-        if (requiredVal === true) {
-          if (permissions && permissions[permKey] === false) {
-            missCount++;
-            return null; // Denied: caller permission downgraded
-          }
-        }
-      }
-    }
-
-    // 3. Cross-repository anti-leakage guard
-    if (repositoryId && envelope.repositoryId && envelope.repositoryId !== repositoryId) {
+    // 2. Fail-closed caller context validation
+    if (!isPlainObject(callerContext)) {
       missCount++;
       return null;
     }
 
-    // 4. Cross-user anti-leakage guard
-    if (userId && envelope.userId && envelope.userId !== userId) {
+    const {
+      repositoryId,
+      currentCommitId,
+      sessionId,
+      userId,
+      permissions,
+    } = callerContext;
+
+    if (!isValidIdentity(sessionId) || !isValidIdentity(userId) || !isValidIdentity(repositoryId)) {
       missCount++;
       return null;
     }
 
-    // 5. Session isolation guard
-    if (envelope.scope === 'session' && envelope.sessionId !== 'default-session') {
-      if (!sessionId || envelope.sessionId !== sessionId) {
+    if (!isPlainObject(permissions) || permissions.authorized !== true) {
+      missCount++;
+      return null;
+    }
+
+    // 3. Fail-closed envelope metadata validation (no default-identity authorization)
+    if (
+      !isValidIdentity(envelope.sessionId) ||
+      !isValidIdentity(envelope.userId) ||
+      !isValidIdentity(envelope.repositoryId) ||
+      !isPlainObject(envelope.permissions) ||
+      envelope.permissions.authorized !== true
+    ) {
+      missCount++;
+      return null;
+    }
+
+    // 4. Required permission scopes compatibility check
+    for (const [permKey, requiredVal] of Object.entries(envelope.permissions)) {
+      if (requiredVal === true && permissions[permKey] !== true) {
         missCount++;
         return null;
       }
-    } else if (sessionId && envelope.sessionId && envelope.sessionId !== sessionId) {
+    }
+
+    // 5. Strict cross-repository, cross-user, and cross-session isolation
+    if (envelope.repositoryId !== repositoryId.trim()) {
+      missCount++;
+      return null;
+    }
+
+    if (envelope.userId !== userId.trim()) {
+      missCount++;
+      return null;
+    }
+
+    if (envelope.sessionId !== sessionId.trim()) {
       missCount++;
       return null;
     }

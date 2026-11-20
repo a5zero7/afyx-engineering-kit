@@ -140,26 +140,35 @@ test('7. Evidence reuse and invalidation: envelope valid for same revision, inva
   const pipeline = createSharedEvidencePipeline();
   const env1 = createEvidenceEnvelope({
     taskId: 'task-a',
+    sessionId: 'session-rev-1',
+    userId: 'user-rev-1',
     capability: 'repository-graph-evidence',
     repositoryId: 'repo/app',
     commitId: 'rev-001',
     sourcePath: 'main.ts',
+    permissions: { authorized: true },
     normalizedResult: { caller: 'main', target: 'init' },
   });
   pipeline.set(env1);
 
-  // Retrieve with matching revision
+  // Retrieve with matching revision and full caller context
   const cached = pipeline.get(env1.deduplicationKey, {
+    sessionId: 'session-rev-1',
+    userId: 'user-rev-1',
     repositoryId: 'repo/app',
     currentCommitId: 'rev-001',
+    permissions: { authorized: true },
   });
   assert.ok(cached !== null, 'Evidence must be retrievable for identical scope and revision');
   assert.equal(cached.normalizedResult.caller, 'main');
 
   // Invalidate when revision updates
   const updatedRev = pipeline.get(env1.deduplicationKey, {
+    sessionId: 'session-rev-1',
+    userId: 'user-rev-1',
     repositoryId: 'repo/app',
     currentCommitId: 'rev-002',
+    permissions: { authorized: true },
   });
   assert.equal(updatedRev, null, 'Evidence must be invalidated when source revision changes');
 });
@@ -256,17 +265,23 @@ test('14. Cross-repository isolation: evidence scoped to repository A is never r
   const pipeline = createSharedEvidencePipeline();
   const repoAEnvelope = createEvidenceEnvelope({
     taskId: 'task-repo-a',
+    sessionId: 'session-repo-1',
+    userId: 'user-repo-1',
     capability: 'source-security-candidates',
     repositoryId: 'github.com/org-alpha/project-one',
     commitId: 'rev-main',
     sourcePath: 'security.ts',
+    permissions: { authorized: true },
     normalizedResult: { secretScan: 'clean' },
   });
   pipeline.set(repoAEnvelope);
 
   const leakCandidate = pipeline.get(repoAEnvelope.deduplicationKey, {
+    sessionId: 'session-repo-1',
+    userId: 'user-repo-1',
     repositoryId: 'github.com/org-beta/project-two',
     currentCommitId: 'rev-main',
+    permissions: { authorized: true },
   });
   assert.equal(leakCandidate, null, 'Evidence must not leak across distinct repositories');
 });
@@ -277,9 +292,11 @@ test('15. Session isolation: different session ID denies cached evidence access'
   const env = createEvidenceEnvelope({
     taskId: 'task-session-1',
     sessionId: 'session-alpha-123',
+    userId: 'user-session-1',
     capability: 'repository-graph-evidence',
     repositoryId: 'repo/app',
     commitId: 'rev-1',
+    permissions: { authorized: true },
     normalizedResult: { graph: 'data' },
   });
   pipeline.set(env);
@@ -287,7 +304,9 @@ test('15. Session isolation: different session ID denies cached evidence access'
   const result = pipeline.get(env.deduplicationKey, {
     repositoryId: 'repo/app',
     currentCommitId: 'rev-1',
+    userId: 'user-session-1',
     sessionId: 'session-beta-999', // Different session
+    permissions: { authorized: true },
   });
   assert.equal(result, null, 'Cross-session access must be denied');
 });
@@ -298,10 +317,12 @@ test('16. Session isolation: missing caller session ID for session-scoped eviden
   const env = createEvidenceEnvelope({
     taskId: 'task-session-2',
     sessionId: 'session-secure-456',
+    userId: 'user-session-2',
     scope: 'session',
     capability: 'repository-graph-evidence',
     repositoryId: 'repo/app',
     commitId: 'rev-1',
+    permissions: { authorized: true },
     normalizedResult: { graph: 'data' },
   });
   pipeline.set(env);
@@ -309,6 +330,8 @@ test('16. Session isolation: missing caller session ID for session-scoped eviden
   const result = pipeline.get(env.deduplicationKey, {
     repositoryId: 'repo/app',
     currentCommitId: 'rev-1',
+    userId: 'user-session-2',
+    permissions: { authorized: true },
     // sessionId omitted
   });
   assert.equal(result, null, 'Access must be denied when caller session is omitted for session-scoped evidence');
@@ -319,18 +342,22 @@ test('17. User isolation: different user ID denies access to user-scoped evidenc
   const pipeline = createSharedEvidencePipeline();
   const env = createEvidenceEnvelope({
     taskId: 'task-user-1',
+    sessionId: 'session-user-1',
     userId: 'user-alice',
     capability: 'source-security-candidates',
     repositoryId: 'repo/app',
     commitId: 'rev-1',
+    permissions: { authorized: true },
     normalizedResult: { privateFindings: 'none' },
   });
   pipeline.set(env);
 
   const result = pipeline.get(env.deduplicationKey, {
+    sessionId: 'session-user-1',
     repositoryId: 'repo/app',
     currentCommitId: 'rev-1',
     userId: 'user-bob', // Different user
+    permissions: { authorized: true },
   });
   assert.equal(result, null, 'Cross-user access must be denied');
 });
@@ -340,6 +367,8 @@ test('18. Permission scope: unauthorized caller cannot access evidence by matchi
   const pipeline = createSharedEvidencePipeline();
   const env = createEvidenceEnvelope({
     taskId: 'task-perm-1',
+    sessionId: 'session-perm-1',
+    userId: 'user-perm-1',
     capability: 'source-security-candidates',
     repositoryId: 'repo/app',
     commitId: 'rev-1',
@@ -350,19 +379,33 @@ test('18. Permission scope: unauthorized caller cannot access evidence by matchi
 
   // Attempt with authorized: false (caller tries to spoof key)
   const deniedSpoof = pipeline.get(env.deduplicationKey, {
+    sessionId: 'session-perm-1',
+    userId: 'user-perm-1',
     repositoryId: 'repo/app',
     currentCommitId: 'rev-1',
-    permissions: { authorized: false },
+    permissions: { authorized: false, read: true },
   });
   assert.equal(deniedSpoof, null, 'Caller with authorized=false must be rejected even with matching key');
 
-  // Attempt with permission downgrade (missing read: true)
+  // Attempt with permission downgrade (read: false)
   const deniedDowngrade = pipeline.get(env.deduplicationKey, {
+    sessionId: 'session-perm-1',
+    userId: 'user-perm-1',
     repositoryId: 'repo/app',
     currentCommitId: 'rev-1',
     permissions: { authorized: true, read: false },
   });
   assert.equal(deniedDowngrade, null, 'Caller with downgraded permissions must be rejected');
+
+  // Attempt missing required permission grant (omitted read)
+  const deniedMissingScope = pipeline.get(env.deduplicationKey, {
+    sessionId: 'session-perm-1',
+    userId: 'user-perm-1',
+    repositoryId: 'repo/app',
+    currentCommitId: 'rev-1',
+    permissions: { authorized: true },
+  });
+  assert.equal(deniedMissingScope, null, 'Caller missing required permission scope must be rejected');
 });
 
 // Case 19: Revoked evidence and session revocation denial
@@ -371,9 +414,11 @@ test('19. Revocation guard: revoked evidence or revoked session is deleted and d
   const env = createEvidenceEnvelope({
     taskId: 'task-revoked-1',
     sessionId: 'session-to-revoke',
+    userId: 'user-revoked-1',
     capability: 'repository-graph-evidence',
     repositoryId: 'repo/app',
     commitId: 'rev-1',
+    permissions: { authorized: true },
     normalizedResult: { nodes: 10 },
   });
   pipeline.set(env);
@@ -386,6 +431,8 @@ test('19. Revocation guard: revoked evidence or revoked session is deleted and d
     repositoryId: 'repo/app',
     currentCommitId: 'rev-1',
     sessionId: 'session-to-revoke',
+    userId: 'user-revoked-1',
+    permissions: { authorized: true },
   });
   assert.equal(result, null, 'Revoked evidence must return null');
 });
@@ -414,4 +461,79 @@ test('20. Legitimate reuse: matching session, repository, and authorized permiss
   });
   assert.ok(result !== null, 'Legitimate caller must get cache hit');
   assert.equal(result.normalizedResult.verifiedCallers, 2);
+});
+
+// Case 21: Fail-closed missing/empty/default caller context checks
+test('21. Fail-closed caller context: rejects missing/empty/default identities and missing permissions', () => {
+  const pipeline = createSharedEvidencePipeline();
+  const env = createEvidenceEnvelope({
+    taskId: 'task-fc-1',
+    sessionId: 'session-fc-1',
+    userId: 'user-fc-1',
+    repositoryId: 'repo/fc-app',
+    commitId: 'rev-1',
+    capability: 'repository-graph-evidence',
+    permissions: { authorized: true },
+    normalizedResult: { ok: true },
+  });
+  pipeline.set(env);
+
+  // Missing callerContext completely
+  assert.equal(pipeline.get(env.deduplicationKey), null, 'Missing callerContext must fail closed');
+  // Missing permissions
+  assert.equal(pipeline.get(env.deduplicationKey, {
+    sessionId: 'session-fc-1',
+    userId: 'user-fc-1',
+    repositoryId: 'repo/fc-app',
+  }), null, 'Missing permissions must fail closed');
+  // Malformed permissions
+  assert.equal(pipeline.get(env.deduplicationKey, {
+    sessionId: 'session-fc-1',
+    userId: 'user-fc-1',
+    repositoryId: 'repo/fc-app',
+    permissions: ['authorized'],
+  }), null, 'Malformed permissions must fail closed');
+  // Missing userId
+  assert.equal(pipeline.get(env.deduplicationKey, {
+    sessionId: 'session-fc-1',
+    repositoryId: 'repo/fc-app',
+    permissions: { authorized: true },
+  }), null, 'Missing userId must fail closed');
+  // Missing repositoryId
+  assert.equal(pipeline.get(env.deduplicationKey, {
+    sessionId: 'session-fc-1',
+    userId: 'user-fc-1',
+    permissions: { authorized: true },
+  }), null, 'Missing repositoryId must fail closed');
+  // Empty identity strings
+  assert.equal(pipeline.get(env.deduplicationKey, {
+    sessionId: '   ',
+    userId: 'user-fc-1',
+    repositoryId: 'repo/fc-app',
+    permissions: { authorized: true },
+  }), null, 'Empty sessionId must fail closed');
+  assert.equal(pipeline.get(env.deduplicationKey, {
+    sessionId: 'session-fc-1',
+    userId: '',
+    repositoryId: 'repo/fc-app',
+    permissions: { authorized: true },
+  }), null, 'Empty userId must fail closed');
+
+  // Default identity rejection even if envelope was created with default strings
+  const defaultEnv = createEvidenceEnvelope({
+    taskId: 'task-def',
+    sessionId: 'default-session',
+    userId: 'default-user',
+    repositoryId: 'default-repo',
+    capability: 'repository-graph-evidence',
+    permissions: { authorized: true },
+    normalizedResult: { ok: false },
+  });
+  pipeline.set(defaultEnv);
+  assert.equal(pipeline.get(defaultEnv.deduplicationKey, {
+    sessionId: 'default-session',
+    userId: 'default-user',
+    repositoryId: 'default-repo',
+    permissions: { authorized: true },
+  }), null, 'Reserved default identities must never authorize protected evidence');
 });

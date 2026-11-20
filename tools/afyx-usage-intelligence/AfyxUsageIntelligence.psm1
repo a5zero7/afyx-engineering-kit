@@ -50,7 +50,7 @@ function Get-AfyxProviderStatus {
                 Provider                    = 'codex'
                 DiscoveryStatus             = 'DISCOVERED'
                 InstallationStatus          = if ($hasHome -or $hasCommand) { 'INSTALLED' } else { 'NOT_INSTALLED' }
-                AuthenticationStatus        = if ($hasSessions) { 'AUTHENTICATED' } else { 'UNKNOWN' }
+                AuthenticationStatus        = 'UNKNOWN'
                 TelemetryStatus             = if ($hasSessions) { 'OK' } elseif ($hasHome) { 'NO_SESSIONS' } else { 'NOT_AVAILABLE' }
                 SupportedMetadata           = @('inputTokens', 'outputTokens', 'cachedInputTokens', 'cacheWriteInputTokens', 'reasoningTokens')
                 ActualBilledCostAvailable   = $false
@@ -59,7 +59,7 @@ function Get-AfyxProviderStatus {
                     Terminal  = 'VERIFIED'
                     ChatPanel = 'NOT_VERIFIED'
                 }
-                VerificationEvidence        = 'Terminal presentation verified via local CLI/tasks; Chat Panel rendering remains NOT_VERIFIED pending real-host evidence.'
+                VerificationEvidence        = 'Terminal presentation verified via local CLI/tasks; Chat Panel rendering remains NOT_VERIFIED pending real-host evidence. Session history alone does not verify active authentication.'
             }
         }
         'antigravity' {
