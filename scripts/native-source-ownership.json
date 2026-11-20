@@ -17,9 +17,15 @@
       "evidence": "MB18 AFYX-335/347: reviewed optional trusted async converter boundary using the existing catalog, admission, source hash, bounded in-memory content cache, selection and exact recovery; no decoder or network engine in Context."
     },
     {
+      "path": "afyx-context/src/collector.js",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "89531476392c363cffcbe8a66a4bd20ae037977576ce98e7c2dcad53f1b2e3d0",
+      "evidence": "AFYX-353 review: authored from AFYX functional requirements and afyx-usage/v1 canonical contract; read-only Codex telemetry collector and bounded aggregation; no external prompts, dependencies or code imported."
+    },
+    {
       "path": "afyx-context/src/index.js",
       "classification": "PUBLIC_API_BARREL",
-      "reviewedSha256": "dbf8920dcac79b98b65841e62b2af29feea28b78a64a481aed34145ff81bbc34",
+      "reviewedSha256": "5a9e369cf01168e25868ac857ca8e4bcd4097bea3eb909e2eff72353c1e1ca2b",
       "evidence": "MB12 review: authored from AFYX functional requirements and existing reviewed 251f73a contracts; no upstream implementation, prompts, assets or dependency imported. Trusted-host boundaries and negative/regression tests recorded in MB12-native-consolidation-20261114-r1."
     },
     {

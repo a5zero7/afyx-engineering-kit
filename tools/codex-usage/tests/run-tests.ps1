@@ -1,4 +1,4 @@
-[CmdletBinding()]
+﻿[CmdletBinding()]
 param()
 
 Set-StrictMode -Version Latest
@@ -427,8 +427,9 @@ try {
         # Hermetic Codex host: the installer refuses to run without a Codex CLI or VS Code extension, and CI runners have neither.
         $fakeCodexBin = Join-Path $integrationRoot 'fake-codex-bin'
         New-Item -ItemType Directory -Path $fakeCodexBin -Force | Out-Null
-        Set-Content -LiteralPath (Join-Path $fakeCodexBin 'codex.cmd') -Value '@echo off' -Encoding ascii
-        $skip = Invoke-TestScript $mainInstallerPath @('-SkillsRoot', (Join-Path $integrationRoot 'skills'), '-SkipUsageTracker', '-WhatIf', '-Confirm:$false') $null @{ PATH = ($fakeCodexBin + [IO.Path]::PathSeparator + $env:PATH) }
+        $cmdText = "@echo off`r`nif `"%1`"==`"mcp`" goto mcp`r`nexit /b 0`r`n:mcp`r`nif `"%2`"==`"get`" goto get`r`nexit /b 0`r`n:get`r`necho not found 1>&2`r`nexit /b 1"
+        Set-Content -LiteralPath (Join-Path $fakeCodexBin 'codex.cmd') -Value $cmdText -Encoding ascii
+        $skip = Invoke-TestScript $mainInstallerPath @('-SkillsRoot', (Join-Path $integrationRoot 'skills'), '-SkipUsageTracker', '-SkipProviderConfiguration', '-WhatIf', '-Confirm:$false') $null @{ PATH = ($fakeCodexBin + [IO.Path]::PathSeparator + $env:PATH) }
         Assert-Equal $skip.ExitCode 0 "Main installer skip path; stderr: $($skip.Error)"
     if ($skip.Output -notmatch 'Usage Tracking: skipped') { throw 'Main installer did not report optional skip.' }
         if (-not (Test-Path -LiteralPath $installedStop -PathType Leaf)) { throw 'Declining tracker update removed an existing installation.' }
@@ -445,6 +446,88 @@ try {
     Assert-Equal @($afterUninstall.hooks.Stop | ForEach-Object { $_.hooks } | Where-Object { $_.statusMessage -eq 'Afyx Codex Usage Tracking' }).Count 0 'Afyx hook removal'
 } finally {
     if (Test-Path -LiteralPath $integrationRoot) { Remove-Item -Recurse -Force -LiteralPath $integrationRoot }
+}
+
+# --- AFYX-352: Opt-In Usage Presentation Adapter Tests ---
+$testPresentationRoot = Join-Path ([IO.Path]::GetTempPath()) ('codex-usage-pres-' + [guid]::NewGuid().ToString('N'))
+[IO.Directory]::CreateDirectory($testPresentationRoot) | Out-Null
+try {
+    $toolsDir = Join-Path $testPresentationRoot 'tools'
+    [IO.Directory]::CreateDirectory($toolsDir) | Out-Null
+    $latestJsonPath = Join-Path $toolsDir 'codex-usage-latest.json'
+
+    # 1. Disabled by default
+    $defaultOff = Invoke-AfyxUsagePresentation -CodexHome $testPresentationRoot -LatestUsagePath $latestJsonPath
+    Assert-Equal $defaultOff.Presented $false 'Adapter default OFF must not present'
+    Assert-Equal $defaultOff.Reason 'DISABLED_BY_DEFAULT' 'Default reason is DISABLED_BY_DEFAULT'
+
+    # 2. Missing latest.json with opt-in
+    $missingData = Invoke-AfyxUsagePresentation -CodexHome $testPresentationRoot -LatestUsagePath $latestJsonPath -ForceOptIn
+    Assert-Equal $missingData.Presented $false 'Missing latest.json must not present'
+    Assert-Equal $missingData.Reason 'NO_DATA' 'Missing file reports NO_DATA'
+
+    # 3. Create fresh valid latest.json
+    $testCompletion = [ordered]@{
+        schema_version          = 1
+        completed_at            = [DateTime]::UtcNow.ToString('o')
+        model                   = 'gpt-5.6-sol'
+        input_tokens            = 120
+        cached_input_tokens     = 50
+        cache_write_input_tokens = 10
+        uncached_input_tokens   = 60
+        output_tokens           = 30
+        reasoning_tokens        = 5
+        total_tokens            = 150
+        api_equivalent_currency = 'USD'
+        api_equivalent_cost     = [decimal]0.00065
+        usage_source            = 'turn_token_usage'
+        session_file            = 'rollout-session-alpha.jsonl'
+        turn_id                 = 'turn-123'
+    }
+    Set-Content -LiteralPath $latestJsonPath -Value ($testCompletion | ConvertTo-Json -Depth 5) -Encoding utf8
+
+    # 4. Valid presentation with ForceOptIn and Auto capability (resolves to Terminal)
+    $validPres = Invoke-AfyxUsagePresentation -CodexHome $testPresentationRoot -LatestUsagePath $latestJsonPath -SessionId 'session-alpha' -TurnId 'turn-123' -ForceOptIn -Quiet
+    Assert-Equal $validPres.Presented $true 'Valid opt-in presentation must succeed'
+    Assert-Equal $validPres.HostMode 'Terminal' 'Auto host mode falls back to Terminal on Codex VS Code limitation'
+    Assert-Equal $validPres.TotalTokens 150 'Total tokens matches'
+    if ($validPres.Formatted -notmatch 'gpt-5.6-sol' -or $validPres.Formatted -notmatch '150 tokens') {
+        throw "Formatted output missing expected fields: $($validPres.Formatted)"
+    }
+
+    # 5. Stale data rejection
+    $staleCompletion = [ordered]@{
+        schema_version = 1
+        completed_at   = [DateTime]::UtcNow.AddMinutes(-10).ToString('o')
+        model          = 'gpt-5.6-sol'
+        input_tokens   = 100
+        output_tokens  = 20
+        total_tokens   = 120
+        session_file   = 'rollout-session-alpha.jsonl'
+        turn_id        = 'turn-stale'
+    }
+    Set-Content -LiteralPath $latestJsonPath -Value ($staleCompletion | ConvertTo-Json -Depth 5) -Encoding utf8
+    $stalePres = Invoke-AfyxUsagePresentation -CodexHome $testPresentationRoot -LatestUsagePath $latestJsonPath -MaxAgeSeconds 60 -ForceOptIn
+    Assert-Equal $stalePres.Presented $false 'Stale data must not be presented'
+    Assert-Equal $stalePres.Reason 'STALE_DATA' 'Reason must be STALE_DATA'
+
+    # 6. Session mismatch isolation
+    Set-Content -LiteralPath $latestJsonPath -Value ($testCompletion | ConvertTo-Json -Depth 5) -Encoding utf8
+    $mismatchSession = Invoke-AfyxUsagePresentation -CodexHome $testPresentationRoot -LatestUsagePath $latestJsonPath -SessionId 'session-beta' -ForceOptIn
+    Assert-Equal $mismatchSession.Presented $false 'Mismatched session must not be presented'
+    Assert-Equal $mismatchSession.Reason 'SESSION_MISMATCH' 'Reason must be SESSION_MISMATCH'
+
+    # 7. Turn mismatch isolation
+    $mismatchTurn = Invoke-AfyxUsagePresentation -CodexHome $testPresentationRoot -LatestUsagePath $latestJsonPath -TurnId 'turn-wrong' -ForceOptIn
+    Assert-Equal $mismatchTurn.Presented $false 'Mismatched turn must not be presented'
+    Assert-Equal $mismatchTurn.Reason 'TURN_MISMATCH' 'Reason must be TURN_MISMATCH'
+
+    # 8. Standalone present script execution
+    $presentScript = Join-Path $root 'codex-usage-present.ps1'
+    $scriptRun = Invoke-TestScript $presentScript @('-CodexHome', $testPresentationRoot, '-LatestUsagePath', $latestJsonPath, '-ForceOptIn', '-Quiet') $null
+    Assert-Equal $scriptRun.ExitCode 0 "Standalone presentation script exited cleanly; stderr: $($scriptRun.Error)"
+} finally {
+    if (Test-Path -LiteralPath $testPresentationRoot) { Remove-Item -Recurse -Force -LiteralPath $testPresentationRoot }
 }
 
 Write-Host 'Codex usage tracker tests: PASS'

@@ -25,3 +25,9 @@ export {
 } from './budget.js';
 export { DOCUMENTATION_CONTRACT, createDocumentationCatalog } from './documentation.js';
 export { USAGE_CONTRACT, normalizeUsageEvent, createUsageAnalytics } from './usage.js';
+export {
+  collectCodexLocalUsage,
+  collectClaudeLocalUsage,
+  collectAntigravityLocalUsage,
+  aggregateUsage,
+} from './collector.js';

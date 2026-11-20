@@ -479,6 +479,150 @@ function Get-CodexTurnCompletion {
     return $completion
 }
 
+function Invoke-AfyxUsagePresentation {
+    [CmdletBinding()]
+    param(
+        [string]$CodexHome = $(if ($env:CODEX_HOME) { $env:CODEX_HOME } else { Join-Path $env:USERPROFILE '.codex' }),
+        [string]$LatestUsagePath,
+        [string]$SessionId,
+        [string]$TurnId,
+        [int]$MaxAgeSeconds = 300,
+        [ValidateSet('Auto', 'Terminal', 'ChatPanel')][string]$HostCapability = 'Auto',
+        [switch]$ForceOptIn,
+        [switch]$Quiet
+    )
+
+    # 1. Opt-in gate: default OFF unless explicitly opted in
+    $optIn = $ForceOptIn -or ([string]$env:AFYX_USAGE_PRESENTATION_OPT_IN -match '^(?i:1|true|yes|on)$')
+    if (-not $optIn) {
+        return [pscustomobject]@{
+            Presented = $false
+            Reason    = 'DISABLED_BY_DEFAULT'
+            Formatted = $null
+        }
+    }
+
+    if (-not $LatestUsagePath) {
+        $LatestUsagePath = Join-Path $CodexHome 'tools\codex-usage-latest.json'
+    }
+
+    # 2. Quiet handling of missing files
+    if (-not (Test-Path -LiteralPath $LatestUsagePath -PathType Leaf)) {
+        return [pscustomobject]@{
+            Presented = $false
+            Reason    = 'NO_DATA'
+            Formatted = $null
+        }
+    }
+
+    $raw = $null
+    try {
+        $raw = Get-Content -Raw -LiteralPath $LatestUsagePath | ConvertFrom-Json -Depth 20 -ErrorAction Stop
+    } catch {
+        return [pscustomobject]@{
+            Presented = $false
+            Reason    = 'PARSE_ERROR'
+            Formatted = $null
+        }
+    }
+
+    if ($null -eq $raw) {
+        return [pscustomobject]@{
+            Presented = $false
+            Reason    = 'EMPTY_DATA'
+            Formatted = $null
+        }
+    }
+
+    # 3. Freshness check: reject stale data older than MaxAgeSeconds
+    if (Test-ObjectProperty $raw 'completed_at') {
+        try {
+            $dateStr = [string]$raw.completed_at
+            if ($dateStr) {
+                $completedTime = [DateTime]::Parse($dateStr, [Globalization.CultureInfo]::InvariantCulture, [Globalization.DateTimeStyles]::AdjustToUniversal)
+                $age = ([DateTime]::UtcNow - $completedTime).TotalSeconds
+                if ($age -gt $MaxAgeSeconds) {
+                    return [pscustomobject]@{
+                        Presented = $false
+                        Reason    = 'STALE_DATA'
+                        Formatted = $null
+                    }
+                }
+            }
+        } catch {
+            # Non-fatal date parse fallback
+        }
+    }
+
+    # 4. Multi-session and turn attribution isolation
+    if ($SessionId) {
+        $sessionFile = if (Test-ObjectProperty $raw 'session_file') { [string]$raw.session_file } else { '' }
+        if (-not $sessionFile -or $sessionFile -notmatch [regex]::Escape($SessionId)) {
+            return [pscustomobject]@{
+                Presented = $false
+                Reason    = 'SESSION_MISMATCH'
+                Formatted = $null
+            }
+        }
+    }
+
+    if ($TurnId -and (Test-ObjectProperty $raw 'turn_id') -and [string]$raw.turn_id) {
+        if ([string]$raw.turn_id -ne $TurnId) {
+            return [pscustomobject]@{
+                Presented = $false
+                Reason    = 'TURN_MISMATCH'
+                Formatted = $null
+            }
+        }
+    }
+
+    # 5. Extract normalized completion object for formatting
+    $completion = [pscustomobject]@{
+        Model                  = if (Test-ObjectProperty $raw 'model') { [string]$raw.model } else { 'unknown' }
+        InputTokens            = Get-Int64Property $raw 'input_tokens'
+        CachedInputTokens      = Get-Int64Property $raw 'cached_input_tokens'
+        CacheWriteInputTokens  = Get-Int64Property $raw 'cache_write_input_tokens'
+        UncachedInputTokens    = if (Test-ObjectProperty $raw 'uncached_input_tokens') {
+            Get-Int64Property $raw 'uncached_input_tokens'
+        } else {
+            [Math]::Max([long]0, (Get-Int64Property $raw 'input_tokens') - (Get-Int64Property $raw 'cached_input_tokens') - (Get-Int64Property $raw 'cache_write_input_tokens'))
+        }
+        OutputTokens           = Get-Int64Property $raw 'output_tokens'
+        ReasoningTokens        = Get-Int64Property $raw 'reasoning_tokens'
+        ReasoningAvailable     = (Test-ObjectProperty $raw 'reasoning_tokens') -and ($raw.PSObject.Properties['reasoning_tokens'].Value -ne $null)
+        TotalTokens            = Get-Int64Property $raw 'total_tokens'
+        ApiEquivalentAvailable = (Test-ObjectProperty $raw 'api_equivalent_cost') -and ($raw.PSObject.Properties['api_equivalent_cost'].Value -ne $null)
+        ApiEquivalentCost      = if (Test-ObjectProperty $raw 'api_equivalent_cost') { $raw.PSObject.Properties['api_equivalent_cost'].Value } else { $null }
+    }
+
+    # 6. Host capability detection
+    # Codex VS Code has known host limitation: chat panel does not render systemMessage.
+    # Therefore, Auto resolves to Terminal fallback.
+    $effectiveMode = if ($HostCapability -eq 'ChatPanel') { 'ChatPanel' } else { 'Terminal' }
+
+    $formatted = $null
+    if ($effectiveMode -eq 'ChatPanel') {
+        $formatted = Format-CodexUsageUiMessage -Completion $completion
+    } else {
+        $lines = Format-CodexUsageSummary -Completion $completion
+        $formatted = $lines -join "`n"
+        if (-not $Quiet) {
+            $lines | ForEach-Object { Write-Host $_ }
+        }
+    }
+
+    return [pscustomobject]@{
+        Presented   = $true
+        Reason      = 'OK'
+        HostMode    = $effectiveMode
+        Provider    = 'Codex'
+        Model       = $completion.Model
+        TotalTokens = $completion.TotalTokens
+        Cost        = $completion.ApiEquivalentCost
+        Formatted   = $formatted
+    }
+}
+
 Export-ModuleMember -Function @(
     'ConvertFrom-CodexTelemetryLine',
     'Copy-CodexUsage',
@@ -489,6 +633,7 @@ Export-ModuleMember -Function @(
     'Get-CodexUsageCost',
     'Get-CodexUsageDelta',
     'Import-CodexPricing',
+    'Invoke-AfyxUsagePresentation',
     'New-CodexUsage',
     'New-CodexUsageParserState',
     'Test-CodexUsageEqual',
