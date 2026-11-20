@@ -7,6 +7,11 @@
 
 import { LANGUAGES, Language } from '../types';
 import { isOdooAccessCsv } from './odoo';
+import { isConfigFile } from './config-extractor';
+import { isDockerRelatedFile } from './docker-extractor';
+import { isCicdFile } from './cicd-extractor';
+import { isSqlFile } from './sql-extractor';
+import { isOpenApiFile } from './openapi-extractor';
 
 /**
  * File extension to Language mapping
@@ -138,6 +143,11 @@ export const EXTENSION_MAP: Record<string, Language> = {
   '.tf': 'terraform',
   '.tfvars': 'terraform',
   '.tofu': 'terraform',
+  // SQL schema & queries
+  '.sql': 'cfquery',
+  // Configuration formats
+  '.toml': 'properties',
+  '.ini': 'properties',
 };
 
 /**
@@ -154,6 +164,11 @@ export function isSourceFile(filePath: string, overrides?: Record<string, Langua
   if (isPlayRoutesFile(filePath)) return true; // Play `conf/routes` is extensionless
   if (isShopifyLiquidJson(filePath)) return true; // Shopify OS 2.0 JSON templates / section groups
   if (isErlangAppFile(filePath)) return true; // OTP `.app`/`.app.src` resource files
+  if (isDockerRelatedFile(filePath)) return true;
+  if (isCicdFile(filePath)) return true;
+  if (isOpenApiFile(filePath)) return true;
+  if (isSqlFile(filePath)) return true;
+  if (isConfigFile(filePath)) return true;
   const dot = filePath.lastIndexOf('.');
   if (dot < 0) return false;
   const ext = filePath.slice(dot).toLowerCase();
@@ -215,6 +230,14 @@ export function detectLanguage(filePath: string, source?: string, overrides?: Re
   // OTP `.app`/`.app.src` resource files — Erlang terms the grammar parses as
   // top-level expressions (last-dot ext `.src` is too generic for the map).
   if (isErlangAppFile(filePath)) return 'erlang';
+  if (isDockerRelatedFile(filePath)) return 'yaml';
+  if (isSqlFile(filePath)) return 'cfquery';
+  if (isOpenApiFile(filePath, source)) return filePath.endsWith('.json') ? 'json' : 'yaml';
+  if (isCicdFile(filePath)) return filePath.endsWith('.json') ? 'json' : 'yaml';
+  if (isConfigFile(filePath)) {
+    if (ext === '.json' || ext === '.jsonc') return 'json';
+    return 'properties';
+  }
   const lang = (overrides && overrides[ext]) || EXTENSION_MAP[ext] || 'unknown';
 
   // .h files could be C, C++, or Objective-C — check source content

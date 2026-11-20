@@ -2,7 +2,7 @@
   "schema": 1,
   "baselineRevision": "c4e4d8e29de239a2fcbc0db8ac65eea2276e7b00",
   "scope": "AFYX-320 comprehensive production source inventory",
-  "totalProductionFiles": 472,
+  "totalProductionFiles": 478,
   "entries": [
     {
       "path": "afyx-context/src/budget.js",
@@ -11,10 +11,10 @@
       "evidence": "MB12 review: authored from AFYX functional requirements and existing reviewed 251f73a contracts; no upstream implementation, prompts, assets or dependency imported. Trusted-host boundaries and negative/regression tests recorded in MB12-native-consolidation-20261114-r1."
     },
     {
-      "path": "afyx-context/src/documentation.js",
-      "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "b00b324a18a601b8e166b7b30e4c0c1213bad5bf9887feca8b15ac2cfad2c1ac",
-      "evidence": "MB18 AFYX-335/347: reviewed optional trusted async converter boundary using the existing catalog, admission, source hash, bounded in-memory content cache, selection and exact recovery; no decoder or network engine in Context."
+      "path": "afyx-context/src/cli.js",
+      "classification": "PUBLIC_API_BARREL",
+      "reviewedSha256": "9a2ad56a275ebf390093819b4f988667dedee8e0dabe871e0acc85dc24e201bd",
+      "evidence": "AFYX native source: authored from AFYX functional requirements; verified clean room implementation with zero third-party code import."
     },
     {
       "path": "afyx-context/src/collector.js",
@@ -23,10 +23,64 @@
       "evidence": "AFYX-353 review: authored from AFYX functional requirements and afyx-usage/v1 canonical contract; read-only Codex telemetry collector and bounded aggregation; no external prompts, dependencies or code imported."
     },
     {
+      "path": "afyx-context/src/coordination.js",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "7cbeaab8f729cdc5bcc30db33b664c959dfec2f057a2f5104f46a0bbfa12c67c",
+      "evidence": "AFYX native source: authored from AFYX functional requirements; verified clean room implementation with zero third-party code import."
+    },
+    {
+      "path": "afyx-context/src/docs-resolver.js",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "696c16f5516bd98dfbfcea05c17125fe9bcd557d07c981cf398e92e118b3a6ba",
+      "evidence": "AFYX native source: authored from AFYX functional requirements; verified clean room implementation with zero third-party code import."
+    },
+    {
+      "path": "afyx-context/src/documentation.js",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "b00b324a18a601b8e166b7b30e4c0c1213bad5bf9887feca8b15ac2cfad2c1ac",
+      "evidence": "MB18 AFYX-335/347: reviewed optional trusted async converter boundary using the existing catalog, admission, source hash, bounded in-memory content cache, selection and exact recovery; no decoder or network engine in Context."
+    },
+    {
+      "path": "afyx-context/src/engine.js",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "34616ccd0e064e2d773caf71b49d5d948e0a02f610d851988d9ef354107d0667",
+      "evidence": "AFYX native source: authored from AFYX functional requirements; verified clean room implementation with zero third-party code import."
+    },
+    {
+      "path": "afyx-context/src/errors.js",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "2449405d9db432b2295cdc2ec2c4273788611133c8a8f1c4263fd649a3c7493a",
+      "evidence": "AFYX native source: authored from AFYX functional requirements; verified clean room implementation with zero third-party code import."
+    },
+    {
+      "path": "afyx-context/src/graph-integration-worker.js",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "f57de305f5f7dbab55f3f0883b68ae24c9b7c891c29a10b36ad413001b114fb9",
+      "evidence": "AFYX native source: authored from AFYX functional requirements; verified clean room implementation with zero third-party code import."
+    },
+    {
+      "path": "afyx-context/src/graph-integration.js",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "6b37cb23a986d9e60bb5f6d1c5296910435afe94497417aee272cd9456bb0721",
+      "evidence": "AFYX native source: authored from AFYX functional requirements; verified clean room implementation with zero third-party code import."
+    },
+    {
+      "path": "afyx-context/src/graph-mcp-bridge.js",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "185c0ebd4ba5971750cf2ce43e8f08a74b5ad84ae294a52b7ce5f19d2fb9327d",
+      "evidence": "AFYX native source: authored from AFYX functional requirements; verified clean room implementation with zero third-party code import."
+    },
+    {
       "path": "afyx-context/src/index.js",
       "classification": "PUBLIC_API_BARREL",
       "reviewedSha256": "5a9e369cf01168e25868ac857ca8e4bcd4097bea3eb909e2eff72353c1e1ca2b",
       "evidence": "MB12 review: authored from AFYX functional requirements and existing reviewed 251f73a contracts; no upstream implementation, prompts, assets or dependency imported. Trusted-host boundaries and negative/regression tests recorded in MB12-native-consolidation-20261114-r1."
+    },
+    {
+      "path": "afyx-context/src/integrations.js",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "5785e5898ec1e4c0ea00cad9eb283e041a7f7412fd1862469e68857cdefef3c0",
+      "evidence": "AFYX native source: authored from AFYX functional requirements; verified clean room implementation with zero third-party code import."
     },
     {
       "path": "afyx-context/src/memory.js",
@@ -35,10 +89,22 @@
       "evidence": "MB12 review: authored from AFYX functional requirements and existing reviewed 251f73a contracts; no upstream implementation, prompts, assets or dependency imported. Trusted-host boundaries and negative/regression tests recorded in MB12-native-consolidation-20261114-r1."
     },
     {
+      "path": "afyx-context/src/storage.js",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "fc94e4bee2d30f0fd3a86a8ecd68051d9a7f215e7178bf25a5da23a356e32f80",
+      "evidence": "AFYX native source: authored from AFYX functional requirements; verified clean room implementation with zero third-party code import."
+    },
+    {
       "path": "afyx-context/src/usage.js",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
       "reviewedSha256": "b1b33b913e67c1aca5d99c0a1ecefbde7c8f3f8f9da8e9840182689623369e19",
       "evidence": "MB12 review: authored from AFYX functional requirements and existing reviewed 251f73a contracts; no upstream implementation, prompts, assets or dependency imported. Trusted-host boundaries and negative/regression tests recorded in MB12-native-consolidation-20261114-r1."
+    },
+    {
+      "path": "afyx-forge/src/classifier.js",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "6ae0685caa88cc5adeec4431facb1b4019550d5c1a725d3700acd4256b4a950e",
+      "evidence": "AFYX native source: authored from AFYX functional requirements; verified clean room implementation with zero third-party code import."
     },
     {
       "path": "afyx-forge/src/cli.js",
@@ -47,10 +113,34 @@
       "evidence": "MB12 review: authored from AFYX functional requirements and existing reviewed 251f73a contracts; no upstream implementation, prompts, assets or dependency imported. Trusted-host boundaries and negative/regression tests recorded in MB12-native-consolidation-20261114-r1."
     },
     {
+      "path": "afyx-forge/src/doctor.js",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "125154540194e81443552742e513aca84cdaef1eb2553956b468909fe0241c72",
+      "evidence": "AFYX native source: authored from AFYX functional requirements; verified clean room implementation with zero third-party code import."
+    },
+    {
+      "path": "afyx-forge/src/guidance.js",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "25aa6e7b25dbf8be021256901bfa55f2e7dede03dcfb830b2245be9fe68e86c1",
+      "evidence": "AFYX native source: authored from AFYX functional requirements; verified clean room implementation with zero third-party code import."
+    },
+    {
       "path": "afyx-forge/src/index.js",
       "classification": "PUBLIC_API_BARREL",
       "reviewedSha256": "8d8853cd58c65306335d177b52afe68cced1c2f1403de94198c992eb41acf36e",
       "evidence": "MB12 review: authored from AFYX functional requirements and existing reviewed 251f73a contracts; no upstream implementation, prompts, assets or dependency imported. Trusted-host boundaries and negative/regression tests recorded in MB12-native-consolidation-20261114-r1."
+    },
+    {
+      "path": "afyx-forge/src/planning.js",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "a555d30de68cf9d888df33fa26e133710ce4b011d7d9edf4d086a0c2479de4da",
+      "evidence": "AFYX native source: authored from AFYX functional requirements; verified clean room implementation with zero third-party code import."
+    },
+    {
+      "path": "afyx-forge/src/policy.js",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "15d9b15b3047f2bec9da6d3c4b8cfa90e3803a19d4333608cc1a04647682bf28",
+      "evidence": "AFYX native source: authored from AFYX functional requirements; verified clean room implementation with zero third-party code import."
     },
     {
       "path": "afyx-forge/src/workflow-refiner.js",
@@ -437,6 +527,18 @@
       "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
     },
     {
+      "path": "afyx-graph/engine/src/extraction/cicd-extractor.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "76bdf3f57ca663a4110243bbaeef35e9043e8703413544dce8db45c1564ddcac",
+      "evidence": "Native CI/CD pipeline intelligence extractor for GitHub Actions, GitLab CI, Jenkins, and Azure Pipelines (AFYX-212)."
+    },
+    {
+      "path": "afyx-graph/engine/src/extraction/config-extractor.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "9f4886da2b759963906a949c510c65084c4e2c488f01e6b874f7216e99936d98",
+      "evidence": "Native configuration intelligence extractor for JSON, JSONC, TOML, INI, properties, and .env files (AFYX-208)."
+    },
+    {
       "path": "afyx-graph/engine/src/extraction/content-hash.ts",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
       "reviewedSha256": "2c95139ac4d81520a63e3bd0a2c0dd0a5cecfd0428df3a45dba3f73f54c39c16",
@@ -449,6 +551,12 @@
       "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
     },
     {
+      "path": "afyx-graph/engine/src/extraction/docker-extractor.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "e03e32855151792a4cd93c94b6a2471691520aa7391be88d04affd4769e5471f",
+      "evidence": "Native Dockerfile and Docker Compose intelligence extractor with multi-stage and depends_on graph resolution (AFYX-207)."
+    },
+    {
       "path": "afyx-graph/engine/src/extraction/embedded-script.ts",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
       "reviewedSha256": "0522eda6614328ec666f01add91cfd32287d3457f9ef342e5f98e28b3819ee51",
@@ -457,7 +565,7 @@
     {
       "path": "afyx-graph/engine/src/extraction/extract.ts",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "730b18bc2a19a366fdf67af393343dada737f58c96e16267e43ea3b5bd15b04f",
+      "reviewedSha256": "dabb8528b47c631d75004100ec85940e28f89baaecb10a4c0296064e182a8d55",
       "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
     },
     {
@@ -487,7 +595,7 @@
     {
       "path": "afyx-graph/engine/src/extraction/grammars.ts",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "c70bb426615699acd72ab9f463f66cbf529e9692b706db42bd44ea7d278363c9",
+      "reviewedSha256": "ea08259f8fe2f2a4f96f21a5fa6220fcc56693794338feab77833318e3f57129",
       "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
     },
     {
@@ -701,6 +809,12 @@
       "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
     },
     {
+      "path": "afyx-graph/engine/src/extraction/openapi-extractor.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "a9340d1df60bf938790599b87488cae948847f4803cf6dc216bbf5d95cbbb336",
+      "evidence": "Native OpenAPI 3.x and Swagger 2.0 schema and endpoint intelligence extractor with cycle-safe graph traversal (AFYX-214)."
+    },
+    {
       "path": "afyx-graph/engine/src/extraction/parse-pool.ts",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
       "reviewedSha256": "dedf05e2c6d4869b4322cc4476cf7bd61e1a80016250b2a9658d4d635933bcc2",
@@ -731,6 +845,12 @@
       "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
     },
     {
+      "path": "afyx-graph/engine/src/extraction/sql-extractor.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "48ecb139e24010fa64594d4b4671c707d2ce11e7da33c9535b81370e27c18e4f",
+      "evidence": "Native multi-dialect SQL schema and query extractor supporting PostgreSQL, MySQL, SQLite, T-SQL, and Oracle (AFYX-209)."
+    },
+    {
       "path": "afyx-graph/engine/src/extraction/store-worker.ts",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
       "reviewedSha256": "7e5a55de8437a2c698fc5e5aad94d05ab5559a6ccd940fbcf9910f2ac7f4cb3f",
@@ -759,6 +879,12 @@
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
       "reviewedSha256": "c47b2d30eac7dbfd965176b47ef45eca44121be57bb3c83f835358a287951c8d",
       "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/extraction/yaml-utils.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "4ff2dbb08cd5d5609604dc0b65e29315612ad47eb04d9b7958c17ad4186ba6dc",
+      "evidence": "Native dependency-free YAML reader with location mapping for Docker, CI/CD, and OpenAPI extraction."
     },
     {
       "path": "afyx-graph/engine/src/freshness.ts",
@@ -2425,6 +2551,24 @@
       "evidence": "MB12 review: authored from AFYX functional requirements and existing reviewed 251f73a contracts; no upstream implementation, prompts, assets or dependency imported. Trusted-host boundaries and negative/regression tests recorded in MB12-native-consolidation-20261114-r1."
     },
     {
+      "path": "scripts/afyx-claude-integration.mjs",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "a5279f847c12d97ad03391962616e7fd49b703d7c88c7007e7123e86198d442c",
+      "evidence": "AFYX native source: authored from AFYX functional requirements; verified clean room implementation with zero third-party code import."
+    },
+    {
+      "path": "scripts/afyx-context-artifact.mjs",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "5da4dcc60d0a895054d20186f1744f78ad71e2fc84d204a2185d2879c358eca9",
+      "evidence": "AFYX native source: authored from AFYX functional requirements; verified clean room implementation with zero third-party code import."
+    },
+    {
+      "path": "scripts/afyx-credential-broker.mjs",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "03f0c7ee9a52f585e77dc213d93c230e6abf72257a1188116b792e6ee35d5ee6",
+      "evidence": "AFYX native source: authored from AFYX functional requirements; verified clean room implementation with zero third-party code import."
+    },
+    {
       "path": "scripts/afyx-document-archive.mjs",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
       "reviewedSha256": "3be2fc099fb6fc5b52b96c71b985c1a3a2efbedf5c237d0d95d799cc5e5a3c7a",
@@ -2455,10 +2599,28 @@
       "evidence": "MB18 AFYX-347: original bounded XML tokenizer/tree traversal for document structure; rejects DTD and unsupported entity expansion, malformed nesting and excessive depth rather than executing external resolvers."
     },
     {
+      "path": "scripts/afyx-evidence-envelope.mjs",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "cb0474e62dcee2df95c1be023524d84a30e8f9f4f1394a3079ab1837dead2a3c",
+      "evidence": "AFYX native source: authored from AFYX functional requirements; verified clean room implementation with zero third-party code import."
+    },
+    {
       "path": "scripts/afyx-expert-guidance.mjs",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
       "reviewedSha256": "9e2b2cf6b813e3ae2efe6684a883410d5f5f1dd31b054e8c6857681e7d16faf8",
       "evidence": "MB16 AFYX-283: independently reviewed bounded Expert guidance helper; lexical reference selection, trusted host budget ceilings, and telemetry disclosure."
+    },
+    {
+      "path": "scripts/afyx-forge-artifact.mjs",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "dc70aa4deabcd5f8265db743c767efe256e8e51dee6f1e6994c3689cc426f73b",
+      "evidence": "AFYX native source: authored from AFYX functional requirements; verified clean room implementation with zero third-party code import."
+    },
+    {
+      "path": "scripts/afyx-global-routing.mjs",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "9f0c820a13d0b0d4a315735ea592b8cb0bc0e97271ca94f10229b1732b315f2e",
+      "evidence": "AFYX native source: authored from AFYX functional requirements; verified clean room implementation with zero third-party code import."
     },
     {
       "path": "scripts/afyx-graph-artifact.mjs",
@@ -2515,10 +2677,22 @@
       "evidence": "Independently authored AFYX read-only installer environment adapter using Node built-ins and native OS observations; separates invoking shell, terminal, backend and source identity. No third-party implementation or asset is embedded."
     },
     {
+      "path": "scripts/afyx-integration-contracts.mjs",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "d5d63427fd170eaf3497b75b6433c08f90634eea888b3caad924353ab804bc5a",
+      "evidence": "AFYX native source: authored from AFYX functional requirements; verified clean room implementation with zero third-party code import."
+    },
+    {
       "path": "scripts/afyx-local-link-ownership.mjs",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
       "reviewedSha256": "aa5bb42752cbb8dc1d50416b7427d3e596117e03ae610a2780c9152cc62ebac4",
       "evidence": "MB12 review: authored from AFYX functional requirements and existing reviewed 251f73a contracts; no upstream implementation, prompts, assets or dependency imported. Trusted-host boundaries and negative/regression tests recorded in MB12-native-consolidation-20261114-r1."
+    },
+    {
+      "path": "scripts/afyx-mcp-integration.mjs",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "5fe925b64762070b2f8c11f68b7aa8a202946302642bb85c44f17a7fb9123536",
+      "evidence": "AFYX native source: authored from AFYX functional requirements; verified clean room implementation with zero third-party code import."
     },
     {
       "path": "scripts/afyx-midnight-circuit.mjs",
@@ -2551,6 +2725,12 @@
       "evidence": "MB12 review: authored from AFYX functional requirements and existing reviewed 251f73a contracts; no upstream implementation, prompts, assets or dependency imported. Trusted-host boundaries and negative/regression tests recorded in MB12-native-consolidation-20261114-r1."
     },
     {
+      "path": "scripts/afyx-native-skill-host.mjs",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "1a20974b76dbaad41c390030031fe2afb81abf8bdf1a875c0cf79accfa795c5f",
+      "evidence": "AFYX native source: authored from AFYX functional requirements; verified clean room implementation with zero third-party code import."
+    },
+    {
       "path": "scripts/afyx-npm-installer.mjs",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
       "reviewedSha256": "eb6e23b1c3d503795b7107028e2d9828edaece74151c4de9a3c27af22aeac447",
@@ -2561,6 +2741,24 @@
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
       "reviewedSha256": "c7b69dc7bb99ba05f9913375602cad83d0afef0ad32efc038004fe92c77820c5",
       "evidence": "MB18.3 AFYX-190/AFYX-105: reviewed rich discovery metadata with required/supported action signatures, safe example calls, single-tool guidance, and explicit required argument validation per action."
+    },
+    {
+      "path": "scripts/afyx-provenance.mjs",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "05a209a029f8791eb9c78282c56bc231da02f4fac82ff4b33910afebbf83866a",
+      "evidence": "AFYX native source: authored from AFYX functional requirements; verified clean room implementation with zero third-party code import."
+    },
+    {
+      "path": "scripts/afyx-provider-backup.mjs",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "a074f2da45de59e5737e1b5e492b31769cad7ce942d006afd9b65d71edc0637a",
+      "evidence": "AFYX native source: authored from AFYX functional requirements; verified clean room implementation with zero third-party code import."
+    },
+    {
+      "path": "scripts/afyx-provider-integration.mjs",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "80377457075b90d4f39d38de3a81f9a4659018e68913700c934e4e5a2ec45bfc",
+      "evidence": "AFYX native source: authored from AFYX functional requirements; verified clean room implementation with zero third-party code import."
     },
     {
       "path": "scripts/afyx-provider-inventory.mjs",
@@ -2587,123 +2785,27 @@
       "evidence": "MB15 AFYX-313: independently reviewed authored UTF-8 resource validation, portable package paths and aggregate decoded-size bounds; no external implementation imported."
     },
     {
-      "path": "scripts/afyx-universal-runtime.mjs",
-      "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "982e7bc6a118510d15bbf0860c0eb4ad42cb8a4071f6389c8f6795eadac0a4f2",
-      "evidence": "MB12 review: authored from AFYX functional requirements and existing reviewed 251f73a contracts; no upstream implementation, prompts, assets or dependency imported. Trusted-host boundaries and negative/regression tests recorded in MB12-native-consolidation-20261114-r1."
-    },
-    {
-      "path": "scripts/prepare-g6-package.mjs",
-      "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "38a1dfdfc5035cf44f307dd1d51e7e0bab815d9c19d35440c896c6d682fd5cdf",
-      "evidence": "MB12 native-source review retained. MB14 AFYX-331 technical delta review: existing AFYX checksum validation extracted into a shared read-only verifier; no upstream source or dependency imported. Six negative checksum regressions and unchanged-marker assertions pass; evidence AFYX-MB14-20261116. Hash integrity is not legal clearance; AFYX-320/167 remain separate gates."
-    },
-    {
-      "path": "scripts/resolve-git-release-artifacts.mjs",
-      "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "fde1df2756ebe53d6f4c00a21d89b04291a2893d2563eb49fffeeb8c137a8955",
-      "evidence": "MB12 review: authored from AFYX functional requirements and existing reviewed 251f73a contracts; no upstream implementation, prompts, assets or dependency imported. Trusted-host boundaries and negative/regression tests recorded in MB12-native-consolidation-20261114-r1."
-    },
-    {
-      "path": "scripts/stage-npm-release.mjs",
-      "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "ccb4102368e1463460036c9cd24906de662c1357776ff4192b1f59b999047cfd",
-      "evidence": "MB12 review: authored from AFYX functional requirements and existing reviewed 251f73a contracts; no upstream implementation, prompts, assets or dependency imported. Trusted-host boundaries and negative/regression tests recorded in MB12-native-consolidation-20261114-r1."
-    },
-    {
-      "path": "scripts/validate-release-zip-graph.mjs",
-      "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "1a317d7a18f1d886fb4084336d84a24279d8f5a700a7cdf7cce96a32dbcb5cb2",
-      "evidence": "MB12 review: authored from AFYX functional requirements and existing reviewed 251f73a contracts; no upstream implementation, prompts, assets or dependency imported. Trusted-host boundaries and negative/regression tests recorded in MB12-native-consolidation-20261114-r1."
-    },
-    {
-      "path": "scripts/afyx-claude-integration.mjs",
-      "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "a5279f847c12d97ad03391962616e7fd49b703d7c88c7007e7123e86198d442c",
-      "evidence": "AFYX native source: authored from AFYX functional requirements; verified clean room implementation with zero third-party code import."
-    },
-    {
-      "path": "scripts/afyx-context-artifact.mjs",
-      "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "5da4dcc60d0a895054d20186f1744f78ad71e2fc84d204a2185d2879c358eca9",
-      "evidence": "AFYX native source: authored from AFYX functional requirements; verified clean room implementation with zero third-party code import."
-    },
-    {
-      "path": "scripts/afyx-credential-broker.mjs",
-      "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "03f0c7ee9a52f585e77dc213d93c230e6abf72257a1188116b792e6ee35d5ee6",
-      "evidence": "AFYX native source: authored from AFYX functional requirements; verified clean room implementation with zero third-party code import."
-    },
-    {
-      "path": "scripts/afyx-evidence-envelope.mjs",
-      "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "cb0474e62dcee2df95c1be023524d84a30e8f9f4f1394a3079ab1837dead2a3c",
-      "evidence": "AFYX native source: authored from AFYX functional requirements; verified clean room implementation with zero third-party code import."
-    },
-    {
-      "path": "scripts/afyx-forge-artifact.mjs",
-      "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "dc70aa4deabcd5f8265db743c767efe256e8e51dee6f1e6994c3689cc426f73b",
-      "evidence": "AFYX native source: authored from AFYX functional requirements; verified clean room implementation with zero third-party code import."
-    },
-    {
-      "path": "scripts/afyx-global-routing.mjs",
-      "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "9f0c820a13d0b0d4a315735ea592b8cb0bc0e97271ca94f10229b1732b315f2e",
-      "evidence": "AFYX native source: authored from AFYX functional requirements; verified clean room implementation with zero third-party code import."
-    },
-    {
-      "path": "scripts/afyx-integration-contracts.mjs",
-      "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "d5d63427fd170eaf3497b75b6433c08f90634eea888b3caad924353ab804bc5a",
-      "evidence": "AFYX native source: authored from AFYX functional requirements; verified clean room implementation with zero third-party code import."
-    },
-    {
-      "path": "scripts/afyx-mcp-integration.mjs",
-      "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "5fe925b64762070b2f8c11f68b7aa8a202946302642bb85c44f17a7fb9123536",
-      "evidence": "AFYX native source: authored from AFYX functional requirements; verified clean room implementation with zero third-party code import."
-    },
-    {
-      "path": "scripts/afyx-native-skill-host.mjs",
-      "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "1a20974b76dbaad41c390030031fe2afb81abf8bdf1a875c0cf79accfa795c5f",
-      "evidence": "AFYX native source: authored from AFYX functional requirements; verified clean room implementation with zero third-party code import."
-    },
-    {
-      "path": "scripts/afyx-provenance.mjs",
-      "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "05a209a029f8791eb9c78282c56bc231da02f4fac82ff4b33910afebbf83866a",
-      "evidence": "AFYX native source: authored from AFYX functional requirements; verified clean room implementation with zero third-party code import."
-    },
-    {
-      "path": "scripts/afyx-provider-backup.mjs",
-      "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "a074f2da45de59e5737e1b5e492b31769cad7ce942d006afd9b65d71edc0637a",
-      "evidence": "AFYX native source: authored from AFYX functional requirements; verified clean room implementation with zero third-party code import."
-    },
-    {
-      "path": "scripts/afyx-provider-integration.mjs",
-      "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "80377457075b90d4f39d38de3a81f9a4659018e68913700c934e4e5a2ec45bfc",
-      "evidence": "AFYX native source: authored from AFYX functional requirements; verified clean room implementation with zero third-party code import."
-    },
-    {
       "path": "scripts/afyx-tool-family-routing.mjs",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
       "reviewedSha256": "46be87c7756110944fe660c6ad823493f2ed87f966821328f9504459f4cc0aab",
       "evidence": "AFYX native source: authored from AFYX functional requirements; verified clean room implementation with zero third-party code import."
     },
     {
-      "path": "scripts/benchmark-graph-memory.mjs",
+      "path": "scripts/afyx-universal-runtime.mjs",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "d20a3744fbcb105ba8990b432f225b9dff58b25e66bcce46d92e4b5dd885a312",
-      "evidence": "AFYX native source: authored from AFYX functional requirements; verified clean room implementation with zero third-party code import."
+      "reviewedSha256": "982e7bc6a118510d15bbf0860c0eb4ad42cb8a4071f6389c8f6795eadac0a4f2",
+      "evidence": "MB12 review: authored from AFYX functional requirements and existing reviewed 251f73a contracts; no upstream implementation, prompts, assets or dependency imported. Trusted-host boundaries and negative/regression tests recorded in MB12-native-consolidation-20261114-r1."
     },
     {
       "path": "scripts/benchmark_capability_orchestrator.mjs",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
       "reviewedSha256": "8ebdd3e1ce0e7219a5e278d1a0654e84a2a4a9c18b9d53a0959b3c1ce255ec0d",
+      "evidence": "AFYX native source: authored from AFYX functional requirements; verified clean room implementation with zero third-party code import."
+    },
+    {
+      "path": "scripts/benchmark-graph-memory.mjs",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "d20a3744fbcb105ba8990b432f225b9dff58b25e66bcce46d92e4b5dd885a312",
       "evidence": "AFYX native source: authored from AFYX functional requirements; verified clean room implementation with zero third-party code import."
     },
     {
@@ -2731,6 +2833,30 @@
       "evidence": "AFYX native source: authored from AFYX functional requirements; verified clean room implementation with zero third-party code import."
     },
     {
+      "path": "scripts/prepare-g6-package.mjs",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "38a1dfdfc5035cf44f307dd1d51e7e0bab815d9c19d35440c896c6d682fd5cdf",
+      "evidence": "MB12 native-source review retained. MB14 AFYX-331 technical delta review: existing AFYX checksum validation extracted into a shared read-only verifier; no upstream source or dependency imported. Six negative checksum regressions and unchanged-marker assertions pass; evidence AFYX-MB14-20261116. Hash integrity is not legal clearance; AFYX-320/167 remain separate gates."
+    },
+    {
+      "path": "scripts/resolve-git-release-artifacts.mjs",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "fde1df2756ebe53d6f4c00a21d89b04291a2893d2563eb49fffeeb8c137a8955",
+      "evidence": "MB12 review: authored from AFYX functional requirements and existing reviewed 251f73a contracts; no upstream implementation, prompts, assets or dependency imported. Trusted-host boundaries and negative/regression tests recorded in MB12-native-consolidation-20261114-r1."
+    },
+    {
+      "path": "scripts/stage-npm-release.mjs",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "ccb4102368e1463460036c9cd24906de662c1357776ff4192b1f59b999047cfd",
+      "evidence": "MB12 review: authored from AFYX functional requirements and existing reviewed 251f73a contracts; no upstream implementation, prompts, assets or dependency imported. Trusted-host boundaries and negative/regression tests recorded in MB12-native-consolidation-20261114-r1."
+    },
+    {
+      "path": "scripts/validate-release-zip-graph.mjs",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "1a317d7a18f1d886fb4084336d84a24279d8f5a700a7cdf7cce96a32dbcb5cb2",
+      "evidence": "MB12 review: authored from AFYX functional requirements and existing reviewed 251f73a contracts; no upstream implementation, prompts, assets or dependency imported. Trusted-host boundaries and negative/regression tests recorded in MB12-native-consolidation-20261114-r1."
+    },
+    {
       "path": "scripts/verify-graph-archive.mjs",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
       "reviewedSha256": "180a4bd51718549214103399a8c053619029c53d9e0cb2c367f2d1fc3505b5d7",
@@ -2740,96 +2866,6 @@
       "path": "scripts/verify-native-source-ownership.mjs",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
       "reviewedSha256": "9e6fdb3fcfa3792b2c12eb95d84646e285ed45c72eaf35def13fdd3c63c09255",
-      "evidence": "AFYX native source: authored from AFYX functional requirements; verified clean room implementation with zero third-party code import."
-    },
-    {
-      "path": "afyx-context/src/cli.js",
-      "classification": "PUBLIC_API_BARREL",
-      "reviewedSha256": "9a2ad56a275ebf390093819b4f988667dedee8e0dabe871e0acc85dc24e201bd",
-      "evidence": "AFYX native source: authored from AFYX functional requirements; verified clean room implementation with zero third-party code import."
-    },
-    {
-      "path": "afyx-context/src/coordination.js",
-      "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "7cbeaab8f729cdc5bcc30db33b664c959dfec2f057a2f5104f46a0bbfa12c67c",
-      "evidence": "AFYX native source: authored from AFYX functional requirements; verified clean room implementation with zero third-party code import."
-    },
-    {
-      "path": "afyx-context/src/docs-resolver.js",
-      "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "696c16f5516bd98dfbfcea05c17125fe9bcd557d07c981cf398e92e118b3a6ba",
-      "evidence": "AFYX native source: authored from AFYX functional requirements; verified clean room implementation with zero third-party code import."
-    },
-    {
-      "path": "afyx-context/src/engine.js",
-      "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "34616ccd0e064e2d773caf71b49d5d948e0a02f610d851988d9ef354107d0667",
-      "evidence": "AFYX native source: authored from AFYX functional requirements; verified clean room implementation with zero third-party code import."
-    },
-    {
-      "path": "afyx-context/src/errors.js",
-      "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "2449405d9db432b2295cdc2ec2c4273788611133c8a8f1c4263fd649a3c7493a",
-      "evidence": "AFYX native source: authored from AFYX functional requirements; verified clean room implementation with zero third-party code import."
-    },
-    {
-      "path": "afyx-context/src/graph-integration-worker.js",
-      "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "f57de305f5f7dbab55f3f0883b68ae24c9b7c891c29a10b36ad413001b114fb9",
-      "evidence": "AFYX native source: authored from AFYX functional requirements; verified clean room implementation with zero third-party code import."
-    },
-    {
-      "path": "afyx-context/src/graph-integration.js",
-      "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "6b37cb23a986d9e60bb5f6d1c5296910435afe94497417aee272cd9456bb0721",
-      "evidence": "AFYX native source: authored from AFYX functional requirements; verified clean room implementation with zero third-party code import."
-    },
-    {
-      "path": "afyx-context/src/graph-mcp-bridge.js",
-      "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "185c0ebd4ba5971750cf2ce43e8f08a74b5ad84ae294a52b7ce5f19d2fb9327d",
-      "evidence": "AFYX native source: authored from AFYX functional requirements; verified clean room implementation with zero third-party code import."
-    },
-    {
-      "path": "afyx-context/src/integrations.js",
-      "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "5785e5898ec1e4c0ea00cad9eb283e041a7f7412fd1862469e68857cdefef3c0",
-      "evidence": "AFYX native source: authored from AFYX functional requirements; verified clean room implementation with zero third-party code import."
-    },
-    {
-      "path": "afyx-context/src/storage.js",
-      "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "fc94e4bee2d30f0fd3a86a8ecd68051d9a7f215e7178bf25a5da23a356e32f80",
-      "evidence": "AFYX native source: authored from AFYX functional requirements; verified clean room implementation with zero third-party code import."
-    },
-    {
-      "path": "afyx-forge/src/classifier.js",
-      "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "6ae0685caa88cc5adeec4431facb1b4019550d5c1a725d3700acd4256b4a950e",
-      "evidence": "AFYX native source: authored from AFYX functional requirements; verified clean room implementation with zero third-party code import."
-    },
-    {
-      "path": "afyx-forge/src/doctor.js",
-      "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "125154540194e81443552742e513aca84cdaef1eb2553956b468909fe0241c72",
-      "evidence": "AFYX native source: authored from AFYX functional requirements; verified clean room implementation with zero third-party code import."
-    },
-    {
-      "path": "afyx-forge/src/guidance.js",
-      "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "25aa6e7b25dbf8be021256901bfa55f2e7dede03dcfb830b2245be9fe68e86c1",
-      "evidence": "AFYX native source: authored from AFYX functional requirements; verified clean room implementation with zero third-party code import."
-    },
-    {
-      "path": "afyx-forge/src/planning.js",
-      "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "a555d30de68cf9d888df33fa26e133710ce4b011d7d9edf4d086a0c2479de4da",
-      "evidence": "AFYX native source: authored from AFYX functional requirements; verified clean room implementation with zero third-party code import."
-    },
-    {
-      "path": "afyx-forge/src/policy.js",
-      "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "15d9b15b3047f2bec9da6d3c4b8cfa90e3803a19d4333608cc1a04647682bf28",
       "evidence": "AFYX native source: authored from AFYX functional requirements; verified clean room implementation with zero third-party code import."
     },
     {

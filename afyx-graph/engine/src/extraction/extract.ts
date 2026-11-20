@@ -23,6 +23,11 @@ import { extractNativeCfmlFacts } from './native/cfml-facts';
 import { extractNativeShellFacts } from './native/shell-facts';
 import { extractNativePowerShellFacts } from './native/powershell-facts';
 import { getAllFrameworkResolvers, getApplicableFrameworks } from '../resolution/frameworks';
+import { ConfigExtractor, isConfigFile } from './config-extractor';
+import { DockerExtractor, isDockerRelatedFile } from './docker-extractor';
+import { CicdExtractor, isCicdFile } from './cicd-extractor';
+import { SqlExtractor, isSqlFile } from './sql-extractor';
+import { OpenApiExtractor, isOpenApiFile } from './openapi-extractor';
 
 const NATIVE_FACT_LANGUAGES: ReadonlySet<Language> = new Set([
   'typescript', 'tsx', 'javascript', 'jsx', 'arkts', 'python', 'go', 'java',
@@ -41,7 +46,17 @@ export function extractFromSource(
   const fileExtension = path.extname(filePath).toLowerCase();
   let result: ExtractionResult;
 
-  if (detectedLanguage === 'shell') {
+  if (isOpenApiFile(filePath, source)) {
+    result = new OpenApiExtractor(filePath, source).extract();
+  } else if (isCicdFile(filePath)) {
+    result = new CicdExtractor(filePath, source).extract();
+  } else if (isDockerRelatedFile(filePath)) {
+    result = new DockerExtractor(filePath, source).extract();
+  } else if (isSqlFile(filePath)) {
+    result = new SqlExtractor(filePath, source).extract();
+  } else if (isConfigFile(filePath)) {
+    result = new ConfigExtractor(filePath, source).extract();
+  } else if (detectedLanguage === 'shell') {
     result = extractNativeShellFacts(filePath, source);
   } else if (detectedLanguage === 'powershell') {
     result = extractNativePowerShellFacts(filePath, source);
