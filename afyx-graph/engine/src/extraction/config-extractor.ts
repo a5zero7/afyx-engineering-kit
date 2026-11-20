@@ -490,58 +490,8 @@ export class ConfigExtractor {
           kind: 'contains',
         });
 
-        // Traverse array elements
-        val.forEach((item, index) => {
-          const itemPath = `${fullPath}[${index}]`;
-          if (item !== null && typeof item === 'object' && !Array.isArray(item)) {
-            const itemNodeId = generateNodeId(this.filePath, 'namespace', itemPath, approxLine);
-            this.nodes.push({
-              id: itemNodeId,
-              kind: 'namespace',
-              name: `[${index}]`,
-              qualifiedName: `${this.filePath}#${itemPath}`,
-              filePath: this.filePath,
-              language: 'json',
-              startLine: approxLine,
-              endLine: approxLine,
-              startColumn: 0,
-              endColumn: 0,
-              signature: `{ [${index}] }`,
-              updatedAt: Date.now(),
-            });
-            this.edges.push({
-              source: arrId,
-              target: itemNodeId,
-              kind: 'contains',
-            });
-            this.walkJsonObject(item, itemPath, itemNodeId, approxLine, isSensitive);
-          } else {
-            const leafId = generateNodeId(this.filePath, 'property', itemPath, approxLine);
-            const safeItemVal = isSensitive ? '[REDACTED]' : JSON.stringify(item);
-            this.nodes.push({
-              id: leafId,
-              kind: 'property',
-              name: `[${index}]`,
-              qualifiedName: `${this.filePath}#${itemPath}`,
-              filePath: this.filePath,
-              language: 'json',
-              startLine: approxLine,
-              endLine: approxLine,
-              startColumn: 0,
-              endColumn: 0,
-              signature: `[${index}]: ${safeItemVal}`,
-              updatedAt: Date.now(),
-            });
-            this.edges.push({
-              source: arrId,
-              target: leafId,
-              kind: 'contains',
-            });
-            if (!isSensitive && typeof item === 'string') {
-              this.findEnvReferences(item, leafId, approxLine);
-            }
-          }
-        });
+        // Traverse array elements (including nested arrays and objects)
+        this.traverseJsonArray(val, fullPath, arrId, approxLine, isSensitive);
       } else {
         // Leaf property
         const strVal = String(val);
@@ -574,5 +524,95 @@ export class ConfigExtractor {
         }
       }
     }
+  }
+
+  private traverseJsonArray(
+    arr: any[],
+    parentPath: string,
+    parentNodeId: string,
+    approxLine: number,
+    inheritedSensitive: boolean
+  ): void {
+    arr.forEach((item, index) => {
+      const itemPath = `${parentPath}[${index}]`;
+
+      if (item !== null && typeof item === 'object' && !Array.isArray(item)) {
+        // Object inside array
+        const itemNodeId = generateNodeId(this.filePath, 'namespace', itemPath, approxLine);
+        this.nodes.push({
+          id: itemNodeId,
+          kind: 'namespace',
+          name: `[${index}]`,
+          qualifiedName: `${this.filePath}#${itemPath}`,
+          filePath: this.filePath,
+          language: 'json',
+          startLine: approxLine,
+          endLine: approxLine,
+          startColumn: 0,
+          endColumn: 0,
+          signature: `{ [${index}] }`,
+          updatedAt: Date.now(),
+        });
+        this.edges.push({
+          source: parentNodeId,
+          target: itemNodeId,
+          kind: 'contains',
+        });
+        this.walkJsonObject(item, itemPath, itemNodeId, approxLine, inheritedSensitive);
+      } else if (Array.isArray(item)) {
+        // Nested array within array (e.g. [[{ password: "..." }]])
+        const subArrId = generateNodeId(this.filePath, 'property', itemPath, approxLine);
+        const safeSignature = inheritedSensitive
+          ? `"[${index}]": [REDACTED]`
+          : `"[${index}]": [ ... ]`;
+
+        this.nodes.push({
+          id: subArrId,
+          kind: 'property',
+          name: `[${index}]`,
+          qualifiedName: `${this.filePath}#${itemPath}`,
+          filePath: this.filePath,
+          language: 'json',
+          startLine: approxLine,
+          endLine: approxLine,
+          startColumn: 0,
+          endColumn: 0,
+          signature: safeSignature,
+          updatedAt: Date.now(),
+        });
+        this.edges.push({
+          source: parentNodeId,
+          target: subArrId,
+          kind: 'contains',
+        });
+        this.traverseJsonArray(item, itemPath, subArrId, approxLine, inheritedSensitive);
+      } else {
+        // Primitive leaf element
+        const leafId = generateNodeId(this.filePath, 'property', itemPath, approxLine);
+        const safeItemVal = inheritedSensitive ? '[REDACTED]' : JSON.stringify(item);
+        this.nodes.push({
+          id: leafId,
+          kind: 'property',
+          name: `[${index}]`,
+          qualifiedName: `${this.filePath}#${itemPath}`,
+          filePath: this.filePath,
+          language: 'json',
+          startLine: approxLine,
+          endLine: approxLine,
+          startColumn: 0,
+          endColumn: 0,
+          signature: `[${index}]: ${safeItemVal}`,
+          updatedAt: Date.now(),
+        });
+        this.edges.push({
+          source: parentNodeId,
+          target: leafId,
+          kind: 'contains',
+        });
+        if (!inheritedSensitive && typeof item === 'string') {
+          this.findEnvReferences(item, leafId, approxLine);
+        }
+      }
+    });
   }
 }

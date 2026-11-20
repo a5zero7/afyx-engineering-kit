@@ -2,13 +2,19 @@
   "schema": 1,
   "baselineRevision": "c4e4d8e29de239a2fcbc0db8ac65eea2276e7b00",
   "scope": "AFYX-320 comprehensive production source inventory",
-  "totalProductionFiles": 482,
+  "totalProductionFiles": 491,
   "entries": [
     {
       "path": "afyx-context/src/budget.js",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
       "reviewedSha256": "83c85637a3c1cfd03310e4acd1395342f509b06fac9dae8d6dbf0b78686d588a",
       "evidence": "MB12 review: authored from AFYX functional requirements and existing reviewed 251f73a contracts; no upstream implementation, prompts, assets or dependency imported. Trusted-host boundaries and negative/regression tests recorded in MB12-native-consolidation-20261114-r1."
+    },
+    {
+      "path": "afyx-context/src/cli-compactor.js",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "9d68f9b4df6356af90643df113464a3904628e1101532122d463df31e3f8c9e8",
+      "evidence": "Pure Node.js terminal output compactor with failure preservation and spill recovery (AFYX-245)."
     },
     {
       "path": "afyx-context/src/cli.js",
@@ -29,6 +35,12 @@
       "evidence": "AFYX native source: authored from AFYX functional requirements; verified clean room implementation with zero third-party code import."
     },
     {
+      "path": "afyx-context/src/db-inspector.js",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "8242b3d1b36e24b25fcc3b9944633caabe71c084efdc9e8d69f8c525e210283b",
+      "evidence": "Strictly read-only data and schema inspector for CSV, JSON, NDJSON, SQLite, and external catalogs."
+    },
+    {
       "path": "afyx-context/src/docs-resolver.js",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
       "reviewedSha256": "696c16f5516bd98dfbfcea05c17125fe9bcd557d07c981cf398e92e118b3a6ba",
@@ -45,6 +57,12 @@
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
       "reviewedSha256": "34616ccd0e064e2d773caf71b49d5d948e0a02f610d851988d9ef354107d0667",
       "evidence": "AFYX native source: authored from AFYX functional requirements; verified clean room implementation with zero third-party code import."
+    },
+    {
+      "path": "afyx-context/src/env-preflight.js",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "747ddd8ba47e84884992796af04002b0da0a38fc1769a487ca88757e5e3c8f32",
+      "evidence": "Universal non-destructive workspace environment preflight and diagnostics engine."
     },
     {
       "path": "afyx-context/src/errors.js",
@@ -71,9 +89,15 @@
       "evidence": "AFYX native source: authored from AFYX functional requirements; verified clean room implementation with zero third-party code import."
     },
     {
+      "path": "afyx-context/src/impact-simulator.js",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "ff0cc5d12bb46b046766d05cc3cc381d104d0a5ba16c7bb1dc7473ae8732478f",
+      "evidence": "Universal read-only dependency impact simulation engine with Graph and fallback support (AFYX-116)."
+    },
+    {
       "path": "afyx-context/src/index.js",
       "classification": "PUBLIC_API_BARREL",
-      "reviewedSha256": "5a9e369cf01168e25868ac857ca8e4bcd4097bea3eb909e2eff72353c1e1ca2b",
+      "reviewedSha256": "82e28404d5986cfddb0b13e3cd24ba650de8e22e0e675095435614844cc56f07",
       "evidence": "MB12 review: authored from AFYX functional requirements and existing reviewed 251f73a contracts; no upstream implementation, prompts, assets or dependency imported. Trusted-host boundaries and negative/regression tests recorded in MB12-native-consolidation-20261114-r1."
     },
     {
@@ -81,6 +105,12 @@
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
       "reviewedSha256": "5785e5898ec1e4c0ea00cad9eb283e041a7f7412fd1862469e68857cdefef3c0",
       "evidence": "AFYX native source: authored from AFYX functional requirements; verified clean room implementation with zero third-party code import."
+    },
+    {
+      "path": "afyx-context/src/massive-context.js",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "d6ca372de78b75dc80aa4c92850c09ef1e8076b5997dbbd8a5d822e39fc43932",
+      "evidence": "Out-of-core massive context navigator with coarse metadata indexing and budget-bounded retrieval (AFYX-241/244)."
     },
     {
       "path": "afyx-context/src/memory.js",
@@ -101,6 +131,12 @@
       "evidence": "MB12 review: authored from AFYX functional requirements and existing reviewed 251f73a contracts; no upstream implementation, prompts, assets or dependency imported. Trusted-host boundaries and negative/regression tests recorded in MB12-native-consolidation-20261114-r1."
     },
     {
+      "path": "afyx-context/src/work-ledger.js",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "b56531131430600c188f3be415d546ebdf705d55e3336227fad36a34ea05d2f8",
+      "evidence": "Universal AFYX task, decision, and evidence work ledger with deterministic receipt generation."
+    },
+    {
       "path": "afyx-forge/src/classifier.js",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
       "reviewedSha256": "6ae0685caa88cc5adeec4431facb1b4019550d5c1a725d3700acd4256b4a950e",
@@ -111,6 +147,12 @@
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
       "reviewedSha256": "90736faf3085de681800e564ca17c2cfebf6750965f2f80f88e3a88ed08fa292",
       "evidence": "MB12 review: authored from AFYX functional requirements and existing reviewed 251f73a contracts; no upstream implementation, prompts, assets or dependency imported. Trusted-host boundaries and negative/regression tests recorded in MB12-native-consolidation-20261114-r1."
+    },
+    {
+      "path": "afyx-forge/src/contract-validator.js",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "70297120740a9631e822307a724048cdee2bfc24a8d2511547dece3e6f829094",
+      "evidence": "Universal data schema and API contract validator for JSON, CSV, env, OpenAPI, GraphQL, and Protobuf."
     },
     {
       "path": "afyx-forge/src/doctor.js",
@@ -127,8 +169,14 @@
     {
       "path": "afyx-forge/src/index.js",
       "classification": "PUBLIC_API_BARREL",
-      "reviewedSha256": "8d8853cd58c65306335d177b52afe68cced1c2f1403de94198c992eb41acf36e",
+      "reviewedSha256": "da643c04a6903cc28e4af0065bd2eff93e737a7ed4c16ea1f5fcec4df662c0cd",
       "evidence": "MB12 review: authored from AFYX functional requirements and existing reviewed 251f73a contracts; no upstream implementation, prompts, assets or dependency imported. Trusted-host boundaries and negative/regression tests recorded in MB12-native-consolidation-20261114-r1."
+    },
+    {
+      "path": "afyx-forge/src/migration-planner.js",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "7843d9a4a41c3a8ca700ce475db086fa06ce230b543572e9cc0fc3013d76d96c",
+      "evidence": "Universal evidence-grounded migration, reorg, and transition planner with reversible rollback plans."
     },
     {
       "path": "afyx-forge/src/planning.js",
@@ -535,7 +583,7 @@
     {
       "path": "afyx-graph/engine/src/extraction/config-extractor.ts",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "15c71ebb393bd921c1ff8f125d9e7c6960124c39ff2b67c1a0dfb28ef8db9c6c",
+      "reviewedSha256": "bd2dd09b4c852a764870e11c4d6841b7dc5b0e2605045a3e29a8f0bc19e2664e",
       "evidence": "Native configuration intelligence extractor for JSON, JSONC, TOML, INI, properties, and .env files (AFYX-208)."
     },
     {
@@ -599,10 +647,22 @@
       "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
     },
     {
+      "path": "afyx-graph/engine/src/extraction/graphql-extractor.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "df2696a7ff7e7b2b480a704f76e9cff627d0c7d1a6700275c224057c2ae7aa94",
+      "evidence": "Native GraphQL intelligence extractor for SDL types, operations, and fragments (AFYX-215)."
+    },
+    {
       "path": "afyx-graph/engine/src/extraction/index.ts",
       "classification": "PUBLIC_API_BARREL",
       "reviewedSha256": "5d13dea9aeabfe8c4fa2dcb772f3bc986692a56dad8d1324b4aa4ab571c4d976",
       "evidence": "MB15 Windows Git RCA: reviewed lazy ignore-policy evaluation and empty-candidate short circuit only after Git freshness plus persisted dirty paths are checked; no cross-call cache, permission, checksum or restored-edit semantics changed. Positive/negative Git and ignore regressions retained."
+    },
+    {
+      "path": "afyx-graph/engine/src/extraction/k8s-extractor.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "3542ab20f2b4c30e05bd994c0e5099e17022c81543860974ad7e02d7cbcfb24c",
+      "evidence": "Native Kubernetes manifest intelligence extractor with explicit selector matching (AFYX-211)."
     },
     {
       "path": "afyx-graph/engine/src/extraction/languages/c-cpp.ts",
@@ -827,6 +887,12 @@
       "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
     },
     {
+      "path": "afyx-graph/engine/src/extraction/protobuf-extractor.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "2b1d2450ff56449315ee6ed8e5e78689850d1a0a0c23d5cc924e0a4ff942b058",
+      "evidence": "Native Protocol Buffers and gRPC intelligence extractor (AFYX-216)."
+    },
+    {
       "path": "afyx-graph/engine/src/extraction/razor-extractor.ts",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
       "reviewedSha256": "7cafd0246cc370a2ada16d6d3753e7cfbb62994219227d25757822ad70c1fce4",
@@ -873,6 +939,12 @@
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
       "reviewedSha256": "7a70a67b9644995f1178a32a344ba4503d7f6781808e217a777e4b7bb4b38a3d",
       "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/extraction/terraform-extractor.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "b418ff42caa8d9f6fc8f4fe7616a7eed20ce496d7779b7088566927f8cb95aff",
+      "evidence": "Native Terraform and OpenTofu intelligence extractor with secret masking (AFYX-210)."
     },
     {
       "path": "afyx-graph/engine/src/extraction/vue-extractor.ts",
@@ -1548,6 +1620,12 @@
       "evidence": "V1-CAPABILITY-CLOSURE-C01 (AFYX-223): Native Angular framework resolver connecting AngularExtractor to FrameworkResolver registry."
     },
     {
+      "path": "afyx-graph/engine/src/resolution/frameworks/api-contracts.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "814baeb0e72101cf7d76f78e473126ad72f01426837257d87738a737593be167",
+      "evidence": "AFYX-native GraphQL resolver and gRPC RPC implementation linking framework resolver."
+    },
+    {
       "path": "afyx-graph/engine/src/resolution/frameworks/astro.ts",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
       "reviewedSha256": "0241b32a2f40380e40d7a9681ea27539e81cfbc4ac9ddc1467526fbfce08f6ae",
@@ -1616,7 +1694,7 @@
     {
       "path": "afyx-graph/engine/src/resolution/frameworks/index.ts",
       "classification": "PUBLIC_API_BARREL",
-      "reviewedSha256": "6d353a98517f351fc08d9a3e50236b19bf7c7a482b105c632b759aba06d136f7",
+      "reviewedSha256": "cc4833bd4553eb8c9578a0467e92d07891a2685d766884bd7c2c244c9a703412",
       "evidence": "V1-CAPABILITY-CLOSURE-C01 (AFYX-223): Registered native angularResolver in framework resolver registry."
     },
     {
@@ -2879,30 +2957,6 @@
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
       "reviewedSha256": "c1f40a9b195b6fe4fea5fec3cd657c6c7796a33d621796c40433fcbcf9ec238f",
       "evidence": "AFYX native source: authored from AFYX functional requirements; verified clean room implementation with zero third-party code import."
-    },
-    {
-      "path": "afyx-graph/engine/src/extraction/graphql-extractor.ts",
-      "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "f59a8980576f257bc88e465591bb9b1e6fe02072924b81fbc74c57d047556eed",
-      "evidence": "Native GraphQL intelligence extractor for SDL types, operations, and fragments (AFYX-215)."
-    },
-    {
-      "path": "afyx-graph/engine/src/extraction/k8s-extractor.ts",
-      "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "3542ab20f2b4c30e05bd994c0e5099e17022c81543860974ad7e02d7cbcfb24c",
-      "evidence": "Native Kubernetes manifest intelligence extractor with explicit selector matching (AFYX-211)."
-    },
-    {
-      "path": "afyx-graph/engine/src/extraction/protobuf-extractor.ts",
-      "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "2b1d2450ff56449315ee6ed8e5e78689850d1a0a0c23d5cc924e0a4ff942b058",
-      "evidence": "Native Protocol Buffers and gRPC intelligence extractor (AFYX-216)."
-    },
-    {
-      "path": "afyx-graph/engine/src/extraction/terraform-extractor.ts",
-      "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "b418ff42caa8d9f6fc8f4fe7616a7eed20ce496d7779b7088566927f8cb95aff",
-      "evidence": "Native Terraform and OpenTofu intelligence extractor with secret masking (AFYX-210)."
     }
   ]
 }

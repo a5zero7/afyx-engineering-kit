@@ -37,6 +37,7 @@ import { fabricViewResolver } from './fabric';
 import { cicsResolver } from './cics';
 import { terraformResolver } from './terraform';
 import { odooResolver } from './odoo';
+import { graphqlResolver, grpcResolver } from './api-contracts';
 
 /**
  * All registered framework resolvers
@@ -98,6 +99,10 @@ const FRAMEWORK_RESOLVERS: FrameworkResolver[] = [
   cicsResolver,
   // Terraform / OpenTofu — disambiguate var/local/module/resource refs to same-dir module
   terraformResolver,
+  // GraphQL SDL & Operations
+  graphqlResolver,
+  // Protocol Buffers & gRPC RPC Handlers
+  grpcResolver,
 ];
 
 /**
@@ -180,3 +185,4 @@ export { reactNativeBridgeResolver } from './react-native';
 export { expoModulesResolver } from './expo-modules';
 export { expoRouterResolver } from './expo-router';
 export { fabricViewResolver } from './fabric';
+export { graphqlResolver, grpcResolver } from './api-contracts';

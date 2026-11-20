@@ -254,7 +254,7 @@ if ($claudeRequired) {
     }
 }
 
-$requiredIds = if ($controlPlan) { @($controlPlan.DesiredComponents) } else { @('efficient-coding', 'odoo-engineering') }
+$requiredIds = if ($controlPlan) { @($controlPlan.DesiredComponents) } else { @('afyx-efficient-coding', 'afyx-odoo-engineering', 'efficient-coding', 'odoo-engineering') }
 foreach ($component in ($componentStates.Values | Where-Object { $_.Id -in $requiredIds -and $_.Type -eq 'skill' } | Sort-Object { $requiredIds.IndexOf($_.Id) })) {
     if ($component.State -eq 'HEALTHY') { Write-Result 'OK' $component.Name $component.Detail }
     else { Write-Result 'FAIL' $component.Name "$($component.State): $($component.Detail)"; $coreFailure = $true }
@@ -336,10 +336,10 @@ if ($codexRequired) {
     else { Write-Result 'WARN' 'Codex config' 'not found; optional MCP entries unavailable' }
 }
 
-$usageComponent = $componentStates['codex-usage-tracking']
+$usageComponent = if ($componentStates.ContainsKey('afyx-usage-intelligence')) { $componentStates['afyx-usage-intelligence'] } elseif ($componentStates.ContainsKey('codex-usage-tracking')) { $componentStates['codex-usage-tracking'] } else { $null }
 $hooksPath = Join-Path $codexHome 'hooks.json'
 $tasksPath = Join-Path $env:APPDATA 'Code\User\tasks.json'
-$usagePresent = $usageComponent.State -notin @('NOT INSTALLED', 'UNKNOWN')
+$usagePresent = $usageComponent -and ($usageComponent.State -notin @('NOT INSTALLED', 'UNKNOWN'))
 if (-not $usagePresent -and (Test-Path -LiteralPath $hooksPath -PathType Leaf)) {
     try { $usagePresent = (Get-Content -Raw -LiteralPath $hooksPath) -match '(?i)(Afyx Codex Usage Tracking|codex-usage-stop\.ps1)' } catch { }
 }

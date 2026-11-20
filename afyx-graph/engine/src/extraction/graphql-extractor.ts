@@ -365,6 +365,50 @@ export class GraphQLExtractor {
           target: opNodeId,
           kind: 'contains',
         });
+
+        // Scan operation body for referenced schema fields and fragments
+        const opRootType = opType.charAt(0).toUpperCase() + opType.slice(1);
+        if (trimmed.includes('{')) {
+          i++;
+          let depth = 1;
+          while (i < lines.length && depth > 0) {
+            const bodyLine = lines[i]!.trim();
+            const bodyLineNum = i + 1;
+            if (bodyLine && !bodyLine.startsWith('#')) {
+              // Fragment spread: ...FragmentName
+              const spreadMatch = /^\.\.\.\s*([A-Za-z_]\w*)/.exec(bodyLine);
+              if (spreadMatch) {
+                this.unresolvedReferences.push({
+                  fromNodeId: opNodeId,
+                  referenceName: spreadMatch[1]!,
+                  referenceKind: 'references',
+                  line: bodyLineNum,
+                  column: 0,
+                });
+              } else if (depth === 1) {
+                // Top-level selection field: fieldName(args) or fieldName {
+                const opFieldMatch = /^([A-Za-z_]\w*)/.exec(bodyLine);
+                if (opFieldMatch && !['fragment', 'query', 'mutation', 'subscription', 'true', 'false'].includes(opFieldMatch[1]!)) {
+                  const selField = opFieldMatch[1]!;
+                  this.unresolvedReferences.push({
+                    fromNodeId: opNodeId,
+                    referenceName: `${opRootType}.${selField}`,
+                    referenceKind: 'references',
+                    line: bodyLineNum,
+                    column: 0,
+                  });
+                }
+              }
+            }
+            if (bodyLine.includes('{')) depth++;
+            if (bodyLine.includes('}')) {
+              depth--;
+              if (depth <= 0) break;
+            }
+            i++;
+          }
+        }
+
         i++;
         continue;
       }

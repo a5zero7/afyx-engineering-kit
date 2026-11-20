@@ -170,6 +170,35 @@ components:
       cg = AfyxGraph.initSync(tmpDir);
       await cg.indexAll();
 
+      const rawDb = (cg as any).db.getDb();
+
+      // Helper to assert zero dangling edges in SQLite
+      const assertNoDanglingEdges = () => {
+        const dangling = rawDb.prepare(`
+          SELECT e.source, e.target, e.kind
+          FROM edges e
+          LEFT JOIN nodes ns ON e.source = ns.id
+          LEFT JOIN nodes nt ON e.target = nt.id
+          WHERE ns.id IS NULL OR nt.id IS NULL
+        `).all();
+        expect(dangling).toEqual([]);
+      };
+
+      // Helper to assert zero duplicate edges
+      const assertNoDuplicateEdges = () => {
+        const duplicates = rawDb.prepare(`
+          SELECT source, target, kind, COUNT(*) as cnt
+          FROM edges
+          GROUP BY source, target, kind
+          HAVING cnt > 1
+        `).all();
+        expect(duplicates).toEqual([]);
+      };
+
+      // 1. Initial State: Verify original nodes and relationships are persisted
+      assertNoDanglingEdges();
+      assertNoDuplicateEdges();
+
       // Verify Config nodes stored in SQLite
       const portNode = cg.getNodesByName('port')[0];
       expect(portNode).toBeDefined();
@@ -193,25 +222,44 @@ components:
       const openApiRoute = cg.getNodesByName('GET /users')[0];
       expect(openApiRoute).toBeDefined();
 
-      // Incremental update test: append table in SQL
+      // 2. Repeated sync idempotence check: no duplicate relationships appear after repeated sync
+      await cg.sync();
+      assertNoDanglingEdges();
+      assertNoDuplicateEdges();
+
+      // 3. Incremental update test: append table in SQL
       fs.appendFileSync(
         path.join(tmpDir, 'db', 'schema.sql'),
-        '\nCREATE TABLE orders (\n  id SERIAL PRIMARY KEY,\n  total NUMERIC\n);\n'
+        '\nCREATE TABLE orders (\n  id SERIAL PRIMARY KEY,\n  user_id INT REFERENCES users(id),\n  total NUMERIC\n);\n'
       );
       await cg.sync();
 
       const ordersTable = cg.getNodesByName('orders').find((n) => n.kind === 'class');
       expect(ordersTable).toBeDefined();
+      assertNoDanglingEdges();
+      assertNoDuplicateEdges();
 
-      // Invalidation test: delete SQL file
+      // 4. Invalidation test: delete SQL file
       const relSql = path.join('db', 'schema.sql').replace(/\\/g, '/');
       fs.rmSync(path.join(tmpDir, 'db', 'schema.sql'));
       await cg.sync();
 
+      // Verify deleted file nodes and all associated relationships are purged
       expect(cg.getNodesInFile(relSql)).toHaveLength(0);
       expect(cg.getNodesByName('users').find((n) => n.kind === 'class')).toBeUndefined();
       expect(cg.getNodesByName('orders').find((n) => n.kind === 'class')).toBeUndefined();
+
+      // 5. Unaffected nodes and edges remain intact
       expect(cg.getNodesByName('web')[0]).toBeDefined();
+      expect(cg.getNodesByName('GET /users')[0]).toBeDefined();
+
+      // 6. Zero dangling edges and zero duplicate edges after deletion
+      assertNoDanglingEdges();
+      assertNoDuplicateEdges();
+
+      // 7. Database remains queryable
+      const remainingNodes = rawDb.prepare('SELECT COUNT(*) as count FROM nodes').get() as { count: number };
+      expect(remainingNodes.count).toBeGreaterThan(0);
     } finally {
       if (cg) cg.destroy();
       if (fs.existsSync(tmpDir)) {

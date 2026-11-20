@@ -214,4 +214,50 @@ client_secret = "supersecret"
     expect(iniProv?.signature).toContain('[REDACTED]');
     expect(iniProv?.signature).not.toContain('oauth2');
   });
+
+  it('redacts nested-array secrets and prevents secret leakage anywhere in ExtractionResult', () => {
+    const rawSecret1 = 'super-secret-password-xyz-987';
+    const rawSecret2 = 'deeply-nested-bearer-token-456';
+    const jsonSource = JSON.stringify({
+      appName: 'MultiNestedApp',
+      settings: [
+        [
+          {
+            password: rawSecret1,
+            safeMetadata: 'public-region-us-east'
+          }
+        ]
+      ],
+      credentials_deep: [
+        [
+          [
+            rawSecret2
+          ]
+        ]
+      ]
+    }, null, 2);
+
+    const extractor = new ConfigExtractor('config/nested-arrays.json', jsonSource);
+    const result = extractor.extract();
+
+    // 1. Assertions on individual nodes
+    const passNode = result.nodes.find((n) => n.name === 'password');
+    expect(passNode).toBeDefined();
+    expect(passNode?.signature).toContain('[REDACTED]');
+    expect(passNode?.signature).not.toContain(rawSecret1);
+
+    const safeMetaNode = result.nodes.find((n) => n.name === 'safeMetadata');
+    expect(safeMetaNode).toBeDefined();
+    expect(safeMetaNode?.signature).toContain('public-region-us-east');
+
+    // 2. Serialized-output assertion: raw test secrets NEVER appear anywhere in the entire ExtractionResult
+    const serializedResult = JSON.stringify(result);
+    expect(serializedResult).not.toContain(rawSecret1);
+    expect(serializedResult).not.toContain(rawSecret2);
+
+    // 3. Structural validation: nodes, edges, namespaces
+    expect(result.nodes.length).toBeGreaterThan(5);
+    expect(result.edges.length).toBeGreaterThan(5);
+    expect(result.errors).toHaveLength(0);
+  });
 });

@@ -273,4 +273,6 @@ export {
   VERIFIED_COMPLETION_CONTRACT,
 } from './workflow-refiner.js';
 export { createForgeProfiles, executeForgeWorkflow, FORGE_WORKFLOW_CONTRACT } from './workflow.js';
+export { MigrationPlanner, MIGRATION_PLAN_CONTRACT } from './migration-planner.js';
+export { ContractValidator, CONTRACT_VALIDATION_CONTRACT } from './contract-validator.js';
 

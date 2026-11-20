@@ -59,8 +59,8 @@ if ($CustomComponent.Count) {
 if ($Provider.Count) {
     $Provider = @($Provider | ForEach-Object { $_ -split ',' } | ForEach-Object { $_.Trim() } | Where-Object { $_ })
 }
-$bundledEfficientCoding = Join-Path $packageRoot 'skills\efficient-coding'
-$bundledOdooEngineering = Join-Path $packageRoot 'skills\odoo-engineering'
+$bundledEfficientCoding = if (Test-Path (Join-Path $packageRoot 'skills\afyx-efficient-coding')) { Join-Path $packageRoot 'skills\afyx-efficient-coding' } else { Join-Path $packageRoot 'skills\efficient-coding' }
+$bundledOdooEngineering = if (Test-Path (Join-Path $packageRoot 'skills\afyx-odoo-engineering')) { Join-Path $packageRoot 'skills\afyx-odoo-engineering' } else { Join-Path $packageRoot 'skills\odoo-engineering' }
 $bundledEngineeringExpert = Join-Path $packageRoot 'skills\afyx-engineering-expert'
 $efficientTarget = Join-Path $SkillsRoot 'efficient-coding'
 $odooTarget = Join-Path $SkillsRoot 'odoo-engineering'
@@ -329,22 +329,35 @@ function Compare-AfyxVersion([string]$Installed, [string]$Available) {
 }
 
 function Get-ComponentAction([string]$Id, [string]$Label) {
-    $state = $componentStates[$Id]
+    $aliasId = switch ($Id) {
+        'efficient-coding' { 'afyx-efficient-coding' }
+        'odoo-engineering' { 'afyx-odoo-engineering' }
+        'codex-usage-tracking' { 'afyx-usage-intelligence' }
+        default { $Id }
+    }
+    $state = if ($componentStates.ContainsKey($Id)) { $componentStates[$Id] } elseif ($componentStates.ContainsKey($aliasId)) { $componentStates[$aliasId] } else { $null }
     if ($componentActions.ContainsKey($Id)) { $action = $componentActions[$Id] }
+    elseif ($componentActions.ContainsKey($aliasId)) { $action = $componentActions[$aliasId] }
     elseif ($controlPlan) {
-        $planItem = @($controlPlan.Components | Where-Object { $_.Id -eq $Id })[0]
-        if (-not $planItem.Desired -or $planItem.Drift -eq 'NOT_APPLICABLE') { $action = 'skip' }
-        elseif ($planItem.Repair -eq 'BLOCKED') { $action = 'blocked' }
-        elseif ($planItem.Repair -eq 'INSTALL') { $action = 'install' }
-        elseif ($planItem.Repair -eq 'REPAIR') { $action = 'repair' }
-        else {
-            $available = Get-AvailableVersion $Id
-            if ($state.State -eq 'HEALTHY' -and $available) {
-                $comp = Compare-AfyxVersion $state.Version $available
-                if ($comp -lt 0) { $action = 'update' }
-                elseif ($comp -gt 0 -and ($AllowDowngrade -or $Force)) { $action = 'downgrade' }
-                else { $action = 'skip' }
-            } else { $action = 'skip' }
+        $matching = @($controlPlan.Components | Where-Object { $_.Id -eq $Id -or $_.Id -eq $aliasId })
+        if ($matching.Count -gt 0) {
+            $planItem = $matching[0]
+            if (-not $planItem.Desired -or $planItem.Drift -eq 'NOT_APPLICABLE') { $action = 'skip' }
+            elseif ($planItem.Repair -eq 'BLOCKED') { $action = 'blocked' }
+            elseif ($planItem.Repair -eq 'INSTALL') { $action = 'install' }
+            elseif ($planItem.Repair -eq 'REPAIR') { $action = 'repair' }
+            else {
+                $available = Get-AvailableVersion $Id
+                if (-not $available) { $available = Get-AvailableVersion $aliasId }
+                if ($state -and $state.State -eq 'HEALTHY' -and $available) {
+                    $comp = Compare-AfyxVersion $state.Version $available
+                    if ($comp -lt 0) { $action = 'update' }
+                    elseif ($comp -gt 0 -and ($AllowDowngrade -or $Force)) { $action = 'downgrade' }
+                    else { $action = 'skip' }
+                } else { $action = 'skip' }
+            }
+        } else {
+            $action = 'skip'
         }
     }
     elseif ($Force) {
@@ -559,24 +572,26 @@ $graphReleaseChannel = if (Test-Path -LiteralPath $distProductPath -PathType Lea
     'technical-alpha'
 }
 $states = [ordered]@{
-    'Efficient Coding' = $componentStates['efficient-coding'].State
-    'Odoo Engineering' = $componentStates['odoo-engineering'].State
-    'Afyx Engineering Expert' = $componentStates['afyx-engineering-expert'].State
-    'Afyx Graph' = $componentStates['afyx-graph'].State
-    'Afyx Context Engine' = $componentStates['afyx-context'].State
-    'Afyx Forge Core' = $componentStates['afyx-forge'].State
-    'Usage Tracking' = $componentStates['codex-usage-tracking'].State
+    'Efficient Coding' = $(if ($componentStates.ContainsKey('afyx-efficient-coding')) { $componentStates['afyx-efficient-coding'].State } elseif ($componentStates.ContainsKey('efficient-coding')) { $componentStates['efficient-coding'].State } else { 'NOT INSTALLED' })
+    'Odoo Engineering' = $(if ($componentStates.ContainsKey('afyx-odoo-engineering')) { $componentStates['afyx-odoo-engineering'].State } elseif ($componentStates.ContainsKey('odoo-engineering')) { $componentStates['odoo-engineering'].State } else { 'NOT INSTALLED' })
+    'Afyx Engineering Expert' = $(if ($componentStates.ContainsKey('afyx-engineering-expert')) { $componentStates['afyx-engineering-expert'].State } else { 'NOT INSTALLED' })
+    'Afyx Graph' = $(if ($componentStates.ContainsKey('afyx-graph')) { $componentStates['afyx-graph'].State } else { 'NOT INSTALLED' })
+    'Afyx Context Engine' = $(if ($componentStates.ContainsKey('afyx-context')) { $componentStates['afyx-context'].State } else { 'NOT INSTALLED' })
+    'Afyx Forge Core' = $(if ($componentStates.ContainsKey('afyx-forge')) { $componentStates['afyx-forge'].State } else { 'NOT INSTALLED' })
+    'Usage Tracking' = $(if ($componentStates.ContainsKey('afyx-usage-intelligence')) { $componentStates['afyx-usage-intelligence'].State } elseif ($componentStates.ContainsKey('codex-usage-tracking')) { $componentStates['codex-usage-tracking'].State } else { 'NOT INSTALLED' })
 }
 Write-AfyxSection -Title 'Component Inventory' -Terminal $terminal
 foreach ($entry in $states.GetEnumerator()) {
-    $id = switch ($entry.Key) { 'Efficient Coding' { 'efficient-coding' } 'Odoo Engineering' { 'odoo-engineering' } 'Afyx Engineering Expert' { 'afyx-engineering-expert' } 'Afyx Graph' { 'afyx-graph' } 'Afyx Context Engine' { 'afyx-context' } 'Afyx Forge Core' { 'afyx-forge' } default { 'codex-usage-tracking' } }
-    $installed = $componentStates[$id].Version
+    $id = switch ($entry.Key) { 'Efficient Coding' { 'afyx-efficient-coding' } 'Odoo Engineering' { 'afyx-odoo-engineering' } 'Afyx Engineering Expert' { 'afyx-engineering-expert' } 'Afyx Graph' { 'afyx-graph' } 'Afyx Context Engine' { 'afyx-context' } 'Afyx Forge Core' { 'afyx-forge' } default { 'afyx-usage-intelligence' } }
+    $compState = if ($componentStates.ContainsKey($id)) { $componentStates[$id] } else { $null }
+    $installed = if ($compState) { $compState.Version } else { $null }
     $available = Get-AvailableVersion $id
     $status = if ($entry.Value -eq 'HEALTHY' -and $installed -and $available -and (Compare-AfyxVersion $installed $available) -lt 0) { 'UPDATE AVAILABLE' }
         elseif ($entry.Value -eq 'HEALTHY') { 'HEALTHY' }
         elseif ($entry.Value -eq 'NOT INSTALLED') { 'NOT INSTALLED' }
         else { 'BLOCKED' }
-    $detail = "installed=$(if ($installed) { $installed } else { 'n/a' }); available=$(if ($available) { $available } else { 'external/n/a' }); ownership=$($componentStates[$id].Ownership)"
+    $ownership = if ($compState) { $compState.Ownership } else { 'none' }
+    $detail = "installed=$(if ($installed) { $installed } else { 'n/a' }); available=$(if ($available) { $available } else { 'external/n/a' }); ownership=$ownership"
     Write-AfyxStatus -Status $status -Name $entry.Key -Detail $detail -Terminal $terminal
 }
 if ($controlPlan) {
@@ -1135,16 +1150,17 @@ else {
 $receipt = @()
 foreach ($entry in $summary.GetEnumerator()) {
     $componentId = switch ($entry.Key) {
-        'Efficient Coding' { 'efficient-coding' }
-        'Odoo Engineering' { 'odoo-engineering' }
+        'Efficient Coding' { 'afyx-efficient-coding' }
+        'Odoo Engineering' { 'afyx-odoo-engineering' }
         'Afyx Engineering Expert' { 'afyx-engineering-expert' }
         'Afyx Graph' { 'afyx-graph' }
         'Afyx Context Engine' { 'afyx-context' }
         'Afyx Forge Core' { 'afyx-forge' }
-        'Usage Tracking' { 'codex-usage-tracking' }
+        'Usage Tracking' { 'afyx-usage-intelligence' }
         default { '' }
     }
-    $componentState = if ($componentId) { [string]$componentStates[$componentId].State } else { '' }
+    $cObj = if ($componentId -and $componentStates.ContainsKey($componentId)) { $componentStates[$componentId] } else { $null }
+    $componentState = if ($cObj) { [string]$cObj.State } else { '' }
     $receipt += [pscustomobject]@{
         Status = Get-AfyxOutcomeStatus -ComponentState $componentState -Action ([string]$entry.Value) -WhatIf:$WhatIfPreference
         Name = [string]$entry.Key

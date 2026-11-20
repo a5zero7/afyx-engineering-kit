@@ -31,3 +31,9 @@ export {
   collectAntigravityLocalUsage,
   aggregateUsage,
 } from './collector.js';
+export { WorkLedger, WORK_LEDGER_CONTRACT, WORK_LEDGER_RECEIPT_CONTRACT } from './work-ledger.js';
+export { ImpactSimulator, IMPACT_SIMULATION_CONTRACT } from './impact-simulator.js';
+export { DbInspector, DB_INSPECTION_CONTRACT } from './db-inspector.js';
+export { EnvPreflight, ENV_PREFLIGHT_CONTRACT } from './env-preflight.js';
+export { CliCompactor, CLI_COMPACTOR_CONTRACT, COMPACTED_OUTPUT_MARKER } from './cli-compactor.js';
+export { MassiveContextNavigator, MASSIVE_CONTEXT_CONTRACT } from './massive-context.js';
