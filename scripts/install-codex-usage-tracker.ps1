@@ -13,7 +13,10 @@ if ($PSVersionTable.PSVersion.Major -lt 7) {
     throw 'Codex Usage Tracker requires PowerShell 7+. Core Afyx installation compatibility is separate.'
 }
 
-$sourceRoot = Join-Path (Split-Path -Parent $PSScriptRoot) 'tools\codex-usage'
+$sourceRoot = Join-Path (Split-Path -Parent $PSScriptRoot) 'tools\afyx-usage-intelligence'
+if (-not (Test-Path -LiteralPath $sourceRoot)) {
+    $sourceRoot = Join-Path (Split-Path -Parent $PSScriptRoot) 'tools\codex-usage'
+}
 $toolsRoot = Join-Path $CodexHome 'tools'
 if (-not $HooksPath) { $HooksPath = Join-Path $CodexHome 'hooks.json' }
 $runtimeFiles = @('CodexUsage.psm1', 'codex-usage-stop.ps1', 'codex-usage-watch.ps1', 'codex-usage-doctor.ps1', 'codex-usage-pricing.json')

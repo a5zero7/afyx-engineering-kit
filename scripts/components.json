@@ -106,9 +106,9 @@
   ],
   "components": [
     {
-      "id": "efficient-coding",
-      "name": "Efficient Coding",
-      "display_name": "Afyx Efficient Coding",
+      "id": "afyx-efficient-coding",
+      "name": "AFYX Efficient Coding",
+      "display_name": "AFYX Efficient Coding",
       "primary_capability": "focused-coding-discipline",
       "type": "skill",
       "tier": "core",
@@ -117,7 +117,7 @@
       "presets": "minimal;recommended;full",
       "platforms": "all",
       "install_root": "skills_root",
-      "install_path": "efficient-coding",
+      "install_path": "afyx-efficient-coding",
       "version_source": "SKILL.md#metadata.version",
       "version_required": "true",
       "required_files": "SKILL.md;references/investigation.md;references/tool-routing.md;references/token-efficiency.md",
@@ -127,9 +127,9 @@
       "legacy_distribution_revision": "b0b4d88eb7c42627598de71d6b0bf26317b9a694"
     },
     {
-      "id": "odoo-engineering",
-      "name": "Odoo Engineering",
-      "display_name": "Afyx Odoo Engineering",
+      "id": "afyx-odoo-engineering",
+      "name": "AFYX Odoo Engineering",
+      "display_name": "AFYX Odoo Engineering",
       "primary_capability": "odoo-framework-authority",
       "type": "skill",
       "tier": "core",
@@ -138,7 +138,7 @@
       "presets": "minimal;recommended;full",
       "platforms": "all",
       "install_root": "skills_root",
-      "install_path": "odoo-engineering",
+      "install_path": "afyx-odoo-engineering",
       "version_source": "SKILL.md#metadata.version",
       "version_required": "true",
       "required_files": "SKILL.md;references/common.md;references/version-detection.md;references/reference-schema.md;references/odoo-10.md;references/odoo-11.md;references/odoo-12.md;references/odoo-13.md;references/odoo-14.md;references/odoo-15.md;references/odoo-16.md;references/odoo-17.md;references/odoo-18.md;references/odoo-19.md;references/odoo-20.md",
@@ -233,10 +233,10 @@
       "marker_value": "Afyx Forge Core"
     },
     {
-      "id": "codex-usage-tracking",
-      "name": "Usage Tracking",
-      "display_name": "Afyx Codex Usage Tracking",
-      "primary_capability": "codex-usage-telemetry",
+      "id": "afyx-usage-intelligence",
+      "name": "AFYX Usage Intelligence",
+      "display_name": "AFYX Usage Intelligence",
+      "primary_capability": "universal-usage-telemetry",
       "type": "toolset",
       "tier": "optional",
       "ownership": "afyx",
@@ -244,11 +244,11 @@
       "presets": "full",
       "platforms": "windows",
       "install_root": "codex_tools",
-      "install_path": "",
+      "install_path": "afyx-usage-intelligence",
       "version_source": "",
       "version_required": "false",
-      "providers": "codex",
-      "required_files": "CodexUsage.psm1;codex-usage-stop.ps1;codex-usage-watch.ps1;codex-usage-doctor.ps1;codex-usage-pricing.json"
+      "providers": "codex;antigravity;claude",
+      "required_files": "CodexUsage.psm1;codex-usage-stop.ps1;codex-usage-watch.ps1;codex-usage-doctor.ps1;codex-usage-pricing.json;codex-usage-present.ps1;AfyxUsageIntelligence.psm1"
     }
   ]
 }

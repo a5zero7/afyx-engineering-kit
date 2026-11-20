@@ -29,29 +29,45 @@ import {
   PROVIDER_CAPABILITY_SUPPORT,
   resolveModularRuntimeActivation,
 } from './afyx-modular-runtime.mjs';
+import {
+  createEvidenceEnvelope,
+  createSharedEvidencePipeline,
+  AFYX_EVIDENCE_ENVELOPE_CONTRACT,
+} from './afyx-evidence-envelope.mjs';
+
+export {
+  createEvidenceEnvelope,
+  createSharedEvidencePipeline,
+  AFYX_EVIDENCE_ENVELOPE_CONTRACT,
+};
 
 export const AFYX_UNIVERSAL_INTEROP_CONTRACT = 'AfyxUniversalInterop/v1';
 export const AFYX_CAPABILITY_REQUEST_CONTRACT = 'AfyxCapabilityRequest/v1';
 export const AFYX_CAPABILITY_RESULT_CONTRACT = 'AfyxCapabilityResult/v1';
 
-/** The six primary engineering components. */
+/** The six primary engineering components with canonical afyx-* identities and backward-compatibility aliases. */
 export const PRIMARY_COMPONENT_IDS = Object.freeze([
-  'efficient-coding',
-  'odoo-engineering',
+  'afyx-efficient-coding',
+  'afyx-odoo-engineering',
   'afyx-engineering-expert',
   'afyx-graph',
   'afyx-context',
   'afyx-forge',
+  'efficient-coding',
+  'odoo-engineering',
 ]);
 
-/** The canonical seven registered components in the Engineering Kit. */
+/** The canonical registered components in the Engineering Kit with backward-compatibility aliases. */
 export const SEVEN_REGISTERED_COMPONENT_IDS = Object.freeze([
-  'efficient-coding',
-  'odoo-engineering',
+  'afyx-efficient-coding',
+  'afyx-odoo-engineering',
   'afyx-engineering-expert',
   'afyx-graph',
   'afyx-context',
   'afyx-forge',
+  'afyx-usage-intelligence',
+  'efficient-coding',
+  'odoo-engineering',
   'codex-usage-tracking',
 ]);
 
@@ -59,7 +75,7 @@ export const DEFAULT_BUDGET_LIMITS = Object.freeze({
   maxToolCalls: 4,
   maxContextBytes: 65_536,
   maxExecutionMs: 5_000,
-  maxCapabilities: 4,
+  maxCapabilities: 3, // 1 primary domain + 2 supporting modules
   maxHops: 2,
 });
 
@@ -127,6 +143,32 @@ function normalizeBudgets(requested = {}) {
   });
 }
 
+const ALIAS_MAP = Object.freeze({
+  'efficient-coding': 'afyx-efficient-coding',
+  'odoo-engineering': 'afyx-odoo-engineering',
+  'codex-usage-tracking': 'afyx-usage-intelligence',
+  'afyx-efficient-coding': 'efficient-coding',
+  'afyx-odoo-engineering': 'odoo-engineering',
+  'afyx-usage-intelligence': 'codex-usage-tracking',
+});
+
+function isSameComponent(id1, id2) {
+  if (id1 === id2) return true;
+  if (!id1 || !id2) return false;
+  return ALIAS_MAP[id1] === id2 || ALIAS_MAP[id2] === id1;
+}
+
+function pickCandidate(canonicalId, aliasId, discovery, modularRuntimePlan) {
+  const canonicalInstalled = discovery?.capabilities?.[canonicalId]?.installed === true;
+  const aliasInstalled = discovery?.capabilities?.[aliasId]?.installed === true;
+  if (aliasInstalled && !canonicalInstalled) return aliasId;
+  if (canonicalInstalled && !aliasInstalled) return canonicalId;
+  if (modularRuntimePlan?.plannedComponents?.includes(aliasId)) return aliasId;
+  if (modularRuntimePlan?.plannedComponents?.includes(canonicalId)) return canonicalId;
+  if (aliasInstalled) return aliasId;
+  return canonicalId;
+}
+
 function providerAllows(componentId, capability, provider, providerPermissions, metadata) {
   if (providerPermissions?.[componentId] === false || providerPermissions?.[capability] === false) {
     return false;
@@ -139,7 +181,8 @@ function providerAllows(componentId, capability, provider, providerPermissions, 
   if (componentId === 'afyx-forge') {
     return providerPermissions?.[componentId] === true;
   }
-  if (providerMeta.supportedCapabilities.includes(capability)) {
+  if (providerMeta.supportedCapabilities.includes(capability) ||
+      (capability === 'universal-usage-telemetry' && providerMeta.supportedCapabilities.includes('codex-usage-telemetry'))) {
     return true;
   }
   // Dynamic synthetic component allowed on known provider if not explicitly forbidden
@@ -262,7 +305,16 @@ export function classifyTaskIntent(task = {}, hostMetadata = {}) {
   const specifiedType = taskType !== 'generic' && taskType !== 'unknown';
   const ambiguousDomain = !domain && !specifiedType && (textualDomains.length > 1 ||
     (Array.isArray(hostMetadata.domains) && new Set(hostMetadata.domains).size > 1));
-  const directSourceCandidate = task.exactKnownSource === true || task.knownFile === true ||
+  const fastPathPatterns = [
+    /\b(?:simple\s+edit|straightforward\s+edit|single\s+file\s+edit)\b/i,
+    /\b(?:simple\s+formatting|code\s+format|reformat|prettier|lint\s+fix)\b/i,
+    /\b(?:config\s+lookup|configuration\s+lookup|read\s+config|inspect\s+setting)\b/i,
+    /\b(?:trivial\s+code\s+explanation|explain\s+this\s+function|what\s+does\s+this\s+do)\b/i,
+    /\b(?:small\s+deterministic\s+refactor|local\s+refactor|rename\s+local\s+var)\b/i,
+  ];
+  const isFastPath = fastPathPatterns.some((pattern) => pattern.test(intentText)) ||
+    ['simple-edit', 'formatting', 'config-lookup', 'explanation', 'trivial-refactor'].includes(taskType);
+  const directSourceCandidate = task.exactKnownSource === true || task.knownFile === true || isFastPath ||
     ['known-file', 'string-replacement', 'exact-source'].includes(taskType) ||
     /\b(exact source|known file|string replacement)\b/.test(intentText);
   const specializedType = ['github-operation', 'documentation-search', 'documentation-research', 'multi-agent-workflow', 'workflow-execution', 'cli-automation'].includes(taskType);
@@ -355,15 +407,43 @@ function selectionCandidates(task, classification, modularRuntimePlan, discovery
   if (classification.securityAudit) selectedByPlanner.add('afyx-security-auditor');
   for (const id of classification.manualSelection) selectedByPlanner.add(id);
 
-  if (classification.odoo) selectedByPlanner.add('odoo-engineering');
-  if (classification.architecture) selectedByPlanner.add('afyx-engineering-expert');
-  if (classification.relational && (!exclusiveDomain || task.needsRelationalEvidence === true)) selectedByPlanner.add('afyx-graph');
-  if (classification.contextOptimization) selectedByPlanner.add('afyx-context');
-  if (classification.forgeAdvice && !classification.forgeAutonomous) {
-    selectedByPlanner.add('afyx-forge');
+  // 1. Primary Domain Selection (Max 1 Primary Domain)
+  if (classification.odoo) {
+    selectedByPlanner.add(pickCandidate('afyx-odoo-engineering', 'odoo-engineering', discovery, modularRuntimePlan));
+  } else if (classification.architecture) {
+    selectedByPlanner.add('afyx-engineering-expert');
+  } else if (!exclusiveDomain) {
+    const codingCandidate = pickCandidate('afyx-efficient-coding', 'efficient-coding', discovery, modularRuntimePlan);
+    const codingInstalled = discovery?.capabilities?.[codingCandidate]?.installed === true;
+    const isCodingTask = task.taskType === 'implementation' ||
+      modularRuntimePlan.plannedComponents.includes(codingCandidate) ||
+      modularRuntimePlan.plannedComponents.includes('efficient-coding') ||
+      modularRuntimePlan.plannedComponents.includes('afyx-efficient-coding');
+    if (isCodingTask && codingInstalled) {
+      selectedByPlanner.add(codingCandidate);
+    }
   }
+
+  // 2. Supporting Modules (Max 2 Supporting Modules: Graph, Forge, Context)
+  const supporting = [];
+  if (classification.relational && (!exclusiveDomain || task.needsRelationalEvidence === true)) {
+    supporting.push('afyx-graph');
+  }
+  if (classification.forgeAdvice && !classification.forgeAutonomous) {
+    supporting.push('afyx-forge');
+  }
+  if (classification.contextOptimization) {
+    supporting.push('afyx-context');
+  }
+
+  // Bounded supporting budget: at most 2 supporting modules per turn
+  for (const suppId of supporting.slice(0, 2)) {
+    selectedByPlanner.add(suppId);
+  }
+
+  // 3. Passive Telemetry (Infrastructure, not counted against active reasoning budget)
   if (classification.telemetry) {
-    selectedByPlanner.add('codex-usage-tracking');
+    selectedByPlanner.add(pickCandidate('afyx-usage-intelligence', 'codex-usage-tracking', discovery, modularRuntimePlan));
   }
   if (classification.customComponentId) {
     selectedByPlanner.add(classification.customComponentId);
@@ -382,13 +462,14 @@ function selectionCandidates(task, classification, modularRuntimePlan, discovery
     ...(classification.nativeExecution ? ['afyx-native-execution'] : []),
     ...(classification.securityAudit ? ['afyx-security-auditor'] : []),
     ...classification.manualSelection,
-    ...(classification.odoo ? ['odoo-engineering'] : []),
+    ...(classification.odoo ? ['afyx-odoo-engineering', 'odoo-engineering'] : []),
     ...(classification.architecture ? ['afyx-engineering-expert'] : []),
     ...(classification.relational ? ['afyx-graph'] : []),
+    'afyx-efficient-coding',
     'efficient-coding',
     ...(classification.contextOptimization ? ['afyx-context'] : []),
     ...(classification.forgeAdvice ? ['afyx-forge'] : []),
-    ...(classification.telemetry ? ['codex-usage-tracking'] : []),
+    ...(classification.telemetry ? ['afyx-usage-intelligence', 'codex-usage-tracking'] : []),
     ...(classification.customComponentId ? [classification.customComponentId] : []),
     ...(classification.customCapability ? Object.entries(discovery.capabilities)
       .filter(([, component]) => component.capability === classification.customCapability)
@@ -396,12 +477,15 @@ function selectionCandidates(task, classification, modularRuntimePlan, discovery
     ...modularRuntimePlan.plannedComponents,
   ];
   const reasons = {
+    'afyx-odoo-engineering': 'AFYX Odoo domain authority',
     'odoo-engineering': 'Odoo domain authority',
     'afyx-engineering-expert': 'Cross-disciplinary authority',
     'afyx-graph': 'Relational evidence is beneficial',
+    'afyx-efficient-coding': 'Focused implementation authority',
     'efficient-coding': 'Focused implementation authority',
     'afyx-context': 'Bounded context optimization requested',
     'afyx-forge': 'Assistive advice requested; autonomous execution remains blocked',
+    'afyx-usage-intelligence': 'Passive usage telemetry observation',
     'codex-usage-tracking': 'Passive usage telemetry observation',
   };
   return [...new Set(preferredOrder)]
@@ -464,11 +548,13 @@ export function resolveAfyxCapabilityRoute(options = {}) {
       primaryOwner: componentId,
       description: `${componentId} authoritative domain`,
     };
-    if (authority?.primaryOwner !== componentId) {
+    const isOwnerMatch = authority?.primaryOwner === componentId || isSameComponent(authority?.primaryOwner, componentId);
+    if (!isOwnerMatch) {
       diagnostics.push({ code: 'AUTHORITY_MISMATCH', componentId, severity: 'ERROR' });
       continue;
     }
-    if (owners[discovered.capability] && owners[discovered.capability] !== componentId) {
+    const currentOwner = owners[discovered.capability];
+    if (currentOwner && currentOwner !== componentId && !isSameComponent(currentOwner, componentId)) {
       diagnostics.push({ code: 'AUTHORITY_CONFLICT', capability: discovered.capability, severity: 'ERROR' });
       continue;
     }
@@ -720,7 +806,8 @@ export async function executeAfyxCapabilityRoute(options = {}) {
       results.push(nonExecutedResult(request, 'BLOCKED', 'CAPABILITY_NOT_AVAILABLE'));
       continue;
     }
-    const adapter = adapters[request.targetComponentId];
+    const adapter = adapters[request.targetComponentId] ??
+      (ALIAS_MAP[request.targetComponentId] ? adapters[ALIAS_MAP[request.targetComponentId]] : undefined);
     if (typeof adapter !== 'function') {
       results.push(nonExecutedResult(request, 'DEGRADED', 'ADAPTER_NOT_PROVIDED'));
       continue;
@@ -807,9 +894,9 @@ export async function executeAfyxCapabilityRoute(options = {}) {
       let followUpCapability = activeDiscovery.capabilities[target];
       const forgeAllowed = target !== 'afyx-forge' ||
         ((route.classification.forgeAdvice || route.classification.manualSelection.includes(target)) && !route.classification.forgeAutonomous);
-      const notDirectSelfCycle = target !== request.targetComponentId;
+      const notDirectSelfCycle = target !== request.targetComponentId && !isSameComponent(target, request.targetComponentId);
       const authorityOwner = DOMAIN_AUTHORITY_MATRIX[followUpCapability?.capability]?.primaryOwner || activeOwners[followUpCapability?.capability];
-      const ownsDomain = !authorityOwner || authorityOwner === target;
+      const ownsDomain = !authorityOwner || authorityOwner === target || isSameComponent(authorityOwner, target);
       const narrowDomain = route.classification.odoo || route.classification.github || route.classification.documentation || route.classification.nativeExecution ||
         route.classification.relational || route.classification.contextOptimization || route.classification.forgeAdvice;
       const shared = ['afyx-graph', 'afyx-context'].includes(target) && result.status === 'EXECUTED' &&

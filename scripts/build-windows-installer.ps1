@@ -20,7 +20,11 @@ $repoRoot = if ($RepoRoot) {
 } else {
     (Resolve-Path (Join-Path $scriptRoot '..')).Path
 }
-$toolsDir = Join-Path $repoRoot 'tools\windows-setup'
+$toolsDir = Join-Path $repoRoot 'tools\afyx-windows-setup'
+if (-not (Test-Path $toolsDir)) {
+    $legacyToolsDir = Join-Path $repoRoot 'tools\windows-setup'
+    if (Test-Path $legacyToolsDir) { $toolsDir = $legacyToolsDir }
+}
 
 Write-Host "=== Afyx Unified Windows Installer Builder (TASK U-A02) ===" -ForegroundColor Cyan
 Write-Host "Repo Root: $repoRoot"
@@ -91,7 +95,7 @@ try {
     # Include optional provider companions from the candidate source tree.
     # Context is introduced on a separate PR; staging must pick it up when
     # that source is integrated, without changing today's standalone default.
-    foreach ($sk in @('efficient-coding', 'odoo-engineering', 'afyx-engineering-expert', 'afyx-forge', 'afyx-context')) {
+    foreach ($sk in @('afyx-efficient-coding', 'afyx-odoo-engineering', 'efficient-coding', 'odoo-engineering', 'afyx-engineering-expert', 'afyx-forge', 'afyx-context')) {
         $skSrc = Join-Path $repoRoot "skills\$sk"
         if (Test-Path -LiteralPath $skSrc) {
             Copy-Item -LiteralPath $skSrc -Destination $stagedSkills -Recurse -Force
@@ -140,7 +144,7 @@ try {
     $stagedTools = Join-Path $stagingDir 'tools'
     New-Item -ItemType Directory -Path $stagedTools -Force | Out-Null
     Get-ChildItem -Path (Join-Path $repoRoot 'tools') -Directory | Where-Object {
-        $_.Name -ne 'windows-setup'
+        $_.Name -ne 'windows-setup' -and $_.Name -ne 'afyx-windows-setup'
     } | ForEach-Object {
         Copy-Item -LiteralPath $_.FullName -Destination $stagedTools -Recurse -Force
     }

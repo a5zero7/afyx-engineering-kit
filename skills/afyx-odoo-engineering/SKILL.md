@@ -1,11 +1,11 @@
 ---
-name: odoo-engineering
+name: afyx-odoo-engineering
 description: Version-aware Odoo engineering for Odoo repositories, modules, ORM, views, reports, security, migrations, and debugging. Stable references cover Odoo 10–20; select one target version from repository evidence.
 metadata:
   version: "1.2.0"
 ---
 
-# Odoo Engineering
+# AFYX Odoo Engineering
 
 Apply only to Odoo work. Determine the actual major version from repository/runtime evidence before using version-specific behavior. Prefer `odoo/release.py`, release metadata, `odoo-bin --version`, explicit branch/tag, server runtime, manifest conventions, dependency files, and established code patterns.
 

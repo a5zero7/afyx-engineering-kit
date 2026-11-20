@@ -23,7 +23,7 @@ PRESETS = {"minimal", "recommended", "full", "custom"}
 PLATFORMS = {"all", "windows"}
 INSTALL_ROOTS = {"skills_root", "afyx_graph_root", "afyx_context_root", "afyx_forge_root", "codex_tools", ""}
 REQUIRED_KEYS = {"id", "name", "type", "tier", "ownership", "ownership_class", "presets", "platforms", "install_root", "install_path"}
-EXPECTED_IDS = ["efficient-coding", "odoo-engineering", "afyx-engineering-expert", "afyx-graph", "afyx-context", "afyx-forge", "codex-usage-tracking"]
+EXPECTED_IDS = ["afyx-efficient-coding", "afyx-odoo-engineering", "afyx-engineering-expert", "afyx-graph", "afyx-context", "afyx-forge", "afyx-usage-intelligence"]
 LINE_RE = re.compile(r'^\s*"[a-z_]+":\s*"[^"\\]*",?\s*$')
 
 
@@ -116,9 +116,9 @@ for component in components:
 
 by_id = {component["id"]: component for component in components}
 expected_presets = {
-    "minimal": {"efficient-coding", "odoo-engineering"},
-    "recommended": {"efficient-coding", "odoo-engineering", "afyx-engineering-expert"},
-    "full": {"efficient-coding", "odoo-engineering", "afyx-engineering-expert", "afyx-graph", "afyx-context", "afyx-forge", "codex-usage-tracking"},
+    "minimal": {"afyx-efficient-coding", "afyx-odoo-engineering"},
+    "recommended": {"afyx-efficient-coding", "afyx-odoo-engineering", "afyx-engineering-expert"},
+    "full": {"afyx-efficient-coding", "afyx-odoo-engineering", "afyx-engineering-expert", "afyx-graph", "afyx-context", "afyx-forge", "afyx-usage-intelligence"},
 }
 for preset, expected in expected_presets.items():
     actual = {component["id"] for component in components if preset in component["presets"].split(";")}
@@ -126,7 +126,7 @@ for preset, expected in expected_presets.items():
         fail(f"{preset}: component membership mismatch")
 
 # Bundled skills must ship exactly what the contract requires.
-for cid in ("efficient-coding", "odoo-engineering", "afyx-engineering-expert"):
+for cid in ("afyx-efficient-coding", "afyx-odoo-engineering", "afyx-engineering-expert"):
     component = by_id[cid]
     skill_dir = ROOT / "skills" / component["install_path"]
     for relative in component["required_files"].split(";"):
@@ -183,12 +183,11 @@ if forge["marker_value"] != forge_metadata["product_name"] or forge["marker_fiel
 if forge_metadata.get("runtime_mode") != "ASSISTIVE_GUIDANCE_ONLY" or forge_metadata.get("evaluation_gate", {}).get("autonomous_code_execution") is not False:
     fail("afyx-forge metadata must enforce ASSISTIVE_GUIDANCE_ONLY without autonomous execution")
 
-# The usage tracker contract must list files the kit actually ships.
-usage = by_id["codex-usage-tracking"]
-if usage.get("providers") != "codex":
-    fail("codex-usage-tracking must remain Codex-only")
+# The usage intelligence contract must list files the kit actually ships.
+usage = by_id["afyx-usage-intelligence"]
+install_path = usage.get("install_path", "afyx-usage-intelligence")
 for relative in usage["required_files"].split(";"):
-    if not (ROOT / "tools" / "codex-usage" / relative).is_file():
-        fail(f"codex-usage-tracking: {relative} is not shipped in tools/codex-usage")
+    if not (ROOT / "tools" / install_path / relative).is_file():
+        fail(f"afyx-usage-intelligence: {relative} is not shipped in tools/{install_path}")
 
 print(f"Afyx component contract: PASS ({len(components)} components)")

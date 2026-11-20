@@ -1,11 +1,11 @@
 ---
-name: efficient-coding
+name: afyx-efficient-coding
 description: Quality-first workflow for software implementation, debugging, refactoring, and code investigation. Applies to coding work, not general conversation, prompt writing, or document-only tasks.
 metadata:
   version: "1.2.2"
 ---
 
-# Efficient Coding
+# AFYX Efficient Coding
 
 Prioritize **correctness → evidence → scoped change → validation → efficiency**. The target repository is authoritative.
 

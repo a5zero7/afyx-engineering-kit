@@ -55,7 +55,7 @@
     {
       "path": "afyx-forge/src/workflow-refiner.js",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "1be651ecc3774d5b96edfc7e685ff8978521ac231f291b3fae36cc9bf0dab3be",
+      "reviewedSha256": "8dd44e9491cfa36bf6fa28128204814e95f1cf982ac2b0dd7bba9ae56c93c6fe",
       "evidence": "MB15 AFYX-324: reviewed lexical section boundaries, preserved safety instructions, explicit missing-criteria clarification and non-vacuous heuristic hints; trusted receipt authority unchanged."
     },
     {
@@ -2421,7 +2421,7 @@
     {
       "path": "scripts/afyx-capability-orchestrator.mjs",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "2ce94bbfc0990a704659c7adfeba9127053a95c037d58b5c1121ada35371d024",
+      "reviewedSha256": "74024095c22394e7e53b07994c9f3dba336eb9d3837130bc5335e1aba7076120",
       "evidence": "MB12 review: authored from AFYX functional requirements and existing reviewed 251f73a contracts; no upstream implementation, prompts, assets or dependency imported. Trusted-host boundaries and negative/regression tests recorded in MB12-native-consolidation-20261114-r1."
     },
     {
@@ -2529,13 +2529,13 @@
     {
       "path": "scripts/afyx-modular-integration.mjs",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "29fce8981f945009f148feac7b5fe657d2b411341f334687c3995025173957c3",
+      "reviewedSha256": "71d9cbeeb5a60a6795757e2b87f4ae79ab39534620e591e168d7cfb0b1be264a",
       "evidence": "MB18 AFYX-105/190/347: reviewed versioned browser/document inventory entries, SOURCE_READY maturity and ON_DEMAND activation without changing installed presets or triggering unrelated capabilities."
     },
     {
       "path": "scripts/afyx-modular-runtime.mjs",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "b1e19dba05367a75a6227760a9aa89576f0047f4d3a56450dec874ad2552a9d9",
+      "reviewedSha256": "25d55a756056461dafc8070acf00a5f2249705ed1088d84fecc2f77cde7d97c7",
       "evidence": "MB12 review: authored from AFYX functional requirements and existing reviewed 251f73a contracts; no upstream implementation, prompts, assets or dependency imported. Trusted-host boundaries and negative/regression tests recorded in MB12-native-consolidation-20261114-r1."
     },
     {

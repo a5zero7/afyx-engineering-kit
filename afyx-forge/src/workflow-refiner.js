@@ -181,3 +181,50 @@ export function evaluateVerifiedTaskCompletion(criteriaList, records = [], { sou
     verifiedComplete: complete, completionScore: details.length ? satisfiedCount / details.length : 0,
     totalCriteria: validCriteria ? criteriaList.length : 0, satisfiedCriteriaCount: satisfiedCount, details: Object.freeze(details) });
 }
+
+const PROMOTIONAL_BUZZWORDS = [
+  /\b(?:seamlessly|cutting-edge|game-changing|revolutionary|state-of-the-art|effortlessly|world-class|unmatched|best-in-class)\b/gi,
+  /\b(?:delivering unprecedented|unrivaled|magical|ultimate solution|hyper-optimized)\b/gi,
+];
+
+/**
+ * Strips unsupported promotional buzzwords and marketing rhetoric from technical text.
+ */
+export function stripPromotionalSlop(text) {
+  if (!text || typeof text !== 'string') return '';
+  let cleaned = text;
+  for (const pattern of PROMOTIONAL_BUZZWORDS) {
+    cleaned = cleaned.replace(pattern, '').replace(/\s{2,}/g, ' ');
+  }
+  return cleaned.trim();
+}
+
+/**
+ * Refines documentation quality: removes slop, strips duplicated boilerplate,
+ * and preserves technical facts, evidence indicators, and uncertainty labels.
+ */
+export function refineDocumentationQuality(text) {
+  if (!text || typeof text !== 'string') return '';
+  const withoutHype = stripPromotionalSlop(text);
+  const lines = withoutHype.split(/\r?\n/);
+  const seenLines = new Set();
+  const refinedLines = [];
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+    // Preserve empty lines and markdown structural headers
+    if (!trimmed || /^#{1,6}\s+/.test(trimmed) || /^[-*|]/.test(trimmed)) {
+      refinedLines.push(line);
+      continue;
+    }
+    // Deduplicate non-structural verbatim repeated sentences
+    if (seenLines.has(trimmed)) {
+      continue;
+    }
+    seenLines.add(trimmed);
+    refinedLines.push(line);
+  }
+
+  return refinedLines.join('\n');
+}
+
