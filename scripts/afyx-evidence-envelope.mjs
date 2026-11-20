@@ -8,6 +8,7 @@
  * - Reuse valid source evidence between cooperating modules without re-reading unchanged files.
  * - Invalidate evidence immediately on source revision or permission changes.
  * - Strict multi-tenant boundaries: zero cross-repository or cross-user leakage.
+ * - Enforce explicit session and caller-permission boundaries; no key-only authorization bypass.
  * - Bounded resource budgets: fixed in-memory capacity with LRU eviction.
  * - Pure evidence metadata: never persists raw user prompts or full transcripts.
  */
@@ -21,12 +22,13 @@ function sha256(text) {
 }
 
 /**
- * Creates an immutable, versioned evidence envelope.
+ * Creates an immutable, versioned evidence envelope with caller scope and session identity.
  */
 export function createEvidenceEnvelope(params = {}) {
   const {
     taskId = 'anonymous-task',
     sessionId = 'default-session',
+    userId = 'default-user',
     repositoryId = 'default-repo',
     commitId = 'HEAD',
     capability,
@@ -39,6 +41,8 @@ export function createEvidenceEnvelope(params = {}) {
     normalizedResult = null,
     contextBudgetBytes = 65_536,
     deduplicationKey = null,
+    scope = 'session',
+    revoked = false,
   } = params;
 
   if (!capability || typeof capability !== 'string') {
@@ -46,12 +50,15 @@ export function createEvidenceEnvelope(params = {}) {
   }
 
   const effectiveDedupeKey = deduplicationKey ||
-    `${repositoryId}::${commitId}::${sourcePath || 'global'}::${capability}`;
+    (scope === 'session' && sessionId !== 'default-session'
+      ? `${repositoryId}::${commitId}::${sessionId}::${sourcePath || 'global'}::${capability}`
+      : `${repositoryId}::${commitId}::${sourcePath || 'global'}::${capability}`);
 
   return Object.freeze({
     contract: AFYX_EVIDENCE_ENVELOPE_CONTRACT,
     taskId: String(taskId),
     sessionId: String(sessionId),
+    userId: String(userId),
     repositoryId: String(repositoryId),
     commitId: String(commitId),
     capability: String(capability),
@@ -66,12 +73,14 @@ export function createEvidenceEnvelope(params = {}) {
       : normalizedResult,
     contextBudgetBytes: Number.isSafeInteger(contextBudgetBytes) ? contextBudgetBytes : 65_536,
     deduplicationKey: String(effectiveDedupeKey),
+    scope: String(scope),
+    revoked: Boolean(revoked),
     createdAt: Date.now(),
   });
 }
 
 /**
- * In-memory shared evidence pipeline with LRU eviction and revision-aware invalidation.
+ * In-memory shared evidence pipeline with LRU eviction, session isolation, and caller-scope authorization.
  */
 export function createSharedEvidencePipeline(options = {}) {
   const maxEntries = Number.isSafeInteger(options.maxEntries) && options.maxEntries > 0 ? options.maxEntries : 500;
@@ -103,8 +112,14 @@ export function createSharedEvidencePipeline(options = {}) {
     return envelope;
   }
 
-  function get(deduplicationKey, options = {}) {
-    const { repositoryId, currentCommitId } = options;
+  function get(deduplicationKey, callerContext = {}) {
+    const {
+      repositoryId,
+      currentCommitId,
+      sessionId,
+      userId,
+      permissions,
+    } = callerContext;
 
     if (!store.has(deduplicationKey)) {
       missCount++;
@@ -113,13 +128,55 @@ export function createSharedEvidencePipeline(options = {}) {
 
     const envelope = store.get(deduplicationKey);
 
-    // Cross-repository anti-leakage guard
-    if (repositoryId && envelope.repositoryId !== repositoryId) {
+    // 1. Revocation check
+    if (envelope.revoked === true) {
+      store.delete(deduplicationKey);
+      invalidationCount++;
       missCount++;
       return null;
     }
 
-    // Invalidate if source revision changed
+    // 2. Caller Authorization & Permission Downgrade check
+    // Caller cannot override authorization merely by providing matching deduplication key
+    if (permissions && permissions.authorized === false) {
+      missCount++;
+      return null;
+    }
+    if (envelope.permissions) {
+      for (const [permKey, requiredVal] of Object.entries(envelope.permissions)) {
+        if (requiredVal === true) {
+          if (permissions && permissions[permKey] === false) {
+            missCount++;
+            return null; // Denied: caller permission downgraded
+          }
+        }
+      }
+    }
+
+    // 3. Cross-repository anti-leakage guard
+    if (repositoryId && envelope.repositoryId && envelope.repositoryId !== repositoryId) {
+      missCount++;
+      return null;
+    }
+
+    // 4. Cross-user anti-leakage guard
+    if (userId && envelope.userId && envelope.userId !== userId) {
+      missCount++;
+      return null;
+    }
+
+    // 5. Session isolation guard
+    if (envelope.scope === 'session' && envelope.sessionId !== 'default-session') {
+      if (!sessionId || envelope.sessionId !== sessionId) {
+        missCount++;
+        return null;
+      }
+    } else if (sessionId && envelope.sessionId && envelope.sessionId !== sessionId) {
+      missCount++;
+      return null;
+    }
+
+    // 6. Source revision invalidation guard
     if (currentCommitId && envelope.commitId !== currentCommitId) {
       store.delete(deduplicationKey);
       invalidationCount++;
@@ -127,13 +184,34 @@ export function createSharedEvidencePipeline(options = {}) {
       return null;
     }
 
-    // Move to end (MRU)
+    // Validated hit: move to end (MRU)
     store.delete(deduplicationKey);
     store.set(deduplicationKey, envelope);
 
     hitCount++;
     reuseCount++;
     return envelope;
+  }
+
+  function revoke(deduplicationKey) {
+    if (store.has(deduplicationKey)) {
+      store.delete(deduplicationKey);
+      invalidationCount++;
+      return true;
+    }
+    return false;
+  }
+
+  function revokeSession(sessionId) {
+    let removed = 0;
+    for (const [key, envelope] of store.entries()) {
+      if (envelope.sessionId === sessionId) {
+        store.delete(key);
+        removed++;
+      }
+    }
+    invalidationCount += removed;
+    return removed;
   }
 
   function invalidate(repositoryId, newCommitId = null) {
@@ -179,6 +257,8 @@ export function createSharedEvidencePipeline(options = {}) {
   return Object.freeze({
     set,
     get,
+    revoke,
+    revokeSession,
     invalidate,
     clear,
     stats,

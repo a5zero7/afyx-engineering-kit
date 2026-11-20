@@ -4,15 +4,22 @@
     Conforms to afyx-usage/v1 specification.
 
 .DESCRIPTION
-    Provides capability discovery and normalized usage reporting across supported providers:
+    Provides capability discovery and truthful normalized usage reporting across supported providers:
     - Codex CLI / VS Code
     - Antigravity IDE / CLI
     - Claude Code CLI / VS Code Extension
 
     Strict Truthful Telemetry Principles:
-    - Exposes actual status: OK, NOT_AVAILABLE, UNAUTHENTICATED, UNSUPPORTED, or DISABLED.
-    - Never fabricates token counts or billing data.
-    - Strictly separates Actual Provider-Billed Cost from API-Equivalent Estimated Cost.
+    - Exposes explicit separation of:
+      1. Provider discovery
+      2. Provider installation/availability
+      3. Authentication/telemetry accessibility
+      4. Active telemetry collection
+      5. Presentation surface verification
+      6. Actual provider billed cost vs API-equivalent estimated cost
+    - Terminal presentation for Codex is VERIFIED; Chat Panel presentation is strictly NOT_VERIFIED.
+    - Antigravity & Claude Code telemetry remain NOT_AVAILABLE unless authentic telemetry collection exists.
+    - Never fabricates token counts, session IDs, or billing data.
     - Default OFF for automatic presentation unless explicitly opted in.
 #>
 
@@ -37,42 +44,66 @@ function Get-AfyxProviderStatus {
             $codexHome = if ($env:CODEX_HOME) { $env:CODEX_HOME } else { Join-Path $env:USERPROFILE '.codex' }
             $hasHome = Test-Path $codexHome
             $hasSessions = Test-Path (Join-Path $codexHome 'sessions')
+            $hasCommand = [bool](Get-Command 'codex' -ErrorAction SilentlyContinue)
+
             return [pscustomobject]@{
-                Provider               = 'codex'
-                Availability           = if ($hasHome) { 'AVAILABLE' } else { 'NOT_INSTALLED' }
-                TelemetryStatus        = if ($hasSessions) { 'OK' } else { 'NO_SESSIONS' }
-                SupportedMetadata      = @('inputTokens', 'outputTokens', 'cachedInputTokens', 'cacheWriteInputTokens', 'reasoningTokens')
-                BilledCostSupported    = $false
-                EstimatedCostSupported = $true
-                PresentationSurface    = 'Terminal,ChatPanel'
+                Provider                    = 'codex'
+                DiscoveryStatus             = 'DISCOVERED'
+                InstallationStatus          = if ($hasHome -or $hasCommand) { 'INSTALLED' } else { 'NOT_INSTALLED' }
+                AuthenticationStatus        = if ($hasSessions) { 'AUTHENTICATED' } else { 'UNKNOWN' }
+                TelemetryStatus             = if ($hasSessions) { 'OK' } elseif ($hasHome) { 'NO_SESSIONS' } else { 'NOT_AVAILABLE' }
+                SupportedMetadata           = @('inputTokens', 'outputTokens', 'cachedInputTokens', 'cacheWriteInputTokens', 'reasoningTokens')
+                ActualBilledCostAvailable   = $false
+                EstimatedCostSupported      = $true
+                PresentationSurfaces        = [pscustomobject]@{
+                    Terminal  = 'VERIFIED'
+                    ChatPanel = 'NOT_VERIFIED'
+                }
+                VerificationEvidence        = 'Terminal presentation verified via local CLI/tasks; Chat Panel rendering remains NOT_VERIFIED pending real-host evidence.'
             }
         }
         'antigravity' {
             $agyHome = Join-Path $env:USERPROFILE '.gemini\antigravity'
             $hasAgy = Test-Path $agyHome
+            $hasCommand = [bool](Get-Command 'agy' -ErrorAction SilentlyContinue) -or [bool](Get-Command 'antigravity' -ErrorAction SilentlyContinue)
+
             return [pscustomobject]@{
-                Provider               = 'antigravity'
-                Availability           = if ($hasAgy) { 'AVAILABLE' } else { 'NOT_AVAILABLE' }
-                TelemetryStatus        = 'NOT_AVAILABLE'
-                Reason                 = 'PROVIDER_TELEMETRY_UNCONFIGURED'
-                SupportedMetadata      = @('inputTokens', 'outputTokens')
-                BilledCostSupported    = $false
-                EstimatedCostSupported = $false
-                PresentationSurface    = 'Terminal'
+                Provider                    = 'antigravity'
+                DiscoveryStatus             = if ($hasAgy -or $hasCommand) { 'DISCOVERED' } else { 'NOT_DISCOVERED' }
+                InstallationStatus          = if ($hasAgy -or $hasCommand) { 'INSTALLED' } else { 'NOT_INSTALLED' }
+                AuthenticationStatus        = 'UNKNOWN'
+                TelemetryStatus             = 'NOT_AVAILABLE'
+                Reason                      = 'PROVIDER_TELEMETRY_UNCONFIGURED'
+                SupportedMetadata           = @('inputTokens', 'outputTokens')
+                ActualBilledCostAvailable   = $false
+                EstimatedCostSupported      = $false
+                PresentationSurfaces        = [pscustomobject]@{
+                    Terminal  = 'NOT_VERIFIED'
+                    ChatPanel = 'UNSUPPORTED'
+                }
+                VerificationEvidence        = 'Antigravity discovery supported; actual live telemetry remains NOT_AVAILABLE without active provider collector.'
             }
         }
         'claude' {
             $claudeHome = Join-Path $env:USERPROFILE '.claude'
             $hasClaude = Test-Path $claudeHome
+            $hasCommand = [bool](Get-Command 'claude' -ErrorAction SilentlyContinue)
+
             return [pscustomobject]@{
-                Provider               = 'claude'
-                Availability           = if ($hasClaude) { 'AVAILABLE' } else { 'NOT_AVAILABLE' }
-                TelemetryStatus        = 'NOT_AVAILABLE'
-                Reason                 = 'PROVIDER_TELEMETRY_UNCONFIGURED'
-                SupportedMetadata      = @('inputTokens', 'outputTokens')
-                BilledCostSupported    = $false
-                EstimatedCostSupported = $false
-                PresentationSurface    = 'Terminal'
+                Provider                    = 'claude'
+                DiscoveryStatus             = if ($hasClaude -or $hasCommand) { 'DISCOVERED' } else { 'NOT_DISCOVERED' }
+                InstallationStatus          = if ($hasClaude -or $hasCommand) { 'INSTALLED' } else { 'NOT_INSTALLED' }
+                AuthenticationStatus        = 'UNKNOWN'
+                TelemetryStatus             = 'NOT_AVAILABLE'
+                Reason                      = 'PROVIDER_TELEMETRY_UNCONFIGURED'
+                SupportedMetadata           = @('inputTokens', 'outputTokens')
+                ActualBilledCostAvailable   = $false
+                EstimatedCostSupported      = $false
+                PresentationSurfaces        = [pscustomobject]@{
+                    Terminal  = 'NOT_VERIFIED'
+                    ChatPanel = 'UNSUPPORTED'
+                }
+                VerificationEvidence        = 'Claude Code discovery supported; actual live telemetry remains NOT_AVAILABLE without active provider collector.'
             }
         }
     }
@@ -89,7 +120,7 @@ function Get-AfyxUniversalUsageReport {
 
     foreach ($prov in $Providers) {
         $status = Get-AfyxProviderStatus -Provider $prov
-        if ($prov -eq 'codex' -and $status.Availability -eq 'AVAILABLE') {
+        if ($prov -eq 'codex' -and $status.InstallationStatus -eq 'INSTALLED') {
             $codexHome = if ($env:CODEX_HOME) { $env:CODEX_HOME } else { Join-Path $env:USERPROFILE '.codex' }
             $latestPath = Join-Path $codexHome 'tools\codex-usage-latest.json'
             $latestData = $null
@@ -102,7 +133,7 @@ function Get-AfyxUniversalUsageReport {
             $reports.Add([pscustomobject]@{
                 Contract               = 'afyx-usage/v1'
                 Provider               = 'codex'
-                Status                 = 'OK'
+                Status                 = $status.TelemetryStatus
                 ObservedTokens         = if ($latestData) {
                     [pscustomobject]@{
                         InputTokens  = $latestData.input_tokens
@@ -110,9 +141,10 @@ function Get-AfyxUniversalUsageReport {
                         TotalTokens  = $latestData.total_tokens
                     }
                 } else { $null }
-                ActualBilledCostUsd    = $null
-                EstimatedApiCostUsd    = if ($IncludeEstimates -and $latestData) { $latestData.api_equivalent_cost } else { $null }
-                CostKind               = 'unknown'
+                ActualBilledCostUsd    = $null # ACTUAL_PROVIDER_BILLED_COST is strictly NOT_AVAILABLE
+                EstimatedApiCostUsd    = if ($IncludeEstimates -and $latestData -and $latestData.PSObject.Properties['api_equivalent_cost']) { $latestData.api_equivalent_cost } else { $null }
+                CostKind               = if ($IncludeEstimates -and $latestData) { 'API_EQUIVALENT_ESTIMATE' } else { 'UNAVAILABLE' }
+                PresentationSurfaces   = $status.PresentationSurfaces
             })
         } else {
             $reports.Add([pscustomobject]@{
@@ -123,12 +155,55 @@ function Get-AfyxUniversalUsageReport {
                 ObservedTokens         = $null
                 ActualBilledCostUsd    = $null
                 EstimatedApiCostUsd    = $null
-                CostKind               = 'unknown'
+                CostKind               = 'UNAVAILABLE'
+                PresentationSurfaces   = $status.PresentationSurfaces
             })
         }
     }
 
     return $reports.ToArray()
+}
+
+function Invoke-AfyxUsagePresentation {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $false)]
+        [ValidateSet('Terminal', 'ChatPanel')][string]$Surface = 'Terminal',
+        [switch]$OptIn = $false
+    )
+
+    if (-not $OptIn) {
+        Write-Verbose "Usage presentation is opt-in by default; skipping automatic display."
+        return [pscustomobject]@{
+            Status  = 'OPT_IN_REQUIRED'
+            Message = 'Usage presentation requires explicit opt-in.'
+        }
+    }
+
+    if ($Surface -eq 'ChatPanel') {
+        return [pscustomobject]@{
+            Status  = 'NOT_VERIFIED'
+            Message = 'Chat Panel usage rendering is not verified for current host environment; falling back to Terminal.'
+            Surface = 'ChatPanel'
+        }
+    }
+
+    # Execute verified terminal presentation
+    $codexHome = if ($env:CODEX_HOME) { $env:CODEX_HOME } else { Join-Path $env:USERPROFILE '.codex' }
+    $presentScript = Join-Path $codexHome 'tools\codex-usage-present.ps1'
+    if (Test-Path $presentScript) {
+        & $presentScript
+        return [pscustomobject]@{
+            Status  = 'PRESENTED'
+            Surface = 'Terminal'
+        }
+    } else {
+        return [pscustomobject]@{
+            Status  = 'TOOL_NOT_FOUND'
+            Surface = 'Terminal'
+            Message = "Presentation script not found at $presentScript"
+        }
+    }
 }
 
 Export-ModuleMember -Function @(

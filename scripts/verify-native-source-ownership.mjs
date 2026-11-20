@@ -127,6 +127,8 @@ function fail(message) {
 
 if (manifest.schema !== 1 || !Array.isArray(manifest.entries) || manifest.entries.length === 0) {
   fail('manifest identity or reviewed entry count is invalid');
+} else if (manifest.totalProductionFiles !== manifest.entries.length) {
+  fail(`manifest count discrepancy: declared totalProductionFiles (${manifest.totalProductionFiles}) !== actual entries (${manifest.entries.length})`);
 } else {
   const seen = new Set();
   const manifestPaths = new Set();
@@ -174,21 +176,27 @@ if (manifest.schema !== 1 || !Array.isArray(manifest.entries) || manifest.entrie
     }
   }
 
-  // 3. Scan all active engine and UI source files for coverage and prohibited patterns
+  // 3. Scan all active engine, UI, scripts, context, forge, and usage intelligence sources
   const productionRoots = [
     join(repository, 'afyx-graph', 'engine', 'src'),
     join(repository, 'afyx-graph', 'engine', 'ui', 'src'),
+    join(repository, 'scripts'),
+    join(repository, 'afyx-context', 'src'),
+    join(repository, 'afyx-forge', 'src'),
+    join(repository, 'tools', 'afyx-usage-intelligence'),
   ];
 
-  function scanDir(dir) {
+  function scanDir(dir, isScriptsRoot = false) {
     if (!statSync(dir, { throwIfNoEntry: false })?.isDirectory()) return;
     for (const name of readdirSync(dir)) {
       if (['node_modules', '__tests__', 'test', 'tests', 'fixtures', 'dist', 'build'].includes(name)) continue;
       const full = join(dir, name);
       const st = statSync(full);
       if (st.isDirectory()) {
-        scanDir(full);
-      } else if (/\.(ts|tsx|js|jsx|mjs|cjs)$/.test(name) && !/\.(test|spec|d)\.ts$/.test(name)) {
+        if (!isScriptsRoot) {
+          scanDir(full, false);
+        }
+      } else if (/\.(ts|tsx|js|jsx|mjs|cjs|psm1)$/.test(name) && !/\.(test|spec|d)\.ts$/.test(name) && !/\.test\.(js|mjs)$/.test(name)) {
         const rel = relative(repository, full).replace(/\\/g, '/');
         // If manifest covers full production files (> 100 entries), enforce that every disk file is classified
         if (manifest.entries.length > 100 && !manifestPaths.has(rel)) {
@@ -206,7 +214,7 @@ if (manifest.schema !== 1 || !Array.isArray(manifest.entries) || manifest.entrie
 
   try {
     for (const root of productionRoots) {
-      scanDir(root);
+      scanDir(root, root === join(repository, 'scripts'));
     }
   } catch (err) {
     fail(`source scanning error: ${err.message}`);
