@@ -306,6 +306,9 @@ export const springResolver: FrameworkResolver = {
     // binding (kebab/camel/snake collapse).
     extractSpringValueBindings(filePath, safe, lang, now, nodes, references);
 
+    // Spring Dependency Injection: @Autowired, @Service, @Repository, @RestController, and constructor injection
+    extractSpringDependencyInjection(filePath, safe, lang, references);
+
     return { nodes, references };
   },
 };
@@ -498,6 +501,106 @@ function extractSpringValueBindings(
       filePath,
       language: lang,
     });
+  }
+}
+
+const JAVA_PRIMITIVES = new Set([
+  'int', 'long', 'double', 'float', 'boolean', 'byte', 'short', 'char',
+  'String', 'Integer', 'Long', 'Double', 'Float', 'Boolean', 'Object', 'void',
+]);
+
+function extractSpringDependencyInjection(
+  filePath: string,
+  safe: string,
+  lang: 'java' | 'kotlin',
+  references: UnresolvedRef[],
+): void {
+  // 1. Detect Spring component classes (@RestController, @Controller, @Service, @Repository, @Component, @Configuration)
+  const classAnnoRe = /@(RestController|Controller|Service|Repository|Component|Configuration)\b(?:\([^)]*\))?\s*(?:@[\w.]+(?:\([^)]*\))?\s*)*(?:public\s+|final\s+|abstract\s+|open\s+|data\s+|sealed\s+)*class\s+([A-Za-z0-9_]+)/g;
+  let cm: RegExpExecArray | null;
+  while ((cm = classAnnoRe.exec(safe)) !== null) {
+    const clsName = cm[2]!;
+    const line = safe.slice(0, cm.index).split('\n').length;
+    const fromNodeId = `spring-class:${filePath}:${line}:${clsName}`;
+
+    // Scan inside class body for @Autowired fields and constructor injection
+    const afterCls = safe.slice(cm.index + cm[0].length);
+    const bodyMatch = afterCls.match(/\{([\s\S]*?)(?:\n\s*class|\n\s*@(?:RestController|Service|Repository|Component)|$)/);
+    const classBody = bodyMatch ? bodyMatch[1]! : afterCls.slice(0, 2000);
+
+    // 2. Field Injection: @Autowired
+    const autowiredRe = /@Autowired\b(?:\([^)]*\))?\s*(?:private|protected|public)?\s*([A-Za-z0-9_<>]+)\s+([A-Za-z0-9_]+)\s*;/g;
+    let am: RegExpExecArray | null;
+    while ((am = autowiredRe.exec(classBody)) !== null) {
+      const rawType = am[1]!;
+      const genMatch = rawType.match(/<([A-Za-z0-9_]+)>/);
+      const typeName = genMatch ? genMatch[1]! : rawType;
+      if (typeName && !JAVA_PRIMITIVES.has(typeName)) {
+        references.push({
+          fromNodeId: fromNodeId,
+          referenceName: typeName,
+          referenceKind: 'references',
+          line,
+          column: 0,
+          filePath,
+          language: lang,
+        });
+      }
+    }
+
+    // 3. Constructor injection: public ClsName(Dep1 d1, Dep2 d2) or fun ClsName(d1: Dep1, d2: Dep2)
+    if (lang === 'java') {
+      const ctorRe = new RegExp(`(?:public\\s+|protected\\s+)?${clsName}\\s*\\(([^)]*)\\)`, 'g');
+      let ctm: RegExpExecArray | null;
+      while ((ctm = ctorRe.exec(classBody)) !== null) {
+        const params = ctm[1]!.split(',').map((p) => p.trim()).filter(Boolean);
+        for (const param of params) {
+          const tokens = param.replace(/@\w+(?:\([^)]*\))?\s*/g, '').trim().split(/\s+/);
+          if (tokens.length >= 2) {
+            let typeName = tokens[0]!;
+            const genMatch = typeName.match(/<([A-Za-z0-9_]+)>/);
+            if (genMatch) typeName = genMatch[1]!;
+            if (typeName && !JAVA_PRIMITIVES.has(typeName)) {
+              references.push({
+                fromNodeId: fromNodeId,
+                referenceName: typeName,
+                referenceKind: 'references',
+                line,
+                column: 0,
+                filePath,
+                language: lang,
+              });
+            }
+          }
+        }
+      }
+    } else {
+      // Kotlin primary constructor: class ClsName(val d1: Dep1, val d2: Dep2)
+      const ktCtorRe = new RegExp(`class\\s+${clsName}\\s*\\(([^)]*)\\)`);
+      const ktMatch = ktCtorRe.exec(safe);
+      if (ktMatch) {
+        const params = ktMatch[1]!.split(',').map((p) => p.trim()).filter(Boolean);
+        for (const param of params) {
+          const colonIdx = param.indexOf(':');
+          if (colonIdx > 0) {
+            let typeName = param.slice(colonIdx + 1).trim().split(/\s+/)[0]!.replace(/[?,]/g, '');
+            const genMatch = typeName.match(/<([A-Za-z0-9_]+)>/);
+            if (genMatch) typeName = genMatch[1]!;
+            if (typeName && !JAVA_PRIMITIVES.has(typeName)) {
+              references.push({
+                fromNodeId: fromNodeId,
+                referenceName: typeName,
+                referenceKind: 'references',
+                line,
+                column: 0,
+                filePath,
+                language: lang,
+              });
+            }
+          }
+        }
+      }
+    }
   }
 }
 

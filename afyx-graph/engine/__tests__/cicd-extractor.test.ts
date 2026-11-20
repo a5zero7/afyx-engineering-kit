@@ -184,4 +184,27 @@ stages:
     expect(stageNames).toContain('Build');
     expect(stageNames).toContain('Test');
   });
+
+  it('hardens against YAML prototype pollution via __proto__ and constructor', () => {
+    const maliciousYaml = `
+__proto__:
+  polluted: "attack_success"
+constructor:
+  prototype:
+    polluted_proto: "attack_success"
+safe_key:
+  sub_key: "hello"
+`;
+    const parsed = parseYamlWithLocations(maliciousYaml);
+    expect(parsed.errors).toHaveLength(0);
+
+    // Verify global Object.prototype was NOT polluted
+    expect((Object.prototype as any).polluted).toBeUndefined();
+    expect((Object.prototype as any).polluted_proto).toBeUndefined();
+    expect(({} as any).polluted).toBeUndefined();
+
+    // Verify safe keys are still correctly parsed
+    expect(parsed.data.safe_key).toBeDefined();
+    expect(parsed.data.safe_key.sub_key).toBe('hello');
+  });
 });

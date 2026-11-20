@@ -93,6 +93,10 @@ interface BlockResult {
   nextIndex: number;
 }
 
+function isDangerousKey(key: string): boolean {
+  return key === '__proto__' || key === 'constructor' || key === 'prototype';
+}
+
 function parseBlock(
   lines: Array<{ lineNum: number; indent: number; content: string; isSequenceItem: boolean }>,
   startIndex: number,
@@ -157,7 +161,7 @@ function parseBlock(
     return { value: arr, nextIndex: idx };
   } else {
     // Parse as mapping / object
-    const obj: Record<string, any> = {};
+    const obj: Record<string, any> = Object.create(null);
     let idx = startIndex;
 
     while (idx < lines.length) {
@@ -172,6 +176,19 @@ function parseBlock(
 
       const rawKey = line.content.slice(0, colonIndex).trim();
       const key = cleanKey(rawKey);
+
+      if (isDangerousKey(key)) {
+        if (idx + 1 < lines.length && lines[idx + 1]!.indent > line.indent) {
+          let look = idx + 1;
+          while (look < lines.length && lines[look]!.indent > line.indent) {
+            look++;
+          }
+          idx = look;
+        } else {
+          idx++;
+        }
+        continue;
+      }
       const remainder = line.content.slice(colonIndex + 1).trim();
       const keyPath = pathPrefix ? `${pathPrefix}.${key}` : key;
       lineMap.set(keyPath, line.lineNum);
@@ -282,8 +299,8 @@ function parseFlowSequence(str: string): any[] {
 
 function parseFlowMapping(str: string): Record<string, any> {
   const inner = str.slice(1, -1).trim();
-  if (!inner) return {};
-  const obj: Record<string, any> = {};
+  if (!inner) return Object.create(null);
+  const obj: Record<string, any> = Object.create(null);
   const parts: string[] = [];
   let cur = '';
   let inQuote = false;
@@ -307,6 +324,7 @@ function parseFlowMapping(str: string): Record<string, any> {
     const c = findKeyColonIndex(p);
     if (c >= 0) {
       const k = cleanKey(p.slice(0, c).trim());
+      if (isDangerousKey(k)) continue;
       const v = parseScalar(p.slice(c + 1).trim());
       obj[k] = v;
     }

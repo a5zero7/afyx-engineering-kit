@@ -12,6 +12,10 @@ import { isDockerRelatedFile } from './docker-extractor';
 import { isCicdFile } from './cicd-extractor';
 import { isSqlFile } from './sql-extractor';
 import { isOpenApiFile } from './openapi-extractor';
+import { isKubernetesFile } from './k8s-extractor';
+import { isGraphQLFile } from './graphql-extractor';
+import { isProtobufFile } from './protobuf-extractor';
+import { isTerraformFile } from './terraform-extractor';
 
 /**
  * File extension to Language mapping
@@ -139,6 +143,11 @@ export const EXTENSION_MAP: Record<string, Language> = {
   // shape as the `.yml` variants — the YAML/properties extractor emits one node
   // per leaf key, and the Spring resolver links `@Value("${k}")` references.
   '.properties': 'properties',
+  // GraphQL SDL & documents
+  '.graphql': 'json',
+  '.gql': 'json',
+  // Protocol Buffers
+  '.proto': 'properties',
   // Terraform / OpenTofu / HCL config — tree-sitter-terraform dialect of HCL.
   '.tf': 'terraform',
   '.tfvars': 'terraform',
@@ -167,6 +176,10 @@ export function isSourceFile(filePath: string, overrides?: Record<string, Langua
   if (isDockerRelatedFile(filePath)) return true;
   if (isCicdFile(filePath)) return true;
   if (isOpenApiFile(filePath)) return true;
+  if (isKubernetesFile(filePath)) return true;
+  if (isGraphQLFile(filePath)) return true;
+  if (isProtobufFile(filePath)) return true;
+  if (isTerraformFile(filePath)) return true;
   if (isSqlFile(filePath)) return true;
   if (isConfigFile(filePath)) return true;
   const dot = filePath.lastIndexOf('.');
@@ -231,6 +244,10 @@ export function detectLanguage(filePath: string, source?: string, overrides?: Re
   // top-level expressions (last-dot ext `.src` is too generic for the map).
   if (isErlangAppFile(filePath)) return 'erlang';
   if (isDockerRelatedFile(filePath)) return 'yaml';
+  if (isKubernetesFile(filePath, source)) return 'yaml';
+  if (isGraphQLFile(filePath)) return 'json';
+  if (isProtobufFile(filePath)) return 'properties';
+  if (isTerraformFile(filePath)) return 'terraform';
   if (isSqlFile(filePath)) return 'cfquery';
   if (isOpenApiFile(filePath, source)) return filePath.endsWith('.json') ? 'json' : 'yaml';
   if (isCicdFile(filePath)) return filePath.endsWith('.json') ? 'json' : 'yaml';

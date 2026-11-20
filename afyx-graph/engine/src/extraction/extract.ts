@@ -28,6 +28,10 @@ import { DockerExtractor, isDockerRelatedFile } from './docker-extractor';
 import { CicdExtractor, isCicdFile } from './cicd-extractor';
 import { SqlExtractor, isSqlFile } from './sql-extractor';
 import { OpenApiExtractor, isOpenApiFile } from './openapi-extractor';
+import { GraphQLExtractor, isGraphQLFile } from './graphql-extractor';
+import { ProtobufExtractor, isProtobufFile } from './protobuf-extractor';
+import { KubernetesExtractor, isKubernetesFile } from './k8s-extractor';
+import { TerraformExtractor, isTerraformFile } from './terraform-extractor';
 
 const NATIVE_FACT_LANGUAGES: ReadonlySet<Language> = new Set([
   'typescript', 'tsx', 'javascript', 'jsx', 'arkts', 'python', 'go', 'java',
@@ -52,10 +56,18 @@ export function extractFromSource(
     result = new CicdExtractor(filePath, source).extract();
   } else if (isDockerRelatedFile(filePath)) {
     result = new DockerExtractor(filePath, source).extract();
+  } else if (isKubernetesFile(filePath, source)) {
+    result = new KubernetesExtractor(filePath, source).extract();
+  } else if (isGraphQLFile(filePath)) {
+    result = new GraphQLExtractor(filePath, source).extract();
+  } else if (isProtobufFile(filePath)) {
+    result = new ProtobufExtractor(filePath, source).extract();
   } else if (isSqlFile(filePath)) {
     result = new SqlExtractor(filePath, source).extract();
   } else if (isConfigFile(filePath)) {
     result = new ConfigExtractor(filePath, source).extract();
+  } else if (isTerraformFile(filePath)) {
+    result = new TerraformExtractor(filePath, source).extract();
   } else if (detectedLanguage === 'shell') {
     result = extractNativeShellFacts(filePath, source);
   } else if (detectedLanguage === 'powershell') {

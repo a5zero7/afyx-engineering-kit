@@ -2,7 +2,7 @@
   "schema": 1,
   "baselineRevision": "c4e4d8e29de239a2fcbc0db8ac65eea2276e7b00",
   "scope": "AFYX-320 comprehensive production source inventory",
-  "totalProductionFiles": 478,
+  "totalProductionFiles": 482,
   "entries": [
     {
       "path": "afyx-context/src/budget.js",
@@ -535,7 +535,7 @@
     {
       "path": "afyx-graph/engine/src/extraction/config-extractor.ts",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "9f4886da2b759963906a949c510c65084c4e2c488f01e6b874f7216e99936d98",
+      "reviewedSha256": "15c71ebb393bd921c1ff8f125d9e7c6960124c39ff2b67c1a0dfb28ef8db9c6c",
       "evidence": "Native configuration intelligence extractor for JSON, JSONC, TOML, INI, properties, and .env files (AFYX-208)."
     },
     {
@@ -565,7 +565,7 @@
     {
       "path": "afyx-graph/engine/src/extraction/extract.ts",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "dabb8528b47c631d75004100ec85940e28f89baaecb10a4c0296064e182a8d55",
+      "reviewedSha256": "1bea3f47512cb3b8e12af83ebcdd7f25b8741dfe73a402e7682927e9432528d5",
       "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
     },
     {
@@ -595,7 +595,7 @@
     {
       "path": "afyx-graph/engine/src/extraction/grammars.ts",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "ea08259f8fe2f2a4f96f21a5fa6220fcc56693794338feab77833318e3f57129",
+      "reviewedSha256": "fe2c918f60bef1913d716933936d3e575b3b36de5be71f73f35ebd160cb46377",
       "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
     },
     {
@@ -883,7 +883,7 @@
     {
       "path": "afyx-graph/engine/src/extraction/yaml-utils.ts",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "4ff2dbb08cd5d5609604dc0b65e29315612ad47eb04d9b7958c17ad4186ba6dc",
+      "reviewedSha256": "bb95db86cafa57c3085f1d8035aec20e700044a27ad7569e8d7a1b1a0d4b36ed",
       "evidence": "Native dependency-free YAML reader with location mapping for Docker, CI/CD, and OpenAPI extraction."
     },
     {
@@ -1622,7 +1622,7 @@
     {
       "path": "afyx-graph/engine/src/resolution/frameworks/java.ts",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "45d7942f8144f4698efdd46d832114c5206227b64d9e6b3d232ed2b3afe8bd56",
+      "reviewedSha256": "9c512e8c35964bf84ab92affa676e77bdfe429f32adc70da3cce721e28bf67bf",
       "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
     },
     {
@@ -1670,7 +1670,7 @@
     {
       "path": "afyx-graph/engine/src/resolution/frameworks/python.ts",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "8df2e5de84970e980599cfcba5f67faacbe90c84cb91389a8bcc981fd7d0a76b",
+      "reviewedSha256": "68084dcd628adfc85a63bd0690a5173c7a5acf0b3b51372eca437581d5283674",
       "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
     },
     {
@@ -2879,6 +2879,30 @@
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
       "reviewedSha256": "c1f40a9b195b6fe4fea5fec3cd657c6c7796a33d621796c40433fcbcf9ec238f",
       "evidence": "AFYX native source: authored from AFYX functional requirements; verified clean room implementation with zero third-party code import."
+    },
+    {
+      "path": "afyx-graph/engine/src/extraction/graphql-extractor.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "f59a8980576f257bc88e465591bb9b1e6fe02072924b81fbc74c57d047556eed",
+      "evidence": "Native GraphQL intelligence extractor for SDL types, operations, and fragments (AFYX-215)."
+    },
+    {
+      "path": "afyx-graph/engine/src/extraction/k8s-extractor.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "3542ab20f2b4c30e05bd994c0e5099e17022c81543860974ad7e02d7cbcfb24c",
+      "evidence": "Native Kubernetes manifest intelligence extractor with explicit selector matching (AFYX-211)."
+    },
+    {
+      "path": "afyx-graph/engine/src/extraction/protobuf-extractor.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "2b1d2450ff56449315ee6ed8e5e78689850d1a0a0c23d5cc924e0a4ff942b058",
+      "evidence": "Native Protocol Buffers and gRPC intelligence extractor (AFYX-216)."
+    },
+    {
+      "path": "afyx-graph/engine/src/extraction/terraform-extractor.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "b418ff42caa8d9f6fc8f4fe7616a7eed20ce496d7779b7088566927f8cb95aff",
+      "evidence": "Native Terraform and OpenTofu intelligence extractor with secret masking (AFYX-210)."
     }
   ]
 }

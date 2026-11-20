@@ -204,6 +204,71 @@ export const djangoResolver: FrameworkResolver = {
       });
     }
 
+    // Django Model relationships: ForeignKey, ManyToManyField, OneToOneField
+    const modelClassPattern = /\bclass\s+([A-Za-z0-9_]+)\s*\(\s*(?:models\.)?Model\s*\):/g;
+    let modelMatch: RegExpExecArray | null;
+    while ((modelMatch = modelClassPattern.exec(sanitized)) !== null) {
+      const modelName = modelMatch[1]!;
+      const modelLine = sanitized.slice(0, modelMatch.index).split('\n').length;
+      const modelNodeId = `django-model:${filePath}:${modelLine}:${modelName}`;
+
+      nodes.push({
+        id: modelNodeId,
+        kind: 'class',
+        name: modelName,
+        qualifiedName: `${filePath}::${modelName}`,
+        filePath,
+        startLine: modelLine,
+        endLine: modelLine,
+        startColumn: 0,
+        endColumn: modelMatch[0].length,
+        language: 'python',
+        signature: `class ${modelName}(models.Model)`,
+        updatedAt: timestamp,
+      });
+
+      // Find fields within model body (up to next class or end)
+      const afterModel = sanitized.slice(modelMatch.index + modelMatch[0].length);
+      const nextClassIdx = afterModel.search(/\nclass\s+/);
+      const modelBody = nextClassIdx >= 0 ? afterModel.slice(0, nextClassIdx) : afterModel;
+
+      const relFieldPattern = /\b([A-Za-z0-9_]+)\s*=\s*(?:models\.)?(ForeignKey|ManyToManyField|OneToOneField)\s*\(\s*['"]?([A-Za-z0-9_]+)['"]?/g;
+      let fieldMatch: RegExpExecArray | null;
+      while ((fieldMatch = relFieldPattern.exec(modelBody)) !== null) {
+        const fieldName = fieldMatch[1]!;
+        const relType = fieldMatch[2]!;
+        const targetModel = fieldMatch[3]!;
+        const fieldOffset = modelMatch.index + modelMatch[0].length + fieldMatch.index;
+        const fieldLine = sanitized.slice(0, fieldOffset).split('\n').length;
+        const fieldNodeId = `django-field:${filePath}:${fieldLine}:${modelName}.${fieldName}`;
+
+        nodes.push({
+          id: fieldNodeId,
+          kind: 'field',
+          name: fieldName,
+          qualifiedName: `${filePath}::${modelName}.${fieldName}`,
+          filePath,
+          startLine: fieldLine,
+          endLine: fieldLine,
+          startColumn: 0,
+          endColumn: fieldMatch[0].length,
+          language: 'python',
+          signature: `${fieldName} = models.${relType}('${targetModel}')`,
+          updatedAt: timestamp,
+        });
+
+        references.push({
+          fromNodeId: fieldNodeId,
+          referenceName: targetModel,
+          referenceKind: 'references',
+          line: fieldLine,
+          column: 0,
+          filePath,
+          language: 'python',
+        });
+      }
+    }
+
     return { nodes, references };
   },
 };
@@ -256,17 +321,34 @@ function extractPythonDecoratorEndpoints(
     nodes.push(routeNode);
 
     const followingText = sanitized.slice(m.index + m[0].length);
-    const defMatch = followingText.match(/\n\s*(?:async\s+)?def\s+(\w+)/);
+    const defMatch = followingText.match(/\n\s*(?:async\s+)?def\s+(\w+)\s*\(([\s\S]*?)\)\s*(?:->[^:]*)?:/);
     if (defMatch) {
+      const handlerName = defMatch[1]!;
+      const params = defMatch[2] || '';
       references.push({
         fromNodeId: routeNode.id,
-        referenceName: defMatch[1]!,
+        referenceName: handlerName,
         referenceKind: 'references',
         line: lineNum,
         column: 0,
         filePath,
         language: 'python',
       });
+
+      // Extract FastAPI Depends(...) references
+      const dependsRe = /\bDepends\s*\(\s*([A-Za-z0-9_]+)\s*\)/g;
+      let depMatch: RegExpExecArray | null;
+      while ((depMatch = dependsRe.exec(params)) !== null) {
+        references.push({
+          fromNodeId: routeNode.id,
+          referenceName: depMatch[1]!,
+          referenceKind: 'references',
+          line: lineNum,
+          column: 0,
+          filePath,
+          language: 'python',
+        });
+      }
     }
   }
 

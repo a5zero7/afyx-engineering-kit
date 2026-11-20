@@ -294,7 +294,8 @@ export class ConfigExtractor {
 
       const key = line.slice(0, eqIdx).trim();
       const val = line.slice(eqIdx + 1).trim();
-      const safeVal = this.redactIfSensitive(key, val);
+      const isSecSensitive = !!currentSectionName && SENSITIVE_KEY_PATTERN.test(currentSectionName);
+      const safeVal = (isSecSensitive || SENSITIVE_KEY_PATTERN.test(key)) ? '[REDACTED]' : val;
       const qualName = currentSectionName ? `${currentSectionName}.${key}` : key;
 
       const nodeId = generateNodeId(this.filePath, 'property', qualName, lineNum);
@@ -377,7 +378,8 @@ export class ConfigExtractor {
       if (val.includes('#')) {
         val = val.split('#')[0]!.trim();
       }
-      const safeVal = this.redactIfSensitive(key, val);
+      const isSecSensitive = !!currentSectionName && SENSITIVE_KEY_PATTERN.test(currentSectionName);
+      const safeVal = (isSecSensitive || SENSITIVE_KEY_PATTERN.test(key)) ? '[REDACTED]' : val;
       const qualName = currentSectionName ? `${currentSectionName}.${key}` : key;
 
       const nodeId = generateNodeId(this.filePath, 'property', qualName, lineNum);
@@ -425,12 +427,18 @@ export class ConfigExtractor {
     this.walkJsonObject(parsed, '', fileNodeId, 1);
   }
 
-  private walkJsonObject(obj: any, prefix: string, parentNodeId: string, approxLine: number): void {
+  private walkJsonObject(
+    obj: any,
+    prefix: string,
+    parentNodeId: string,
+    approxLine: number,
+    inheritedSensitive: boolean = false
+  ): void {
     if (!obj || typeof obj !== 'object') return;
 
     for (const [key, val] of Object.entries(obj)) {
       const fullPath = prefix ? `${prefix}.${key}` : key;
-      const isSensitive = SENSITIVE_KEY_PATTERN.test(key);
+      const isSensitive = inheritedSensitive || SENSITIVE_KEY_PATTERN.test(key);
 
       if (val !== null && typeof val === 'object' && !Array.isArray(val)) {
         // Namespace / Section object
@@ -454,7 +462,86 @@ export class ConfigExtractor {
           target: secId,
           kind: 'contains',
         });
-        this.walkJsonObject(val, fullPath, secId, approxLine);
+        this.walkJsonObject(val, fullPath, secId, approxLine, isSensitive);
+      } else if (Array.isArray(val)) {
+        // Array property
+        const arrId = generateNodeId(this.filePath, 'property', fullPath, approxLine);
+        const safeSignature = isSensitive
+          ? `"${key}": [REDACTED]`
+          : `"${key}": [ ... ]`;
+
+        this.nodes.push({
+          id: arrId,
+          kind: 'property',
+          name: key,
+          qualifiedName: `${this.filePath}#${fullPath}`,
+          filePath: this.filePath,
+          language: 'json',
+          startLine: approxLine,
+          endLine: approxLine,
+          startColumn: 0,
+          endColumn: 0,
+          signature: safeSignature,
+          updatedAt: Date.now(),
+        });
+        this.edges.push({
+          source: parentNodeId,
+          target: arrId,
+          kind: 'contains',
+        });
+
+        // Traverse array elements
+        val.forEach((item, index) => {
+          const itemPath = `${fullPath}[${index}]`;
+          if (item !== null && typeof item === 'object' && !Array.isArray(item)) {
+            const itemNodeId = generateNodeId(this.filePath, 'namespace', itemPath, approxLine);
+            this.nodes.push({
+              id: itemNodeId,
+              kind: 'namespace',
+              name: `[${index}]`,
+              qualifiedName: `${this.filePath}#${itemPath}`,
+              filePath: this.filePath,
+              language: 'json',
+              startLine: approxLine,
+              endLine: approxLine,
+              startColumn: 0,
+              endColumn: 0,
+              signature: `{ [${index}] }`,
+              updatedAt: Date.now(),
+            });
+            this.edges.push({
+              source: arrId,
+              target: itemNodeId,
+              kind: 'contains',
+            });
+            this.walkJsonObject(item, itemPath, itemNodeId, approxLine, isSensitive);
+          } else {
+            const leafId = generateNodeId(this.filePath, 'property', itemPath, approxLine);
+            const safeItemVal = isSensitive ? '[REDACTED]' : JSON.stringify(item);
+            this.nodes.push({
+              id: leafId,
+              kind: 'property',
+              name: `[${index}]`,
+              qualifiedName: `${this.filePath}#${itemPath}`,
+              filePath: this.filePath,
+              language: 'json',
+              startLine: approxLine,
+              endLine: approxLine,
+              startColumn: 0,
+              endColumn: 0,
+              signature: `[${index}]: ${safeItemVal}`,
+              updatedAt: Date.now(),
+            });
+            this.edges.push({
+              source: arrId,
+              target: leafId,
+              kind: 'contains',
+            });
+            if (!isSensitive && typeof item === 'string') {
+              this.findEnvReferences(item, leafId, approxLine);
+            }
+          }
+        });
       } else {
         // Leaf property
         const strVal = String(val);
@@ -482,7 +569,7 @@ export class ConfigExtractor {
           kind: 'contains',
         });
 
-        if (typeof val === 'string') {
+        if (!isSensitive && typeof val === 'string') {
           this.findEnvReferences(val, propId, approxLine);
         }
       }

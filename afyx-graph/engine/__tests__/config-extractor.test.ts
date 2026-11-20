@@ -132,4 +132,86 @@ spring.datasource.password=TopSecretDb123
     const envRefs = result.unresolvedReferences.map((r) => r.referenceName);
     expect(envRefs).toContain('DB_HOST');
   });
+
+  it('propagates secret redaction through nested objects and arrays', () => {
+    const jsonSource = `{
+      "app": {
+        "name": "public-app"
+      },
+      "credentials": {
+        "username": "admin",
+        "nested": {
+          "token_endpoint": "https://auth.internal/token",
+          "client_id": "oauth-client-id"
+        }
+      },
+      "api_keys": [
+        "key-alpha-12345",
+        "key-beta-67890"
+      ],
+      "secrets_list": [
+        {
+          "secret_name": "db_master",
+          "raw_token": "shh-secret"
+        }
+      ]
+    }`;
+
+    const extractor = new ConfigExtractor('config/secrets.json', jsonSource);
+    const result = extractor.extract();
+
+    // Regular config is NOT redacted
+    const appNode = result.nodes.find((n) => n.qualifiedName === 'config/secrets.json#app.name');
+    expect(appNode?.signature).toContain('"public-app"');
+
+    // Nested properties under "credentials" MUST be redacted
+    const userNode = result.nodes.find((n) => n.qualifiedName === 'config/secrets.json#credentials.username');
+    expect(userNode).toBeDefined();
+    expect(userNode?.signature).toContain('[REDACTED]');
+    expect(userNode?.signature).not.toContain('admin');
+
+    const tokenEndpointNode = result.nodes.find(
+      (n) => n.qualifiedName === 'config/secrets.json#credentials.nested.token_endpoint'
+    );
+    expect(tokenEndpointNode).toBeDefined();
+    expect(tokenEndpointNode?.signature).toContain('[REDACTED]');
+    expect(tokenEndpointNode?.signature).not.toContain('https://auth.internal');
+
+    // Array under sensitive key MUST be redacted
+    const apiKey0 = result.nodes.find((n) => n.qualifiedName === 'config/secrets.json#api_keys[0]');
+    expect(apiKey0?.signature).toContain('[REDACTED]');
+    expect(apiKey0?.signature).not.toContain('key-alpha');
+
+    // Array of objects under sensitive key MUST be redacted
+    const secretObjVal = result.nodes.find(
+      (n) => n.qualifiedName === 'config/secrets.json#secrets_list[0].raw_token'
+    );
+    expect(secretObjVal?.signature).toContain('[REDACTED]');
+    expect(secretObjVal?.signature).not.toContain('shh-secret');
+  });
+
+  it('propagates secret redaction for TOML and INI sensitive sections', () => {
+    const tomlSource = `
+[database.credentials]
+host = "db.internal"
+username = "postgres"
+auth_token = "secret-pass"
+`;
+    const tomlExtractor = new ConfigExtractor('secrets.toml', tomlSource);
+    const tomlResult = tomlExtractor.extract();
+    const tomlHost = tomlResult.nodes.find((n) => n.name === 'host');
+    expect(tomlHost?.signature).toContain('[REDACTED]');
+    expect(tomlHost?.signature).not.toContain('db.internal');
+
+    const iniSource = `
+[auth]
+provider = "oauth2"
+client_secret = "supersecret"
+`;
+    const iniExtractor = new ConfigExtractor('auth.ini', iniSource);
+    const iniResult = iniExtractor.extract();
+    const iniProv = iniResult.nodes.find((n) => n.name === 'provider');
+    expect(iniProv?.signature).toContain('[REDACTED]');
+    expect(iniProv?.signature).not.toContain('oauth2');
+  });
 });
