@@ -3045,3 +3045,7 @@ export class ExtractionOrchestrator {
 export { extractFromSource } from './extract';
 export { detectLanguage, isSourceFile, isLanguageSupported, getSupportedLanguages } from './grammars';
 export { isOdooAccessCsv, isOdooManifest, isOdooXml } from './odoo';
+export { classifyEntityDomain, getEntityTaxonomy, validateEntityTaxonomy } from './taxonomy';
+export { BuildExtractor, isBuildFile } from './build-extractor';
+export { AnsibleExtractor, isAnsibleFile } from './ansible-extractor';
+export { SchemaExtractor, isSchemaFile } from './schema-extractor';

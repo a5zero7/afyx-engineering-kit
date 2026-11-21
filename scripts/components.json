@@ -247,8 +247,8 @@
       "platforms": "windows",
       "install_root": "codex_tools",
       "install_path": "afyx-usage-intelligence",
-      "version_source": "",
-      "version_required": "false",
+      "version_source": "metadata.json#product_version",
+      "version_required": "true",
       "providers": "codex;antigravity;claude",
       "required_files": "CodexUsage.psm1;codex-usage-stop.ps1;codex-usage-watch.ps1;codex-usage-doctor.ps1;codex-usage-pricing.json;codex-usage-present.ps1;AfyxUsageIntelligence.psm1"
     }

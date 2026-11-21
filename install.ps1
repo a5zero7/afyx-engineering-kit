@@ -1,4 +1,4 @@
-﻿[CmdletBinding(SupportsShouldProcess)]
+[CmdletBinding(SupportsShouldProcess)]
 param(
     [string]$SkillsRoot = (Join-Path $env:USERPROFILE '.agents\skills'),
     [switch]$Force,
@@ -318,12 +318,19 @@ $controlPlan = if ($Preset) { Get-AfyxControlPlan -Preset $Preset -CustomCompone
 
 function Get-AvailableVersion([string]$Id) {
     switch ($Id) {
-        'efficient-coding' { return Get-AfyxSkillVersion -Directory $bundledEfficientCoding }
-        'odoo-engineering' { return Get-AfyxSkillVersion -Directory $bundledOdooEngineering }
+        'afyx-efficient-coding', 'efficient-coding' { return Get-AfyxSkillVersion -Directory $bundledEfficientCoding }
+        'afyx-odoo-engineering', 'odoo-engineering' { return Get-AfyxSkillVersion -Directory $bundledOdooEngineering }
         'afyx-engineering-expert' { return Get-AfyxSkillVersion -Directory $bundledEngineeringExpert }
         'afyx-graph' { return (Get-Content -Raw -LiteralPath $graphMetadataPath | ConvertFrom-Json).product_version }
         'afyx-context' { return (Get-Content -Raw -LiteralPath $contextMetadataPath | ConvertFrom-Json).product_version }
         'afyx-forge' { return (Get-Content -Raw -LiteralPath $forgeMetadataPath | ConvertFrom-Json).product_version }
+        'afyx-usage-intelligence', 'codex-usage-tracking' {
+            $usageMetaPath = Join-Path $packageRoot 'tools\afyx-usage-intelligence\metadata.json'
+            if (Test-Path -LiteralPath $usageMetaPath -PathType Leaf) {
+                return (Get-Content -Raw -LiteralPath $usageMetaPath -Encoding utf8 | ConvertFrom-Json).product_version
+            }
+            return ''
+        }
         default { return '' }
     }
 }

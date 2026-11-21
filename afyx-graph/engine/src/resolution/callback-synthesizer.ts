@@ -36,6 +36,8 @@ import { vueRouterLinkEdges } from './vue-router-synthesizer';
 import { svelteKitLinkEdges, svelteKitPageComponentEdges } from './sveltekit-synthesizer';
 import { createYielder, type MaybeYield } from './cooperative-yield';
 import { crossTierEdges } from './tier-synthesizer';
+import { crossDomainSourceBuildContainerEdges } from './cross-domain-source-build-container';
+import { crossDomainCicdInfraDbApiEdges } from './cross-domain-cicd-infra-db-api';
 import { enclosingFn, makeLineAt } from './synth-utils';
 import { resolveImportPath } from './import-resolver';
 
@@ -3680,6 +3682,8 @@ export const SYNTH_PASSES: SynthPassDef[] = [
   { name: 'svelteKitPageEdges', gate: (has) => has('svelte'), run: (_q, c, y) => svelteKitPageComponentEdges(c, y) },
   { name: 'svelteKitLinkEdges', gate: (has) => has('svelte'), run: (_q, c, y) => svelteKitLinkEdges(c, y) },
   { name: 'nixOptionEdges', gate: (has) => has('nix'), run: (q, _c, y) => nixOptionPathEdges(q, y) },
+  { name: 'crossDomainSourceBuildContainer', gate: ALWAYS, run: (_q, c, y) => crossDomainSourceBuildContainerEdges(c, y) },
+  { name: 'crossDomainCicdInfraDbApi', gate: ALWAYS, run: (_q, c, y) => crossDomainCicdInfraDbApiEdges(c, y) },
 ];
 
 /** Fixed non-registry steps: goMethodContains, goImplements, dedupe-merge, insertMergedEdges. */

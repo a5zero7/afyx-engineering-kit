@@ -129,7 +129,7 @@ afyx_component_root() {
     afyx_graph_root) root="$graph_root" ;;
     afyx_context_root) root="$context_root" ;;
     afyx_forge_root) root="$forge_root" ;;
-    codex_tools) root="$codex_home/tools" ;;
+    codex_tools) printf '%s/tools' "$codex_home"; return 0 ;;
     *) root="" ;;
   esac
   [[ -n "$root" ]] || return 0
@@ -247,7 +247,15 @@ afyx_component_evaluate() {
       done
       unset IFS
       if ((present == 0)); then AFYX_STATE='NOT INSTALLED'; AFYX_DETAIL='not installed'
-      elif ((present == total)); then AFYX_STATE=HEALTHY; AFYX_DETAIL='runtime files installed'
+      elif ((present == total)); then
+        AFYX_STATE=HEALTHY; AFYX_DETAIL='runtime files installed'
+        local vsource="$(afyx_component_field "$id" version_source)"
+        local vfile="${vsource%%#*}"; local vfield="${vsource#*#}"
+        if [[ -n "$vfile" && -f "$path/$vfile" ]]; then
+          AFYX_VERSION="$(sed -n "s/.*\"$vfield\"[[:space:]]*:[[:space:]]*\"\\([^\"]*\\)\".*/\\1/p" "$path/$vfile" | head -n 1)"
+        elif [[ -n "$vfile" && -f "$(dirname -- "$AFYX_COMPONENTS_JSON")/../tools/$(afyx_component_field "$id" install_path)/$vfile" ]]; then
+          AFYX_VERSION="$(sed -n "s/.*\"$vfield\"[[:space:]]*:[[:space:]]*\"\\([^\"]*\\)\".*/\\1/p" "$(dirname -- "$AFYX_COMPONENTS_JSON")/../tools/$(afyx_component_field "$id" install_path)/$vfile" | head -n 1)"
+        fi
       else AFYX_STATE=INCOMPLETE; AFYX_DETAIL="$present of $total runtime files present"; fi
       ;;
     *) AFYX_DETAIL="unsupported component type: $type" ;;

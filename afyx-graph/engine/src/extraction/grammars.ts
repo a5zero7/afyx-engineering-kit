@@ -16,6 +16,8 @@ import { isKubernetesFile } from './k8s-extractor';
 import { isGraphQLFile } from './graphql-extractor';
 import { isProtobufFile } from './protobuf-extractor';
 import { isTerraformFile } from './terraform-extractor';
+import { isAnsibleFile } from './ansible-extractor';
+import { isSchemaFile } from './schema-extractor';
 
 /**
  * File extension to Language mapping
@@ -148,6 +150,8 @@ export const EXTENSION_MAP: Record<string, Language> = {
   '.gql': 'json',
   // Protocol Buffers
   '.proto': 'properties',
+  // Apache Avro
+  '.avsc': 'json',
   // Terraform / OpenTofu / HCL config — tree-sitter-terraform dialect of HCL.
   '.tf': 'terraform',
   '.tfvars': 'terraform',
@@ -180,6 +184,8 @@ export function isSourceFile(filePath: string, overrides?: Record<string, Langua
   if (isGraphQLFile(filePath)) return true;
   if (isProtobufFile(filePath)) return true;
   if (isTerraformFile(filePath)) return true;
+  if (isAnsibleFile(filePath)) return true;
+  if (isSchemaFile(filePath)) return true;
   if (isSqlFile(filePath)) return true;
   if (isConfigFile(filePath)) return true;
   const dot = filePath.lastIndexOf('.');
@@ -248,6 +254,8 @@ export function detectLanguage(filePath: string, source?: string, overrides?: Re
   if (isGraphQLFile(filePath)) return 'json';
   if (isProtobufFile(filePath)) return 'properties';
   if (isTerraformFile(filePath)) return 'terraform';
+  if (isAnsibleFile(filePath, source)) return 'yaml';
+  if (isSchemaFile(filePath, source)) return (filePath.endsWith('.yaml') || filePath.endsWith('.yml')) ? 'yaml' : 'json';
   if (isSqlFile(filePath)) return 'cfquery';
   if (isOpenApiFile(filePath, source)) return filePath.endsWith('.json') ? 'json' : 'yaml';
   if (isCicdFile(filePath)) return filePath.endsWith('.json') ? 'json' : 'yaml';

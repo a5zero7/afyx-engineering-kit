@@ -368,7 +368,10 @@ if (-not $usagePresent -and (Test-Path -LiteralPath $tasksPath -PathType Leaf)) 
 if (-not $usagePresent) {
     Write-Result 'INFO' 'Codex Usage Tracker' 'optional; not installed'
 } else {
-    if ($usageComponent.State -eq 'HEALTHY') { Write-Result 'OK' 'Codex Usage Tracker' 'runtime files installed' }
+    if ($usageComponent.State -eq 'HEALTHY') {
+        $detail = if ($usageComponent.Version) { "$($usageComponent.Version); runtime files installed" } else { 'runtime files installed' }
+        Write-Result 'OK' 'Codex Usage Tracker' $detail
+    }
     else { Write-Result 'WARN' 'Codex Usage Tracker' 'runtime files incomplete (optional)' }
 
     $hookConfigured = $false

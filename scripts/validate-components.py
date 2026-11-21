@@ -189,5 +189,13 @@ install_path = usage.get("install_path", "afyx-usage-intelligence")
 for relative in usage["required_files"].split(";"):
     if not (ROOT / "tools" / install_path / relative).is_file():
         fail(f"afyx-usage-intelligence: {relative} is not shipped in tools/{install_path}")
+usage_meta_file = ROOT / "tools" / install_path / "metadata.json"
+if not usage_meta_file.is_file():
+    fail(f"afyx-usage-intelligence: metadata.json is not shipped in tools/{install_path}")
+usage_meta = json.loads(usage_meta_file.read_text(encoding="utf-8"))
+if usage.get("version_source") != "metadata.json#product_version":
+    fail("afyx-usage-intelligence: version_source must be metadata.json#product_version")
+if usage_meta.get("product_version") != "1.0.0":
+    fail("afyx-usage-intelligence: metadata product_version must be 1.0.0")
 
 print(f"Afyx component contract: PASS ({len(components)} components)")

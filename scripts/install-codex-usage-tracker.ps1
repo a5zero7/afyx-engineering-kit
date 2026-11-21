@@ -21,6 +21,9 @@ $toolsRoot = Join-Path $CodexHome 'tools'
 if (-not $HooksPath) { $HooksPath = Join-Path $CodexHome 'hooks.json' }
 $usageContract = (Get-Content -Raw -LiteralPath (Join-Path $PSScriptRoot 'components.json') | ConvertFrom-Json).components | Where-Object { $_.id -eq 'afyx-usage-intelligence' }
 $runtimeFiles = @($usageContract.required_files -split ';')
+if (-not ($runtimeFiles -contains 'metadata.json') -and (Test-Path -LiteralPath (Join-Path $sourceRoot 'metadata.json') -PathType Leaf)) {
+    $runtimeFiles += 'metadata.json'
+}
 $taskLabel = 'Codex: Watch Token Usage'
 $hookMarker = 'Afyx Codex Usage Tracking'
 

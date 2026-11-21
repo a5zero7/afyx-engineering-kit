@@ -32,6 +32,9 @@ import { GraphQLExtractor, isGraphQLFile } from './graphql-extractor';
 import { ProtobufExtractor, isProtobufFile } from './protobuf-extractor';
 import { KubernetesExtractor, isKubernetesFile } from './k8s-extractor';
 import { TerraformExtractor, isTerraformFile } from './terraform-extractor';
+import { BuildExtractor, isBuildFile } from './build-extractor';
+import { AnsibleExtractor, isAnsibleFile } from './ansible-extractor';
+import { SchemaExtractor, isSchemaFile } from './schema-extractor';
 
 const NATIVE_FACT_LANGUAGES: ReadonlySet<Language> = new Set([
   'typescript', 'tsx', 'javascript', 'jsx', 'arkts', 'python', 'go', 'java',
@@ -52,6 +55,12 @@ export function extractFromSource(
 
   if (isOpenApiFile(filePath, source)) {
     result = new OpenApiExtractor(filePath, source).extract();
+  } else if (isSchemaFile(filePath, source)) {
+    result = new SchemaExtractor(filePath, source).extract();
+  } else if (isAnsibleFile(filePath, source)) {
+    result = new AnsibleExtractor(filePath, source).extract();
+  } else if (isBuildFile(filePath, source)) {
+    result = new BuildExtractor(filePath, source).extract();
   } else if (isCicdFile(filePath)) {
     result = new CicdExtractor(filePath, source).extract();
   } else if (isDockerRelatedFile(filePath)) {

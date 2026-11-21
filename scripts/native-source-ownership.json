@@ -2,7 +2,7 @@
   "schema": 1,
   "baselineRevision": "c4e4d8e29de239a2fcbc0db8ac65eea2276e7b00",
   "scope": "AFYX-320 comprehensive production source inventory",
-  "totalProductionFiles": 492,
+  "totalProductionFiles": 498,
   "entries": [
     {
       "path": "afyx-context/src/budget.js",
@@ -575,10 +575,22 @@
       "evidence": "V1-CAPABILITY-CLOSURE-C01 (AFYX-223): Native deterministic Angular semantic extractor covering @Component, @NgModule, @Injectable, @Directive, @Pipe, @Input/@Output, DI, and routing without third-party parsers."
     },
     {
+      "path": "afyx-graph/engine/src/extraction/ansible-extractor.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "e39c9ac725d194e28ba1a230e39a9c839c5a818dc50801df3212afe1e28f7764",
+      "evidence": "Track C Wave 3A (AFYX-213 / C2.5): Native Ansible configuration and automation intelligence extractor with vault secret masking."
+    },
+    {
       "path": "afyx-graph/engine/src/extraction/astro-extractor.ts",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
       "reviewedSha256": "587bd917843bb260bbb167ee883caa1282e7f72688956e355449a7605107623d",
       "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/extraction/build-extractor.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "1b9ea86e52a13acdebec71d681584f4ddcfdd8b96631a76e07af0d4170c10d81",
+      "evidence": "Track C Wave 3A (AFYX-206 / C1.2): Native Build intelligence extractor covering Make, CMake, npm, Gradle, Maven, and MSBuild targets."
     },
     {
       "path": "afyx-graph/engine/src/extraction/cicd-extractor.ts",
@@ -619,7 +631,7 @@
     {
       "path": "afyx-graph/engine/src/extraction/extract.ts",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "1bea3f47512cb3b8e12af83ebcdd7f25b8741dfe73a402e7682927e9432528d5",
+      "reviewedSha256": "c9bdb42c42f9e14e8dcad5d32f1656e195209cf621d1fff2d30e55f09fb515e3",
       "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
     },
     {
@@ -649,7 +661,7 @@
     {
       "path": "afyx-graph/engine/src/extraction/grammars.ts",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "fe2c918f60bef1913d716933936d3e575b3b36de5be71f73f35ebd160cb46377",
+      "reviewedSha256": "37f335f5932ebbb2542eef56b9d6f314b08f08f66a9036afd933694bf69706ec",
       "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
     },
     {
@@ -661,7 +673,7 @@
     {
       "path": "afyx-graph/engine/src/extraction/index.ts",
       "classification": "PUBLIC_API_BARREL",
-      "reviewedSha256": "5d13dea9aeabfe8c4fa2dcb772f3bc986692a56dad8d1324b4aa4ab571c4d976",
+      "reviewedSha256": "8ab5450993ce7c220eddfaa621b8aad389a446372e986423663b690071380b69",
       "evidence": "MB15 Windows Git RCA: reviewed lazy ignore-policy evaluation and empty-candidate short circuit only after Git freshness plus persisted dirty paths are checked; no cross-call cache, permission, checksum or restored-edit semantics changed. Positive/negative Git and ignore regressions retained."
     },
     {
@@ -917,6 +929,12 @@
       "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
     },
     {
+      "path": "afyx-graph/engine/src/extraction/schema-extractor.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "5f62b56c02108bca04ada1da26f10326b840b0882f769fdfd684347ead7d3a31",
+      "evidence": "Track C Wave 3A (AFYX-217 / C3.4): Native Schema intelligence extractor for JSON Schema, AsyncAPI, and Apache Avro with bounded recursion and secret redaction."
+    },
+    {
       "path": "afyx-graph/engine/src/extraction/sql-extractor.ts",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
       "reviewedSha256": "48ecb139e24010fa64594d4b4671c707d2ce11e7da33c9535b81370e27c18e4f",
@@ -945,6 +963,12 @@
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
       "reviewedSha256": "7a70a67b9644995f1178a32a344ba4503d7f6781808e217a777e4b7bb4b38a3d",
       "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/extraction/taxonomy.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "10b0939480d8130df00804941daa199d7126b3f75302e9e97aba98875f644884",
+      "evidence": "Track C Wave 3A (AFYX-203 / C0.1): Canonical Engineering Entity Taxonomy engine consolidating 7 core domains with deterministic classification and provenance."
     },
     {
       "path": "afyx-graph/engine/src/extraction/terraform-extractor.ts",
@@ -1598,7 +1622,7 @@
     {
       "path": "afyx-graph/engine/src/resolution/callback-synthesizer.ts",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "ee15046e066400ec698c463f95018db4f755a6523e4065ebebaaf75cef104556",
+      "reviewedSha256": "70561a9c54640713c05568bb59241f12cf769317008b72e2bb0b83ea0751e3e5",
       "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
     },
     {
@@ -1606,6 +1630,18 @@
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
       "reviewedSha256": "8265bc9c3936783b9891e99c863092f978414e1c3472ce5fae148edf2dd18911",
       "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/resolution/cross-domain-cicd-infra-db-api.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "87bc0b7871547c83a3c5b031f40197f680a435051383384e599f2df640fda5b0",
+      "evidence": "Track C Wave 3A (AFYX-228 / C6.2): Native Cross-domain resolver linking CI/CD, Infrastructure (Terraform), Ansible, Database schemas, and API/Schemas."
+    },
+    {
+      "path": "afyx-graph/engine/src/resolution/cross-domain-source-build-container.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "d7bfb28d34af15c9bcb2732b03c5846264c73f3982770e6c1bb4b8345ebd41ab",
+      "evidence": "Track C Wave 3A (AFYX-227 / C6.1): Native Cross-domain resolver linking Source code, Build systems, and Container assets."
     },
     {
       "path": "afyx-graph/engine/src/resolution/cross-repo.ts",

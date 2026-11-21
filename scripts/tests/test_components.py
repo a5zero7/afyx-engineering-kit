@@ -124,16 +124,16 @@ class ComponentContractTests(unittest.TestCase):
         return target
 
     def test_skill_not_installed(self) -> None:
-        self.assert_state("efficient-coding", "NOT INSTALLED")
+        self.assert_state("afyx-efficient-coding", "NOT INSTALLED")
 
     def test_skill_healthy_and_versioned(self) -> None:
-        self.install_skill("efficient-coding")
+        self.install_skill("afyx-efficient-coding")
         for shell, states in self.shells().items():
-            self.assertEqual(states["efficient-coding"], ("HEALTHY", "1.2.2"), shell)
+            self.assertEqual(states["afyx-efficient-coding"], ("HEALTHY", "1.2.2"), shell)
 
     def test_skill_incomplete_when_a_reference_is_missing(self) -> None:
-        (self.install_skill("efficient-coding") / "references" / "tool-routing.md").unlink()
-        self.assert_state("efficient-coding", "INCOMPLETE")
+        (self.install_skill("afyx-efficient-coding") / "references" / "tool-routing.md").unlink()
+        self.assert_state("afyx-efficient-coding", "INCOMPLETE")
 
     def test_optional_expert_skill_is_versioned_and_complete(self) -> None:
         target = self.install_skill("afyx-engineering-expert")
@@ -143,8 +143,8 @@ class ComponentContractTests(unittest.TestCase):
         self.assert_state("afyx-engineering-expert", "INCOMPLETE")
 
     def test_skill_invalid_without_frontmatter(self) -> None:
-        write(self.skills / "odoo-engineering" / "SKILL.md", "no frontmatter here\n")
-        self.assert_state("odoo-engineering", "INVALID")
+        write(self.skills / "afyx-odoo-engineering" / "SKILL.md", "no frontmatter here\n")
+        self.assert_state("afyx-odoo-engineering", "INVALID")
 
     def test_graph_states(self) -> None:
         self.assert_state("afyx-graph", "NOT INSTALLED")
@@ -173,17 +173,26 @@ class ComponentContractTests(unittest.TestCase):
     def test_usage_tracking_is_windows_only(self) -> None:
         tools = self.codex / "tools"
         if not WINDOWS:
-            self.assert_state("codex-usage-tracking", "NOT INSTALLED")
+            self.assert_state("afyx-usage-intelligence", "NOT INSTALLED")
             return
-        self.assert_state("codex-usage-tracking", "NOT INSTALLED")
+        self.assert_state("afyx-usage-intelligence", "NOT INSTALLED")
         write(tools / "CodexUsage.psm1", "x")
-        self.assert_state("codex-usage-tracking", "INCOMPLETE")
-        for name in ("codex-usage-stop.ps1", "codex-usage-watch.ps1", "codex-usage-doctor.ps1", "codex-usage-pricing.json"):
+        self.assert_state("afyx-usage-intelligence", "INCOMPLETE")
+        for name in (
+            "codex-usage-stop.ps1",
+            "codex-usage-watch.ps1",
+            "codex-usage-doctor.ps1",
+            "codex-usage-pricing.json",
+            "codex-usage-present.ps1",
+            "AfyxUsageIntelligence.psm1",
+        ):
             write(tools / name, "x")
-        self.assert_state("codex-usage-tracking", "HEALTHY")
+        self.assert_state("afyx-usage-intelligence", "HEALTHY")
+        for shell, states in self.shells().items():
+            self.assertEqual(states["afyx-usage-intelligence"], ("HEALTHY", "1.0.0"), shell)
 
     def test_shells_agree_on_every_component(self) -> None:
-        self.install_skill("efficient-coding")
+        self.install_skill("afyx-efficient-coding")
         build_graph(self.graph)
         active = self.shells()
         if len(active) < 2:

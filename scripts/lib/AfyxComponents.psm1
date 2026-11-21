@@ -378,7 +378,37 @@ function Get-AfyxComponentState {
             'toolset' {
                 $present = @($required | Where-Object { Test-Path -LiteralPath (Join-Path $path $_) -PathType Leaf })
                 if ($present.Count -eq 0) { return New-AfyxState $Component 'NOT INSTALLED' 'not installed' '' $path }
-                if ($present.Count -eq $required.Count) { return New-AfyxState $Component 'HEALTHY' 'runtime files installed' '' $path }
+                if ($present.Count -eq $required.Count) {
+                    $versionText = ''
+                    $versionSource = Get-AfyxField $Component 'version_source'
+                    if ($versionSource) {
+                        $versionFile = $versionSource -replace '#.*$', ''
+                        $versionField = $versionSource -replace '^[^#]*#', ''
+                        $installedMeta = Join-Path $path $versionFile
+                        if (Test-Path -LiteralPath $installedMeta -PathType Leaf) {
+                            try {
+                                $doc = Get-Content -Raw -LiteralPath $installedMeta -Encoding utf8 | ConvertFrom-Json -ErrorAction Stop
+                                if ($doc.PSObject.Properties[$versionField]) {
+                                    $versionText = [string]$doc.PSObject.Properties[$versionField].Value
+                                }
+                            } catch { }
+                        }
+                        if (-not $versionText) {
+                            # Compatibility fallback for verified previous installations where all required files are present
+                            $repoRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
+                            $sourceMeta = Join-Path $repoRoot "tools\$(Get-AfyxField $Component 'install_path')\$versionFile"
+                            if (Test-Path -LiteralPath $sourceMeta -PathType Leaf) {
+                                try {
+                                    $doc = Get-Content -Raw -LiteralPath $sourceMeta -Encoding utf8 | ConvertFrom-Json -ErrorAction Stop
+                                    if ($doc.PSObject.Properties[$versionField]) {
+                                        $versionText = [string]$doc.PSObject.Properties[$versionField].Value
+                                    }
+                                } catch { }
+                            }
+                        }
+                    }
+                    return New-AfyxState $Component 'HEALTHY' 'runtime files installed' $versionText $path
+                }
                 return New-AfyxState $Component 'INCOMPLETE' "$($present.Count) of $($required.Count) runtime files present" '' $path
             }
             default { return New-AfyxState $Component 'UNKNOWN' "unsupported component type: $type" '' $path }

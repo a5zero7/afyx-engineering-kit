@@ -29,6 +29,7 @@ const env = {
   AFYX_GRAPH_NO_DAEMON: '1',
   AFYX_GRAPH_NO_WATCH: '1',
   AFYX_GRAPH_ALLOW_UNSAFE_NODE: '1',
+  AFYX_CONTEXT_OPT_IN: '0',
   NO_COLOR: '1',
 };
 
