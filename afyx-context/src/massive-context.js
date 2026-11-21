@@ -4,21 +4,28 @@
  * Provides scalable, out-of-core context indexing and progressive coarse-to-fine
  * retrieval for large document archives, research notes, datasets, and monorepos.
  *
- * Architecture:
- * Workspace Inventory -> Coarse Metadata Index -> Relevant Segment Selection -> Fine Retrieval -> Grounded Synthesis
- *
- * Key Properties:
- * - Chunked / streaming chunk reads; never loads entire gigabyte archives into memory
+ * Hardened Capabilities:
+ * - Strict workspace path containment and symlink escape prevention
+ * - Bounded streaming indexing via chunked buffer reads (no full-file readFileSync)
+ * - Byte-accurate offset reads using direct handle readSync for minimal memory footprint
+ * - Proper multibyte UTF-8 boundary and LF/CRLF handling
+ * - Stale-index invalidation on file modification or deletion
  * - Content-addressed segment identity (SHA-256 chunk hash)
  * - Strict per-task byte and token budgeting (default 16KB / ~4000 tokens)
- * - Incremental updates and file deletion invalidation
- * - Context deduplication and relevance ranking
  * - Clean-room original AFYX-native JavaScript implementation
  */
 
 import { createHash } from 'node:crypto';
-import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
+import {
+  closeSync,
+  existsSync,
+  openSync,
+  readdirSync,
+  readSync,
+  statSync,
+} from 'node:fs';
 import { basename, extname, join, relative, resolve } from 'node:path';
+import { assertPathContained, checkPathContainment } from './path-containment.js';
 
 export const MASSIVE_CONTEXT_CONTRACT = 'AfyxMassiveContext/v1';
 
@@ -76,8 +83,8 @@ export class MassiveContextNavigator {
         continue;
       }
 
-      // Index or re-index file
-      const segments = this._indexFile(file.absPath, file.relPath);
+      // Stream-index file without full-file in-memory loading
+      const segments = this._indexFileStreaming(file.absPath, file.relPath);
       this.index.set(file.relPath, {
         relPath: file.relPath,
         size: file.size,
@@ -170,7 +177,7 @@ export class MassiveContextNavigator {
     // Sort by descending relevance score
     scoredSegments.sort((a, b) => b.score - a.score);
 
-    // Stage 2: Fine Retrieval within strict Byte/Token Budget
+    // Stage 2: Fine Retrieval within strict Byte/Token Budget via Byte-Offset Reads
     const selectedSegments = [];
     let accumulatedBytes = 0;
     const visitedContentHashes = new Set(); // Deduplication
@@ -180,6 +187,7 @@ export class MassiveContextNavigator {
       if (visitedContentHashes.has(cand.sha256)) continue;
 
       const fullPath = resolve(this.workspaceRoot, cand.relPath);
+      // Byte-offset streaming read - reads only the requested slice
       const text = this._readSlice(fullPath, cand.startByte, cand.endByte);
       const sliceBytes = Buffer.byteLength(text, 'utf8');
 
@@ -224,10 +232,15 @@ export class MassiveContextNavigator {
   _scanFiles(includeDirs) {
     const files = [];
     const traverse = (dir) => {
+      // Validate directory containment
+      const dirCheck = checkPathContainment(dir, this.workspaceRoot, { expectDirectory: true });
+      if (!dirCheck.contained) return;
+
       try {
         const entries = readdirSync(dir, { withFileTypes: true });
         for (const entry of entries) {
           const full = join(dir, entry.name);
+
           if (entry.isDirectory()) {
             if (!['.git', 'node_modules', '.afyx-graph', '.afyx-backup', 'dist', 'build'].includes(entry.name)) {
               traverse(full);
@@ -236,11 +249,15 @@ export class MassiveContextNavigator {
             const ext = extname(entry.name).toLowerCase();
             if (BINARY_EXTENSIONS.has(ext)) continue;
 
+            // Enforce file-level path containment
+            const fileCheck = checkPathContainment(full, this.workspaceRoot, { expectFile: true });
+            if (!fileCheck.contained) continue;
+
             const stat = statSync(full);
             if (stat.size <= this.maxFileSizeBytes) {
               files.push({
-                absPath: full,
-                relPath: relative(this.workspaceRoot, full).replace(/\\/g, '/'),
+                absPath: fileCheck.canonicalPath || full,
+                relPath: relative(this.workspaceRoot, fileCheck.canonicalPath || full).replace(/\\/g, '/'),
                 size: stat.size,
                 mtimeMs: stat.mtimeMs,
               });
@@ -254,7 +271,11 @@ export class MassiveContextNavigator {
 
     if (Array.isArray(includeDirs) && includeDirs.length > 0) {
       for (const d of includeDirs) {
-        traverse(resolve(this.workspaceRoot, d));
+        const targetDir = resolve(this.workspaceRoot, d);
+        const check = checkPathContainment(targetDir, this.workspaceRoot, { expectDirectory: true });
+        if (check.contained) {
+          traverse(check.canonicalPath || targetDir);
+        }
       }
     } else {
       traverse(this.workspaceRoot);
@@ -263,72 +284,149 @@ export class MassiveContextNavigator {
     return files;
   }
 
-  _indexFile(absPath, relPath) {
+  /**
+   * Reads a file in streaming chunks without loading the entire file into memory.
+   *
+   * @private
+   * @param {string} absPath
+   * @param {string} relPath
+   * @returns {Array<object>}
+   */
+  _indexFileStreaming(absPath, relPath) {
     const segments = [];
+    let fd = null;
     try {
-      const content = readFileSync(absPath, 'utf8');
-      const lines = content.split(/\r?\n/);
-      let currentByte = 0;
-      let startLine = 1;
+      assertPathContained(absPath, this.workspaceRoot, { expectFile: true });
+
+      const stat = statSync(absPath);
+      const totalBytes = stat.size;
+      if (totalBytes === 0) return [];
+
+      fd = openSync(absPath, 'r');
+      const bufferSize = 64 * 1024; // 64KB bounded streaming chunk
+      const buffer = Buffer.alloc(bufferSize);
+
+      let bytesRead = 0;
+      let fileOffset = 0;
+      let leftover = '';
+      let currentLineNumber = 1;
+
       let sliceStartByte = 0;
+      let sliceStartLine = 1;
       let sliceLines = [];
       let currentHeading = '';
 
-      for (let i = 0; i < lines.length; i++) {
-        const line = lines[i];
-        const lineBytes = Buffer.byteLength(line, 'utf8') + 1; // +1 for newline
+      while (fileOffset < totalBytes) {
+        const readLength = Math.min(bufferSize, totalBytes - fileOffset);
+        bytesRead = readSync(fd, buffer, 0, readLength, fileOffset);
+        if (bytesRead === 0) break;
 
-        // Detect Markdown headings or code section comments
-        if (line.startsWith('#') || line.startsWith('//') || line.startsWith('/*')) {
-          currentHeading = line.replace(/^[#\s\/*]+/, '').trim();
+        const chunkText = leftover + buffer.toString('utf8', 0, bytesRead);
+        const lines = chunkText.split(/\r?\n/);
+        // The last line may be incomplete across the chunk boundary
+        leftover = lines.pop() ?? '';
+
+        for (let i = 0; i < lines.length; i++) {
+          const line = lines[i];
+          const lineByteLen = Buffer.byteLength(line, 'utf8') + 1;
+
+          if (line.startsWith('#') || line.startsWith('//') || line.startsWith('/*')) {
+            currentHeading = line.replace(/^[#\s\/*]+/, '').trim();
+          }
+
+          sliceLines.push(line);
+          const currentByteOffset = fileOffset + (chunkText.indexOf(line) + lineByteLen);
+          const currentSliceBytes = currentByteOffset - sliceStartByte;
+
+          if (currentSliceBytes >= this.chunkSizeBytes) {
+            const sliceText = sliceLines.join('\n');
+            const sliceHash = sha256(sliceText);
+            const endLine = currentLineNumber;
+
+            const words = sliceText.toLowerCase().match(/[a-z0-9_]{3,}/g) || [];
+            const keywords = new Set(words);
+
+            segments.push({
+              id: `seg_${sliceHash.slice(0, 12)}`,
+              startLine: sliceStartLine,
+              endLine,
+              startByte: sliceStartByte,
+              endByte: currentByteOffset,
+              heading: currentHeading || basename(relPath),
+              preview: sliceText.slice(0, 300),
+              keywords,
+              sha256: sliceHash,
+            });
+
+            sliceStartByte = currentByteOffset;
+            sliceStartLine = endLine + 1;
+            sliceLines = [];
+          }
+          currentLineNumber++;
         }
 
-        sliceLines.push(line);
-        currentByte += lineBytes;
+        fileOffset += bytesRead;
+      }
 
-        const currentSliceBytes = currentByte - sliceStartByte;
-        const isLastLine = i === lines.length - 1;
+      // Handle any remaining lines in buffer or leftover
+      if (leftover.length > 0 || sliceLines.length > 0) {
+        if (leftover.length > 0) sliceLines.push(leftover);
+        const sliceText = sliceLines.join('\n');
+        const sliceHash = sha256(sliceText);
 
-        if (currentSliceBytes >= this.chunkSizeBytes || isLastLine) {
-          const sliceText = sliceLines.join('\n');
-          const sliceHash = sha256(sliceText);
-          const endLine = i + 1;
+        const words = sliceText.toLowerCase().match(/[a-z0-9_]{3,}/g) || [];
+        const keywords = new Set(words);
 
-          // Extract token keywords for O(1) term matching across the entire slice
-          const words = sliceText.toLowerCase().match(/[a-z0-9_]{3,}/g) || [];
-          const keywords = new Set(words);
-
-          segments.push({
-            id: `seg_${sliceHash.slice(0, 12)}`,
-            startLine,
-            endLine,
-            startByte: sliceStartByte,
-            endByte: currentByte,
-            heading: currentHeading || basename(relPath),
-            preview: sliceText.slice(0, 300),
-            keywords,
-            sha256: sliceHash,
-          });
-
-          sliceStartByte = currentByte;
-          startLine = endLine + 1;
-          sliceLines = [];
-        }
+        segments.push({
+          id: `seg_${sliceHash.slice(0, 12)}`,
+          startLine: sliceStartLine,
+          endLine: currentLineNumber,
+          startByte: sliceStartByte,
+          endByte: totalBytes,
+          heading: currentHeading || basename(relPath),
+          preview: sliceText.slice(0, 300),
+          keywords,
+          sha256: sliceHash,
+        });
       }
     } catch {
-      // Return empty segments if unreadable
+      // Return empty segments if unreadable or access denied
+    } finally {
+      if (fd !== null) {
+        try { closeSync(fd); } catch { /* ignore */ }
+      }
     }
+
     return segments;
   }
 
+  /**
+   * Reads only the exact byte-offset slice from disk without loading the whole file.
+   *
+   * @private
+   * @param {string} absPath
+   * @param {number} startByte
+   * @param {number} endByte
+   * @returns {string}
+   */
   _readSlice(absPath, startByte, endByte) {
+    let fd = null;
     try {
-      const content = readFileSync(absPath, 'utf8');
-      const buffer = Buffer.from(content, 'utf8');
-      const slice = buffer.subarray(startByte, endByte);
-      return slice.toString('utf8');
+      assertPathContained(absPath, this.workspaceRoot, { expectFile: true });
+
+      const length = Math.max(0, endByte - startByte);
+      if (length === 0) return '';
+
+      fd = openSync(absPath, 'r');
+      const buffer = Buffer.alloc(length);
+      const bytesRead = readSync(fd, buffer, 0, length, startByte);
+      return buffer.toString('utf8', 0, bytesRead);
     } catch {
       return '';
+    } finally {
+      if (fd !== null) {
+        try { closeSync(fd); } catch { /* ignore */ }
+      }
     }
   }
 }

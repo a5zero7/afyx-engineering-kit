@@ -1,5 +1,16 @@
 /** Pure, provider-neutral Afyx-first tool-family decision. No I/O or tool execution. */
 export const AFYX_TOOL_FAMILY_ROUTING_CONTRACT = 'AfyxToolFamilyRouting/v1';
+
+export const UNIVERSAL_CAPABILITIES = Object.freeze([
+  'afyx-work-ledger',
+  'afyx-migration-planner',
+  'afyx-impact-simulator',
+  'afyx-db-inspector',
+  'afyx-api-contract-validator',
+  'afyx-env-preflight',
+  'afyx-cli-compactor',
+  'afyx-massive-context',
+]);
 const OWNERS = new Set(['AFYX', 'EXTERNAL']);
 function invalid(message) {
   const error = new TypeError(message);

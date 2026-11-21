@@ -104,7 +104,7 @@ verify_component_evaluate() {
   fi
 }
 
-printf 'Afyx Engineering Kit — readiness verification (Linux/macOS Bash)\n'
+printf 'Afyx Engineering Kit v0.1.0-alpha.9 — readiness verification (Linux/macOS Bash)\n'
 for provider_id in $(afyx_provider_ids); do
   result INFO "Provider adapter: $(afyx_provider_field "$provider_id" name)" "primary=$(afyx_provider_field "$provider_id" primary); ownership=$(afyx_provider_field "$provider_id" ownership_class); capabilities=$(afyx_provider_field "$provider_id" capabilities); policy=$(afyx_provider_field "$provider_id" configuration_policy)"
 done

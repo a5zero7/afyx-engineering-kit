@@ -33,7 +33,7 @@ function fakeTerminal(keys) {
   return { input, output, environment: {
     os: { name: 'Fixture OS' }, architecture: 'x64', invokingShell: { name: 'Fixture shell' },
     terminal: { name: 'Unknown' }, backendShell: { name: 'Unknown' },
-    package: { version: '0.1.0-alpha.8', sourceRevision: 'a'.repeat(40) },
+    package: { version: '0.1.0-alpha.9', sourceRevision: 'a'.repeat(40) },
   } };
 }
 
@@ -191,7 +191,7 @@ test('UI option is limited to install and validates its values', () => {
 });
 
 test('presets derive membership from components.json and unsupported Full is explicit', () => {
-  assert.deepEqual(presetComponents('recommended'), ['efficient-coding', 'odoo-engineering', 'afyx-engineering-expert']);
+  assert.deepEqual(presetComponents('recommended'), ['afyx-efficient-coding', 'afyx-odoo-engineering', 'afyx-engineering-expert']);
   assert.ok(presetComponents('full').includes('afyx-graph'));
   assert.deepEqual(presetComponents('custom', ['afyx-context']), ['afyx-context']);
   assert.equal(runtimeSupport('full', 'darwin', 'arm64').supported, true);

@@ -3,20 +3,39 @@
  *
  * Provides safe, strictly read-only inspection of local and external datasets:
  * - Local datasets: CSV, TSV, JSON, NDJSON, SQLite databases
+ * - Enforces workspace path containment and symlink escape prevention
+ * - Database-backed SQLite schema & sample inspection via node:sqlite in enforced read-only mode
  * - External catalogs: PostgreSQL, MySQL, MSSQL (returns NOT_AVAILABLE when unconfigured)
  * - Strict security: Rejects SQL mutations, multi-statements, administrative statements
  * - Sensitive-column masking: Automatically redacts credentials and sensitive attributes
  * - Bounded samples: Enforces maximum row limits (default 10, max 100)
  */
 
+import { createHash } from 'node:crypto';
 import { existsSync, readFileSync, statSync } from 'node:fs';
 import { extname, resolve } from 'node:path';
+import { checkPathContainment } from './path-containment.js';
 
 export const DB_INSPECTION_CONTRACT = 'AfyxDbInspection/v1';
 
 const SENSITIVE_COLUMN_PATTERN = /^(password|passwd|secret|token|api_key|apikey|auth|ssn|credit_card|card_num|hash|salt|private_key)$/i;
 
 const MUTATION_SQL_PATTERN = /\b(INSERT|UPDATE|DELETE|DROP|ALTER|TRUNCATE|CREATE|REPLACE|GRANT|REVOKE|VACUUM|ATTACH|DETACH|REINDEX)\b/i;
+
+let sqliteModule = null;
+try {
+  sqliteModule = await import('node:sqlite');
+} catch {
+  // node:sqlite not available in this runtime
+}
+
+function hashFile(path) {
+  try {
+    return createHash('sha256').update(readFileSync(path)).digest('hex');
+  } catch {
+    return null;
+  }
+}
 
 export class DbInspector {
   /**
@@ -35,7 +54,29 @@ export class DbInspector {
    * @returns {object} Inspection summary
    */
   inspectDataset(relativePath, options = {}) {
-    const fullPath = resolve(this.workspaceRoot, relativePath);
+    // 1. Enforce strict workspace path containment
+    const containment = checkPathContainment(relativePath, this.workspaceRoot, { expectFile: true });
+    if (!containment.contained) {
+      if (containment.reason === 'PATH_TRAVERSAL_ESCAPE' || containment.reason === 'SYMLINK_ESCAPE' || containment.reason === 'ANCESTOR_ESCAPE') {
+        return {
+          contract: DB_INSPECTION_CONTRACT,
+          status: 'ACCESS_DENIED',
+          reason: containment.reason,
+          path: relativePath,
+          error: containment.error,
+        };
+      }
+      if (containment.reason === 'DIRECTORY_NOT_ALLOWED') {
+        return {
+          contract: DB_INSPECTION_CONTRACT,
+          status: 'DIRECTORY_NOT_ALLOWED',
+          path: relativePath,
+          error: containment.error,
+        };
+      }
+    }
+
+    const fullPath = containment.canonicalPath || resolve(this.workspaceRoot, relativePath);
     if (!existsSync(fullPath)) {
       return {
         contract: DB_INSPECTION_CONTRACT,
@@ -59,6 +100,7 @@ export class DbInspector {
     } else {
       return {
         contract: DB_INSPECTION_CONTRACT,
+        format: 'unsupported',
         status: 'UNSUPPORTED_FORMAT',
         path: relativePath,
         message: `Format '${ext}' is not supported for local data inspection.`,
@@ -122,7 +164,7 @@ export class DbInspector {
       return { safe: false, error: 'EXPLAIN ANALYZE executes mutations and is not permitted.' };
     }
 
-    // Must be SELECT or allowed PRAGMA
+    // Must be SELECT or allowed PRAGMA or WITH query
     if (!/^\s*(?:SELECT|PRAGMA|WITH)\b/i.test(trimmed)) {
       return { safe: false, error: 'Query must be a SELECT or read-only PRAGMA query.' };
     }
@@ -261,8 +303,9 @@ export class DbInspector {
   }
 
   _inspectSqlite(fullPath, relPath, limit) {
+    const initialHash = hashFile(fullPath);
     try {
-      // Check file header signature
+      // 1. Check file header signature
       const fd = readFileSync(fullPath);
       const isSqlite = fd.slice(0, 16).toString('ascii').startsWith('SQLite format 3');
       if (!isSqlite) {
@@ -274,14 +317,113 @@ export class DbInspector {
         };
       }
 
+      // 2. If node:sqlite is not available, report supported header inspection
+      if (!sqliteModule || !sqliteModule.DatabaseSync) {
+        return {
+          contract: DB_INSPECTION_CONTRACT,
+          format: 'sqlite',
+          path: relPath,
+          status: 'INSPECTED',
+          readOnly: true,
+          mode: 'header-only',
+          fileSizeBytes: statSync(fullPath).size,
+          message: 'Valid SQLite format 3 database file identified. node:sqlite runtime is not present.',
+        };
+      }
+
+      // 3. Open database in enforced read-only mode
+      const db = new sqliteModule.DatabaseSync(fullPath, { readOnly: true });
+      let tables = [];
+      let views = [];
+
+      try {
+        const schemaItems = db.prepare(
+          "SELECT type, name, tbl_name FROM sqlite_schema WHERE type IN ('table', 'view') AND name NOT LIKE 'sqlite_%' ORDER BY name ASC"
+        ).all();
+
+        for (const item of schemaItems) {
+          const tableName = item.name;
+          const isView = item.type === 'view';
+
+          // Safe metadata inspection using allowlisted PRAGMA statements
+          let columns = [];
+          try {
+            const tableInfo = db.prepare(`PRAGMA table_info("${tableName}")`).all();
+            columns = tableInfo.map((col) => ({
+              name: col.name,
+              type: col.type || 'TEXT',
+              notNull: Boolean(col.notnull),
+              isPrimaryKey: Boolean(col.pk),
+              isSensitive: SENSITIVE_COLUMN_PATTERN.test(col.name),
+            }));
+          } catch {
+            // Fallback for virtual or special tables
+          }
+
+          let foreignKeys = [];
+          if (!isView) {
+            try {
+              const fkInfo = db.prepare(`PRAGMA foreign_key_list("${tableName}")`).all();
+              foreignKeys = fkInfo.map((fk) => ({
+                id: fk.id,
+                table: fk.table,
+                from: fk.from,
+                to: fk.to,
+              }));
+            } catch {
+              // Ignore pragma error
+            }
+          }
+
+          let rowCount = 0;
+          let sampleRows = [];
+          try {
+            const countRow = db.prepare(`SELECT COUNT(*) AS total FROM "${tableName}"`).get();
+            rowCount = countRow ? Number(countRow.total) : 0;
+
+            const rawSamples = db.prepare(`SELECT * FROM "${tableName}" LIMIT ?`).all(limit);
+            sampleRows = rawSamples.map((row) => this._maskSensitiveObject(row));
+          } catch {
+            // Some views or virtual tables cannot be directly counted
+          }
+
+          const tableMetadata = {
+            name: tableName,
+            type: item.type,
+            rowCount,
+            columnsCount: columns.length,
+            columns,
+            foreignKeys,
+            sample: sampleRows,
+          };
+
+          if (isView) {
+            views.push(tableMetadata);
+          } else {
+            tables.push(tableMetadata);
+          }
+        }
+      } finally {
+        db.close();
+      }
+
+      // 4. Verify post-inspection hash to guarantee strict read-only execution
+      const postHash = hashFile(fullPath);
+      const unchanged = initialHash === postHash;
+
       return {
         contract: DB_INSPECTION_CONTRACT,
         format: 'sqlite',
         path: relPath,
         status: 'INSPECTED',
         readOnly: true,
-        fileSizeBytes: statSync(fullPath).size,
-        message: 'Valid SQLite format 3 database file identified. Ready for parameterized read-only queries.',
+        databaseHash: postHash,
+        hashVerifiedUnchanged: unchanged,
+        tablesCount: tables.length,
+        viewsCount: views.length,
+        tables,
+        views,
+        sampleLimit: limit,
       };
     } catch (err) {
       return {

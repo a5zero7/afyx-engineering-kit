@@ -2,7 +2,7 @@
   "schema": 1,
   "baselineRevision": "c4e4d8e29de239a2fcbc0db8ac65eea2276e7b00",
   "scope": "AFYX-320 comprehensive production source inventory",
-  "totalProductionFiles": 491,
+  "totalProductionFiles": 492,
   "entries": [
     {
       "path": "afyx-context/src/budget.js",
@@ -13,8 +13,8 @@
     {
       "path": "afyx-context/src/cli-compactor.js",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "9d68f9b4df6356af90643df113464a3904628e1101532122d463df31e3f8c9e8",
-      "evidence": "Pure Node.js terminal output compactor with failure preservation and spill recovery (AFYX-245)."
+      "reviewedSha256": "92823bc59201b6af3a9d92bb51cd026f94ec412633d3dd326dcdb8e0c2d6119e",
+      "evidence": "Pure Node.js terminal output compactor with secure private spill directories, 0o600 permissions, failure preservation and spill recovery (AFYX-329)."
     },
     {
       "path": "afyx-context/src/cli.js",
@@ -37,8 +37,8 @@
     {
       "path": "afyx-context/src/db-inspector.js",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "8242b3d1b36e24b25fcc3b9944633caabe71c084efdc9e8d69f8c525e210283b",
-      "evidence": "Strictly read-only data and schema inspector for CSV, JSON, NDJSON, SQLite, and external catalogs."
+      "reviewedSha256": "57f3ff2659e4944581d50a228f0e00df38fef53f31ca2ba5c49847049a27f072",
+      "evidence": "Strictly read-only data and schema inspector for CSV, JSON, NDJSON, SQLite, and external catalogs with path containment and SHA-256 invariance (AFYX-329)."
     },
     {
       "path": "afyx-context/src/docs-resolver.js",
@@ -109,14 +109,20 @@
     {
       "path": "afyx-context/src/massive-context.js",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "d6ca372de78b75dc80aa4c92850c09ef1e8076b5997dbbd8a5d822e39fc43932",
-      "evidence": "Out-of-core massive context navigator with coarse metadata indexing and budget-bounded retrieval (AFYX-241/244)."
+      "reviewedSha256": "96d564390c93126945520e0189ea3000d1f0ed209c4536b40daf3a4746571ee8",
+      "evidence": "Out-of-core massive context navigator with coarse metadata indexing, path containment, and 64KB streaming chunk indexing (AFYX-329)."
     },
     {
       "path": "afyx-context/src/memory.js",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
       "reviewedSha256": "48f2b52f0999e49842201ceaf9c13d3cd144f51f4bff5fbc11e3e1c4ae7f00de",
       "evidence": "MB12 review: authored from AFYX functional requirements and existing reviewed 251f73a contracts; no upstream implementation, prompts, assets or dependency imported. Trusted-host boundaries and negative/regression tests recorded in MB12-native-consolidation-20261114-r1."
+    },
+    {
+      "path": "afyx-context/src/path-containment.js",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "90feae7cc6ff877fbc4c4ce69b2b2c730c5df5839ece9d7e09b21eb82c8f2390",
+      "evidence": "Strict clean-room path containment, workspace boundary verification, directory traversal defense, and canonicalization (AFYX-329)."
     },
     {
       "path": "afyx-context/src/storage.js",
@@ -151,8 +157,8 @@
     {
       "path": "afyx-forge/src/contract-validator.js",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "70297120740a9631e822307a724048cdee2bfc24a8d2511547dece3e6f829094",
-      "evidence": "Universal data schema and API contract validator for JSON, CSV, env, OpenAPI, GraphQL, and Protobuf."
+      "reviewedSha256": "e6f76e4a6997b58e2332066a3b31cd2917cee71cbd8a99c00e94c022ba50453d",
+      "evidence": "Universal data schema and API contract validator for JSON, CSV, env, OpenAPI, GraphQL, and Protobuf (AFYX-329)."
     },
     {
       "path": "afyx-forge/src/doctor.js",
@@ -2625,8 +2631,8 @@
     {
       "path": "scripts/afyx-capability-orchestrator.mjs",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "d12068608a094c37774a5efd039dc1353058ea16f5c97dc9ff8290ec16abc7fb",
-      "evidence": "MB12 review: authored from AFYX functional requirements and existing reviewed 251f73a contracts; no upstream implementation, prompts, assets or dependency imported. Trusted-host boundaries and negative/regression tests recorded in MB12-native-consolidation-20261114-r1."
+      "reviewedSha256": "7c7acaeb52ea7b12506e31a62354e39b5735ce28af58baccf863cfc7cce5a107",
+      "evidence": "Universal capability orchestrator supporting all 8 modular tools with lazy activation and strict single primary domain budget (AFYX-329)."
     },
     {
       "path": "scripts/afyx-claude-integration.mjs",
@@ -2787,8 +2793,8 @@
     {
       "path": "scripts/afyx-modular-runtime.mjs",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "25d55a756056461dafc8070acf00a5f2249705ed1088d84fecc2f77cde7d97c7",
-      "evidence": "MB12 review: authored from AFYX functional requirements and existing reviewed 251f73a contracts; no upstream implementation, prompts, assets or dependency imported. Trusted-host boundaries and negative/regression tests recorded in MB12-native-consolidation-20261114-r1."
+      "reviewedSha256": "58577affb5ff94f69ceef235038bf0718ffb8947864153a37098a6d92689b03e",
+      "evidence": "Universal modular runtime with complete authority matrix for 8 universal native tools across codex, antigravity, and claude (AFYX-329)."
     },
     {
       "path": "scripts/afyx-native-execution.mjs",
@@ -2811,8 +2817,8 @@
     {
       "path": "scripts/afyx-npm-installer.mjs",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "eb6e23b1c3d503795b7107028e2d9828edaece74151c4de9a3c27af22aeac447",
-      "evidence": "Installer UX v2: reviewed existing AFYX installer adapter plus validated catalog-based component serialization and Windows case-insensitive subprocess module-path isolation. Native argv API; no copied third-party implementation."
+      "reviewedSha256": "b3b39e36c676a7cf18180b877b0e00059e223a658ac989e92fe499fa56e81019",
+      "evidence": "Installer UX v2 with synchronized universal capability summaries, help text, and version 0.1.0-alpha.9 (AFYX-329)."
     },
     {
       "path": "scripts/afyx-optional-capabilities.mjs",
@@ -2865,8 +2871,8 @@
     {
       "path": "scripts/afyx-tool-family-routing.mjs",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "46be87c7756110944fe660c6ad823493f2ed87f966821328f9504459f4cc0aab",
-      "evidence": "AFYX native source: authored from AFYX functional requirements; verified clean room implementation with zero third-party code import."
+      "reviewedSha256": "7e74abd8e951c1f4b65589279c81d9f975ebb2c14dd7d063561eba562d18c4ee",
+      "evidence": "Tool family routing with exported universal capability constants and adaptive routing policies (AFYX-329)."
     },
     {
       "path": "scripts/afyx-universal-runtime.mjs",

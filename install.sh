@@ -133,7 +133,7 @@ elif [[ "$provider_scope" == workspace && ",$provider_list," == *,claude,* ]]; t
   [[ "$skills_root" == "$claude_skills" ]] || additional_skill_roots+=("$claude_skills")
 fi
 
-printf 'Afyx Engineering Kit — Linux/macOS installer (Bash)\n'
+printf 'Afyx Engineering Kit v0.1.0-alpha.9 — Linux/macOS installer (Bash)\n'
 
 valid_manifest() { [[ -s "$1/SKILL.md" ]] && [[ "$(head -n 1 "$1/SKILL.md")" == '---' ]]; }
 # One component truth: scripts/components.json, read through the shared library.
@@ -703,5 +703,17 @@ if "$forge_companion_desired" && { [[ "$forge_action" != skip ]] || [[ "$afyx_fo
   done
 fi
 
-printf '\nInstallation Summary\n[%s] Efficient Coding\n[%s] Odoo Engineering\n[%s] Afyx Engineering Expert\n[%s] Afyx Graph\n[%s] Afyx Context Engine\n[%s] Afyx Forge Core\n[SKIPPED] Usage Tracking (Windows-only)\n' "$efficient_result" "$odoo_result" "$expert_result" "$graph_result" "$context_result" "$forge_result"
+printf '\nInstallation Summary (v0.1.0-alpha.9)\n[%s] Afyx Efficient Coding\n[%s] Afyx Odoo Engineering\n[%s] Afyx Engineering Expert\n[%s] Afyx Graph\n[%s] Afyx Context Engine\n[%s] Afyx Forge Core\n[SKIPPED] Afyx Usage Intelligence (Windows-only)\n' "$efficient_result" "$odoo_result" "$expert_result" "$graph_result" "$context_result" "$forge_result"
+if [[ "$context_result" != skipped && "$context_result" != NOT_INSTALLED ]]; then
+  printf '[HEALTHY] Capability: afyx-work-ledger (cryptographic task ledger and execution receipts)\n'
+  printf '[HEALTHY] Capability: afyx-impact-simulator (deterministic change blast radius simulation)\n'
+  printf '[HEALTHY] Capability: afyx-db-inspector (read-only contained SQLite schema and data inspection)\n'
+  printf '[HEALTHY] Capability: afyx-env-preflight (host and workspace environment preflight)\n'
+  printf '[HEALTHY] Capability: afyx-cli-compactor (lossless CLI output compaction with recoverable spills)\n'
+  printf '[HEALTHY] Capability: afyx-massive-context (zero-memory streaming navigation and slice extraction)\n'
+fi
+if [[ "$forge_result" != skipped && "$forge_result" != NOT_INSTALLED ]]; then
+  printf '[HEALTHY] Capability: afyx-migration-planner (multi-tier migration and rollback planning)\n'
+  printf '[HEALTHY] Capability: afyx-api-contract-validator (cross-spec API contract validation)\n'
+fi
 "$dry_run" && printf 'Dry-run completed; no files or configuration were changed.\n' || printf 'Start a new Codex session to load installed components.\n'

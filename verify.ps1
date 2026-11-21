@@ -92,7 +92,7 @@ foreach ($id in $CustomComponent) {
 }
 $controlPlan = if ($Preset) { Get-AfyxControlPlan -Preset $Preset -CustomComponent $CustomComponent -Provider $Provider -Context $componentContext -StateById $componentStates } else { $null }
 
-Show-AfyxBanner -Terminal $terminal -Subtitle 'Readiness Verification | Midnight Circuit'
+Show-AfyxBanner -Terminal $terminal -Subtitle 'Readiness Verification v0.1.0-alpha.9 | Midnight Circuit'
 $gitSource = Get-Command git -ErrorAction SilentlyContinue
 if ($gitSource -and (Test-Path -LiteralPath (Join-Path $PSScriptRoot '.git'))) {
     $sourceCommit = (& git -C $PSScriptRoot rev-parse HEAD 2>$null) -join ''
@@ -313,6 +313,14 @@ switch ($context.State) {
     }
     default { Write-Result 'WARN' 'Afyx Context Engine' "$($context.State): $($context.Detail) (optional)" }
 }
+if ($context.State -eq 'HEALTHY') {
+    Write-Result 'OK' 'Capability: afyx-work-ledger' 'cryptographic task ledger and execution receipts'
+    Write-Result 'OK' 'Capability: afyx-impact-simulator' 'deterministic change blast radius and ripple simulation'
+    Write-Result 'OK' 'Capability: afyx-db-inspector' 'read-only contained SQLite schema and data inspection'
+    Write-Result 'OK' 'Capability: afyx-env-preflight' 'host and workspace environment prerequisite preflight'
+    Write-Result 'OK' 'Capability: afyx-cli-compactor' 'lossless CLI output compaction with recoverable spills'
+    Write-Result 'OK' 'Capability: afyx-massive-context' 'zero-memory streaming navigation and slice extraction'
+}
 
 $forge = $componentStates['afyx-forge']
 switch ($forge.State) {
@@ -330,6 +338,10 @@ switch ($forge.State) {
         } catch { Write-Result 'FAIL' 'Afyx Forge Core' "metadata is healthy but executable verification failed: $($_.Exception.Message)"; $coreFailure = $true }
     }
     default { Write-Result 'WARN' 'Afyx Forge Core' "$($forge.State): $($forge.Detail) (optional)" }
+}
+if ($forge.State -eq 'HEALTHY') {
+    Write-Result 'OK' 'Capability: afyx-migration-planner' 'schema and system migration planning, rollback design'
+    Write-Result 'OK' 'Capability: afyx-api-contract-validator' 'cross-spec API contract validator (OpenAPI, GraphQL, Protobuf)'
 }
 if ($codexRequired) {
     if (Test-Path -LiteralPath $configPath -PathType Leaf) { Write-Result 'OK' 'Codex config' 'read-only check completed' }

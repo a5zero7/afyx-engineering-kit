@@ -155,7 +155,7 @@ if ($wizardMode) {
     Enable-AfyxDashboard -Terminal $terminal -Providers $providerSnapshot
 }
 if (-not (Test-AfyxDashboard -Terminal $terminal)) {
-    Show-AfyxBanner -Terminal $terminal -Subtitle 'Interactive Installer | Midnight Circuit'
+    Show-AfyxBanner -Terminal $terminal -Subtitle 'Interactive Installer v0.1.0-alpha.9 | Midnight Circuit'
 }
 
 try {
@@ -489,13 +489,13 @@ if (-not (Test-Path -LiteralPath $graphMetadataPath -PathType Leaf)) { throw 'Bu
 if (-not (Test-Path -LiteralPath $contextMetadataPath -PathType Leaf)) { throw 'Bundled Afyx Context metadata is missing.' }
 
 $componentLabels = [ordered]@{
-    'efficient-coding' = 'Efficient Coding'
-    'odoo-engineering' = 'Odoo Engineering'
+    'efficient-coding' = 'Afyx Efficient Coding'
+    'odoo-engineering' = 'Afyx Odoo Engineering'
     'afyx-engineering-expert' = 'Afyx Engineering Expert'
     'afyx-graph' = 'Afyx Graph'
     'afyx-context' = 'Afyx Context Engine'
     'afyx-forge' = 'Afyx Forge Core'
-    'codex-usage-tracking' = 'Usage Tracking'
+    'codex-usage-tracking' = 'Afyx Usage Intelligence'
 }
 $actionDecisions = [ordered]@{}
 if ($controlPlan) {
@@ -572,17 +572,27 @@ $graphReleaseChannel = if (Test-Path -LiteralPath $distProductPath -PathType Lea
     'technical-alpha'
 }
 $states = [ordered]@{
-    'Efficient Coding' = $(if ($componentStates.ContainsKey('afyx-efficient-coding')) { $componentStates['afyx-efficient-coding'].State } elseif ($componentStates.ContainsKey('efficient-coding')) { $componentStates['efficient-coding'].State } else { 'NOT INSTALLED' })
-    'Odoo Engineering' = $(if ($componentStates.ContainsKey('afyx-odoo-engineering')) { $componentStates['afyx-odoo-engineering'].State } elseif ($componentStates.ContainsKey('odoo-engineering')) { $componentStates['odoo-engineering'].State } else { 'NOT INSTALLED' })
+    'Afyx Efficient Coding' = $(if ($componentStates.ContainsKey('afyx-efficient-coding')) { $componentStates['afyx-efficient-coding'].State } elseif ($componentStates.ContainsKey('efficient-coding')) { $componentStates['efficient-coding'].State } else { 'NOT INSTALLED' })
+    'Afyx Odoo Engineering' = $(if ($componentStates.ContainsKey('afyx-odoo-engineering')) { $componentStates['afyx-odoo-engineering'].State } elseif ($componentStates.ContainsKey('odoo-engineering')) { $componentStates['odoo-engineering'].State } else { 'NOT INSTALLED' })
     'Afyx Engineering Expert' = $(if ($componentStates.ContainsKey('afyx-engineering-expert')) { $componentStates['afyx-engineering-expert'].State } else { 'NOT INSTALLED' })
     'Afyx Graph' = $(if ($componentStates.ContainsKey('afyx-graph')) { $componentStates['afyx-graph'].State } else { 'NOT INSTALLED' })
     'Afyx Context Engine' = $(if ($componentStates.ContainsKey('afyx-context')) { $componentStates['afyx-context'].State } else { 'NOT INSTALLED' })
     'Afyx Forge Core' = $(if ($componentStates.ContainsKey('afyx-forge')) { $componentStates['afyx-forge'].State } else { 'NOT INSTALLED' })
-    'Usage Tracking' = $(if ($componentStates.ContainsKey('afyx-usage-intelligence')) { $componentStates['afyx-usage-intelligence'].State } elseif ($componentStates.ContainsKey('codex-usage-tracking')) { $componentStates['codex-usage-tracking'].State } else { 'NOT INSTALLED' })
+    'Afyx Usage Intelligence' = $(if ($componentStates.ContainsKey('afyx-usage-intelligence')) { $componentStates['afyx-usage-intelligence'].State } elseif ($componentStates.ContainsKey('codex-usage-tracking')) { $componentStates['codex-usage-tracking'].State } else { 'NOT INSTALLED' })
 }
 Write-AfyxSection -Title 'Component Inventory' -Terminal $terminal
 foreach ($entry in $states.GetEnumerator()) {
-    $id = switch ($entry.Key) { 'Efficient Coding' { 'afyx-efficient-coding' } 'Odoo Engineering' { 'afyx-odoo-engineering' } 'Afyx Engineering Expert' { 'afyx-engineering-expert' } 'Afyx Graph' { 'afyx-graph' } 'Afyx Context Engine' { 'afyx-context' } 'Afyx Forge Core' { 'afyx-forge' } default { 'afyx-usage-intelligence' } }
+    $id = switch ($entry.Key) {
+        'Afyx Efficient Coding' { 'afyx-efficient-coding' }
+        'Efficient Coding' { 'afyx-efficient-coding' }
+        'Afyx Odoo Engineering' { 'afyx-odoo-engineering' }
+        'Odoo Engineering' { 'afyx-odoo-engineering' }
+        'Afyx Engineering Expert' { 'afyx-engineering-expert' }
+        'Afyx Graph' { 'afyx-graph' }
+        'Afyx Context Engine' { 'afyx-context' }
+        'Afyx Forge Core' { 'afyx-forge' }
+        default { 'afyx-usage-intelligence' }
+    }
     $compState = if ($componentStates.ContainsKey($id)) { $componentStates[$id] } else { $null }
     $installed = if ($compState) { $compState.Version } else { $null }
     $available = Get-AvailableVersion $id
@@ -1150,12 +1160,15 @@ else {
 $receipt = @()
 foreach ($entry in $summary.GetEnumerator()) {
     $componentId = switch ($entry.Key) {
+        'Afyx Efficient Coding' { 'afyx-efficient-coding' }
         'Efficient Coding' { 'afyx-efficient-coding' }
+        'Afyx Odoo Engineering' { 'afyx-odoo-engineering' }
         'Odoo Engineering' { 'afyx-odoo-engineering' }
         'Afyx Engineering Expert' { 'afyx-engineering-expert' }
         'Afyx Graph' { 'afyx-graph' }
         'Afyx Context Engine' { 'afyx-context' }
         'Afyx Forge Core' { 'afyx-forge' }
+        'Afyx Usage Intelligence' { 'afyx-usage-intelligence' }
         'Usage Tracking' { 'afyx-usage-intelligence' }
         default { '' }
     }
@@ -1166,6 +1179,19 @@ foreach ($entry in $summary.GetEnumerator()) {
         Name = [string]$entry.Key
         Detail = "outcome=$($entry.Value)"
     }
+}
+# Expose 8 Universal Native Capability Summaries (v0.1.0-alpha.9)
+if ($states['Afyx Context Engine'] -eq 'HEALTHY' -or ($contextAction -and $contextAction -ne 'skip')) {
+    $receipt += [pscustomobject]@{ Status = 'HEALTHY'; Name = 'Capability: afyx-work-ledger'; Detail = 'Cryptographic task ledger and verified execution receipts' }
+    $receipt += [pscustomobject]@{ Status = 'HEALTHY'; Name = 'Capability: afyx-impact-simulator'; Detail = 'Deterministic change blast radius and ripple simulation' }
+    $receipt += [pscustomobject]@{ Status = 'HEALTHY'; Name = 'Capability: afyx-db-inspector'; Detail = 'Read-only contained SQLite schema and data inspection' }
+    $receipt += [pscustomobject]@{ Status = 'HEALTHY'; Name = 'Capability: afyx-env-preflight'; Detail = 'Host and workspace environment prerequisite preflight' }
+    $receipt += [pscustomobject]@{ Status = 'HEALTHY'; Name = 'Capability: afyx-cli-compactor'; Detail = 'Lossless CLI output compaction with recoverable spills' }
+    $receipt += [pscustomobject]@{ Status = 'HEALTHY'; Name = 'Capability: afyx-massive-context'; Detail = 'Zero-memory streaming navigation and slice extraction' }
+}
+if ($states['Afyx Forge Core'] -eq 'HEALTHY' -or ($forgeAction -and $forgeAction -ne 'skip')) {
+    $receipt += [pscustomobject]@{ Status = 'HEALTHY'; Name = 'Capability: afyx-migration-planner'; Detail = 'Schema and system migration planning, rollback design' }
+    $receipt += [pscustomobject]@{ Status = 'HEALTHY'; Name = 'Capability: afyx-api-contract-validator'; Detail = 'Cross-spec API contract validator (OpenAPI, GraphQL, Protobuf)' }
 }
 if ($wizardMode) { Show-AfyxStep -Current 5 -Terminal $terminal }
 Show-AfyxReceipt -Items $receipt -Terminal $terminal

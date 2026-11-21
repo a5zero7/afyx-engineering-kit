@@ -79,6 +79,38 @@ export const DOMAIN_AUTHORITY_MATRIX = Object.freeze({
     primaryOwner: 'afyx-credential-broker',
     description: 'Host-scoped credential use authorization without secret disclosure.',
   },
+  'afyx-work-ledger': {
+    primaryOwner: 'afyx-context',
+    description: 'Cryptographically chained task ledger and execution receipts.',
+  },
+  'afyx-impact-simulator': {
+    primaryOwner: 'afyx-context',
+    description: 'Deterministic change blast radius and transitive ripple simulation.',
+  },
+  'afyx-db-inspector': {
+    primaryOwner: 'afyx-context',
+    description: 'Read-only contained SQLite schema and data inspection.',
+  },
+  'afyx-env-preflight': {
+    primaryOwner: 'afyx-context',
+    description: 'Host and workspace environment prerequisite and tool preflight.',
+  },
+  'afyx-cli-compactor': {
+    primaryOwner: 'afyx-context',
+    description: 'Lossless CLI output compaction with recoverable spill containment.',
+  },
+  'afyx-massive-context': {
+    primaryOwner: 'afyx-context',
+    description: 'Zero-memory-leak streaming navigation and byte-offset slice extraction.',
+  },
+  'afyx-migration-planner': {
+    primaryOwner: 'afyx-forge',
+    description: 'Schema and system migration planning, rollback design, and risk analysis.',
+  },
+  'afyx-api-contract-validator': {
+    primaryOwner: 'afyx-forge',
+    description: 'Multi-spec API contract validation across OpenAPI, GraphQL, and Protobuf.',
+  },
 });
 
 /**
@@ -93,6 +125,14 @@ export const PROVIDER_CAPABILITY_SUPPORT = Object.freeze({
       'odoo-framework-authority',
       'focused-coding-discipline',
       'codex-usage-telemetry',
+      'afyx-work-ledger',
+      'afyx-impact-simulator',
+      'afyx-db-inspector',
+      'afyx-env-preflight',
+      'afyx-cli-compactor',
+      'afyx-massive-context',
+      'afyx-migration-planner',
+      'afyx-api-contract-validator',
     ]),
     surfaces: Object.freeze({
       'afyx-graph': { surface: 'mcp', serverName: 'afyx_graph' },
@@ -113,6 +153,14 @@ export const PROVIDER_CAPABILITY_SUPPORT = Object.freeze({
       'cross-disciplinary-expertise',
       'odoo-framework-authority',
       'focused-coding-discipline',
+      'afyx-work-ledger',
+      'afyx-impact-simulator',
+      'afyx-db-inspector',
+      'afyx-env-preflight',
+      'afyx-cli-compactor',
+      'afyx-massive-context',
+      'afyx-migration-planner',
+      'afyx-api-contract-validator',
     ]),
     surfaces: Object.freeze({
       'afyx-graph': { surface: 'mcp', serverName: 'afyx_graph' },
@@ -131,6 +179,14 @@ export const PROVIDER_CAPABILITY_SUPPORT = Object.freeze({
       'cross-disciplinary-expertise',
       'odoo-framework-authority',
       'focused-coding-discipline',
+      'afyx-work-ledger',
+      'afyx-impact-simulator',
+      'afyx-db-inspector',
+      'afyx-env-preflight',
+      'afyx-cli-compactor',
+      'afyx-massive-context',
+      'afyx-migration-planner',
+      'afyx-api-contract-validator',
     ]),
     surfaces: Object.freeze({
       'afyx-graph': { surface: 'mcp', serverName: 'afyx_graph' },

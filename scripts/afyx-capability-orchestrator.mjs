@@ -34,12 +34,27 @@ import {
   createSharedEvidencePipeline,
   AFYX_EVIDENCE_ENVELOPE_CONTRACT,
 } from './afyx-evidence-envelope.mjs';
+import {
+  UNIVERSAL_CAPABILITIES,
+} from './afyx-tool-family-routing.mjs';
 
 export {
   createEvidenceEnvelope,
   createSharedEvidencePipeline,
   AFYX_EVIDENCE_ENVELOPE_CONTRACT,
+  UNIVERSAL_CAPABILITIES,
 };
+
+export const UNIVERSAL_CAPABILITY_HOSTS = Object.freeze({
+  'afyx-work-ledger': 'afyx-context',
+  'afyx-migration-planner': 'afyx-forge',
+  'afyx-impact-simulator': 'afyx-context',
+  'afyx-db-inspector': 'afyx-context',
+  'afyx-api-contract-validator': 'afyx-forge',
+  'afyx-env-preflight': 'afyx-context',
+  'afyx-cli-compactor': 'afyx-context',
+  'afyx-massive-context': 'afyx-context',
+});
 
 export const AFYX_UNIVERSAL_INTEROP_CONTRACT = 'AfyxUniversalInterop/v1';
 export const AFYX_CAPABILITY_REQUEST_CONTRACT = 'AfyxCapabilityRequest/v1';
@@ -324,10 +339,30 @@ export function classifyTaskIntent(task = {}, hostMetadata = {}) {
   const relational = graphRelationshipTask || task.needsRelationalEvidence === true ||
     ['impact-analysis', 'cross-asset', 'relationship-analysis'].includes(taskType) ||
     /\b(dependency|relationship|blast radius|call graph|impact analysis)\b/.test(intentText);
+  const dbInspection = taskType === 'db-inspection' || task.needsDbInspection === true ||
+    task.capability === 'afyx-db-inspector' || /\b(sqlite|database inspection|inspect database|schema inspection)\b/i.test(intentText);
+  const cliCompaction = taskType === 'cli-compaction' || task.needsCliCompaction === true ||
+    task.capability === 'afyx-cli-compactor' || /\b(compact cli|cli compaction|compress output|terminal compaction)\b/i.test(intentText);
+  const massiveContext = taskType === 'massive-context' || task.needsMassiveContext === true ||
+    task.capability === 'afyx-massive-context' || /\b(massive context|large file navigation|slice extraction)\b/i.test(intentText);
+  const contractValidation = taskType === 'contract-validation' || task.needsContractValidation === true ||
+    task.capability === 'afyx-api-contract-validator' || /\b(api contract|contract validation|openapi validation|graphql schema)\b/i.test(intentText);
+  const migrationPlanning = taskType === 'migration-planning' || task.needsMigrationPlanning === true ||
+    task.capability === 'afyx-migration-planner' || /\b(migration plan|migration planning|rollback plan)\b/i.test(intentText);
+  const workLedger = taskType === 'work-ledger' || task.needsWorkLedger === true ||
+    task.capability === 'afyx-work-ledger' || /\b(work ledger|task ledger|execution receipt)\b/i.test(intentText);
+  const impactSimulation = taskType === 'impact-simulation' || task.needsImpactSimulation === true ||
+    task.capability === 'afyx-impact-simulator' || /\b(impact simulation|simulate impact|blast radius simulation)\b/i.test(intentText);
+  const envPreflight = taskType === 'env-preflight' || task.needsEnvPreflight === true ||
+    task.capability === 'afyx-env-preflight' || /\b(env preflight|environment preflight|prerequisite check)\b/i.test(intentText);
+
+  const hasUniversalContext = dbInspection || cliCompaction || massiveContext || workLedger || impactSimulation || envPreflight;
+  const hasUniversalForge = contractValidation || migrationPlanning;
+
   const contextOptimization = task.needsContextOptimization === true ||
-    taskType === 'large-context';
+    taskType === 'large-context' || hasUniversalContext;
   const architecture = ['architecture', 'multi-disciplinary', 'system-design', 'general-engineering', 'skill-discovery', 'skill-refinement', 'skill-composition'].includes(taskType);
-  const forgeAdvice = task.forgeAdvice === true || ['forge-advice', 'workflow-execution', 'multi-agent-workflow'].includes(taskType);
+  const forgeAdvice = (task.forgeAdvice === true || ['forge-advice', 'workflow-execution', 'multi-agent-workflow'].includes(taskType) || hasUniversalForge);
   const forgeAutonomous = task.autonomousExecution === true || AUTONOMOUS_FORGE_INTENTS.has(taskType);
   const telemetry = task.needsTelemetry === true || task.telemetry === true || task.trackUsage === true ||
     taskType === 'usage-telemetry' || taskType === 'telemetry' ||
@@ -340,12 +375,12 @@ export function classifyTaskIntent(task = {}, hostMetadata = {}) {
   const manualSelection = Array.isArray(task.manualSelection) ? task.manualSelection.filter((id) => typeof id === 'string').slice(0, 4) : [];
   const customCapability = task.needsCustomCapability ?? task.customCapability ?? null;
   const customComponentId = task.customComponentId ?? null;
-  const explicitSharedNeed = task.needsRelationalEvidence === true || task.needsContextOptimization === true;
+  const explicitSharedNeed = task.needsRelationalEvidence === true || task.needsContextOptimization === true || hasUniversalContext;
   const explicitCapabilityType = graphRelationshipTask || taskType.startsWith('odoo-') || specializedType || securityAudit || architecture ||
-    ['large-context', 'usage-telemetry', 'usage-analytics', 'impact-analysis', 'cross-asset', 'relationship-analysis'].includes(taskType);
+    ['large-context', 'usage-telemetry', 'usage-analytics', 'impact-analysis', 'cross-asset', 'relationship-analysis', 'db-inspection', 'cli-compaction', 'massive-context', 'contract-validation', 'migration-planning', 'work-ledger', 'impact-simulation', 'env-preflight'].includes(taskType);
   const explicitTelemetry = task.needsTelemetry === true || task.telemetry === true || task.trackUsage === true;
   const directSource = directSourceCandidate && !explicitSharedNeed && !explicitCapabilityType && !manualSelection.length &&
-    !forgeAdvice && !forgeAutonomous && !explicitTelemetry && !customCapability && !customComponentId;
+    !forgeAdvice && !forgeAutonomous && !explicitTelemetry && !customCapability && !customComponentId && !hasUniversalContext && !hasUniversalForge;
 
   return Object.freeze({
     directSource,
@@ -373,23 +408,26 @@ function dedupeKey(request) {
 
 function makeRequest({ task, componentId, discovery, budgets, reason, hopCount = 0 }) {
   const discovered = discovery.capabilities[componentId];
+  const targetCap = (task.capability && UNIVERSAL_CAPABILITIES.includes(task.capability) && UNIVERSAL_CAPABILITY_HOSTS[task.capability] === componentId)
+    ? task.capability
+    : (discovered?.capability ?? `${componentId}-capability`);
   return Object.freeze({
     contract: AFYX_CAPABILITY_REQUEST_CONTRACT,
     taskId: task.id ?? 'anonymous-task',
     taskType: task.taskType ?? null,
     intent: task.intent ?? task.taskType ?? 'generic',
-    capability: discovered.capability,
+    capability: targetCap,
     targetComponentId: componentId,
     callerComponentId: 'afyx-native-orchestrator',
     candidateProviders: Object.freeze(discovery.provider ? [discovery.provider] : []),
     workspaceIdentity: task.workspaceIdentity ?? null,
     sourceRevision: task.sourceRevision ?? null,
     evidenceScope: task.evidenceScope ?? task.workspaceIdentity ?? 'task',
-    permissions: Object.freeze({ authorized: discovered.authorized }),
+    permissions: Object.freeze({ authorized: discovered?.authorized ?? false }),
     budgetLimits: budgets,
     hopCount,
     invocationReason: reason,
-    sourceIdentity: discovered.sourceIdentity,
+    sourceIdentity: discovered?.sourceIdentity ?? null,
     // Structured task data is not host configuration or an authorization grant.
     payload: task.payload !== null && typeof task.payload === 'object' ? task.payload
       : typeof task.payload === 'string' ? task.payload : (typeof task.text === 'string' ? task.text : (typeof task.input === 'string' ? task.input : null)),
@@ -678,6 +716,80 @@ function nonExecutedResult(request, status, reason) {
   });
 }
 
+function getBuiltinLazyAdapter(componentId, capability) {
+  if (componentId === 'afyx-context') {
+    return async (req) => {
+      const workspace = req.workspaceIdentity || process.cwd();
+      const cap = req.capability || capability;
+      if (cap === 'afyx-db-inspector' || req.taskType === 'db-inspection') {
+        const { DbInspector } = await import('../afyx-context/src/db-inspector.js');
+        const inspector = new DbInspector(workspace);
+        const relPath = req.payload?.path || req.payload?.file || (typeof req.payload === 'string' ? req.payload : 'data.sqlite');
+        const out = inspector.inspectDataset(relPath, req.payload?.options || {});
+        return { status: out.status === 'INSPECTED' ? 'SUCCESS' : 'FAILED', output: out, evidence: [out] };
+      }
+      if (cap === 'afyx-cli-compactor' || req.taskType === 'cli-compaction') {
+        const { CliCompactor } = await import('../afyx-context/src/cli-compactor.js');
+        const compactor = new CliCompactor();
+        const raw = typeof req.payload === 'string' ? req.payload : (req.payload?.raw || req.payload?.output || '');
+        const out = compactor.compact(raw, typeof req.payload === 'object' ? req.payload : {});
+        return { status: 'SUCCESS', output: out, evidence: [out] };
+      }
+      if (cap === 'afyx-massive-context' || req.taskType === 'massive-context') {
+        const { MassiveContextNavigator } = await import('../afyx-context/src/massive-context.js');
+        const nav = new MassiveContextNavigator(workspace);
+        nav.indexWorkspace();
+        const query = req.payload?.query || (typeof req.payload === 'string' ? req.payload : 'context');
+        const out = nav.retrieveContext(query, typeof req.payload === 'object' ? req.payload : {});
+        return { status: 'SUCCESS', output: out, evidence: [out] };
+      }
+      if (cap === 'afyx-work-ledger' || req.taskType === 'work-ledger') {
+        const { WorkLedger } = await import('../afyx-context/src/work-ledger.js');
+        const ledger = new WorkLedger(workspace);
+        const record = ledger.recordEntry(typeof req.payload === 'object' ? req.payload : { ledgerId: req.taskId, taskObjective: req.intent });
+        const receipt = ledger.createReceipt(record.ledgerId);
+        const out = { ...record, receipt };
+        return { status: 'SUCCESS', output: out, evidence: [out] };
+      }
+      if (cap === 'afyx-impact-simulator' || req.taskType === 'impact-simulation') {
+        const { ImpactSimulator } = await import('../afyx-context/src/impact-simulator.js');
+        const sim = new ImpactSimulator(workspace);
+        const targetPath = req.payload?.targetPath || req.payload?.file || (typeof req.payload === 'string' ? req.payload : 'index.js');
+        const out = sim.simulate(targetPath, typeof req.payload === 'object' ? req.payload : {});
+        return { status: 'SUCCESS', output: out, evidence: [out] };
+      }
+      if (cap === 'afyx-env-preflight' || req.taskType === 'env-preflight') {
+        const { EnvPreflight } = await import('../afyx-context/src/env-preflight.js');
+        const preflight = new EnvPreflight(workspace);
+        const out = await preflight.runPreflight(typeof req.payload === 'object' ? req.payload : {});
+        return { status: 'SUCCESS', output: out, evidence: [out] };
+      }
+      return null;
+    };
+  }
+  if (componentId === 'afyx-forge') {
+    return async (req) => {
+      const workspace = req.workspaceIdentity || process.cwd();
+      const cap = req.capability || capability;
+      if (cap === 'afyx-migration-planner' || req.taskType === 'migration-planning') {
+        const { MigrationPlanner } = await import('../afyx-forge/src/migration-planner.js');
+        const planner = new MigrationPlanner(workspace);
+        const out = planner.createMigrationPlan(typeof req.payload === 'object' ? req.payload : { migrationType: 'data-transform', sourcePath: 'src', targetPath: 'dest' });
+        return { status: 'SUCCESS', output: out, evidence: [out] };
+      }
+      if (cap === 'afyx-api-contract-validator' || req.taskType === 'contract-validation') {
+        const { ContractValidator } = await import('../afyx-forge/src/contract-validator.js');
+        const validator = new ContractValidator(workspace);
+        const relPath = req.payload?.path || req.payload?.file || (typeof req.payload === 'string' ? req.payload : 'schema.json');
+        const out = validator.validate(relPath, typeof req.payload === 'object' ? req.payload : {});
+        return { status: 'SUCCESS', output: out, evidence: [out] };
+      }
+      return null;
+    };
+  }
+  return null;
+}
+
 function failedExecutionResult(request, reason, durationMs) {
   return Object.freeze({
     ...nonExecutedResult(request, 'FAILED', reason),
@@ -802,12 +914,18 @@ export async function executeAfyxCapabilityRoute(options = {}) {
       continue;
     }
     const discovered = activeDiscovery.capabilities[request.targetComponentId];
-    if (!discovered?.available || discovered.capability !== request.capability) {
+    const isUniversalSubcap = UNIVERSAL_CAPABILITIES.includes(request.capability) &&
+      UNIVERSAL_CAPABILITY_HOSTS[request.capability] === request.targetComponentId;
+    if (!discovered?.available || (!isUniversalSubcap && discovered.capability !== request.capability)) {
       results.push(nonExecutedResult(request, 'BLOCKED', 'CAPABILITY_NOT_AVAILABLE'));
       continue;
     }
-    const adapter = adapters[request.targetComponentId] ??
-      (ALIAS_MAP[request.targetComponentId] ? adapters[ALIAS_MAP[request.targetComponentId]] : undefined);
+    let adapter = adapters[request.targetComponentId] ??
+      (ALIAS_MAP[request.targetComponentId] ? adapters[ALIAS_MAP[request.targetComponentId]] : undefined) ??
+      adapters[request.capability];
+    if (typeof adapter !== 'function') {
+      adapter = getBuiltinLazyAdapter(request.targetComponentId, request.capability);
+    }
     if (typeof adapter !== 'function') {
       results.push(nonExecutedResult(request, 'DEGRADED', 'ADAPTER_NOT_PROVIDED'));
       continue;

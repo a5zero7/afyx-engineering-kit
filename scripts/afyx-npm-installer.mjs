@@ -110,6 +110,16 @@ Commands:
   update        Update installed AFYX components to the latest revision
   uninstall     Safely remove AFYX-managed components and provider entries
 
+Universal Native Capabilities:
+  afyx-work-ledger             Cryptographic task ledger and execution receipts
+  afyx-migration-planner       Multi-tier migration and rollback planning
+  afyx-impact-simulator        Deterministic change blast radius simulation
+  afyx-db-inspector            Read-only contained SQLite schema & data inspection
+  afyx-api-contract-validator  Multi-spec API contract validator (OpenAPI, GraphQL, Protobuf)
+  afyx-env-preflight           Host and workspace environment prerequisite preflight
+  afyx-cli-compactor           Lossless CLI output compaction with recoverable spills
+  afyx-massive-context         Zero-memory streaming navigation & slice extraction
+
 Options:
   --preset <name>                 Component preset (minimal, recommended, full, custom)
   --ui <auto|tui|plain>           Installer terminal interface (install only)

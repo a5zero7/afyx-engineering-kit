@@ -296,7 +296,7 @@ export class ContractValidator {
     const content = readFileSync(fullPath, 'utf8');
 
     // Structural checks for openapi or swagger key
-    const hasVersion = /openapi\s*:\s*['"]?3\./i.test(content) || /swagger\s*:\s*['"]?2\./i.test(content);
+    const hasVersion = /["']?(?:openapi|swagger)["']?\s*:\s*['"]?[23]\./i.test(content);
     if (!hasVersion) {
       diagnostics.push({
         severity: 'error',
@@ -305,7 +305,7 @@ export class ContractValidator {
       });
     }
 
-    if (!/\bpaths\s*:/i.test(content)) {
+    if (!/["']?paths["']?\s*:/i.test(content)) {
       diagnostics.push({
         severity: 'error',
         message: "Missing required 'paths' section in OpenAPI specification",
@@ -313,7 +313,7 @@ export class ContractValidator {
       });
     }
 
-    if (!/\binfo\s*:/i.test(content)) {
+    if (!/["']?info["']?\s*:/i.test(content)) {
       diagnostics.push({
         severity: 'error',
         message: "Missing required 'info' section in OpenAPI specification",
@@ -325,6 +325,7 @@ export class ContractValidator {
     return {
       contract: CONTRACT_VALIDATION_CONTRACT,
       target: relPath,
+      contractType: 'openapi',
       status: hasError ? 'FAIL' : 'PASS',
       diagnostics,
     };
