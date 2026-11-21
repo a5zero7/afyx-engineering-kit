@@ -107,9 +107,11 @@ class SkillLifecycleSecurityTests(unittest.TestCase):
 
         self.run_install("update")
         copies = [path for path in (self.backups / "afyx-efficient-coding").iterdir() if path.is_dir()]
-        self.assertEqual(len(copies), 1)
-        self.assertTrue(Path(str(copies[0]) + ".afyx-backup").is_file())
-        self.assertTrue((copies[0] / ".afyx-install.json").is_file())
+        self.assertEqual(len(copies), 2 if os.name == "nt" else 1)
+        for backup in copies:
+            self.assertTrue(Path(str(backup) + ".afyx-backup").is_file())
+            backup_marker = json.loads((backup / ".afyx-install.json").read_text(encoding="utf-8"))
+            self.assertEqual(backup_marker["content_sha256"], marker["content_sha256"])
 
         shutil.rmtree(target)
         shutil.copytree(copies[0], target)
