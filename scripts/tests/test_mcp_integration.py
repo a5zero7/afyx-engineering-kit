@@ -47,25 +47,23 @@ class McpIntegrationTests(unittest.TestCase):
             invocation = base / "codex-invoked"
             fake_codex = base / "fake-codex.mjs"
             fake_codex.write_text(
-                """import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+                """import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-writeFileSync(process.env.AFYX_FIXTURE_INVOCATION, 'invoked');
-const home=process.env.CODEX_HOME;
-const state=resolve(home,'fixture-state.json');
-const config=resolve(home,'config.toml');
-const [scope,action,name,...rest]=process.argv.slice(2);
-if(scope!=='mcp'||name!=='afyx_graph') process.exit(9);
-if(action==='get') {
-  if(!existsSync(state)){console.error('MCP server afyx_graph not found');process.exit(1);}
-  console.log(readFileSync(state,'utf8'));
-} else if(action==='add') {
-  const separator=rest.indexOf('--');
-  const command=rest.slice(separator+1);
-  mkdirSync(home,{recursive:true});
-  writeFileSync(state,JSON.stringify({transport:{type:'stdio',command:command[0],args:command.slice(1)}}));
-  writeFileSync(config,'[mcp_servers.afyx_graph]\\n');
-} else process.exit(8);
-""",
+import { parseToml } from PARSER;
+const home = process.env.CODEX_HOME;
+const config = resolve(home, 'config.toml');
+const [scope, action, name] = process.argv.slice(2);
+if (scope !== 'mcp' || action !== 'get' || name !== 'afyx_graph') process.exit(9);
+if (process.env.AFYX_FIXTURE_INVOCATION) {
+  const { writeFileSync } = await import('node:fs');
+  writeFileSync(process.env.AFYX_FIXTURE_INVOCATION, 'invoked');
+}
+if (existsSync(resolve(home, 'invalid-readback'))) { console.log('not json'); process.exit(0); }
+const entry = existsSync(config) ? parseToml(readFileSync(config, 'utf8')).mcp_servers?.[name] : null;
+if (!entry) { console.error('MCP server afyx_graph not found'); process.exit(1); }
+if (existsSync(resolve(home, 'reject-readback'))) { console.error('synthetic read-back rejection'); process.exit(7); }
+console.log(JSON.stringify({ transport: { type: 'stdio', command: entry.command, args: entry.args } }));
+""".replace("PARSER", json.dumps((ROOT / "scripts/afyx-provider-backup.mjs").as_uri())),
                 encoding="utf-8",
             )
             launcher = base / "codex.cmd"
@@ -192,31 +190,23 @@ console.log(JSON.stringify([classifyEntry(null,expected),classifyEntry(current,e
 
             fake_codex = launcher_dir / "fake-codex.mjs"
             fake_codex.write_text(
-                """import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+                """import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { parseToml } from PARSER;
 const home = process.env.CODEX_HOME;
-const state = resolve(home, 'fixture-state.json');
 const config = resolve(home, 'config.toml');
-const rejectAdd = resolve(home, 'reject-add');
-const [scope, action, name, ...rest] = process.argv.slice(2);
-if (scope !== 'mcp' || name !== 'afyx_graph') process.exit(9);
-if (action === 'get') {
-  if (!existsSync(state)) { console.error('MCP server afyx_graph not found'); process.exit(1); }
-  console.log(readFileSync(state, 'utf8'));
-} else if (action === 'add') {
-  if (existsSync(rejectAdd)) { console.error('synthetic registration rejection'); process.exit(7); }
-  const separator = rest.indexOf('--');
-  const command = rest.slice(separator + 1);
-  mkdirSync(home, { recursive: true });
-  writeFileSync(state, JSON.stringify({ transport: { type: 'stdio', command: command[0], args: command.slice(1) } }));
-  writeFileSync(config, '[mcp_servers.afyx_graph]\\n');
-} else if (action === 'remove') {
-  rmSync(state, { force: true });
-  rmSync(config, { force: true });
-} else {
-  process.exit(8);
+const [scope, action, name] = process.argv.slice(2);
+if (scope !== 'mcp' || action !== 'get' || name !== 'afyx_graph') process.exit(9);
+if (process.env.AFYX_FIXTURE_INVOCATION) {
+  const { writeFileSync } = await import('node:fs');
+  writeFileSync(process.env.AFYX_FIXTURE_INVOCATION, 'invoked');
 }
-""",
+if (existsSync(resolve(home, 'invalid-readback'))) { console.log('not json'); process.exit(0); }
+const entry = existsSync(config) ? parseToml(readFileSync(config, 'utf8')).mcp_servers?.[name] : null;
+if (!entry) { console.error('MCP server afyx_graph not found'); process.exit(1); }
+if (existsSync(resolve(home, 'reject-readback'))) { console.error('synthetic read-back rejection'); process.exit(7); }
+console.log(JSON.stringify({ transport: { type: 'stdio', command: entry.command, args: entry.args } }));
+""".replace("PARSER", json.dumps((ROOT / "scripts/afyx-provider-backup.mjs").as_uri())),
                 encoding="utf-8",
             )
             launcher = launcher_dir / "codex.cmd"
@@ -246,9 +236,9 @@ if (action === 'get') {
             self.assertEqual(first_payload["mcp"], "MCP_REACHABLE")
             self.assertEqual(first_payload["reason"], "")
             self.assertTrue(first_payload["changed"])
-            state = json.loads((codex_home / "fixture-state.json").read_text(encoding="utf-8"))
-            self.assertEqual(state["transport"]["command"], shutil.which("node"))
-            self.assertEqual(state["transport"]["args"], [str(entry), "serve", "--mcp"])
+            configuration = (codex_home / "config.toml").read_text(encoding="utf-8")
+            self.assertIn("command = " + json.dumps(shutil.which("node")), configuration)
+            self.assertIn("args = [" + ", ".join(map(json.dumps, [str(entry), "serve", "--mcp"])) + "]", configuration)
 
             second = subprocess.run(command, cwd=ROOT, capture_output=True, text=True)
             self.assertEqual(second.returncode, 0, second.stdout + second.stderr)
@@ -263,21 +253,23 @@ if (action === 'get') {
             restored = subprocess.run(command, cwd=ROOT, capture_output=True, text=True)
             self.assertEqual(restored.returncode, 0, restored.stdout + restored.stderr)
 
-            (codex_home / "fixture-state.json").write_text("not json", encoding="utf-8")
+            (codex_home / "invalid-readback").touch()
             invalid = subprocess.run(command, cwd=ROOT, capture_output=True, text=True)
             self.assertEqual(invalid.returncode, 2, invalid.stdout + invalid.stderr)
             invalid_payload = json.loads(invalid.stdout)
             self.assertEqual(invalid_payload["graph"], "GRAPH_INSTALLED")
             self.assertEqual(invalid_payload["reason"], "MCP_INVALID_CONFIGURATION")
 
-            (codex_home / "fixture-state.json").unlink()
-            (codex_home / "reject-add").write_text("reject", encoding="utf-8")
+            (codex_home / "invalid-readback").unlink()
+            (codex_home / "config.toml").unlink()
+            (codex_home / "reject-readback").touch()
             rejected = subprocess.run(command, cwd=ROOT, capture_output=True, text=True)
             self.assertEqual(rejected.returncode, 2, rejected.stdout + rejected.stderr)
             rejected_payload = json.loads(rejected.stdout)
             self.assertEqual(rejected_payload["graph"], "GRAPH_INSTALLED")
-            self.assertEqual(rejected_payload["reason"], "MCP_REGISTRATION_FAILED")
-            self.assertIn("synthetic registration rejection", rejected_payload["detail"])
+            self.assertEqual(rejected_payload["reason"], "MCP_INSPECTION_FAILED")
+            self.assertFalse((codex_home / "config.toml").exists())
+            self.assertIn("synthetic read-back rejection", rejected_payload["detail"])
 
             bad_launcher = base / "invalid-codex.exe"
             bad_launcher.write_text("not an executable", encoding="utf-8")

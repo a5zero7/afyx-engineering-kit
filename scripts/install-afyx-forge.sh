@@ -101,6 +101,19 @@ resolve_source_revision() {
   if [[ -e "$PACKAGE_ROOT/.git" ]] && command -v git >/dev/null 2>&1; then
     local rev
     rev="$(git -C "$PACKAGE_ROOT" rev-parse HEAD 2>/dev/null || true)"
+    if [[ ! "$rev" =~ ^[0-9a-f]{40}$ && -f "$PACKAGE_ROOT/.git" ]] && command -v wslpath >/dev/null 2>&1; then
+      local gitdir_raw gitdir_wsl ref_path common_dir
+      gitdir_raw="$(sed -n 's/^gitdir:[[:space:]]*//p' "$PACKAGE_ROOT/.git" | tr -d '\r\n')"
+      gitdir_wsl="$(wslpath -u "$gitdir_raw" 2>/dev/null || true)"
+      if [[ -n "$gitdir_wsl" && -f "$gitdir_wsl/HEAD" ]]; then
+        rev="$(tr -d '\r\n' < "$gitdir_wsl/HEAD")"
+        if [[ "$rev" == ref:\ * ]]; then
+          ref_path="${rev#ref: }"
+          common_dir="$(cd "$gitdir_wsl/../.." && pwd)"
+          [[ -f "$common_dir/$ref_path" ]] && rev="$(tr -d '\r\n' < "$common_dir/$ref_path")"
+        fi
+      fi
+    fi
     if [[ "$rev" =~ ^[0-9a-f]{40}$ ]]; then
       printf '%s\n' "$rev"
       return 0

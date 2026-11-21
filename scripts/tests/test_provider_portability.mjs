@@ -65,7 +65,9 @@ test('pre-push selects a usable Python 3 interpreter and fails closed when neith
     };
     // Stubs validate hook command dispatch, not actual product gates.
     command('uname', 'printf "Linux\\n"');
-    command('git', 'case "$*" in "rev-parse --show-toplevel") printf "%s\\n" "$FIXTURE_ROOT";; "rev-parse --local-env-var") :;; *) exit 9;; esac');
+    command('git', 'case "$*" in "rev-parse --show-toplevel") printf "%s\\n" "$FIXTURE_ROOT";; "rev-parse --local-env-var"|"rev-parse --local-env-vars") :;; *) exit 9;; esac');
+    command('env', ':');
+    command('sed', ':');
     command('node', 'printf "node\\n" >> "$FIXTURE_LOG"');
     command('npm', 'printf "npm\\n" >> "$FIXTURE_LOG"');
     for (const [python3Status, pythonStatus, expected] of [[0, 0, 'python3'], [1, 0, 'python'], [1, 1, null]]) {

@@ -88,6 +88,18 @@ if [[ "$state" == 'NOT INSTALLED' ]] && { "$update" || "$repair"; }; then
 fi
 revision=""
 if [[ -e "$PACKAGE_ROOT/.git" ]]; then revision="$(git -C "$PACKAGE_ROOT" rev-parse HEAD 2>/dev/null || true)"; fi
+if [[ ! "$revision" =~ ^[0-9a-f]{40}$ && -f "$PACKAGE_ROOT/.git" ]] && command -v wslpath >/dev/null 2>&1; then
+  gitdir_raw="$(sed -n 's/^gitdir:[[:space:]]*//p' "$PACKAGE_ROOT/.git" | tr -d '\r\n')"
+  gitdir_wsl="$(wslpath -u "$gitdir_raw" 2>/dev/null || true)"
+  if [[ -n "$gitdir_wsl" && -f "$gitdir_wsl/HEAD" ]]; then
+    revision="$(tr -d '\r\n' < "$gitdir_wsl/HEAD")"
+    if [[ "$revision" == ref:\ * ]]; then
+      ref_path="${revision#ref: }"
+      common_dir="$(cd "$gitdir_wsl/../.." && pwd)"
+      [[ -f "$common_dir/$ref_path" ]] && revision="$(tr -d '\r\n' < "$common_dir/$ref_path")"
+    fi
+  fi
+fi
 if [[ ! "$revision" =~ ^[0-9a-f]{40}$ && -f "$PACKAGE_ROOT/.afyx-source-revision" ]]; then
   revision="$(tr -d '\r\n' < "$PACKAGE_ROOT/.afyx-source-revision")"
 fi

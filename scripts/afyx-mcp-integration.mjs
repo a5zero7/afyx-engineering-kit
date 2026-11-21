@@ -1,6 +1,6 @@
 #!/usr/bin/env node
-/** Consent-safe Codex MCP registration through the native `codex mcp` CLI. */
-import { copyFileSync, existsSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
+/** Consent-safe Codex MCP configuration and native read-back. */
+import { chmodSync, closeSync, existsSync, lstatSync, mkdirSync, mkdtempSync, openSync, readFileSync, renameSync, rmdirSync, rmSync, writeFileSync } from 'node:fs';
 import { basename, dirname, extname, isAbsolute, join, normalize, relative, resolve } from 'node:path';
 import { spawn, spawnSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
@@ -9,8 +9,7 @@ import {
   createConfigurationBackup,
   updateKnownState,
   rollbackConfiguration,
-  validateUnrelatedPreserved,
-  readFileBytes,
+  parseToml,
 } from './afyx-provider-backup.mjs';
 
 function argument(name, fallback = '') {
@@ -69,7 +68,7 @@ export function classifyEntry(existing, expected, server = '') {
           ? isAbsolute(value) && normalized(value) === normalized(expectedArgs[index])
           : value === expectedArgs[index]))
     : transport.type === 'stdio' && args.length === 3
-      && /(?:^|[\\/])(?:lib|engine)[\\/]dist[\\/]bin[\\/]afyx-graph\.js$/i.test(String(args[0]))
+      && normalized(args[0]) === normalized(expected.entry)
       && args[1] === 'serve' && args[2] === '--mcp';
   if (argsMatch && nodeMatches) return 'MCP_CONFIGURED';
   const isAfyx = isAfyxTransport(server, transport)
@@ -122,26 +121,51 @@ function commandDiagnostic(result) {
   return String(result.stderr || result.stdout || result.error?.message || '').trim();
 }
 
-function requireCodexSuccess(result, action) {
-  if (result.error?.code === 'ETIMEDOUT' || result.signal === 'SIGTERM') {
-    throw new McpIntegrationError('CODEX_TIMEOUT', `${action} timed out within the bounded provider execution window.`);
+function validateForeignCodexConfig(codexHome, server) {
+  const configPath = resolve(codexHome, 'config.toml');
+  if (!existsSync(configPath)) return;
+  let raw;
+  try {
+    raw = readFileSync(configPath);
+  } catch {
+    return;
   }
-  if (result.error || result.status === null) {
-    throw new McpIntegrationError(
-      'CODEX_LAUNCH_FAILED',
-      `${action} could not launch Codex CLI: ${commandDiagnostic(result) || 'unknown process launch failure'}`,
-    );
+  const text = raw.toString('utf8');
+  if (!Buffer.from(text, 'utf8').equals(raw)) return;
+  const source = text.startsWith('\uFEFF') ? text.slice(1) : text;
+  let parsed;
+  try {
+    parsed = parseToml(source);
+  } catch {
+    return;
   }
-  if (result.status !== 0) {
-    throw new McpIntegrationError(
-      'MCP_REGISTRATION_FAILED',
-      `${action} failed with exit code ${result.status}: ${commandDiagnostic(result) || 'no diagnostic output'}`,
-    );
+  const servers = parsed?.mcp_servers;
+  if (!servers || typeof servers !== 'object' || Array.isArray(servers)) return;
+  for (const [name, entry] of Object.entries(servers)) {
+    if (name === server) continue;
+    if (!entry || typeof entry !== 'object' || Array.isArray(entry)) {
+      throw new McpIntegrationError(
+        'CODEX_FOREIGN_CONFIG_INCOMPATIBLE',
+        `Codex foreign MCP server "${name}" has an incompatible table definition and was preserved untouched.`,
+      );
+    }
+    if (entry.args !== undefined && (!Array.isArray(entry.args) || !entry.args.every((item) => typeof item === 'string'))) {
+      throw new McpIntegrationError(
+        'CODEX_FOREIGN_CONFIG_INCOMPATIBLE',
+        `Codex foreign MCP server "${name}" has a non-array args definition and was preserved untouched.`,
+      );
+    }
+    if (entry.command !== undefined && typeof entry.command !== 'string') {
+      throw new McpIntegrationError(
+        'CODEX_FOREIGN_CONFIG_INCOMPATIBLE',
+        `Codex foreign MCP server "${name}" has a non-string command definition and was preserved untouched.`,
+      );
+    }
   }
-  return result;
 }
 
 function readExisting(codex, codexHome, providerTimeoutMs, server = 'afyx_graph') {
+  validateForeignCodexConfig(codexHome, server);
   const result = codexRun(codex, codexHome, ['mcp', 'get', server, '--json'], providerTimeoutMs);
   if (result.error?.code === 'ETIMEDOUT' || result.signal === 'SIGTERM') {
     throw new McpIntegrationError('CODEX_TIMEOUT', 'Codex MCP inspection timed out within the bounded provider execution window.');
@@ -178,17 +202,6 @@ function backupConfig(codexHome) {
   });
 }
 
-function restoreBackup(backup) {
-  if (!backup) return false;
-  const res = rollbackConfiguration(backup);
-  return Boolean(res.restored);
-}
-
-function removeBackup(backup) {
-  // Retain recovery backup according to universal configuration management policy.
-  // Backups are preserved outside the repository with retention limits.
-}
-
 function fileBytes(file) {
   return existsSync(file) ? readFileSync(file) : null;
 }
@@ -196,10 +209,6 @@ function fileBytes(file) {
 function sameBytes(left, right) {
   if (left === null || right === null) return left === right;
   return left.equals(right);
-}
-
-function markBackupState(backup) {
-  if (backup) updateKnownState(backup);
 }
 
 function restoreFileGuarded(file, before, expected) {
@@ -309,7 +318,107 @@ export async function probeMcp(node, entry, options = {}) {
   });
 }
 
+
+export function editCodexToml(bytes, server, transport, hadEntry) {
+  if (!['afyx_graph', 'afyx_workflow'].includes(server)) {
+    throw new McpIntegrationError('MCP_UNOWNED_ENTRY', 'Server is outside the AFYX registration contract.');
+  }
+  const original = bytes?.toString('utf8') ?? '';
+  if (bytes && !Buffer.from(original).equals(bytes)) throw new Error('Codex configuration must be valid UTF-8.');
+  const bom = original.startsWith('\uFEFF') ? '\uFEFF' : '';
+  const source = original.slice(bom.length);
+  const ranges = [];
+  const headers = new Set();
+  let ownedTable = false;
+  let rootFound = false;
+  const parsed = parseToml(source, ({ kind, keys, start, end }) => {
+    const owned = keys[0] === 'mcp_servers' && keys[1] === server;
+    if (kind !== 'value') {
+      ownedTable = owned;
+      if (kind === 'table' && owned) {
+        const key = JSON.stringify(keys);
+        if (headers.has(key)) throw new Error('Duplicate AFYX Codex table.');
+        headers.add(key);
+        rootFound ||= keys.length === 2;
+      }
+    }
+    if (!owned) return;
+    if (!ownedTable || kind === 'array-table') throw new Error('Unsupported AFYX Codex table declaration.');
+    ranges.push({ start, end });
+  });
+  if (Object.hasOwn(parsed.mcp_servers ?? {}, server) !== hadEntry || rootFound !== hadEntry) {
+    throw new Error('Codex inspection and explicit AFYX TOML table disagree.');
+  }
+  let offset = 0;
+  let preserved = bom;
+  for (const { start, end } of ranges) {
+    preserved += source.slice(offset, start);
+    offset = end;
+  }
+  preserved += source.slice(offset);
+  const quote = (value) => JSON.stringify(value).replace(/\u007f/g, '\\u007f');
+  const eol = source.includes('\r\n') ? '\r\n' : '\n';
+  const declaration = transport
+    ? ['[mcp_servers.' + server + ']', 'command = ' + quote(transport.node), 'args = [' + transport.args.map(quote).join(', ') + ']', ''].join(eol)
+    : '';
+  const result = preserved + (declaration && preserved !== bom && !preserved.endsWith('\n') ? eol : '') + declaration;
+  const verified = parseToml(result).mcp_servers?.[server];
+  if (transport ? verified?.command !== transport.node || JSON.stringify(verified?.args) !== JSON.stringify(transport.args) : verified !== undefined) {
+    throw new Error('Surgical TOML validation failed.');
+  }
+  return Buffer.from(result);
+}
+
+function replaceCodexConfig(home, backup, bytes) {
+  const file = backup.configPath;
+  assertSafePath(home, file);
+  const stat = backup.existed ? lstatSync(file) : null;
+  if (stat && (!stat.isFile() || stat.nlink !== 1 || (process.getuid && stat.uid !== process.getuid()))) {
+    throw new McpIntegrationError('CODEX_PATH_UNSAFE', 'Codex configuration is not an exclusively owned regular file.');
+  }
+  const temporary = mkdtempSync(join(home, '.afyx-config-'));
+  try {
+    const staged = join(temporary, 'config.toml');
+    writeFileSync(staged, bytes, { flag: 'wx', mode: 0o600, flush: true });
+    if (stat) chmodSync(staged, stat.mode & 0o777);
+    assertSafePath(home, file);
+    if (!sameBytes(fileBytes(file), backup.originalBytes)) {
+      throw new McpIntegrationError('CONCURRENT_MODIFICATION_DETECTED', 'Codex configuration changed after backup.');
+    }
+    renameSync(staged, file);
+    updateKnownState(backup, bytes);
+    if (!sameBytes(fileBytes(file), bytes)) throw new Error('Codex configuration read-back did not match.');
+  } finally {
+    rmSync(join(temporary, 'config.toml'), { force: true });
+    rmdirSync(temporary);
+  }
+}
+
 export async function integrate(options) {
+  if (!options.apply) return integrateCodex(options);
+  const home = resolve(options.codexHome);
+  const lock = join(home, '.afyx-codex-mcp.lock');
+  try {
+    assertSafePath(home, lock);
+    mkdirSync(home, { recursive: true });
+    const handle = openSync(lock, 'wx', 0o600);
+    try {
+      return await integrateCodex(options);
+    } finally {
+      closeSync(handle);
+      rmSync(lock);
+    }
+  } catch (error) {
+    return {
+      mcp: 'MCP_BLOCKED',
+      changed: false,
+      reason: error.code === 'EEXIST' ? 'CONCURRENT_MODIFICATION_DETECTED' : (error.reason || 'MCP_TRANSACTION_FAILED'),
+      detail: 'Codex configuration transaction could not complete.',
+    };
+  }
+}
+
+async function integrateCodex(options) {
   const server = options.server || 'afyx_graph';
   const launchArgs = Array.isArray(options.args) ? options.args.map(String) : [options.entry, 'serve', '--mcp'];
   const expectedTool = options.tool || 'afyx_graph_explore';
@@ -374,6 +483,7 @@ export async function integrate(options) {
     return result;
   }
   if (options.apply) mkdirSync(options.codexHome, { recursive: true });
+  const inspectedBytes = options.apply ? fileBytes(resolve(options.codexHome, 'config.toml')) : null;
   let inspection;
   try {
     inspection = readExisting(options.codex, options.codexHome, options.providerTimeoutMs, server);
@@ -386,7 +496,8 @@ export async function integrate(options) {
   result.reason = inspection.reason;
   let state = classifyEntry(existing, expected, server);
   result.mcp = state;
-  if (state === 'MCP_BLOCKED') {
+  if (state === 'MCP_BLOCKED' || existing?.enabled === false) {
+    result.mcp = 'MCP_BLOCKED';
     result.reason = 'MCP_INVALID_CONFIGURATION';
     result.detail = `Conflicting or unproven ${server} entry was preserved.`;
     return result;
@@ -399,19 +510,16 @@ export async function integrate(options) {
     result.detail = error instanceof Error ? error.message : String(error);
     return result;
   }
+  const claim = ownership.document.entries?.[server];
+  const matchesClaim = claim?.provider === 'codex' && claim.expected && classifyEntry(existing, claim.expected, server) === 'MCP_CONFIGURED';
+  const knownLegacy = existing?.transport?.type === 'stdio' && existing.transport.args?.some((arg) => typeof arg === 'string' && /(?:^|[\\/])(?:afyx-graph|afyx-host-bridge)\.(?:m?js)$/i.test(arg));
+  if (options.apply && existing && (options.uninstall || state !== 'MCP_CONFIGURED') && !matchesClaim && !knownLegacy) {
+    return { ...result, mcp: 'MCP_BLOCKED', reason: 'MCP_UNOWNED_ENTRY', detail: 'Existing entry has no matching AFYX ownership evidence.' };
+  }
   if (options.uninstall) {
     if (!existing) {
       result.mcp = 'MCP_NOT_CONFIGURED';
       result.detail = 'No Codex MCP entry is configured.';
-      return result;
-    }
-    const claim = ownership.document.entries?.[server];
-    const claimedExpected = claim?.provider === 'codex' ? claim.expected : null;
-    const isAfyx = isAfyxTransport(server, existing.transport);
-    if (!isAfyx && (!claimedExpected || classifyEntry(existing, claimedExpected, server) !== 'MCP_CONFIGURED')) {
-      result.mcp = 'MCP_BLOCKED';
-      result.reason = 'MCP_UNOWNED_ENTRY';
-      result.detail = `Codex ${server} entry lacks a matching Afyx ownership marker and was preserved.`;
       return result;
     }
     if (!options.apply) {
@@ -422,28 +530,17 @@ export async function integrate(options) {
     const markerBefore = fileBytes(ownership.file);
     let markerExpected = markerBefore;
     try {
-      requireCodexSuccess(codexRun(options.codex, options.codexHome, ['mcp', 'remove', server], options.providerTimeoutMs), 'Codex MCP removal');
-      markBackupState(backup);
+      if (!sameBytes(inspectedBytes, backup.originalBytes)) throw new McpIntegrationError('CONCURRENT_MODIFICATION_DETECTED', 'Codex configuration changed after inspection.');
+      replaceCodexConfig(options.codexHome, backup, editCodexToml(backup.originalBytes, server, null, true));
       if (readExisting(options.codex, options.codexHome, options.providerTimeoutMs, server).existing) throw new Error('Codex MCP removal did not persist.');
       delete ownership.document.entries[server];
       if (Object.keys(ownership.document.entries).length) writeOwnership(ownership);
       else rmSync(ownership.file, { force: true });
       markerExpected = fileBytes(ownership.file);
-      removeBackup(backup);
-      const afterBytes = readFileBytes(backup.configPath);
-      const unrelatedValidation = validateUnrelatedPreserved({
-        format: 'toml',
-        beforeBytes: backup.originalBytes,
-        afterBytes,
-        server,
-      });
-      if (!unrelatedValidation.preserved) {
-        throw new Error(`Codex CLI altered unrelated configuration during removal: ${unrelatedValidation.detail}`);
-      }
       result.mcp = 'MCP_NOT_CONFIGURED';
       result.changed = true;
       result.reason = '';
-      result.detail = `Owned Codex MCP entry removed; unrelated configuration preserved.${unrelatedValidation.normalized ? ' (provider-native TOML normalization verified)' : ''}`;
+      result.detail = `Owned Codex MCP entry removed; unrelated configuration bytes preserved.`;
       return result;
     } catch (error) {
       const rollback = rollbackConfiguration(backup, { reason: error instanceof Error ? error.message : String(error) });
@@ -474,14 +571,9 @@ export async function integrate(options) {
     const ownershipBefore = existsSync(ownership.file) ? readFileSync(ownership.file) : null;
     let ownershipExpected = ownershipBefore;
     try {
-      if (state === 'MCP_STALE_OWNED') {
-        const removed = codexRun(options.codex, options.codexHome, ['mcp', 'remove', server], options.providerTimeoutMs);
-        requireCodexSuccess(removed, 'Codex MCP removal');
-        markBackupState(backup);
-      }
-      const added = codexRun(options.codex, options.codexHome, ['mcp', 'add', server, '--', options.node, ...launchArgs], options.providerTimeoutMs);
-      requireCodexSuccess(added, 'Codex MCP registration');
-      markBackupState(backup);
+      if (!sameBytes(inspectedBytes, backup.originalBytes)) throw new McpIntegrationError('CONCURRENT_MODIFICATION_DETECTED', 'Codex configuration changed after inspection.');
+      const edited = editCodexToml(backup.originalBytes, server, { node: options.node, args: launchArgs }, Boolean(existing));
+      replaceCodexConfig(options.codexHome, backup, edited);
       inspection = readExisting(options.codex, options.codexHome, options.providerTimeoutMs, server);
       existing = inspection.existing;
       state = classifyEntry(existing, expected, server);
@@ -491,17 +583,6 @@ export async function integrate(options) {
       ownership.document.entries[server] = { provider: 'codex', expected };
       writeOwnership(ownership);
       ownershipExpected = fileBytes(ownership.file);
-      removeBackup(backup);
-      const afterBytes = readFileBytes(backup.configPath);
-      const unrelatedValidation = validateUnrelatedPreserved({
-        format: 'toml',
-        beforeBytes: backup.originalBytes,
-        afterBytes,
-        server,
-      });
-      if (!unrelatedValidation.preserved) {
-        throw new Error(`Codex CLI altered unrelated configuration during registration: ${unrelatedValidation.detail}`);
-      }
     } catch (error) {
       const rollback = rollbackConfiguration(backup, { reason: error instanceof Error ? error.message : String(error) });
       const ownershipRestored = restoreFileGuarded(ownership.file, ownershipBefore, ownershipExpected);

@@ -57,7 +57,7 @@ graph_freshness() {
 printf 'Afyx Engineering Doctor\n'
 
 printf '\nCORE\n'
-for id in efficient-coding odoo-engineering; do
+for id in afyx-efficient-coding afyx-odoo-engineering; do
   afyx_component_evaluate "$id"
   name="$(afyx_component_field "$id" name)"
   if [[ "$AFYX_STATE" == HEALTHY ]]; then line OK "$name" "$AFYX_VERSION"; else line FAIL "$name" "$AFYX_STATE: $AFYX_DETAIL"; fi
@@ -76,11 +76,11 @@ case "$AFYX_STATE" in
   'NOT INSTALLED') line INFO 'Afyx Graph' 'not installed (optional)' ;;
   *) line WARN 'Afyx Graph' "$AFYX_STATE: $AFYX_DETAIL" ;;
 esac
-afyx_component_evaluate codex-usage-tracking
+afyx_component_evaluate afyx-usage-intelligence
 case "$AFYX_STATE" in
-  HEALTHY) line OK 'Codex Usage Tracking' ;;
-  'NOT INSTALLED') if [[ "$AFYX_DETAIL" == 'not installed' ]]; then line INFO 'Codex Usage Tracking' 'not installed (optional)'; else line INFO 'Codex Usage Tracking' "$AFYX_DETAIL"; fi ;;
-  *) line WARN 'Codex Usage Tracking' "$AFYX_STATE: $AFYX_DETAIL" ;;
+  HEALTHY) line OK 'Afyx Usage Intelligence' ;;
+  'NOT INSTALLED') if [[ "$AFYX_DETAIL" == 'not installed' ]]; then line INFO 'Afyx Usage Intelligence' 'not installed (optional)'; else line INFO 'Afyx Usage Intelligence' "$AFYX_DETAIL"; fi ;;
+  *) line WARN 'Afyx Usage Intelligence' "$AFYX_STATE: $AFYX_DETAIL" ;;
 esac
 printf '\nENVIRONMENT\n'
 codex_version="$(tool_version codex --version || true)"

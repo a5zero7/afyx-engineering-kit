@@ -69,8 +69,8 @@ foreach ($state in (Get-AfyxComponentStates -Context $context)) { $states[$state
 
 Write-Host ''
 Write-Host 'CORE'
-foreach ($id in @('efficient-coding', 'odoo-engineering')) {
-    $component = $states[$id]
+foreach ($id in @('afyx-efficient-coding', 'afyx-odoo-engineering')) {
+    $component = if ($states.ContainsKey($id)) { $states[$id] } else { $states[$id -replace '^afyx-', ''] }
     if ($component.State -eq 'HEALTHY') { Write-Line 'OK' $component.Name $component.Version }
     else { Write-Line 'FAIL' $component.Name "$($component.State): $($component.Detail)" }
 }
@@ -89,7 +89,7 @@ switch ($graph.State) {
     'NOT INSTALLED' { Write-Line 'INFO' $graph.Name 'not installed (optional)' }
     default { Write-Line 'WARN' $graph.Name "$($graph.State): $($graph.Detail)" }
 }
-$usage = $states['codex-usage-tracking']
+$usage = if ($states.ContainsKey('afyx-usage-intelligence')) { $states['afyx-usage-intelligence'] } else { $states['codex-usage-tracking'] }
 switch ($usage.State) {
     'HEALTHY' { Write-Line 'OK' $usage.Name }
     'NOT INSTALLED' { Write-Line 'INFO' $usage.Name $(if ($usage.Detail -eq 'not installed') { 'not installed (optional)' } else { $usage.Detail }) }

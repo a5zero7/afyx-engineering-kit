@@ -110,7 +110,7 @@ verify_component_evaluate() {
   fi
 }
 
-printf 'Afyx Engineering Kit v0.1.0-alpha.11 — readiness verification (Linux/macOS Bash)\n'
+printf 'Afyx Engineering Kit v0.1.0-alpha.12 — readiness verification (Linux/macOS Bash)\n'
 for provider_id in $(afyx_provider_ids); do
   result INFO "Provider adapter: $(afyx_provider_field "$provider_id" name)" "primary=$(afyx_provider_field "$provider_id" primary); ownership=$(afyx_provider_field "$provider_id" ownership_class); capabilities=$(afyx_provider_field "$provider_id" capabilities); policy=$(afyx_provider_field "$provider_id" configuration_policy)"
 done
@@ -136,6 +136,21 @@ for additional_root in ${additional_skill_roots[@]+"${additional_skill_roots[@]}
     else result INFO "Provider skill/$component_id" "$additional_root; not selected"; fi
   done
 done
+if [[ -n "$preset" ]] && ! "$skip_provider_configuration"; then
+  for component_id in afyx-context afyx-forge; do
+    afyx_component_desired "$component_id" "$preset" "$custom_component_list" "$provider_list" || continue
+    if [[ "$component_id" == afyx-context && "${AFYX_CONTEXT_OPT_IN:-}" == 0 ]]; then continue; fi
+    for companion_root in "$skills_root" "${additional_skill_roots[@]}"; do
+      afyx_classify_skill "$companion_root/$component_id" "$component_id" afyx
+      if [[ "$AFYX_OWNERSHIP_STATE" == AFYX_OWNED_UNMODIFIED ]]; then
+        result OK "Provider companion/$component_id" "$companion_root; ownership verified"
+      else
+        result FAIL "Provider companion/$component_id" "$companion_root; $AFYX_OWNERSHIP_STATE"
+        core_failure=true
+      fi
+    done
+  done
+fi
 case "$(uname -s)" in Darwin) verify_os=macOS ;; Linux) verify_os=Linux ;; *) verify_os="$(uname -s)"; core_failure=true ;; esac
 result OK 'OS/architecture [REQUIRED]' "$verify_os / $(uname -m)"
 result OK 'Platform shell [REQUIRED]' "Bash ${BASH_VERSION}"

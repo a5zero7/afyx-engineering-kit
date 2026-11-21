@@ -6,7 +6,7 @@ import { mkdirSync, mkdtempSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-const files = async (path) => path.endsWith('package.json') ? '{"version":"0.1.0-alpha.11"}'
+const files = async (path) => path.endsWith('package.json') ? '{"version":"0.1.0-alpha.12"}'
   : path.endsWith('.afyx-source-revision') ? 'a'.repeat(40) : 'PRETTY_NAME="Ubuntu 24.04.3 LTS"\n';
 test('Windows product, invoking PS5.1, terminal and backend PS7 remain distinct', async () => {
   const observed = await detectInstallerEnvironment({ platform: 'win32', arch: 'x64', pkgRoot: '/fixture', env: { WT_SESSION: 'observed' },

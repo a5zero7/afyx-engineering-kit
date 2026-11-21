@@ -30,19 +30,13 @@ const config=path.join(home,'config.toml');
 const args=process.argv.slice(2);
 if(fs.existsSync(path.join(home,'HANG'))){const end=Date.now()+2000;while(Date.now()<end){}}
 if(args[0]!=='mcp'||args[2]!=='afyx_graph')process.exit(64);
-if(args[1]==='get'){
-  if(!fs.existsSync(config)){console.error('MCP server afyx_graph not found');process.exit(1);}
-  console.log(fs.readFileSync(config,'utf8'));process.exit(0);
-}
-if(args[1]==='add'){
-  if(fs.existsSync(path.join(home,'FAIL_ADD'))){console.error('injected add failure');process.exit(9);}
-  const separator=args.indexOf('--');const command=args.slice(separator+1);
-  fs.mkdirSync(home,{recursive:true});
-  fs.writeFileSync(config,JSON.stringify({transport:{type:'stdio',command:command[0],args:command.slice(1)}}));
-  process.exit(0);
-}
-if(args[1]==='remove'){fs.rmSync(config,{force:true});process.exit(0);}
-process.exit(64);
+if(args[1]!=='get')process.exit(64);
+if(!fs.existsSync(config)){console.error('MCP server afyx_graph not found');process.exit(1);}
+const text=fs.readFileSync(config,'utf8');
+const command=text.match(/^command = (.+)$/m);
+const values=text.match(/^args = (.+)$/m);
+if(!command||!values){console.error('MCP server afyx_graph not found');process.exit(1);}
+console.log(JSON.stringify({transport:{type:'stdio',command:JSON.parse(command[1]),args:JSON.parse(values[1])}}));
 """,
         encoding="utf-8",
     )
@@ -135,7 +129,7 @@ class ProviderTransactionTests(unittest.TestCase):
         removed = self.run_helper("--apply", "--uninstall")
         self.assertEqual(removed["recovery"]["status"], "NOT_REQUIRED")
         self.assertTrue(all(item["changed"] for item in removed["providers"]))
-        self.assertFalse((self.codex_home / "config.toml").exists())
+        self.assertNotIn("[mcp_servers.afyx_graph]", (self.codex_home / "config.toml").read_text(encoding="utf-8"))
         antigravity_state = json.loads(
             (self.gemini / "config/mcp_config.json").read_text(encoding="utf-8")
         )
@@ -145,17 +139,17 @@ class ProviderTransactionTests(unittest.TestCase):
         )
         self.assertFalse(claude_state.get("mcpServers"))
 
-    def test_missing_or_timed_out_cli_fails_preflight_before_other_mutation(self) -> None:
+    def test_missing_or_timed_out_cli_preserves_independent_provider_progress(self) -> None:
         original = self.codex
         self.codex = self.base / "missing-codex"
         missing = self.run_helper(
             "--apply", providers="antigravity,codex", expected=2
         )
         by_provider = {item["provider"]: item for item in missing["providers"]}
-        self.assertEqual(missing["recovery"]["status"], "NOT_STARTED")
+        self.assertEqual(missing["recovery"]["status"], "NOT_REQUIRED")
         self.assertEqual(by_provider["codex"]["reason"], "CODEX_UNAVAILABLE")
-        self.assertEqual(by_provider["antigravity"]["reason"], "PREFLIGHT_FAILED")
-        self.assertFalse((self.gemini / "config/mcp_config.json").exists())
+        self.assertEqual(by_provider["antigravity"]["status"], "CONFIGURED_RESTART_REQUIRED")
+        self.assertTrue((self.gemini / "config/mcp_config.json").exists())
 
         self.codex = original
         self.codex_home.mkdir()
@@ -168,8 +162,8 @@ class ProviderTransactionTests(unittest.TestCase):
         )
         by_provider = {item["provider"]: item for item in timed_out["providers"]}
         self.assertEqual(by_provider["codex"]["reason"], "CODEX_TIMEOUT")
-        self.assertEqual(by_provider["antigravity"]["reason"], "PREFLIGHT_FAILED")
-        self.assertFalse((self.gemini / "config/mcp_config.json").exists())
+        self.assertEqual(by_provider["antigravity"]["status"], "CONFIGURED_RESTART_REQUIRED")
+        self.assertTrue((self.gemini / "config/mcp_config.json").exists())
 
 
 if __name__ == "__main__":

@@ -155,7 +155,7 @@ if ($wizardMode) {
     Enable-AfyxDashboard -Terminal $terminal -Providers $providerSnapshot
 }
 if (-not (Test-AfyxDashboard -Terminal $terminal)) {
-    Show-AfyxBanner -Terminal $terminal -Subtitle 'Interactive Installer v0.1.0-alpha.11 | Midnight Circuit'
+    Show-AfyxBanner -Terminal $terminal -Subtitle 'Interactive Installer v0.1.0-alpha.12 | Midnight Circuit'
 }
 
 try {
@@ -729,9 +729,8 @@ if (-not $ValidateOnly -and $providerMcpRequested -and $nodeCommand -and ('codex
         $_.status -in @('BLOCKED', 'INCOMPATIBLE') -and
         -not ($_.reason -in @('GRAPH_RUNTIME_UNAVAILABLE', 'MCP_RUNTIME_UNAVAILABLE') -and $graphAction -ne 'skip')
     })
-    if ($preflightBlocked.Count) {
-        $blocked = $preflightBlocked[0]
-        throw "Provider plan is blocked before mutation: $($blocked.provider): $($blocked.reason): $($blocked.detail)"
+    foreach ($blocked in $preflightBlocked) {
+        Write-Warning "Provider preflight blocked: $($blocked.provider) ($($blocked.reason))."
     }
 }
 
@@ -949,6 +948,7 @@ if ($ExpectedPlan) {
     } finally { $OutputEncoding = $previousOutputEncoding }
 }
 $summary = [ordered]@{}
+$providerFailures = @()
 $changesApplied = $false
 $skillActions = @{}
 $skillDefinitions = @(
@@ -972,7 +972,7 @@ if (-not $SkipProviderConfiguration -and $Provider.Count) {
         foreach ($root in @($providerSkillRoots | Select-Object -Unique)) {
             $candidate = Join-Path $root $id
             $ownership = Get-AfyxSkillOwnership -Target $candidate -Component $id -ExpectedOwner 'afyx'
-            if ($ownership -notin @('NOT_INSTALLED', 'AFYX_OWNED_UNMODIFIED')) {
+            if ($ownership -notin @('NOT_INSTALLED', 'AFYX_OWNED_UNMODIFIED', 'AFYX_OWNED_MODIFIED')) {
                 throw "Provider companion preflight blocked before mutation: $candidate ($ownership)."
             }
         }
@@ -1044,7 +1044,7 @@ if ($providerMcpRequested) {
         $providerJson = (& $nodeCommand.Source @providerArguments) -join ''
         $providerResult = $providerJson | ConvertFrom-AfyxJson -Depth 20
         Write-Host "Provider transaction: $($providerResult.status)"
-        if ($LASTEXITCODE -ne 0 -or $providerResult.status -eq 'BLOCKED') { throw "Provider configuration failed: $providerJson" }
+        if ($LASTEXITCODE -ne 0 -or $providerResult.status -eq 'BLOCKED') { $providerFailures += "Graph MCP ($($providerResult.status))" }
         foreach ($providerEntry in $providerResult.providers) { $summary["$($providerEntry.provider) MCP"] = $providerEntry.status }
         if (@($providerResult.providers | Where-Object { $_.changed }).Count) { $changesApplied = $true }
     } else { throw 'Installed Graph entry is unavailable for selected provider configuration.' }
@@ -1080,7 +1080,7 @@ if ($shouldInstallHostBridge) {
         else {
             $wfJson = (& $nodeCommand.Source @wfArguments) -join ''
             $wfResult = $wfJson | ConvertFrom-AfyxJson -Depth 20
-            if ($LASTEXITCODE -ne 0 -or $wfResult.status -eq 'BLOCKED') { throw "Host bridge provider configuration failed: $wfJson" }
+            if ($LASTEXITCODE -ne 0 -or $wfResult.status -eq 'BLOCKED') { $providerFailures += "Workflow MCP ($($wfResult.status))" }
             foreach ($wfEntry in $wfResult.providers) { $summary["$($wfEntry.provider) workflow MCP"] = $wfEntry.status }
             if (@($wfResult.providers | Where-Object { $_.changed }).Count) { $changesApplied = $true }
         }
@@ -1112,10 +1112,10 @@ if ($contextCompanionDesired -and $contextReadyForCompanion -and $Provider.Count
     foreach ($root in @($providerSkillRoots | Select-Object -Unique)) {
         $target = Join-Path $root 'afyx-context'
         $ownership = Get-AfyxSkillOwnership -Target $target -Component 'afyx-context' -ExpectedOwner 'afyx'
-        if ($ownership -notin @('NOT_INSTALLED', 'AFYX_OWNED_UNMODIFIED')) {
+        if ($ownership -notin @('NOT_INSTALLED', 'AFYX_OWNED_UNMODIFIED', 'AFYX_OWNED_MODIFIED')) {
             throw "Refusing automatic Context companion replacement at $target because ownership is $ownership."
         }
-        $summary["Afyx Context Companion [$root]"] = Install-ManagedSkillSafely 'afyx-context' 'Afyx Context Companion' $contextCompanionSource $target ($ownership -eq 'AFYX_OWNED_UNMODIFIED') $root
+        $summary["Afyx Context Companion [$root]"] = Install-ManagedSkillSafely 'afyx-context' 'Afyx Context Companion' $contextCompanionSource $target ($ownership -ne 'NOT_INSTALLED') $root ($ownership -eq 'AFYX_OWNED_MODIFIED')
         if (-not $WhatIfPreference) { $changesApplied = $true }
     }
 }
@@ -1143,10 +1143,10 @@ if ($forgeCompanionDesired -and $forgeReadyForCompanion -and $Provider.Count) {
     foreach ($root in @($providerSkillRoots | Select-Object -Unique)) {
         $target = Join-Path $root 'afyx-forge'
         $ownership = Get-AfyxSkillOwnership -Target $target -Component 'afyx-forge' -ExpectedOwner 'afyx'
-        if ($ownership -notin @('NOT_INSTALLED', 'AFYX_OWNED_UNMODIFIED')) {
+        if ($ownership -notin @('NOT_INSTALLED', 'AFYX_OWNED_UNMODIFIED', 'AFYX_OWNED_MODIFIED')) {
             throw "Refusing automatic Forge companion replacement at $target because ownership is $ownership."
         }
-        $summary["Afyx Forge Companion [$root]"] = Install-ManagedSkillSafely 'afyx-forge' 'Afyx Forge Companion' $forgeCompanionSource $target ($ownership -eq 'AFYX_OWNED_UNMODIFIED') $root
+        $summary["Afyx Forge Companion [$root]"] = Install-ManagedSkillSafely 'afyx-forge' 'Afyx Forge Companion' $forgeCompanionSource $target ($ownership -ne 'NOT_INSTALLED') $root ($ownership -eq 'AFYX_OWNED_MODIFIED')
         if (-not $WhatIfPreference) { $changesApplied = $true }
     }
 }
@@ -1158,11 +1158,12 @@ if (-not $usageAction) { $usageAction = 'skip' }
 if ($usageAction -eq 'skip') { $summary['Usage Tracking'] = 'skipped'; Write-Host 'Usage Tracking: skipped' }
 else {
     Write-AfyxStatus -Status INFO -Name 'Usage Tracking' -Detail "$usageAction in progress" -Terminal $terminal
-    if (-not (Invoke-AfyxInstallStage -Stage 'Usage Tracking' -Description "$usageAction tracking hooks" -Action { & $usageTrackerInstaller -Confirm:$false -WhatIf:$WhatIfPreference })) { throw 'Codex Usage Tracking installation failed.' }
+    if (-not (Invoke-AfyxInstallStage -Stage 'Usage Tracking' -Description "$usageAction tracking hooks" -Action { & $usageTrackerInstaller -CodexHome $codexHome -Confirm:$false -WhatIf:$WhatIfPreference })) { throw 'Codex Usage Tracking installation failed.' }
     $summary['Usage Tracking'] = $usageAction
     if (-not $WhatIfPreference) { $changesApplied = $true }
 }
 
+if ($providerFailures.Count) { throw "Provider configuration incomplete: $($providerFailures -join ', ')." }
 $receipt = @()
 foreach ($entry in $summary.GetEnumerator()) {
     $componentId = switch ($entry.Key) {
@@ -1186,7 +1187,7 @@ foreach ($entry in $summary.GetEnumerator()) {
         Detail = "outcome=$($entry.Value)"
     }
 }
-# Expose 8 Universal Native Capability Summaries (v0.1.0-alpha.11)
+# Expose 8 Universal Native Capability Summaries (v0.1.0-alpha.12)
 if ($states['Afyx Context Engine'] -eq 'HEALTHY' -or ($contextAction -and $contextAction -ne 'skip')) {
     $receipt += [pscustomobject]@{ Status = 'HEALTHY'; Name = 'Capability: afyx-work-ledger'; Detail = 'Cryptographic task ledger and verified execution receipts' }
     $receipt += [pscustomobject]@{ Status = 'HEALTHY'; Name = 'Capability: afyx-impact-simulator'; Detail = 'Deterministic change blast radius and ripple simulation' }

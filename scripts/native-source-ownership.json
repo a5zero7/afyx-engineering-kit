@@ -2637,8 +2637,8 @@
     {
       "path": "scripts/afyx-claude-integration.mjs",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "104249699293692c7e4fb045b9cbcbc0110c42a4bb7d3894260803904548abf2",
-      "evidence": "AFYX native source: authored from AFYX functional requirements; verified clean room implementation with zero third-party code import."
+      "reviewedSha256": "06f66463d8de425d676312c346f6fba5d089db0a00799983f224a63ea846dc7c",
+      "evidence": "AFYX native source: authored from AFYX functional requirements; verified clean room implementation with zero third-party code import. AFYX-77: bounded installer maintenance authored against existing AFYX contracts."
     },
     {
       "path": "scripts/afyx-context-artifact.mjs",
@@ -2775,8 +2775,8 @@
     {
       "path": "scripts/afyx-mcp-integration.mjs",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "cee25b3a023aeb20a67b7dfb602b37d19d587bfffc0cbd91c5203b647205d0e6",
-      "evidence": "AFYX native source: authored from AFYX functional requirements; verified clean room implementation with zero third-party code import."
+      "reviewedSha256": "268b5da1716a240099890fcee9a9a00fec15c92eee4cd1706dbeb793b188a375",
+      "evidence": "AFYX native source: authored from AFYX functional requirements; verified clean room implementation with zero third-party code import. AFYX-77: bounded installer maintenance authored against existing AFYX contracts."
     },
     {
       "path": "scripts/afyx-midnight-circuit.mjs",
@@ -2818,7 +2818,7 @@
       "path": "scripts/afyx-npm-installer.mjs",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
       "reviewedSha256": "d077fb2d24cd9197c5665749d36e0fb5a7a9270e0a36ec69d5af28f18acb8756",
-      "evidence": "Installer UX v2 with synchronized universal capability summaries, help text, and version 0.1.0-alpha.11 (AFYX-77)."
+      "evidence": "Installer UX v2 with synchronized universal capability summaries, help text, and version 0.1.0-alpha.12 (AFYX-77)."
     },
     {
       "path": "scripts/afyx-optional-capabilities.mjs",
@@ -2835,14 +2835,14 @@
     {
       "path": "scripts/afyx-provider-backup.mjs",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "a074f2da45de59e5737e1b5e492b31769cad7ce942d006afd9b65d71edc0637a",
-      "evidence": "AFYX native source: authored from AFYX functional requirements; verified clean room implementation with zero third-party code import."
+      "reviewedSha256": "d9d9e1fae0fb337bc23484d4cceabff643fbcce690269278f076881b6073c0f6",
+      "evidence": "AFYX native source: authored from AFYX functional requirements; verified clean room implementation with zero third-party code import. AFYX-77: bounded installer maintenance authored against existing AFYX contracts."
     },
     {
       "path": "scripts/afyx-provider-integration.mjs",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "8ee5ad4e7a2c4b965e106287ad9efe7cd559a1079b82888c1056dc7324f37633",
-      "evidence": "AFYX native source: authored from AFYX functional requirements; verified clean room implementation with zero third-party code import."
+      "reviewedSha256": "5499d6f781dec2f4b76f1d6c03c6e9b451b0c319cc7dd00c980ec8800fe3dc98",
+      "evidence": "AFYX native source: authored from AFYX functional requirements; verified clean room implementation with zero third-party code import. AFYX-77: bounded installer maintenance authored against existing AFYX contracts."
     },
     {
       "path": "scripts/afyx-provider-inventory.mjs",

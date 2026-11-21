@@ -392,7 +392,7 @@ console.log(JSON.stringify({{caller,filesystem,runtime}}));"""
         self.assertFalse((self.workspace / ".mcp.json").exists())
         self.assertFalse((self.workspace / ".agents").exists())
 
-    def test_later_provider_failure_rolls_back_earlier_owned_change(self) -> None:
+    def test_later_provider_failure_preserves_earlier_success(self) -> None:
         config = self.base / "gemini/config/mcp_config.json"
         config.parent.mkdir(parents=True)
         config.write_text('{\n  "theme": "owner-preserved"\n}\n', encoding="utf-8")
@@ -406,14 +406,13 @@ console.log(JSON.stringify({{caller,filesystem,runtime}}));"""
             expected=2,
         )
         by_provider = {item["provider"]: item for item in blocked["providers"]}
-        self.assertEqual(blocked["recovery"]["status"], "RESTORED")
-        self.assertEqual(by_provider["antigravity"]["reason"], "BATCH_ROLLED_BACK")
-        self.assertFalse(by_provider["antigravity"]["changed"])
-        self.assertEqual(by_provider["antigravity"]["recovery"]["status"], "RESTORED")
-        self.assertEqual(config.read_bytes(), config_before)
-        self.assertFalse((self.base / "gemini/config/mcp_config.json.afyx-ownership.json").exists())
+        self.assertEqual(blocked["recovery"]["status"], "NOT_REQUIRED")
+        self.assertEqual(by_provider["antigravity"]["status"], "CONFIGURED_RESTART_REQUIRED")
+        self.assertTrue(by_provider["antigravity"]["changed"])
+        self.assertEqual(json.loads(config.read_bytes())["theme"], json.loads(config_before)["theme"])
+        self.assertTrue((self.base / "gemini/config/mcp_config.json.afyx-ownership.json").exists())
 
-    def test_concurrent_foreign_change_blocks_batch_rollback_without_overwrite(self) -> None:
+    def test_later_provider_failure_does_not_overwrite_concurrent_foreign_change(self) -> None:
         config = self.base / "gemini/config/mcp_config.json"
         (self.claude_config / "FAIL_ADD").write_text("1", encoding="utf-8")
         (self.claude_config / "CORRUPT_PATH").write_text(str(config), encoding="utf-8")
@@ -425,10 +424,8 @@ console.log(JSON.stringify({{caller,filesystem,runtime}}));"""
             expected=2,
         )
         by_provider = {item["provider"]: item for item in blocked["providers"]}
-        self.assertEqual(blocked["recovery"]["status"], "INCOMPLETE")
-        self.assertEqual(
-            by_provider["antigravity"]["reason"], "BATCH_ROLLBACK_INCOMPLETE"
-        )
+        self.assertEqual(blocked["recovery"]["status"], "NOT_REQUIRED")
+        self.assertEqual(by_provider["antigravity"]["status"], "CONFIGURED_RESTART_REQUIRED")
         self.assertTrue(by_provider["antigravity"]["changed"])
         self.assertIn(b"foreign-concurrent-change", config.read_bytes())
 

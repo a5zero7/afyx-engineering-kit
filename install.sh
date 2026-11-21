@@ -139,7 +139,7 @@ elif [[ "$provider_scope" == workspace && ",$provider_list," == *,claude,* ]]; t
   [[ "$skills_root" == "$claude_skills" ]] || additional_skill_roots+=("$claude_skills")
 fi
 
-printf 'Afyx Engineering Kit v0.1.0-alpha.11 — Linux/macOS installer (Bash)\n'
+printf 'Afyx Engineering Kit v0.1.0-alpha.12 — Linux/macOS installer (Bash)\n'
 
 valid_manifest() { [[ -s "$1/SKILL.md" ]] && [[ "$(head -n 1 "$1/SKILL.md")" == '---' ]]; }
 # One component truth: scripts/components.json, read through the shared library.
@@ -158,7 +158,7 @@ if [[ -n "$preset" ]] && { ((component_action_count)) || [[ "$force" == true ]];
 fi
 old_ifs=$IFS; IFS=';'
 for custom_id in $custom_component_list; do
-  case "$custom_id" in prompt-master|headroom) retired_component_error "$custom_id" ;; efficient-coding|odoo-engineering|afyx-engineering-expert|afyx-graph|afyx-context|afyx-forge|codex-usage-tracking) ;; *) printf 'Unknown custom component: %s\n' "$custom_id" >&2; exit 2 ;; esac
+  case "$custom_id" in prompt-master|headroom) retired_component_error "$custom_id" ;; afyx-efficient-coding|afyx-odoo-engineering|efficient-coding|odoo-engineering|afyx-engineering-expert|afyx-graph|afyx-context|afyx-forge|afyx-usage-intelligence|codex-usage-tracking) ;; *) printf 'Unknown custom component: %s\n' "$custom_id" >&2; exit 2 ;; esac
 done
 IFS=$old_ifs
 for specification in ${component_actions[@]+"${component_actions[@]}"}; do
@@ -191,8 +191,8 @@ fi
 
 available_version() {
   case "$1" in
-    efficient-coding) afyx_skill_version "$BUNDLED_EFFICIENT" ;;
-    odoo-engineering) afyx_skill_version "$BUNDLED_ODOO" ;;
+    afyx-efficient-coding|efficient-coding) afyx_skill_version "$BUNDLED_EFFICIENT" ;;
+    afyx-odoo-engineering|odoo-engineering) afyx_skill_version "$BUNDLED_ODOO" ;;
     afyx-engineering-expert) afyx_skill_version "$BUNDLED_EXPERT" ;;
     afyx-graph) sed -n 's/.*"product_version"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$PACKAGE_ROOT/afyx-graph/afyx-graph.json" ;;
     afyx-context) sed -n 's/.*"product_version"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$PACKAGE_ROOT/afyx-context/afyx-context.json" ;;
@@ -213,7 +213,7 @@ explicit_action() {
   local wanted="$1" specification id action
   for specification in ${component_actions[@]+"${component_actions[@]}"}; do
     case "$specification" in *=*) id="${specification%%=*}"; action="${specification#*=}" ;; *) printf 'Invalid --component value: %s\n' "$specification" >&2; return 2 ;; esac
-    case "$id" in prompt-master|headroom) retired_component_error "$id" ;; efficient-coding|odoo-engineering|afyx-engineering-expert|afyx-graph|afyx-context|afyx-forge|codex-usage-tracking) ;; *) printf 'Unknown selectable component: %s\n' "$id" >&2; return 2 ;; esac
+    case "$id" in prompt-master|headroom) retired_component_error "$id" ;; afyx-efficient-coding|afyx-odoo-engineering|efficient-coding|odoo-engineering|afyx-engineering-expert|afyx-graph|afyx-context|afyx-forge|afyx-usage-intelligence|codex-usage-tracking) ;; *) printf 'Unknown selectable component: %s\n' "$id" >&2; return 2 ;; esac
     case "$action" in skip|install|update|repair|adopt) ;; *) printf 'Invalid action for %s: %s\n' "$id" "$action" >&2; return 2 ;; esac
     [[ "$id" == "$wanted" ]] && { printf '%s' "$action"; return 0; }
   done
@@ -308,11 +308,11 @@ replacement_authorized() {
 }
 
 safe_skill_install() {
-  local component="$1" label="$2" source="$3" target="$4" replace="$5" parent stage version authorize=false
+  local component="$1" label="$2" source="$3" target="$4" replace="$5" skills_root="${6:-$skills_root}" parent stage version authorize=false
   if [[ -e "$target" && "$replace" != true ]]; then printf skipped; return; fi
   if "$dry_run"; then printf 'planned'; return; fi
-  parent="$(dirname "$target")"; afyx_assert_skill_target "$skills_root" "$target"
-  stage="$(mktemp -d "$parent/.skill-stage.XXXXXX")"
+  parent="$(dirname "$target")"; afyx_assert_skill_target "$skills_root" "$target" || return 1
+  stage="$(mktemp -d "$parent/.skill-stage.XXXXXX")" || return 1
   if ! cp -a "$source/." "$stage/"; then rm -rf -- "$stage"; return 1; fi
   version="$(afyx_skill_version "$source")"
   replacement_authorized "$component" && authorize=true
@@ -352,9 +352,7 @@ efficient_target="$skills_root/afyx-efficient-coding"
 odoo_target="$skills_root/afyx-odoo-engineering"
 expert_target="$skills_root/afyx-engineering-expert"
 efficient_state="$(component_state afyx-efficient-coding)"
-[[ "$efficient_state" != 'NOT INSTALLED' ]] || efficient_state="$(component_state efficient-coding)"
 odoo_state="$(component_state afyx-odoo-engineering)"
-[[ "$odoo_state" != 'NOT INSTALLED' ]] || odoo_state="$(component_state odoo-engineering)"
 expert_state="$(component_state afyx-engineering-expert)"
 afyx_graph_state="$(component_state afyx-graph)"
 afyx_context_state="$(component_state afyx-context)"
@@ -407,7 +405,7 @@ for provider_id in $provider_list; do
   fi
   printf '%s: detected=%s; scope=%s; planned-config=%s\n' "$provider_name" "$provider_detected" "$provider_scope" "$provider_path"
   if [[ "$provider_id" == antigravity ]]; then
-    if [[ "$provider_scope" == workspace ]]; then provider_skills="$workspace_root/.agents/skills"; else provider_skills="$gemini_home/config/skills;$gemini_home/antigravity-cli/skills"; fi
+    if [[ "$provider_scope" == workspace ]]; then provider_skills="$workspace_root/.agents/skills"; else provider_skills="$gemini_home/config/skills;$gemini_home/antigravity-cli/skills;$gemini_home/antigravity/skills"; fi
     printf 'Antigravity planned skills: %s\n' "$provider_skills"
   elif [[ "$provider_id" == claude ]]; then
     if [[ "$provider_scope" == workspace ]]; then provider_skills="$workspace_root/.claude/skills"; else provider_skills="$claude_home/skills"; fi
@@ -420,7 +418,7 @@ if ! "$skip_graph_mcp" && ! "$skip_provider_configuration" && [[ ",$provider_lis
   preflight_json="$(node "$PACKAGE_ROOT/scripts/afyx-provider-integration.mjs" --providers antigravity --scope "$provider_scope" --workspace-root "$workspace_root" --gemini-home "$gemini_home" --node "$(command -v node)" --entry "$graph_root/current/lib/dist/bin/afyx-graph.js" 2>/dev/null)"; preflight_exit=$?
   set -e
   preflight_reason="$(printf '%s' "$preflight_json" | sed -n 's/.*"reason":"\([^"]*\)".*/\1/p')"
-  if ((preflight_exit != 0)) && [[ "$preflight_reason" != GRAPH_RUNTIME_UNAVAILABLE ]]; then
+  if ((preflight_exit != 0)) && [[ "$preflight_reason" != GRAPH_RUNTIME_UNAVAILABLE && "$preflight_reason" != MCP_RUNTIME_UNAVAILABLE ]]; then
     printf 'Antigravity provider plan is blocked before mutation: %s\n' "$preflight_json" >&2
     exit 1
   fi
@@ -434,7 +432,7 @@ if ! "$skip_graph_mcp" && ! "$skip_provider_configuration" && [[ ",$provider_lis
   preflight_json="$(node "${claude_pre_args[@]}" 2>/dev/null)"; preflight_exit=$?
   set -e
   preflight_reason="$(printf '%s' "$preflight_json" | sed -n 's/.*"reason":"\([^"]*\)".*/\1/p')"
-  if ((preflight_exit != 0)) && [[ "$preflight_reason" != GRAPH_RUNTIME_UNAVAILABLE ]]; then
+  if ((preflight_exit != 0)) && [[ "$preflight_reason" != GRAPH_RUNTIME_UNAVAILABLE && "$preflight_reason" != MCP_RUNTIME_UNAVAILABLE ]]; then
     printf 'Claude Code provider plan is blocked before mutation: %s\n' "$preflight_json" >&2
     exit 1
   fi
@@ -457,8 +455,8 @@ fi
 
 if "$validate_only"; then
   graph_version="$(sed -n 's/.*"product_version"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$PACKAGE_ROOT/afyx-graph/afyx-graph.json")"
-  printf 'BundledEfficientCoding: true\nInstalledEfficientCoding: %s\nEfficientCodingState: %s\nEfficientCodingVersion: %s\n' "$([[ "$efficient_state" == HEALTHY ]] && echo true || echo false)" "$efficient_state" "$(component_version efficient-coding)"
-  printf 'BundledOdooEngineering: true\nInstalledOdooEngineering: %s\nOdooEngineeringState: %s\nOdooEngineeringVersion: %s\n' "$([[ "$odoo_state" == HEALTHY ]] && echo true || echo false)" "$odoo_state" "$(component_version odoo-engineering)"
+  printf 'BundledEfficientCoding: true\nInstalledEfficientCoding: %s\nEfficientCodingState: %s\nEfficientCodingVersion: %s\n' "$([[ "$efficient_state" == HEALTHY ]] && echo true || echo false)" "$efficient_state" "$(component_version afyx-efficient-coding)"
+  printf 'BundledOdooEngineering: true\nInstalledOdooEngineering: %s\nOdooEngineeringState: %s\nOdooEngineeringVersion: %s\n' "$([[ "$odoo_state" == HEALTHY ]] && echo true || echo false)" "$odoo_state" "$(component_version afyx-odoo-engineering)"
   printf 'BundledAfyxEngineeringExpert: true\nInstalledAfyxEngineeringExpert: %s\nAfyxEngineeringExpertState: %s\nAfyxEngineeringExpertVersion: %s\n' "$([[ "$expert_state" == HEALTHY ]] && echo true || echo false)" "$expert_state" "$(component_version afyx-engineering-expert)"
   printf 'BundledAfyxGraphSource: true\nInstalledAfyxGraph: %s\nAfyxGraphState: %s\nAfyxGraphVersion: %s\n' "$([[ "$afyx_graph_state" == HEALTHY ]] && echo true || echo false)" "$afyx_graph_state" "$graph_version"
   context_version="$(available_version afyx-context)"
@@ -583,7 +581,7 @@ replicate_provider_skill() {
         replace=true ;;
       *) printf 'Refusing to replace %s at provider skill root %s because ownership is %s.\n' "$label" "$root" "$AFYX_OWNERSHIP_STATE" >&2; exit 1 ;;
     esac
-    result="$(afyx_run_install_operation "$id" install "Installing $label for provider" safe_skill_install "$id" "$label" "$source" "$target" "$replace")"
+    result="$(afyx_run_install_operation "$id" install "Installing $label for provider" safe_skill_install "$id" "$label" "$source" "$target" "$replace" "$root")"
     printf '%s [%s]: %s\n' "$label" "$root" "$result"
   done
 }
@@ -661,6 +659,7 @@ if "$context_companion_desired" && { [[ "$context_action" != skip ]] || [[ "$afy
     case "$AFYX_OWNERSHIP_STATE" in
       NOT_INSTALLED) context_skill_replace=false ;;
       AFYX_OWNED_UNMODIFIED) context_skill_replace=true ;;
+      AFYX_OWNED_MODIFIED) replacement_authorized afyx-context || exit 1; context_skill_replace=true ;;
       *) printf 'Refusing automatic ACE companion replacement at %s because ownership is %s.\n' "$context_skill_target" "$AFYX_OWNERSHIP_STATE" >&2; exit 1 ;;
     esac
     # safe_skill_install uses skills_root for its ownership boundary; override
@@ -696,6 +695,7 @@ if "$forge_companion_desired" && { [[ "$forge_action" != skip ]] || [[ "$afyx_fo
     case "$AFYX_OWNERSHIP_STATE" in
       NOT_INSTALLED) forge_skill_replace=false ;;
       AFYX_OWNED_UNMODIFIED) forge_skill_replace=true ;;
+      AFYX_OWNED_MODIFIED) replacement_authorized afyx-forge || exit 1; forge_skill_replace=true ;;
       *) printf 'Refusing automatic Forge companion replacement at %s because ownership is %s.\n' "$forge_skill_target" "$AFYX_OWNERSHIP_STATE" >&2; exit 1 ;;
     esac
     forge_skill_result="$(skills_root="$forge_skill_root"; safe_skill_install afyx-forge 'Afyx Forge Companion' "$forge_skill_source" "$forge_skill_target" "$forge_skill_replace")"
@@ -703,7 +703,7 @@ if "$forge_companion_desired" && { [[ "$forge_action" != skip ]] || [[ "$afyx_fo
   done
 fi
 
-printf '\nInstallation Summary (v0.1.0-alpha.11)\n[%s] Afyx Efficient Coding\n[%s] Afyx Odoo Engineering\n[%s] Afyx Engineering Expert\n[%s] Afyx Graph\n[%s] Afyx Context Engine\n[%s] Afyx Forge Core\n[SKIPPED] Afyx Usage Intelligence (Windows-only)\n' "$efficient_result" "$odoo_result" "$expert_result" "$graph_result" "$context_result" "$forge_result"
+printf '\nInstallation Summary (v0.1.0-alpha.12)\n[%s] Afyx Efficient Coding\n[%s] Afyx Odoo Engineering\n[%s] Afyx Engineering Expert\n[%s] Afyx Graph\n[%s] Afyx Context Engine\n[%s] Afyx Forge Core\n[SKIPPED] Afyx Usage Intelligence (Windows-only)\n' "$efficient_result" "$odoo_result" "$expert_result" "$graph_result" "$context_result" "$forge_result"
 if [[ "$context_result" != skipped && "$context_result" != NOT_INSTALLED ]]; then
   printf '[HEALTHY] Capability: afyx-work-ledger (cryptographic task ledger and execution receipts)\n'
   printf '[HEALTHY] Capability: afyx-impact-simulator (deterministic change blast radius simulation)\n'

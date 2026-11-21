@@ -324,7 +324,7 @@ export function restoreFromBackup(backupPath, targetPath) {
  * Parses basic and standard TOML strings into a JavaScript object without external dependencies.
  * Fails closed on syntax errors or invalid TOML.
  */
-export function parseToml(input) {
+export function parseToml(input, onStatement) {
   if (typeof input !== 'string') {
     throw new TypeError('TOML input must be a string');
   }
@@ -513,6 +513,7 @@ export function parseToml(input) {
         break;
       }
     }
+    if (keys.some((key) => Object.hasOwn(Object.prototype, key))) throw new Error('Unsupported TOML property name');
     return keys;
   }
 
@@ -675,6 +676,7 @@ export function parseToml(input) {
 
   const root = {};
   let currentTable = root;
+  let currentKeys = [];
 
   while (pos < len) {
     skipWhitespace(false);
@@ -691,8 +693,11 @@ export function parseToml(input) {
     }
 
     if (ch === '[') {
+      const start = pos;
       if (src.startsWith('[[', pos)) {
         pos += 2;
+        currentKeys = tableKeys;
+        onStatement?.({ kind: 'array-table', keys: tableKeys, start, end: pos });
         skipWhitespace(false);
         const tableKeys = parseKey();
         skipWhitespace(false);
@@ -728,6 +733,8 @@ export function parseToml(input) {
       }
       pos++;
 
+      currentKeys = tableKeys;
+      onStatement?.({ kind: 'table', keys: tableKeys, start, end: pos });
       let cur = root;
       for (let i = 0; i < tableKeys.length; i++) {
         const k = tableKeys[i];
@@ -740,11 +747,13 @@ export function parseToml(input) {
       continue;
     }
 
+    const start = pos;
     const keyParts = parseKey();
     skipWhitespace(false);
     expect('=');
     skipWhitespace(false);
     const value = parseValue();
+    onStatement?.({ kind: 'value', keys: [...currentKeys, ...keyParts], start, end: pos });
 
     skipWhitespace(false);
     if (pos < len && src[pos] !== '\n' && src[pos] !== '\r' && src[pos] !== '#') {

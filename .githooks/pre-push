@@ -44,6 +44,21 @@ else
   echo '[pre-push] FAIL: Python 3.10 or newer is required' >&2
   exit 1
 fi
+if ! command -v node >/dev/null 2>&1 && [ -x "/c/Program Files/nodejs/node.exe" ]; then
+  PATH="/c/Program Files/nodejs:$PATH"
+fi
+if node_bin=$(command -v node 2>/dev/null) && [ -n "$node_bin" ]; then
+  case "$node_bin" in
+    */*)
+      node_dir=${node_bin%/*}
+      case ":$PATH:" in
+        ":$node_dir:"*) ;;
+        *) PATH="$node_dir:$PATH" ;;
+      esac
+      ;;
+  esac
+  export PATH
+fi
 "$python_cmd" "$root/scripts/validate-afyx-graph.py"
 "$python_cmd" "$root/scripts/audit-legacy-identity.py"
 node "$root/scripts/verify-native-source-ownership.mjs"

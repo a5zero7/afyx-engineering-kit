@@ -84,14 +84,12 @@ function canonicalPath(value) {
 }
 
 export function isAfyxServerEntry(serverKey, entry) {
-  if (typeof serverKey === 'string' && /^(afyx[_-]|codex-usage)/i.test(serverKey)) {
-    return true;
-  }
-  if (!entry || typeof entry !== 'object') return false;
-  const cmd = String(entry.command || '');
-  if (/afyx/i.test(cmd)) return true;
-  const args = Array.isArray(entry.args) ? entry.args : [];
-  return args.some((arg) => typeof arg === 'string' && /afyx/i.test(arg));
+  if (!entry || typeof entry !== 'object' || !Array.isArray(entry.args)) return false;
+  const entryName = serverKey === 'afyx_graph' ? 'afyx-graph.js'
+    : serverKey === 'afyx_workflow' ? 'afyx-host-bridge.mjs' : null;
+  return entryName !== null && typeof entry.args[0] === 'string'
+    && entry.args[0].split(/[\\/]/).at(-1) === entryName
+    && entry.args[1] === 'serve' && entry.args[2] === '--mcp';
 }
 
 function entryEquivalent(actual, expected) {
@@ -564,24 +562,6 @@ function sealProviderState(capture) {
   return changed;
 }
 
-function rollbackProviderState(capture) {
-  try {
-    for (const item of capture.files) {
-      assertSafePath(capture.base, item.file);
-      if (!sameBytes(snapshot(item.file), item.after)) {
-        return { status: 'INCOMPLETE', detail: 'Configuration changed after provider execution; exact-byte rollback was refused.' };
-      }
-    }
-    for (const item of [...capture.files].reverse()) restore(item.file, item.before);
-    if (capture.files.some((item) => !sameBytes(snapshot(item.file), item.before))) {
-      return { status: 'INCOMPLETE', detail: 'Configuration rollback read-back did not match the captured state.' };
-    }
-    return { status: 'RESTORED', detail: 'Owned configuration changes were restored to the exact captured bytes.' };
-  } catch (error) {
-    return { status: 'INCOMPLETE', detail: `Configuration rollback failed closed: ${error instanceof Error ? error.message : String(error)}` };
-  }
-}
-
 function validateRecoveryPathIsolation(captures) {
   const owners = new Map();
   for (const capture of captures) {
@@ -620,107 +600,58 @@ async function runTransactionalLifecycle(options, selection) {
   const operation = options.uninstall ? 'uninstall' : 'apply';
   const preflightOperation = options.uninstall ? 'uninstall' : 'plan';
   const preflightOptions = { ...options, apply: false };
-  const preflights = [];
-  for (const item of selection) preflights.push(await item.adapter[preflightOperation](preflightOptions));
-  const failedPreflight = preflights.findIndex((result) => ['BLOCKED', 'INCOMPATIBLE'].includes(result.status));
-  if (failedPreflight >= 0) {
-    return {
-      providers: selection.map((item, index) => ['BLOCKED', 'INCOMPATIBLE'].includes(preflights[index].status)
-        ? preflights[index]
-        : recoveryBlockedResult(item.provider, 'PREFLIGHT_FAILED', 'No provider mutation was executed because cross-provider preflight failed.')),
-      status: 'BLOCKED',
-      recovery: { status: 'NOT_STARTED', failedProvider: selection[failedPreflight].provider },
-    };
+  const plans = [];
+  for (const item of selection) {
+    try {
+      const result = await item.adapter[preflightOperation](preflightOptions);
+      plans.push({ item, result, capture: captureProviderState(item.provider, options) });
+    } catch {
+      plans.push({ item, result: recoveryBlockedResult(item.provider, 'RECOVERY_SNAPSHOT_FAILED',
+        'Provider recovery boundary could not be established.') });
+    }
   }
-
-  const captures = [];
   try {
-    for (const item of selection) captures.push(captureProviderState(item.provider, options));
-    validateRecoveryPathIsolation(captures);
-  } catch (error) {
+    validateRecoveryPathIsolation(plans.flatMap(({ capture }) => capture ? [capture] : []));
+  } catch {
     return {
-      providers: selection.map((item) => recoveryBlockedResult(
-        item.provider,
-        'RECOVERY_SNAPSHOT_FAILED',
-        `No provider mutation was executed: ${error instanceof Error ? error.message : String(error)}`,
-      )),
+      providers: selection.map(({ provider }) => recoveryBlockedResult(provider, 'RECOVERY_PATH_CONFLICT',
+        'Selected provider recovery boundaries overlap.')),
       status: 'BLOCKED',
       recovery: { status: 'NOT_STARTED' },
     };
   }
 
   const results = [];
-  const changedIndexes = [];
-  for (let index = 0; index < selection.length; index += 1) {
-    const item = selection[index];
+  for (const { item, result: preflight, capture } of plans) {
+    if (!capture || ['BLOCKED', 'INCOMPATIBLE'].includes(preflight.status)) {
+      results.push(preflight);
+      continue;
+    }
     let result;
     try {
       result = await item.adapter[operation](options);
-    } catch (error) {
-      result = recoveryBlockedResult(item.provider, 'PROVIDER_EXECUTION_FAILED', error instanceof Error ? error.message : String(error));
+    } catch {
+      result = recoveryBlockedResult(item.provider, 'PROVIDER_EXECUTION_FAILED', 'Provider execution failed.');
     }
-    const observedChanged = sealProviderState(captures[index]);
-    if (observedChanged !== Boolean(result.changed)) {
-      result = {
-        ...result,
-        status: 'BLOCKED',
-        changed: observedChanged || Boolean(result.changed),
-        reason: 'CHANGE_REPORT_MISMATCH',
-        detail: 'Provider-reported mutation did not match its declared configuration recovery boundary.',
-      };
+    try {
+      const observedChanged = sealProviderState(capture);
+      if (observedChanged !== Boolean(result.changed)) {
+        result = { ...result, status: 'BLOCKED', changed: observedChanged,
+          reason: 'CHANGE_REPORT_MISMATCH', detail: 'Provider mutation did not match its recovery boundary.' };
+      }
+      if (observedChanged && !operationSucceeded(result, options.uninstall)) {
+        result = { ...result, recovery: { status: 'INCOMPLETE',
+          detail: 'Provider left changes inside its recovery boundary. Unproven bytes were preserved.' } };
+      }
+    } catch {
+      result = { ...result, status: 'BLOCKED', reason: 'RECOVERY_SNAPSHOT_FAILED',
+        detail: 'Provider configuration read-back failed.' };
     }
     results.push(result);
-    if (selection.length === 1 && result.status === 'UNVERIFIED' && !observedChanged) continue;
-    if (operationSucceeded(result, options.uninstall)) {
-      if (observedChanged) changedIndexes.push(index);
-      continue;
-    }
-
-    const recoveryByIndex = new Map();
-    let recoveryStatus = observedChanged ? 'INCOMPLETE' : 'NOT_REQUIRED';
-    if (observedChanged) {
-      recoveryByIndex.set(index, {
-        status: 'INCOMPLETE',
-        detail: 'The failing provider changed its recovery boundary; automatic restoration was refused because ownership of the unexpected bytes is unproven.',
-      });
-    }
-    for (const changedIndex of [...changedIndexes].reverse()) {
-      const recovery = rollbackProviderState(captures[changedIndex]);
-      recoveryByIndex.set(changedIndex, recovery);
-      if (recovery.status === 'INCOMPLETE') recoveryStatus = 'INCOMPLETE';
-      else if (recoveryStatus === 'NOT_REQUIRED') recoveryStatus = 'RESTORED';
-    }
-    const failedProvider = item.provider;
-    const completed = results.map((providerResult, resultIndex) => {
-      const recovery = recoveryByIndex.get(resultIndex);
-      if (!recovery) return providerResult;
-      if (resultIndex === index) {
-        return { ...providerResult, changed: recovery.status !== 'RESTORED', recovery };
-      }
-      return {
-        ...providerResult,
-        status: 'BLOCKED',
-        changed: recovery.status !== 'RESTORED',
-        reason: recovery.status === 'RESTORED' ? 'BATCH_ROLLED_BACK' : 'BATCH_ROLLBACK_INCOMPLETE',
-        detail: recovery.detail,
-        originalStatus: providerResult.status,
-        originalReason: providerResult.reason || '',
-        recovery,
-      };
-    });
-    for (let remaining = index + 1; remaining < selection.length; remaining += 1) {
-      completed.push({
-        ...recoveryBlockedResult(selection[remaining].provider, 'BATCH_ABORTED', `Provider was not executed after ${failedProvider} failed.`),
-        recovery: { status: 'NOT_RUN' },
-      });
-    }
-    return {
-      providers: completed,
-      status: 'BLOCKED',
-      recovery: { status: recoveryStatus, failedProvider },
-    };
   }
-  return { providers: results, status: aggregateStatus(results, Boolean(options.uninstall)), recovery: { status: 'NOT_REQUIRED' } };
+  return { providers: results, status: aggregateStatus(results, Boolean(options.uninstall)),
+    recovery: { status: results.some((item) => item.recovery?.status === 'INCOMPLETE') ? 'INCOMPLETE'
+      : results.some((item) => item.recovery?.status === 'RESTORED') ? 'RESTORED' : 'NOT_REQUIRED' } };
 }
 
 export async function runProviderLifecycle(options) {

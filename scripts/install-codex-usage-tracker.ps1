@@ -19,7 +19,8 @@ if (-not (Test-Path -LiteralPath $sourceRoot)) {
 }
 $toolsRoot = Join-Path $CodexHome 'tools'
 if (-not $HooksPath) { $HooksPath = Join-Path $CodexHome 'hooks.json' }
-$runtimeFiles = @('CodexUsage.psm1', 'codex-usage-stop.ps1', 'codex-usage-watch.ps1', 'codex-usage-doctor.ps1', 'codex-usage-pricing.json')
+$usageContract = (Get-Content -Raw -LiteralPath (Join-Path $PSScriptRoot 'components.json') | ConvertFrom-Json).components | Where-Object { $_.id -eq 'afyx-usage-intelligence' }
+$runtimeFiles = @($usageContract.required_files -split ';')
 $taskLabel = 'Codex: Watch Token Usage'
 $hookMarker = 'Afyx Codex Usage Tracking'
 
@@ -145,15 +146,56 @@ if ($Uninstall) {
 
 # Validate user-owned JSON before copying runtime files so malformed configuration
 # cannot leave a partially updated installation.
-[void](Read-JsonDocument -Path $HooksPath -Kind 'Codex hooks file')
+$existingHooks = Read-JsonDocument -Path $HooksPath -Kind 'Codex hooks file'
+$runtimeOwned = $false
+if ($existingHooks -and $existingHooks.PSObject.Properties['hooks'] -and $existingHooks.hooks -and $existingHooks.hooks.PSObject.Properties['Stop']) {
+    $stopPath = [regex]::Escape((Join-Path $toolsRoot 'codex-usage-stop.ps1'))
+    $runtimeOwned = @($existingHooks.hooks.Stop | ForEach-Object { $_.hooks } | Where-Object {
+        (Test-AfyxHookHandler $_) -and @($_.PSObject.Properties | Where-Object {
+            $_.Name -in @('command', 'commandWindows') -and [string]$_.Value -match $stopPath
+        }).Count
+    }).Count -gt 0
+}
 if (-not $SkipVSCodeTask) { [void](Read-JsonDocument -Path $VSCodeUserTasksPath -Kind 'VS Code tasks file') }
 
 if ($PSCmdlet.ShouldProcess($toolsRoot, 'Install Codex usage tracker runtime')) {
+    foreach ($path in @($CodexHome, $toolsRoot) + @($runtimeFiles | ForEach-Object { Join-Path $toolsRoot $_ })) {
+        $item = Get-Item -LiteralPath $path -Force -ErrorAction SilentlyContinue
+        if ($item -and ($item.Attributes -band [IO.FileAttributes]::ReparsePoint)) { throw "Unsafe usage tracker path: $path" }
+    }
+    foreach ($file in $runtimeFiles) {
+        $source = Join-Path $sourceRoot $file
+        $target = Join-Path $toolsRoot $file
+        if (-not (Test-Path -LiteralPath $source -PathType Leaf)) { throw "Missing packaged tracker file: $file" }
+        if (Test-Path -LiteralPath $target) {
+            if (-not (Test-Path -LiteralPath $target -PathType Leaf)) { throw "Invalid tracker target: $file" }
+            if (-not $runtimeOwned -and (Get-FileHash -LiteralPath $target).Hash -ne (Get-FileHash -LiteralPath $source).Hash) {
+                throw "Existing tracker file has no matching AFYX Stop hook ownership: $file"
+            }
+        }
+    }
     [IO.Directory]::CreateDirectory($toolsRoot) | Out-Null
     foreach ($file in $runtimeFiles) {
         $source = Join-Path $sourceRoot $file
-        if (-not (Test-Path -LiteralPath $source -PathType Leaf)) { throw "Missing tracker file: $source" }
-        Copy-Item -Force -LiteralPath $source -Destination (Join-Path $toolsRoot $file)
+        $target = Join-Path $toolsRoot $file
+        $sourceHash = (Get-FileHash -LiteralPath $source).Hash
+        if (Test-Path -LiteralPath $target) {
+            if (-not (Test-Path -LiteralPath $target -PathType Leaf)) { throw "Invalid tracker target: $file" }
+            $targetHash = (Get-FileHash -LiteralPath $target).Hash
+            if ($sourceHash -eq $targetHash) { continue }
+            if (-not $runtimeOwned) { throw "Existing tracker file has no matching AFYX Stop hook ownership: $file" }
+            $backup = "$target.afyx-backup-$([guid]::NewGuid().ToString('N'))"
+            Copy-Item -LiteralPath $target -Destination $backup
+            if ((Get-FileHash -LiteralPath $backup).Hash -ne $targetHash) { throw "Tracker backup verification failed: $file" }
+        }
+        $staged = "$target.afyx-stage-$([guid]::NewGuid().ToString('N'))"
+        try {
+            Copy-Item -LiteralPath $source -Destination $staged
+            if ((Get-FileHash -LiteralPath $staged).Hash -ne $sourceHash) { throw "Tracker staging verification failed: $file" }
+            Move-Item -LiteralPath $staged -Destination $target -Force
+        } finally {
+            if (Test-Path -LiteralPath $staged) { Remove-Item -LiteralPath $staged -Force }
+        }
     }
 }
 

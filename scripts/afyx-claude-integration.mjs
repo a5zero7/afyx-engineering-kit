@@ -236,11 +236,11 @@ export function inspectClaude(options) {
   let owned = false;
   if (actual) {
     const isAfyx = isAfyxServerEntry(server, actual);
-    const claimed = (claimValid && same(claim.entry, actual)) || isAfyx;
+    const claimed = claimValid && same(claim.entry, actual);
     if (entryEquivalent(actual, expected)) {
       state = claimed ? 'MCP_CONFIGURED' : 'MCP_CONFIGURED_UNOWNED';
-      owned = true;
-    } else if (claimed) {
+      owned = claimed;
+    } else if (claimed || isAfyx) {
       state = 'MCP_STALE_OWNED';
       owned = true;
     } else {
@@ -439,7 +439,7 @@ export async function integrateClaude(options) {
     if (inspection.state === 'MCP_NOT_CONFIGURED' && !inspection.claimValid) {
       return { ...result, status: 'UNAVAILABLE', detail: 'No Claude Code provider entry is configured.' };
     }
-    if (inspection.actual && !inspection.owned && !isAfyxServerEntry(inspection.server, inspection.actual)) {
+    if (inspection.actual && !inspection.owned) {
       return { ...result, status: 'BLOCKED', reason: 'UNOWNED_ENTRY', detail: 'Matching but unowned entry was preserved.' };
     }
     if (!options.apply) return { ...result, status: 'CONFIGURED', detail: 'Removal is planned but not consented.' };

@@ -17,7 +17,10 @@ remove_provider_configuration=false
 provider_list=codex
 provider_scope=global
 workspace_root="$PWD"
+codex_home="${CODEX_HOME:-$HOME/.codex}"
 gemini_home="${AFYX_GEMINI_HOME:-$HOME/.gemini}"
+claude_home="${CLAUDE_HOME:-$HOME/.claude}"
+claude_config_dir="${CLAUDE_CONFIG_DIR:-}"
 
 printf 'Afyx Codex Engineering Kit — Linux/macOS uninstaller (Bash)\n'
 
@@ -40,6 +43,8 @@ while (($#)); do
     --provider-scope) provider_scope="$2"; shift 2 ;;
     --workspace-root) workspace_root="$2"; shift 2 ;;
     --gemini-home) gemini_home="$2"; shift 2 ;;
+    --claude-home) claude_home="$2"; shift 2 ;;
+    --claude-config-dir) claude_config_dir="$2"; shift 2 ;;
     --dry-run) dry_run=true; shift ;;
     -h|--help) usage; exit 0 ;;
     *) printf 'Unknown option: %s\n' "$1" >&2; usage >&2; exit 2 ;;
@@ -123,12 +128,16 @@ for additional_root in ${additional_skill_roots[@]+"${additional_skill_roots[@]}
     if "$dry_run"; then
       afyx_classify_skill "$target" "$component_id" afyx
       case "$AFYX_OWNERSHIP_STATE" in NOT_INSTALLED) ;; AFYX_OWNED_UNMODIFIED) printf '+ ownership-verified remove %q\n' "$target" ;; *) printf 'Refusing to remove %s because installed ownership is %s.\n' "$target" "$AFYX_OWNERSHIP_STATE" >&2; exit 1 ;; esac
-    else afyx_remove_skill "$component_id" "$target" afyx; fi
+    else (skills_root="$additional_root"; afyx_remove_skill "$component_id" "$target" afyx); fi
   done
 done
 if "$remove_provider_configuration"; then
-  provider_args=("$root/scripts/afyx-provider-integration.mjs" --providers "$provider_list" --scope "$provider_scope" --workspace-root "$workspace_root" --gemini-home "$gemini_home" --codex-home "${CODEX_HOME:-$HOME/.codex}" --node "$(command -v node)" --entry "$graph_root/current/lib/dist/bin/afyx-graph.js" --uninstall)
+  provider_args=("$root/scripts/afyx-provider-integration.mjs" --providers "$provider_list" --scope "$provider_scope" --workspace-root "$workspace_root" --gemini-home "$gemini_home" --codex-home "$codex_home" --node "$(command -v node)" --entry "$graph_root/current/lib/dist/bin/afyx-graph.js" --uninstall)
   command -v codex >/dev/null 2>&1 && provider_args+=(--codex "$(command -v codex)")
+  if command -v claude >/dev/null 2>&1; then provider_args+=(--claude "$(command -v claude)"); else
+    for extension in "$HOME"/.vscode/extensions/anthropic.claude-code-*; do [[ -d "$extension" ]] && { provider_args+=(--claude-extension); break; }; done
+  fi
+  [[ -n "$claude_config_dir" ]] && provider_args+=(--claude-config-dir "$claude_config_dir")
   if "$dry_run"; then printf 'Dry-run: would remove only Afyx-owned provider MCP entries at %s scope.\n' "$provider_scope"
   else provider_json="$(node "${provider_args[@]}" --apply)" || { printf 'Provider removal failed: %s\n' "$provider_json" >&2; exit 1; }; fi
 fi

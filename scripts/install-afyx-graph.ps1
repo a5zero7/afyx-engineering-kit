@@ -237,6 +237,8 @@ node --disable-warning=ExperimentalWarning "%~dp0..\lib\dist\bin\afyx-graph.js" 
 
 function Update-UserPath([switch]$Remove) {
     if ($SkipPathUpdate) { return }
+    $tempRoot = [System.IO.Path]::GetFullPath([System.IO.Path]::GetTempPath()).TrimEnd('\') + '\'
+    if ([System.IO.Path]::GetFullPath($publicBin).StartsWith($tempRoot, [System.StringComparison]::OrdinalIgnoreCase)) { return }
     $userPath = [Environment]::GetEnvironmentVariable('Path', 'User')
     $entries = @($userPath -split ';' | Where-Object { $_ })
     $present = $entries | Where-Object { $_.TrimEnd('\') -ieq $publicBin.TrimEnd('\') }

@@ -237,7 +237,7 @@ function Get-AfyxComponentRoot {
         'afyx_graph_root'   { $Context.GraphRoot }
         'afyx_context_root' { $Context.ContextRoot }
         'afyx_forge_root'   { $Context.ForgeRoot }
-        'codex_tools'       { Join-Path $Context.CodexHome 'tools' }
+        'codex_tools'       { return (Join-Path $Context.CodexHome 'tools') }
         default             { '' }
     }
     if (-not $root) { return '' }

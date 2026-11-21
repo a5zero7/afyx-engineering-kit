@@ -98,7 +98,7 @@ foreach ($id in $CustomComponent) {
 }
 $controlPlan = if ($Preset) { Get-AfyxControlPlan -Preset $Preset -CustomComponent $CustomComponent -Provider $Provider -Context $componentContext -StateById $componentStates } else { $null }
 
-Show-AfyxBanner -Terminal $terminal -Subtitle 'Readiness Verification v0.1.0-alpha.11 | Midnight Circuit'
+Show-AfyxBanner -Terminal $terminal -Subtitle 'Readiness Verification v0.1.0-alpha.12 | Midnight Circuit'
 $gitSource = Get-Command git -ErrorAction SilentlyContinue
 if ($gitSource -and (Test-Path -LiteralPath (Join-Path $PSScriptRoot '.git'))) {
     $sourceCommit = (& git -C $PSScriptRoot rev-parse HEAD 2>$null) -join ''
@@ -143,7 +143,6 @@ if ($controlPlan) {
     foreach ($item in $controlPlan.Components) {
         if ($item.Drift -eq 'IN_SYNC') { Write-Result 'OK' "Plan/$($item.Id)" 'IN_SYNC' }
         elseif ($item.Drift -eq 'NOT_APPLICABLE' -or -not $item.Desired) { Write-Result 'INFO' "Plan/$($item.Id)" "$($item.Drift); preserved" }
-        elseif (($item.Id -eq 'codex-usage-tracking' -or $item.Id -eq 'afyx-usage-intelligence') -and $item.Drift -eq 'MISSING') { Write-Result 'INFO' "Plan/$($item.Id)" 'optional; explicit installation was not requested' }
         else { Write-Result 'FAIL' "Plan/$($item.Id)" "$($item.Drift); ownership=$($item.ActualOwnership); repair=$($item.Repair)"; $coreFailure = $true }
     }
 }
