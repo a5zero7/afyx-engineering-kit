@@ -53,6 +53,10 @@ if [[ "$skills_root_explicit" == false && "$provider_scope" == workspace && ",$p
   skills_root="$workspace_root/.agents/skills"
 fi
 additional_skill_roots=()
+if [[ ",$provider_list," == *,codex,* ]]; then
+  codex_home_skills="$codex_home/skills"
+  [[ "$skills_root" == "$codex_home_skills" ]] || additional_skill_roots+=("$codex_home_skills")
+fi
 if [[ ",$provider_list," == *,claude,* ]]; then
   claude_skills="$claude_home/skills"
   [[ "$provider_scope" == workspace ]] && claude_skills="$workspace_root/.claude/skills"
@@ -60,11 +64,13 @@ if [[ ",$provider_list," == *,claude,* ]]; then
   [[ "$skills_root" == "$claude_skills" ]] || additional_skill_roots+=("$claude_skills")
 fi
 if [[ "$provider_scope" == global && ",$provider_list," == *,antigravity,* ]]; then
-  antigravity_ide_skills="$gemini_home/config/skills"
+  antigravity_config_skills="$gemini_home/config/skills"
   antigravity_cli_skills="$gemini_home/antigravity-cli/skills"
-  if [[ "$skills_root_explicit" == false && "$provider_list" == antigravity ]]; then skills_root="$antigravity_ide_skills"; fi
-  [[ "$skills_root" == "$antigravity_ide_skills" ]] || additional_skill_roots+=("$antigravity_ide_skills")
+  antigravity_ide_skills="$gemini_home/antigravity/skills"
+  if [[ "$skills_root_explicit" == false && "$provider_list" == antigravity ]]; then skills_root="$antigravity_config_skills"; fi
+  [[ "$skills_root" == "$antigravity_config_skills" ]] || additional_skill_roots+=("$antigravity_config_skills")
   [[ "$skills_root" == "$antigravity_cli_skills" ]] || additional_skill_roots+=("$antigravity_cli_skills")
+  [[ "$skills_root" == "$antigravity_ide_skills" ]] || additional_skill_roots+=("$antigravity_ide_skills")
 fi
 
 result() {
@@ -104,7 +110,7 @@ verify_component_evaluate() {
   fi
 }
 
-printf 'Afyx Engineering Kit v0.1.0-alpha.10 — readiness verification (Linux/macOS Bash)\n'
+printf 'Afyx Engineering Kit v0.1.0-alpha.11 — readiness verification (Linux/macOS Bash)\n'
 for provider_id in $(afyx_provider_ids); do
   result INFO "Provider adapter: $(afyx_provider_field "$provider_id" name)" "primary=$(afyx_provider_field "$provider_id" primary); ownership=$(afyx_provider_field "$provider_id" ownership_class); capabilities=$(afyx_provider_field "$provider_id" capabilities); policy=$(afyx_provider_field "$provider_id" configuration_policy)"
 done

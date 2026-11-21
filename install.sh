@@ -118,12 +118,18 @@ if [[ "$skills_root_explicit" == false && "$provider_scope" == workspace && ",$p
   skills_root="$workspace_root/.agents/skills"
 fi
 additional_skill_roots=()
+if [[ ",$provider_list," == *,codex,* ]]; then
+  codex_home_skills="$codex_home/skills"
+  [[ "$skills_root" == "$codex_home_skills" ]] || additional_skill_roots+=("$codex_home_skills")
+fi
 if [[ "$provider_scope" == global && ",$provider_list," == *,antigravity,* ]]; then
-  antigravity_ide_skills="$gemini_home/config/skills"
+  antigravity_config_skills="$gemini_home/config/skills"
   antigravity_cli_skills="$gemini_home/antigravity-cli/skills"
-  if [[ "$skills_root_explicit" == false && "$provider_list" == antigravity ]]; then skills_root="$antigravity_ide_skills"; fi
-  [[ "$skills_root" == "$antigravity_ide_skills" ]] || additional_skill_roots+=("$antigravity_ide_skills")
+  antigravity_ide_skills="$gemini_home/antigravity/skills"
+  if [[ "$skills_root_explicit" == false && "$provider_list" == antigravity ]]; then skills_root="$antigravity_config_skills"; fi
+  [[ "$skills_root" == "$antigravity_config_skills" ]] || additional_skill_roots+=("$antigravity_config_skills")
   [[ "$skills_root" == "$antigravity_cli_skills" ]] || additional_skill_roots+=("$antigravity_cli_skills")
+  [[ "$skills_root" == "$antigravity_ide_skills" ]] || additional_skill_roots+=("$antigravity_ide_skills")
 fi
 if [[ "$provider_scope" == global && ",$provider_list," == *,claude,* ]]; then
   claude_skills="$claude_home/skills"
@@ -133,7 +139,7 @@ elif [[ "$provider_scope" == workspace && ",$provider_list," == *,claude,* ]]; t
   [[ "$skills_root" == "$claude_skills" ]] || additional_skill_roots+=("$claude_skills")
 fi
 
-printf 'Afyx Engineering Kit v0.1.0-alpha.10 — Linux/macOS installer (Bash)\n'
+printf 'Afyx Engineering Kit v0.1.0-alpha.11 — Linux/macOS installer (Bash)\n'
 
 valid_manifest() { [[ -s "$1/SKILL.md" ]] && [[ "$(head -n 1 "$1/SKILL.md")" == '---' ]]; }
 # One component truth: scripts/components.json, read through the shared library.
@@ -236,8 +242,8 @@ component_action() {
     elif [[ "$state" == HEALTHY && -n "$available" && -n "$installed" ]]; then
       if version_lt "$installed" "$available"; then action=update
       elif version_lt "$available" "$installed" && { "$allow_downgrade" || "$force"; }; then action=repair
-      else action=skip; fi
-    else action=skip; fi
+      else action=update; fi
+    else action=update; fi
   elif "$force"; then
     if [[ "$state" == UNKNOWN ]]; then printf '%s ownership is unknown; --force cannot take ownership.\n' "$label" >&2; return 2
     elif [[ "$state" == 'NOT INSTALLED' ]]; then action=install
@@ -654,13 +660,7 @@ if "$context_companion_desired" && { [[ "$context_action" != skip ]] || [[ "$afy
     afyx_classify_skill "$context_skill_target" afyx-context afyx
     case "$AFYX_OWNERSHIP_STATE" in
       NOT_INSTALLED) context_skill_replace=false ;;
-      AFYX_OWNED_UNMODIFIED)
-        if [[ "$(afyx_skill_version "$context_skill_target")" == "$(afyx_skill_version "$context_skill_source")" ]]; then
-          printf 'Afyx Context Companion [%s]: skipped\n' "$context_skill_root"
-          continue
-        fi
-        context_skill_replace=true
-        ;;
+      AFYX_OWNED_UNMODIFIED) context_skill_replace=true ;;
       *) printf 'Refusing automatic ACE companion replacement at %s because ownership is %s.\n' "$context_skill_target" "$AFYX_OWNERSHIP_STATE" >&2; exit 1 ;;
     esac
     # safe_skill_install uses skills_root for its ownership boundary; override
@@ -695,13 +695,7 @@ if "$forge_companion_desired" && { [[ "$forge_action" != skip ]] || [[ "$afyx_fo
     afyx_classify_skill "$forge_skill_target" afyx-forge afyx
     case "$AFYX_OWNERSHIP_STATE" in
       NOT_INSTALLED) forge_skill_replace=false ;;
-      AFYX_OWNED_UNMODIFIED)
-        if [[ "$(afyx_skill_version "$forge_skill_target")" == "$(afyx_skill_version "$forge_skill_source")" ]]; then
-          printf 'Afyx Forge Companion [%s]: skipped\n' "$forge_skill_root"
-          continue
-        fi
-        forge_skill_replace=true
-        ;;
+      AFYX_OWNED_UNMODIFIED) forge_skill_replace=true ;;
       *) printf 'Refusing automatic Forge companion replacement at %s because ownership is %s.\n' "$forge_skill_target" "$AFYX_OWNERSHIP_STATE" >&2; exit 1 ;;
     esac
     forge_skill_result="$(skills_root="$forge_skill_root"; safe_skill_install afyx-forge 'Afyx Forge Companion' "$forge_skill_source" "$forge_skill_target" "$forge_skill_replace")"
@@ -709,7 +703,7 @@ if "$forge_companion_desired" && { [[ "$forge_action" != skip ]] || [[ "$afyx_fo
   done
 fi
 
-printf '\nInstallation Summary (v0.1.0-alpha.10)\n[%s] Afyx Efficient Coding\n[%s] Afyx Odoo Engineering\n[%s] Afyx Engineering Expert\n[%s] Afyx Graph\n[%s] Afyx Context Engine\n[%s] Afyx Forge Core\n[SKIPPED] Afyx Usage Intelligence (Windows-only)\n' "$efficient_result" "$odoo_result" "$expert_result" "$graph_result" "$context_result" "$forge_result"
+printf '\nInstallation Summary (v0.1.0-alpha.11)\n[%s] Afyx Efficient Coding\n[%s] Afyx Odoo Engineering\n[%s] Afyx Engineering Expert\n[%s] Afyx Graph\n[%s] Afyx Context Engine\n[%s] Afyx Forge Core\n[SKIPPED] Afyx Usage Intelligence (Windows-only)\n' "$efficient_result" "$odoo_result" "$expert_result" "$graph_result" "$context_result" "$forge_result"
 if [[ "$context_result" != skipped && "$context_result" != NOT_INSTALLED ]]; then
   printf '[HEALTHY] Capability: afyx-work-ledger (cryptographic task ledger and execution receipts)\n'
   printf '[HEALTHY] Capability: afyx-impact-simulator (deterministic change blast radius simulation)\n'

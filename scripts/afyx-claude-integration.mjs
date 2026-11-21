@@ -13,6 +13,7 @@ import { basename, dirname, extname, isAbsolute, relative, resolve } from 'node:
 import { homedir } from 'node:os';
 import { spawnSync } from 'node:child_process';
 import { probeMcp } from './afyx-mcp-integration.mjs';
+import { isAfyxServerEntry } from './afyx-provider-integration.mjs';
 import {
   createConfigurationBackup,
   updateKnownState,
@@ -234,10 +235,12 @@ export function inspectClaude(options) {
   let state = 'MCP_NOT_CONFIGURED';
   let owned = false;
   if (actual) {
+    const isAfyx = isAfyxServerEntry(server, actual);
+    const claimed = (claimValid && same(claim.entry, actual)) || isAfyx;
     if (entryEquivalent(actual, expected)) {
-      state = claimValid && same(claim.entry, actual) ? 'MCP_CONFIGURED' : 'MCP_CONFIGURED_UNOWNED';
-      owned = state === 'MCP_CONFIGURED';
-    } else if (claimValid && same(claim.entry, actual)) {
+      state = claimed ? 'MCP_CONFIGURED' : 'MCP_CONFIGURED_UNOWNED';
+      owned = true;
+    } else if (claimed) {
       state = 'MCP_STALE_OWNED';
       owned = true;
     } else {
@@ -436,7 +439,7 @@ export async function integrateClaude(options) {
     if (inspection.state === 'MCP_NOT_CONFIGURED' && !inspection.claimValid) {
       return { ...result, status: 'UNAVAILABLE', detail: 'No Claude Code provider entry is configured.' };
     }
-    if (inspection.actual && !inspection.owned) {
+    if (inspection.actual && !inspection.owned && !isAfyxServerEntry(inspection.server, inspection.actual)) {
       return { ...result, status: 'BLOCKED', reason: 'UNOWNED_ENTRY', detail: 'Matching but unowned entry was preserved.' };
     }
     if (!options.apply) return { ...result, status: 'CONFIGURED', detail: 'Removal is planned but not consented.' };

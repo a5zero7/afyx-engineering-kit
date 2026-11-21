@@ -142,7 +142,7 @@ and [Component Guide](docs/COMPONENTS.md) for capability and limitation details.
 
 ## Install AFYX Engineering Kit — Windows & WSL2
 
-### Public npm Alpha (v0.1.0-alpha.10)
+### Public npm Alpha (v0.1.0-alpha.11)
 
 With Node.js 22.5 or newer, the public registry command is:
 
@@ -197,10 +197,10 @@ archive and `.afyx-source-revision` marker. Its download link will be added
 after the public release and anonymous installation checks pass. Node.js 22.5+
 is required; Windows PowerShell 5.1 and PowerShell 7 are the intended hosts.
 
-Alternatively, use the prebuilt tarball from the [v0.1.0-alpha.10 GitHub prerelease](https://github.com/a5zero7/afyx-engineering-kit/releases/tag/v0.1.0-alpha.10):
+Alternatively, use the prebuilt tarball from the [v0.1.0-alpha.11 GitHub prerelease](https://github.com/a5zero7/afyx-engineering-kit/releases/tag/v0.1.0-alpha.11):
 
 ```bash
-npm exec --yes --package="https://github.com/a5zero7/afyx-engineering-kit/releases/download/v0.1.0-alpha.10/afyx-engineering-kit-0.1.0-alpha.10.tgz" -- afyx-engineering-kit install --preset full --no-build-fallback --non-interactive --skip-provider-configuration
+npm exec --yes --package="https://github.com/a5zero7/afyx-engineering-kit/releases/download/v0.1.0-alpha.11/afyx-engineering-kit-0.1.0-alpha.11.tgz" -- afyx-engineering-kit install --preset full --no-build-fallback --non-interactive --skip-provider-configuration
 ```
 
 `full` installs the prebuilt Graph runtime, Context, Forge, and applicable

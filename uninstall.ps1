@@ -27,6 +27,7 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 $SelectedComponent = @($SelectedComponent | ForEach-Object { $_ -split ',' } | ForEach-Object { $_.Trim() } | Where-Object { $_ })
 $Provider = @($Provider | ForEach-Object { $_ -split ',' } | ForEach-Object { $_.Trim() } | Where-Object { $_ })
+$codexHome = if ($env:CODEX_HOME) { $env:CODEX_HOME } else { Join-Path $env:USERPROFILE '.codex' }
 
 Write-Host 'Afyx Codex Engineering Kit — Windows uninstaller (PowerShell)'
 if ($All) {
@@ -40,10 +41,16 @@ if ($All) {
 $providerSkillRoots = @()
 if ('codex' -in $Provider) {
     $providerSkillRoots += $(if ($PSBoundParameters.ContainsKey('SkillsRoot')) { $SkillsRoot } else { Join-Path $env:USERPROFILE '.agents\skills' })
+    $codexHomeSkills = Join-Path $codexHome 'skills'
+    $providerSkillRoots += $codexHomeSkills
 }
 if ('antigravity' -in $Provider) {
     if ($ProviderScope -eq 'workspace') { $providerSkillRoots += (Join-Path $WorkspaceRoot '.agents\skills') }
-    else { $providerSkillRoots += @((Join-Path $GeminiHome 'config\skills'), (Join-Path $GeminiHome 'antigravity-cli\skills')) }
+    else {
+        $providerSkillRoots += @((Join-Path $GeminiHome 'config\skills'), (Join-Path $GeminiHome 'antigravity-cli\skills'))
+        $antigravityIdeSkills = Join-Path $GeminiHome 'antigravity\skills'
+        $providerSkillRoots += $antigravityIdeSkills
+    }
 }
 if ('claude' -in $Provider) {
     $providerSkillRoots += $(if ($ProviderScope -eq 'workspace') { Join-Path $WorkspaceRoot '.claude\skills' } else { Join-Path $ClaudeHome 'skills' })

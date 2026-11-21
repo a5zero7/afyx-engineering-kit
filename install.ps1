@@ -155,7 +155,7 @@ if ($wizardMode) {
     Enable-AfyxDashboard -Terminal $terminal -Providers $providerSnapshot
 }
 if (-not (Test-AfyxDashboard -Terminal $terminal)) {
-    Show-AfyxBanner -Terminal $terminal -Subtitle 'Interactive Installer v0.1.0-alpha.10 | Midnight Circuit'
+    Show-AfyxBanner -Terminal $terminal -Subtitle 'Interactive Installer v0.1.0-alpha.11 | Midnight Circuit'
 }
 
 try {
@@ -256,14 +256,14 @@ $providerSkillRoots = @()
 if ('codex' -in $Provider) {
     $providerSkillRoots += $(if ($PSBoundParameters.ContainsKey('SkillsRoot')) { $SkillsRoot } else { Join-Path $env:USERPROFILE '.agents\skills' })
     $codexHomeSkills = Join-Path $codexHome 'skills'
-    if (Test-Path -LiteralPath $codexHomeSkills) { $providerSkillRoots += $codexHomeSkills }
+    $providerSkillRoots += $codexHomeSkills
 }
 if ('antigravity' -in $Provider) {
     if ($ProviderScope -eq 'workspace') { $providerSkillRoots += (Join-Path $WorkspaceRoot '.agents\skills') }
     else {
         $providerSkillRoots += @((Join-Path $GeminiHome 'config\skills'), (Join-Path $GeminiHome 'antigravity-cli\skills'))
         $antigravityIdeSkills = Join-Path $GeminiHome 'antigravity\skills'
-        if (Test-Path -LiteralPath $antigravityIdeSkills) { $providerSkillRoots += $antigravityIdeSkills }
+        $providerSkillRoots += $antigravityIdeSkills
     }
 }
 if ('claude' -in $Provider) {
@@ -359,8 +359,8 @@ function Get-ComponentAction([string]$Id, [string]$Label) {
                     $comp = Compare-AfyxVersion $state.Version $available
                     if ($comp -lt 0) { $action = 'update' }
                     elseif ($comp -gt 0 -and ($AllowDowngrade -or $Force)) { $action = 'downgrade' }
-                    else { $action = 'skip' }
-                } else { $action = 'skip' }
+                    else { $action = 'update' }
+                } else { $action = 'update' }
             }
         } else {
             $action = 'skip'
@@ -1013,10 +1013,6 @@ foreach ($additionalRoot in $additionalSkillRoots) {
         if ($ownership -notin @('NOT_INSTALLED', 'AFYX_OWNED_UNMODIFIED', 'AFYX_OWNED_MODIFIED')) {
             throw "Refusing to replace $($component.Name) at provider skill root $additionalRoot because ownership is $ownership."
         }
-        if ($ownership -eq 'AFYX_OWNED_UNMODIFIED' -and (Get-AfyxSkillVersion -Directory $target) -eq (Get-AfyxSkillVersion -Directory $component.Source)) {
-            $summary["$($component.Name) [$additionalRoot]"] = 'skipped'
-            continue
-        }
         $replicate = Install-ManagedSkillSafely $component.Id $component.Name $component.Source $target ($ownership -ne 'NOT_INSTALLED') $additionalRoot ($ownership -eq 'AFYX_OWNED_MODIFIED')
         $summary["$($component.Name) [$additionalRoot]"] = $replicate
         if (-not $WhatIfPreference) { $changesApplied = $true }
@@ -1116,11 +1112,6 @@ if ($contextCompanionDesired -and $contextReadyForCompanion -and $Provider.Count
     foreach ($root in @($providerSkillRoots | Select-Object -Unique)) {
         $target = Join-Path $root 'afyx-context'
         $ownership = Get-AfyxSkillOwnership -Target $target -Component 'afyx-context' -ExpectedOwner 'afyx'
-        if ($ownership -eq 'AFYX_OWNED_UNMODIFIED' -and
-            (Get-AfyxSkillVersion -Directory $target) -eq (Get-AfyxSkillVersion -Directory $contextCompanionSource)) {
-            $summary["Afyx Context Companion [$root]"] = 'skipped'
-            continue
-        }
         if ($ownership -notin @('NOT_INSTALLED', 'AFYX_OWNED_UNMODIFIED')) {
             throw "Refusing automatic Context companion replacement at $target because ownership is $ownership."
         }
@@ -1152,11 +1143,6 @@ if ($forgeCompanionDesired -and $forgeReadyForCompanion -and $Provider.Count) {
     foreach ($root in @($providerSkillRoots | Select-Object -Unique)) {
         $target = Join-Path $root 'afyx-forge'
         $ownership = Get-AfyxSkillOwnership -Target $target -Component 'afyx-forge' -ExpectedOwner 'afyx'
-        if ($ownership -eq 'AFYX_OWNED_UNMODIFIED' -and
-            (Get-AfyxSkillVersion -Directory $target) -eq (Get-AfyxSkillVersion -Directory $forgeCompanionSource)) {
-            $summary["Afyx Forge Companion [$root]"] = 'skipped'
-            continue
-        }
         if ($ownership -notin @('NOT_INSTALLED', 'AFYX_OWNED_UNMODIFIED')) {
             throw "Refusing automatic Forge companion replacement at $target because ownership is $ownership."
         }
@@ -1200,7 +1186,7 @@ foreach ($entry in $summary.GetEnumerator()) {
         Detail = "outcome=$($entry.Value)"
     }
 }
-# Expose 8 Universal Native Capability Summaries (v0.1.0-alpha.10)
+# Expose 8 Universal Native Capability Summaries (v0.1.0-alpha.11)
 if ($states['Afyx Context Engine'] -eq 'HEALTHY' -or ($contextAction -and $contextAction -ne 'skip')) {
     $receipt += [pscustomobject]@{ Status = 'HEALTHY'; Name = 'Capability: afyx-work-ledger'; Detail = 'Cryptographic task ledger and verified execution receipts' }
     $receipt += [pscustomobject]@{ Status = 'HEALTHY'; Name = 'Capability: afyx-impact-simulator'; Detail = 'Deterministic change blast radius and ripple simulation' }

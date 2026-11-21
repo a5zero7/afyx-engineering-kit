@@ -43,7 +43,16 @@ function assertSafePath(base, candidate) {
   }
 }
 
-export function classifyEntry(existing, expected) {
+export function isAfyxTransport(server, transport) {
+  if (typeof server === 'string' && /^(afyx[_-]|codex-usage)/i.test(server)) return true;
+  if (!transport || typeof transport !== 'object') return false;
+  const cmd = String(transport.command || '');
+  if (/afyx/i.test(cmd)) return true;
+  const args = Array.isArray(transport.args) ? transport.args : [];
+  return args.some((arg) => typeof arg === 'string' && /afyx/i.test(arg));
+}
+
+export function classifyEntry(existing, expected, server = '') {
   if (!existing) return 'MCP_NOT_CONFIGURED';
   const transport = existing.transport || {};
   const args = Array.isArray(transport.args) ? transport.args : [];
@@ -53,7 +62,7 @@ export function classifyEntry(existing, expected) {
   const nodeMatches = actualNode === expectedNode || executableName(actualNode) === executableName(expectedNode);
   const explicitArgs = Array.isArray(expected.args);
   const expectedArgs = explicitArgs ? expected.args.map(String) : [expected.entry, 'serve', '--mcp'];
-  const afyxShape = explicitArgs
+  const argsMatch = explicitArgs
     ? transport.type === 'stdio' && args.length === expectedArgs.length
       && args.every((value, index) => typeof value === 'string'
         && (isAbsolute(expectedArgs[index])
@@ -62,9 +71,11 @@ export function classifyEntry(existing, expected) {
     : transport.type === 'stdio' && args.length === 3
       && /(?:^|[\\/])(?:lib|engine)[\\/]dist[\\/]bin[\\/]afyx-graph\.js$/i.test(String(args[0]))
       && args[1] === 'serve' && args[2] === '--mcp';
-  if (!afyxShape) return 'MCP_BLOCKED';
-  if (nodeMatches && (explicitArgs || normalized(args[0]) === normalized(expected.entry))) return 'MCP_CONFIGURED';
-  return 'MCP_STALE_OWNED';
+  if (argsMatch && nodeMatches) return 'MCP_CONFIGURED';
+  const isAfyx = isAfyxTransport(server, transport)
+    || (transport.type === 'stdio' && args.some((a) => typeof a === 'string' && /afyx/i.test(a)));
+  if (isAfyx) return 'MCP_STALE_OWNED';
+  return 'MCP_BLOCKED';
 }
 
 class McpIntegrationError extends Error {
@@ -373,7 +384,7 @@ export async function integrate(options) {
   }
   let existing = inspection.existing;
   result.reason = inspection.reason;
-  let state = classifyEntry(existing, expected);
+  let state = classifyEntry(existing, expected, server);
   result.mcp = state;
   if (state === 'MCP_BLOCKED') {
     result.reason = 'MCP_INVALID_CONFIGURATION';
@@ -396,7 +407,8 @@ export async function integrate(options) {
     }
     const claim = ownership.document.entries?.[server];
     const claimedExpected = claim?.provider === 'codex' ? claim.expected : null;
-    if (!claimedExpected || classifyEntry(existing, claimedExpected) !== 'MCP_CONFIGURED') {
+    const isAfyx = isAfyxTransport(server, existing.transport);
+    if (!isAfyx && (!claimedExpected || classifyEntry(existing, claimedExpected, server) !== 'MCP_CONFIGURED')) {
       result.mcp = 'MCP_BLOCKED';
       result.reason = 'MCP_UNOWNED_ENTRY';
       result.detail = `Codex ${server} entry lacks a matching Afyx ownership marker and was preserved.`;
@@ -472,7 +484,7 @@ export async function integrate(options) {
       markBackupState(backup);
       inspection = readExisting(options.codex, options.codexHome, options.providerTimeoutMs, server);
       existing = inspection.existing;
-      state = classifyEntry(existing, expected);
+      state = classifyEntry(existing, expected, server);
       if (state !== 'MCP_CONFIGURED') throw new Error('Codex MCP registration did not persist the expected direct-Node entry.');
       result.changed = true;
       result.reason = '';

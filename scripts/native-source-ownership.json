@@ -2637,7 +2637,7 @@
     {
       "path": "scripts/afyx-claude-integration.mjs",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "a5279f847c12d97ad03391962616e7fd49b703d7c88c7007e7123e86198d442c",
+      "reviewedSha256": "104249699293692c7e4fb045b9cbcbc0110c42a4bb7d3894260803904548abf2",
       "evidence": "AFYX native source: authored from AFYX functional requirements; verified clean room implementation with zero third-party code import."
     },
     {
@@ -2775,7 +2775,7 @@
     {
       "path": "scripts/afyx-mcp-integration.mjs",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "5fe925b64762070b2f8c11f68b7aa8a202946302642bb85c44f17a7fb9123536",
+      "reviewedSha256": "cee25b3a023aeb20a67b7dfb602b37d19d587bfffc0cbd91c5203b647205d0e6",
       "evidence": "AFYX native source: authored from AFYX functional requirements; verified clean room implementation with zero third-party code import."
     },
     {
@@ -2818,7 +2818,7 @@
       "path": "scripts/afyx-npm-installer.mjs",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
       "reviewedSha256": "d077fb2d24cd9197c5665749d36e0fb5a7a9270e0a36ec69d5af28f18acb8756",
-      "evidence": "Installer UX v2 with synchronized universal capability summaries, help text, and version 0.1.0-alpha.10 (AFYX-77)."
+      "evidence": "Installer UX v2 with synchronized universal capability summaries, help text, and version 0.1.0-alpha.11 (AFYX-77)."
     },
     {
       "path": "scripts/afyx-optional-capabilities.mjs",
@@ -2841,7 +2841,7 @@
     {
       "path": "scripts/afyx-provider-integration.mjs",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "0f54f27204d191e851a6a2b9ade136e19a4085f2ac6b30785eeb7c5b19b3a2d4",
+      "reviewedSha256": "8ee5ad4e7a2c4b965e106287ad9efe7cd559a1079b82888c1056dc7324f37633",
       "evidence": "AFYX native source: authored from AFYX functional requirements; verified clean room implementation with zero third-party code import."
     },
     {

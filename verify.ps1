@@ -56,14 +56,14 @@ $providerSkillRoots = @()
 if ('codex' -in $Provider) {
     $providerSkillRoots += $(if ($PSBoundParameters.ContainsKey('SkillsRoot')) { $SkillsRoot } else { Join-Path $env:USERPROFILE '.agents\skills' })
     $codexHomeSkills = Join-Path $codexHome 'skills'
-    if (Test-Path -LiteralPath $codexHomeSkills) { $providerSkillRoots += $codexHomeSkills }
+    $providerSkillRoots += $codexHomeSkills
 }
 if ('antigravity' -in $Provider) {
     if ($ProviderScope -eq 'workspace') { $providerSkillRoots += (Join-Path $WorkspaceRoot '.agents\skills') }
     else {
         $providerSkillRoots += @((Join-Path $GeminiHome 'config\skills'), (Join-Path $GeminiHome 'antigravity-cli\skills'))
         $antigravityIdeSkills = Join-Path $GeminiHome 'antigravity\skills'
-        if (Test-Path -LiteralPath $antigravityIdeSkills) { $providerSkillRoots += $antigravityIdeSkills }
+        $providerSkillRoots += $antigravityIdeSkills
     }
 }
 if ('claude' -in $Provider) {
@@ -98,7 +98,7 @@ foreach ($id in $CustomComponent) {
 }
 $controlPlan = if ($Preset) { Get-AfyxControlPlan -Preset $Preset -CustomComponent $CustomComponent -Provider $Provider -Context $componentContext -StateById $componentStates } else { $null }
 
-Show-AfyxBanner -Terminal $terminal -Subtitle 'Readiness Verification v0.1.0-alpha.10 | Midnight Circuit'
+Show-AfyxBanner -Terminal $terminal -Subtitle 'Readiness Verification v0.1.0-alpha.11 | Midnight Circuit'
 $gitSource = Get-Command git -ErrorAction SilentlyContinue
 if ($gitSource -and (Test-Path -LiteralPath (Join-Path $PSScriptRoot '.git'))) {
     $sourceCommit = (& git -C $PSScriptRoot rev-parse HEAD 2>$null) -join ''

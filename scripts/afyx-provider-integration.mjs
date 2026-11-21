@@ -83,6 +83,17 @@ function canonicalPath(value) {
   return existsSync(absolute) ? realpathSync.native(absolute) : absolute;
 }
 
+export function isAfyxServerEntry(serverKey, entry) {
+  if (typeof serverKey === 'string' && /^(afyx[_-]|codex-usage)/i.test(serverKey)) {
+    return true;
+  }
+  if (!entry || typeof entry !== 'object') return false;
+  const cmd = String(entry.command || '');
+  if (/afyx/i.test(cmd)) return true;
+  const args = Array.isArray(entry.args) ? entry.args : [];
+  return args.some((arg) => typeof arg === 'string' && /afyx/i.test(arg));
+}
+
 function entryEquivalent(actual, expected) {
   return actual && typeof actual === 'object' && !Array.isArray(actual)
     && typeof actual.command === 'string'
@@ -194,7 +205,8 @@ export function inspectAntigravity(options) {
       const legacyOwnership = `${legacy}.afyx-ownership.json`;
       const legacyMarker = parseObject(legacyOwnership);
       const isLegacyOwned = legacyMarker.entries?.[server]?.provider === 'antigravity';
-      if (!isLegacyOwned) {
+      const isLegacyAfyx = isLegacyOwned || isAfyxServerEntry(server, legacyDocument.mcpServers[server]);
+      if (!isLegacyAfyx) {
         return { paths, ownership, document, marker, actual: null, expected: expectedEntry(options), claim: null, state: 'MCP_BLOCKED_LEGACY_DUPLICATE', owned: false, legacy, server };
       }
     }
@@ -206,13 +218,14 @@ export function inspectAntigravity(options) {
   let state = 'MCP_NOT_CONFIGURED';
   let owned = false;
   if (actual) {
-    const claimed = claimValid && claimedEntryEquivalent(actual, claim.entry);
+    const isAfyx = isAfyxServerEntry(server, actual);
+    const claimed = (claimValid && claimedEntryEquivalent(actual, claim.entry)) || isAfyx;
     if (actual.disabled === true) {
       state = claimed ? 'MCP_DISABLED_OWNED' : 'MCP_DISABLED_UNOWNED';
       owned = claimed;
     } else if (entryEquivalent(actual, expected)) {
       state = claimed ? 'MCP_CONFIGURED' : 'MCP_CONFIGURED_UNOWNED';
-      owned = state === 'MCP_CONFIGURED';
+      owned = true;
     } else if (claimed) {
       state = 'MCP_STALE_OWNED';
       owned = true;
@@ -260,7 +273,7 @@ export async function integrateAntigravity(options) {
   }
   if (options.uninstall) {
     if (inspection.state === 'MCP_NOT_CONFIGURED') return { ...result, status: 'UNAVAILABLE', detail: 'No provider entry is configured.' };
-    if (!inspection.owned) return { ...result, status: 'BLOCKED', reason: 'UNOWNED_ENTRY', detail: 'Matching but unowned entry was preserved.' };
+    if (!inspection.owned && !isAfyxServerEntry(inspection.server, inspection.actual)) return { ...result, status: 'BLOCKED', reason: 'UNOWNED_ENTRY', detail: 'Matching but unowned entry was preserved.' };
     if (!options.apply) return { ...result, status: 'CONFIGURED', detail: 'Removal is planned but not consented.' };
     const backup = createConfigurationBackup({
       provider: 'antigravity',
@@ -283,12 +296,16 @@ export async function integrateAntigravity(options) {
           const legacyDoc = parseObject(legacy);
           const legacyOwnership = `${legacy}.afyx-ownership.json`;
           const legacyMarker = parseObject(legacyOwnership);
-          if (legacyMarker.entries?.[inspection.server]?.provider === 'antigravity' && legacyDoc.mcpServers?.[inspection.server]) {
+          const isLegacyOwned = legacyMarker.entries?.[inspection.server]?.provider === 'antigravity';
+          const isLegacyAfyx = isLegacyOwned || isAfyxServerEntry(inspection.server, legacyDoc.mcpServers?.[inspection.server]);
+          if (isLegacyAfyx && legacyDoc.mcpServers?.[inspection.server]) {
             delete legacyDoc.mcpServers[inspection.server];
             if (Object.keys(legacyDoc.mcpServers).length === 0) delete legacyDoc.mcpServers;
             atomicJson(legacy, legacyDoc);
-            delete legacyMarker.entries[inspection.server];
-            atomicJson(legacyOwnership, legacyMarker);
+            if (legacyMarker.entries?.[inspection.server]) {
+              delete legacyMarker.entries[inspection.server];
+              atomicJson(legacyOwnership, legacyMarker);
+            }
           }
         }
       }
@@ -347,12 +364,16 @@ export async function integrateAntigravity(options) {
           const legacyDoc = parseObject(legacy);
           const legacyOwnership = `${legacy}.afyx-ownership.json`;
           const legacyMarker = parseObject(legacyOwnership);
-          if (legacyMarker.entries?.[inspection.server]?.provider === 'antigravity' && legacyDoc.mcpServers?.[inspection.server]) {
+          const isLegacyOwned = legacyMarker.entries?.[inspection.server]?.provider === 'antigravity';
+          const isLegacyAfyx = isLegacyOwned || isAfyxServerEntry(inspection.server, legacyDoc.mcpServers?.[inspection.server]);
+          if (isLegacyAfyx && legacyDoc.mcpServers?.[inspection.server]) {
             delete legacyDoc.mcpServers[inspection.server];
             if (Object.keys(legacyDoc.mcpServers).length === 0) delete legacyDoc.mcpServers;
             atomicJson(legacy, legacyDoc);
-            delete legacyMarker.entries[inspection.server];
-            atomicJson(legacyOwnership, legacyMarker);
+            if (legacyMarker.entries?.[inspection.server]) {
+              delete legacyMarker.entries[inspection.server];
+              atomicJson(legacyOwnership, legacyMarker);
+            }
           }
         }
       }
@@ -399,8 +420,9 @@ async function integrateCodexAdapter(options) {
     provider: 'codex',
     status: codex.mcp === 'MCP_REACHABLE' ? 'READY'
       : codex.mcp === 'MCP_NOT_CONFIGURED' ? (options.uninstall ? 'UNAVAILABLE' : 'DETECTED')
-        : options.uninstall && codex.mcp === 'MCP_CONFIGURED' ? 'CONFIGURED'
-        : 'BLOCKED',
+      : codex.mcp === 'MCP_STALE_OWNED' ? (options.uninstall ? 'CONFIGURED' : 'DETECTED')
+      : options.uninstall && codex.mcp === 'MCP_CONFIGURED' ? 'CONFIGURED'
+      : 'BLOCKED',
     configPath: resolve(codexConfigRoot, 'config.toml'),
     ownershipPath: resolve(codexConfigRoot, '.afyx-provider-ownership.json'),
     ...codex,

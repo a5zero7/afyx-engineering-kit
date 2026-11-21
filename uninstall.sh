@@ -47,18 +47,31 @@ while (($#)); do
 done
 case "$provider_scope" in global|workspace) ;; *) printf 'Unknown provider scope: %s\n' "$provider_scope" >&2; exit 2 ;; esac
 old_ifs=$IFS; IFS=','
-for provider_id in $provider_list; do case "$provider_id" in codex|antigravity) ;; *) printf 'Unknown provider: %s\n' "$provider_id" >&2; exit 2 ;; esac; done
+for provider_id in $provider_list; do case "$provider_id" in codex|antigravity|claude) ;; *) printf 'Unknown provider: %s\n' "$provider_id" >&2; exit 2 ;; esac; done
 IFS=$old_ifs
 if [[ "$skills_root_explicit" == false && "$provider_scope" == workspace && ",$provider_list," == *,antigravity,* ]]; then
   skills_root="$workspace_root/.agents/skills"
 fi
 additional_skill_roots=()
+if [[ ",$provider_list," == *,codex,* ]]; then
+  codex_home_skills="$codex_home/skills"
+  [[ "$skills_root" == "$codex_home_skills" ]] || additional_skill_roots+=("$codex_home_skills")
+fi
 if [[ "$provider_scope" == global && ",$provider_list," == *,antigravity,* ]]; then
-  antigravity_ide_skills="$gemini_home/config/skills"
+  antigravity_config_skills="$gemini_home/config/skills"
   antigravity_cli_skills="$gemini_home/antigravity-cli/skills"
-  if [[ "$skills_root_explicit" == false && "$provider_list" == antigravity ]]; then skills_root="$antigravity_ide_skills"; fi
-  [[ "$skills_root" == "$antigravity_ide_skills" ]] || additional_skill_roots+=("$antigravity_ide_skills")
+  antigravity_ide_skills="$gemini_home/antigravity/skills"
+  if [[ "$skills_root_explicit" == false && "$provider_list" == antigravity ]]; then skills_root="$antigravity_config_skills"; fi
+  [[ "$skills_root" == "$antigravity_config_skills" ]] || additional_skill_roots+=("$antigravity_config_skills")
   [[ "$skills_root" == "$antigravity_cli_skills" ]] || additional_skill_roots+=("$antigravity_cli_skills")
+  [[ "$skills_root" == "$antigravity_ide_skills" ]] || additional_skill_roots+=("$antigravity_ide_skills")
+fi
+if [[ "$provider_scope" == global && ",$provider_list," == *,claude,* ]]; then
+  claude_skills="$claude_home/skills"
+  [[ "$skills_root" == "$claude_skills" ]] || additional_skill_roots+=("$claude_skills")
+elif [[ "$provider_scope" == workspace && ",$provider_list," == *,claude,* ]]; then
+  claude_skills="$workspace_root/.claude/skills"
+  [[ "$skills_root" == "$claude_skills" ]] || additional_skill_roots+=("$claude_skills")
 fi
 
 # One component truth: scripts/components.json. Only Afyx-owned skills are removable.

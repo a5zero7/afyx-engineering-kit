@@ -33,7 +33,7 @@ function fakeTerminal(keys) {
   return { input, output, environment: {
     os: { name: 'Fixture OS' }, architecture: 'x64', invokingShell: { name: 'Fixture shell' },
     terminal: { name: 'Unknown' }, backendShell: { name: 'Unknown' },
-    package: { version: '0.1.0-alpha.10', sourceRevision: 'a'.repeat(40) },
+    package: { version: '0.1.0-alpha.11', sourceRevision: 'a'.repeat(40) },
   } };
 }
 
