@@ -37,6 +37,10 @@ function hashFile(path) {
   }
 }
 
+function escapeSqliteIdentifier(name) {
+  return String(name).replace(/"/g, '""');
+}
+
 export class DbInspector {
   /**
    * @param {string} workspaceRoot
@@ -323,7 +327,7 @@ export class DbInspector {
           contract: DB_INSPECTION_CONTRACT,
           format: 'sqlite',
           path: relPath,
-          status: 'INSPECTED',
+          status: 'HEADER_ONLY_FALLBACK',
           readOnly: true,
           mode: 'header-only',
           fileSizeBytes: statSync(fullPath).size,
@@ -343,12 +347,13 @@ export class DbInspector {
 
         for (const item of schemaItems) {
           const tableName = item.name;
+          const escapedName = escapeSqliteIdentifier(tableName);
           const isView = item.type === 'view';
 
           // Safe metadata inspection using allowlisted PRAGMA statements
           let columns = [];
           try {
-            const tableInfo = db.prepare(`PRAGMA table_info("${tableName}")`).all();
+            const tableInfo = db.prepare(`PRAGMA table_info("${escapedName}")`).all();
             columns = tableInfo.map((col) => ({
               name: col.name,
               type: col.type || 'TEXT',
@@ -363,7 +368,7 @@ export class DbInspector {
           let foreignKeys = [];
           if (!isView) {
             try {
-              const fkInfo = db.prepare(`PRAGMA foreign_key_list("${tableName}")`).all();
+              const fkInfo = db.prepare(`PRAGMA foreign_key_list("${escapedName}")`).all();
               foreignKeys = fkInfo.map((fk) => ({
                 id: fk.id,
                 table: fk.table,
@@ -378,10 +383,10 @@ export class DbInspector {
           let rowCount = 0;
           let sampleRows = [];
           try {
-            const countRow = db.prepare(`SELECT COUNT(*) AS total FROM "${tableName}"`).get();
+            const countRow = db.prepare(`SELECT COUNT(*) AS total FROM "${escapedName}"`).get();
             rowCount = countRow ? Number(countRow.total) : 0;
 
-            const rawSamples = db.prepare(`SELECT * FROM "${tableName}" LIMIT ?`).all(limit);
+            const rawSamples = db.prepare(`SELECT * FROM "${escapedName}" LIMIT ?`).all(limit);
             sampleRows = rawSamples.map((row) => this._maskSensitiveObject(row));
           } catch {
             // Some views or virtual tables cannot be directly counted
@@ -415,7 +420,7 @@ export class DbInspector {
         contract: DB_INSPECTION_CONTRACT,
         format: 'sqlite',
         path: relPath,
-        status: 'INSPECTED',
+        status: 'SCHEMA_INSPECTED',
         readOnly: true,
         databaseHash: postHash,
         hashVerifiedUnchanged: unchanged,

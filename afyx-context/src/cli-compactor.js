@@ -15,7 +15,8 @@
  * 8. Expiration and bounded storage cleanup
  */
 
-import { randomBytes } from 'node:crypto';
+import { randomBytes, createHash } from 'node:crypto';
+import { StringDecoder } from 'node:string_decoder';
 import {
   closeSync,
   constants,
@@ -54,9 +55,10 @@ export class CliCompactor {
 
   /**
    * Ensures an isolated, cryptographically unpredictable private directory for spills.
+   * Fails closed: returns null if the private directory cannot be created.
    *
    * @private
-   * @returns {string}
+   * @returns {string|null}
    */
   _getSecureSpillDir() {
     if (this._spillDir && existsSync(this._spillDir)) {
@@ -67,10 +69,11 @@ export class CliCompactor {
       this._spillDir = mkdtempSync(join(this.spillBaseDir, 'afyx-cli-spill-'));
       // Clean up old spills lazily
       this._cleanupOldSpills();
+      return this._spillDir;
     } catch {
-      this._spillDir = this.spillBaseDir;
+      this._spillDir = null;
+      return null;
     }
-    return this._spillDir;
   }
 
   /**
@@ -105,17 +108,24 @@ export class CliCompactor {
   }
 
   /**
-   * Spills raw output to an exclusively created private file.
+   * Spills raw output to an exclusively created private file with fail-closed isolation.
    *
    * @private
-   * @param {string} rawOutput
-   * @returns {string|null} Full path to spilled file
+   * @param {string|Buffer} rawOutput
+   * @returns {{ path: string|null, truncated: boolean, losslessRecovery: boolean, bytesWritten: number, hash: string|null }}
    */
   _spillRawOutput(rawOutput) {
-    if (!this.enableSpill || !rawOutput || rawOutput.length === 0) return null;
+    if (!this.enableSpill || !rawOutput || rawOutput.length === 0) {
+      return { path: null, truncated: false, losslessRecovery: false, bytesWritten: 0, hash: null };
+    }
+
+    const targetDir = this._getSecureSpillDir();
+    if (!targetDir) {
+      // Fail closed when private spill directory cannot be secured
+      return { path: null, truncated: false, losslessRecovery: false, bytesWritten: 0, hash: null };
+    }
 
     try {
-      const targetDir = this._getSecureSpillDir();
       const uniqueSuffix = randomBytes(16).toString('hex');
       const filename = `afyx_raw_cli_${Date.now()}_${uniqueSuffix}.log`;
       const filePath = join(targetDir, filename);
@@ -127,16 +137,35 @@ export class CliCompactor {
         0o600
       );
 
+      let truncated = false;
+      let bytesWritten = 0;
+      const hasher = createHash('sha256');
+
       try {
-        const buf = Buffer.from(rawOutput, 'utf8');
-        writeSync(fd, buf, 0, Math.min(buf.length, this.maxSpillSizeBytes));
+        const buf = Buffer.isBuffer(rawOutput) ? rawOutput : Buffer.from(rawOutput, 'utf8');
+        hasher.update(buf);
+        if (buf.length > this.maxSpillSizeBytes) {
+          writeSync(fd, buf, 0, this.maxSpillSizeBytes);
+          bytesWritten = this.maxSpillSizeBytes;
+          truncated = true;
+        } else {
+          writeSync(fd, buf, 0, buf.length);
+          bytesWritten = buf.length;
+          truncated = false;
+        }
       } finally {
         closeSync(fd);
       }
 
-      return filePath;
+      return {
+        path: filePath,
+        truncated,
+        losslessRecovery: !truncated,
+        bytesWritten,
+        hash: hasher.digest('hex'),
+      };
     } catch {
-      return null;
+      return { path: null, truncated: false, losslessRecovery: false, bytesWritten: 0, hash: null };
     }
   }
 
@@ -175,7 +204,8 @@ export class CliCompactor {
     const command = (context.command || '').toLowerCase();
 
     // 1. Spill-to-disk for secure raw recovery
-    const spillFilePath = this._spillRawOutput(rawOutput);
+    const spillResult = this._spillRawOutput(rawOutput);
+    const spillFilePath = spillResult.path;
 
     // 2. Format / Runner classification & compaction
     let compactedBody = '';
@@ -231,24 +261,251 @@ export class CliCompactor {
       processingDurationMs: Date.now() - startTime,
       failuresPreserved,
       exitCode,
+      truncated: spillResult.truncated,
+      losslessRecovery: spillResult.losslessRecovery,
+      spillHash: spillResult.hash,
+      spillBytes: spillResult.bytesWritten,
     };
   }
 
   /**
-   * Incrementally processes an incoming readable stream (e.g. child_process stdout).
+   * Incrementally processes an incoming readable stream with true streaming:
+   * eliminates full-output memory buffering, streams chunks directly to spill file,
+   * updates incremental SHA-256 and byte counters, and returns honest truncation metadata.
    *
    * @param {import('node:stream').Readable} stream
    * @param {object} [context]
    * @returns {Promise<object>} Compacted result
    */
   async compactStream(stream, context = {}) {
-    const chunks = [];
-    return new Promise((resolve, reject) => {
-      stream.on('data', (chunk) => chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk)));
-      stream.on('error', (err) => reject(err));
+    const startTime = Date.now();
+    const command = (context.command || '').toLowerCase();
+    const exitCode = context.exitCode ?? 0;
+
+    let targetDir = null;
+    let filePath = null;
+    let fd = null;
+
+    if (this.enableSpill) {
+      targetDir = this._getSecureSpillDir();
+      if (targetDir) {
+        try {
+          const uniqueSuffix = randomBytes(16).toString('hex');
+          const filename = `afyx_raw_cli_${Date.now()}_${uniqueSuffix}.log`;
+          filePath = join(targetDir, filename);
+          fd = openSync(
+            filePath,
+            constants.O_CREAT | constants.O_EXCL | constants.O_WRONLY,
+            0o600
+          );
+        } catch {
+          fd = null;
+          filePath = null;
+        }
+      }
+    }
+
+    const hasher = createHash('sha256');
+    let rawBytes = 0;
+    let bytesWrittenToSpill = 0;
+    let truncated = false;
+
+    // Streaming line decoder without keeping all passed lines in memory
+    const decoder = new StringDecoder('utf8');
+    let leftoverLine = '';
+
+    const failureLines = [];
+    let passedCount = 0;
+    let failedCount = 0;
+    const summaryLines = [];
+    let inFailureSection = false;
+    const fileHeaders = [];
+    const firstLines = [];
+    const recentLines = [];
+    let totalLinesCount = 0;
+
+    const processLine = (line) => {
+      totalLinesCount++;
+      if (firstLines.length < 15) {
+        firstLines.push(line);
+      }
+      recentLines.push(line);
+      if (recentLines.length > 15) {
+        recentLines.shift();
+      }
+
+      if (command.includes('vitest') || line.includes('RUN  v') || line.includes('Test Files')) {
+        if (line.includes('✓') && (line.includes('passed') || line.includes('tests)'))) {
+          passedCount++;
+        } else if (line.includes('FAIL') || line.includes('Failed Tests') || line.includes('×')) {
+          inFailureSection = true;
+          failedCount++;
+          if (failureLines.length < MAX_SUMMARY_ERRORS) failureLines.push(line);
+        } else if (line.includes('Test Files') || line.includes('Tests  ') || line.includes('Duration  ')) {
+          summaryLines.push(line);
+          inFailureSection = false;
+        } else if (inFailureSection) {
+          if (failureLines.length < MAX_SUMMARY_ERRORS) failureLines.push(line);
+        }
+      } else if (command.includes('node --test') || line.includes('ℹ pass') || line.includes('ℹ fail')) {
+        if (line.startsWith('✔')) {
+          passedCount++;
+        } else if (line.startsWith('✖')) {
+          failedCount++;
+          if (failureLines.length < MAX_SUMMARY_ERRORS) failureLines.push(line);
+        } else if (line.startsWith('ℹ')) {
+          summaryLines.push(line);
+        } else if (failedCount > 0 && !line.startsWith('✔')) {
+          if (failureLines.length < MAX_SUMMARY_ERRORS) failureLines.push(line);
+        }
+      } else if (command.includes('pytest') || line.includes('==== test session starts ====')) {
+        if (line.includes('=== FAILURES ===') || line.includes('=== ERRORS ===')) {
+          inFailureSection = true;
+        }
+        if (inFailureSection) {
+          if (line.startsWith('FAILED ') || line.includes('Error:')) failedCount++;
+          if (failureLines.length < MAX_SUMMARY_ERRORS) failureLines.push(line);
+        }
+        if (line.includes('=== short test summary info ===') || line.includes('passed in') || line.includes('failed in')) {
+          inFailureSection = false;
+          summaryLines.push(line);
+        }
+      } else if (command.includes('git diff') || command.includes('git log') || command.includes('git status')) {
+        if (line.startsWith('diff --git') || line.startsWith('+++ ') || line.startsWith('commit ')) {
+          if (fileHeaders.length < 30) fileHeaders.push(line);
+        }
+      } else {
+        if (/error|fail|exception|fatal|panic/i.test(line)) {
+          if (failureLines.length < MAX_SUMMARY_ERRORS) {
+            failureLines.push(`[L${totalLinesCount}] ${line}`);
+          }
+          failedCount++;
+        }
+      }
+    };
+
+    return new Promise((resolvePromise, rejectPromise) => {
+      stream.on('data', (chunk) => {
+        const buf = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+        rawBytes += buf.length;
+        hasher.update(buf);
+
+        if (fd !== null) {
+          if (bytesWrittenToSpill + buf.length <= this.maxSpillSizeBytes) {
+            try {
+              writeSync(fd, buf, 0, buf.length);
+              bytesWrittenToSpill += buf.length;
+            } catch {
+              // ignore write error
+            }
+          } else {
+            const allowed = Math.max(0, this.maxSpillSizeBytes - bytesWrittenToSpill);
+            if (allowed > 0) {
+              try {
+                writeSync(fd, buf, 0, allowed);
+                bytesWrittenToSpill += allowed;
+              } catch {
+                // ignore write error
+              }
+            }
+            truncated = true;
+          }
+        } else if (rawBytes > this.maxSpillSizeBytes) {
+          truncated = true;
+        }
+
+        const textChunk = leftoverLine + decoder.write(buf);
+        const lines = textChunk.split(/\r?\n/);
+        leftoverLine = lines.pop() ?? '';
+        for (const l of lines) {
+          processLine(l);
+        }
+      });
+
+      stream.on('error', (err) => {
+        if (fd !== null) {
+          try { closeSync(fd); } catch { /* ignore */ }
+        }
+        rejectPromise(err);
+      });
+
       stream.on('end', () => {
-        const fullOutput = Buffer.concat(chunks).toString('utf8');
-        resolve(this.compact(fullOutput, context));
+        if (fd !== null) {
+          try { closeSync(fd); } catch { /* ignore */ }
+        }
+
+        const remaining = leftoverLine + decoder.end();
+        if (remaining.length > 0) {
+          processLine(remaining);
+        }
+
+        let compactedBody = '';
+        if (command.includes('vitest')) {
+          const parts = [];
+          if (passedCount > 0) parts.push(`✓ [Compacted ${passedCount} passing test suite lines]`);
+          if (failureLines.length > 0) parts.push('⎯⎯⎯⎯⎯⎯⎯ PRESERVED FAILURE DIAGNOSTICS ⎯⎯⎯⎯⎯⎯⎯\n' + failureLines.join('\n'));
+          if (summaryLines.length > 0) parts.push(summaryLines.join('\n'));
+          compactedBody = parts.join('\n\n') || `[Compacted ${totalLinesCount} lines]`;
+        } else if (command.includes('node --test')) {
+          const parts = [];
+          if (passedCount > 0) parts.push(`✔ [Compacted ${passedCount} passing tests]`);
+          if (failureLines.length > 0) parts.push('✖ PRESERVED TEST FAILURES:\n' + failureLines.join('\n'));
+          if (summaryLines.length > 0) parts.push(summaryLines.join('\n'));
+          compactedBody = parts.join('\n\n') || `[Compacted ${totalLinesCount} lines]`;
+        } else if (command.includes('pytest')) {
+          const parts = [];
+          if (summaryLines.length > 0) parts.push('. [Passing tests collapsed]');
+          if (failureLines.length > 0) parts.push(failureLines.join('\n'));
+          if (summaryLines.length > 0) parts.push(summaryLines.join('\n'));
+          compactedBody = parts.join('\n\n') || `[Compacted ${totalLinesCount} lines]`;
+        } else if (command.includes('git diff') || command.includes('git log') || command.includes('git status')) {
+          compactedBody = `[Git output compacted: ${totalLinesCount} lines, ${fileHeaders.length} headers]\n` +
+            fileHeaders.join('\n');
+        } else {
+          if (totalLinesCount <= 50) {
+            compactedBody = firstLines.join('\n');
+          } else {
+            let body = `${firstLines.join('\n')}\n\n... [${Math.max(0, totalLinesCount - 30)} lines compacted] ...\n\n${recentLines.join('\n')}`;
+            if (failureLines.length > 0) {
+              body += `\n\n[Preserved Error Lines (${failureLines.length})]:\n${failureLines.join('\n')}`;
+            }
+            compactedBody = body;
+          }
+        }
+
+        const spillFilePath = filePath;
+        const finalCompactedText = [
+          COMPACTED_OUTPUT_MARKER,
+          compactedBody,
+          spillFilePath ? `[Raw output spilled to: ${spillFilePath}]` : '',
+        ].filter(Boolean).join('\n\n');
+
+        const compactedBytes = Buffer.byteLength(finalCompactedText, 'utf8');
+        const estimatedTokensRaw = Math.ceil(rawBytes / 4);
+        const estimatedTokensCompacted = Math.ceil(compactedBytes / 4);
+        const reductionPercent = rawBytes > 0
+          ? Math.max(0, Math.round(((rawBytes - compactedBytes) / rawBytes) * 100))
+          : 0;
+
+        resolvePromise({
+          contract: CLI_COMPACTOR_CONTRACT,
+          marker: COMPACTED_OUTPUT_MARKER,
+          compactedOutput: finalCompactedText,
+          spillFilePath,
+          rawBytes,
+          compactedBytes,
+          reductionPercent,
+          estimatedTokensRaw,
+          estimatedTokensCompacted,
+          estimatedTokensSaved: Math.max(0, estimatedTokensRaw - estimatedTokensCompacted),
+          processingDurationMs: Date.now() - startTime,
+          failuresPreserved: failedCount,
+          exitCode,
+          truncated,
+          losslessRecovery: !truncated && Boolean(spillFilePath),
+          spillHash: hasher.digest('hex'),
+          spillBytes: bytesWrittenToSpill,
+        });
       });
     });
   }

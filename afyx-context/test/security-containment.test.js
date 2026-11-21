@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { Readable } from 'node:stream';
 import test from 'node:test';
 import { DatabaseSync } from 'node:sqlite';
 
@@ -69,6 +70,8 @@ test('DbInspector: Strict read-only mode, schema extraction, and hash invariance
     INSERT INTO users VALUES (2, 'bob', 'bob@example.com', 'secret_hash_bob');
     CREATE TABLE orders (id INTEGER PRIMARY KEY, user_id INTEGER, amount REAL);
     INSERT INTO orders VALUES (101, 1, 99.50);
+    CREATE TABLE "weird""table" (id INTEGER PRIMARY KEY, "strange""col" TEXT);
+    INSERT INTO "weird""table" VALUES (1, 'custom_value');
     CREATE VIEW user_orders AS SELECT u.username, o.amount FROM users u JOIN orders o ON u.id = o.user_id;
   `);
   setupDb.close();
@@ -78,11 +81,12 @@ test('DbInspector: Strict read-only mode, schema extraction, and hash invariance
 
     // 1. Inspect valid database
     const result = inspector.inspectDataset('test.db', { sampleLimit: 5 });
-    assert.equal(result.status, 'INSPECTED');
+    assert.equal(result.status, 'SCHEMA_INSPECTED');
     assert.equal(result.format, 'sqlite');
     assert.equal(result.readOnly, true);
     assert.ok(result.tables.some((t) => t.name === 'users'));
     assert.ok(result.tables.some((t) => t.name === 'orders'));
+    assert.ok(result.tables.some((t) => t.name === 'weird"table'));
     assert.ok(result.views.some((v) => v.name === 'user_orders'));
     assert.equal(result.hashVerifiedUnchanged, true);
     assert.ok(result.databaseHash);
@@ -186,6 +190,119 @@ test('MassiveContextNavigator: Bounded streaming chunk index and slice extractio
     // Reject traversal in _readSlice
     const outsideSlice = navigator._readSlice(path.resolve(tempDir, '../outside.txt'), 0, 100);
     assert.equal(outsideSlice, '');
+
+  } finally {
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+test('CliCompactor: Fail-closed spill directory failure, multi-MB streaming compaction, and honest truncation', async () => {
+  // 1. Fail-closed spill directory failure
+  const unwritableDir = path.join(os.tmpdir(), 'nonexistent-dir-' + Date.now(), 'deep-sub');
+  const compactorFailClosed = new CliCompactor({
+    spillDir: unwritableDir,
+  });
+  const resFailClosed = compactorFailClosed.compact('Some standard output from tests');
+  assert.equal(resFailClosed.spillFilePath, null, 'Must fail-closed to null when private spill dir cannot be secured');
+  assert.equal(resFailClosed.losslessRecovery, false);
+
+  // 2. Truncated spill recovery flags
+  const compactorTruncated = new CliCompactor({
+    maxSpillSizeBytes: 200,
+  });
+  const longOutput = 'A'.repeat(500);
+  const resTruncated = compactorTruncated.compact(longOutput);
+  assert.equal(resTruncated.truncated, true, 'Output exceeding maxSpillSizeBytes must have truncated: true');
+  assert.equal(resTruncated.losslessRecovery, false, 'Truncated spill must report losslessRecovery: false');
+  assert.equal(resTruncated.spillBytes, 200);
+  if (resTruncated.spillFilePath) {
+    fs.rmSync(path.dirname(resTruncated.spillFilePath), { recursive: true, force: true });
+  }
+
+  // 3. True multi-MB streaming compaction via Readable stream without full buffering
+  const compactorStreaming = new CliCompactor({
+    maxSpillSizeBytes: 10 * 1024 * 1024,
+  });
+
+  async function* generateChunks() {
+    for (let i = 1; i <= 200; i++) {
+      if (i === 50) yield Buffer.from('FAIL test/worker.spec.js (Worker crashed unexpectedly)\n');
+      else if (i === 150) yield Buffer.from('Error: Redis pool exhausted on worker node 3\n');
+      else yield Buffer.from(`[INFO] Worker task batch #${i} completed successfully in 12ms\n`);
+    }
+  }
+
+  const stream = Readable.from(generateChunks());
+  const streamResult = await compactorStreaming.compactStream(stream, { command: 'vitest run' });
+
+  assert.ok(streamResult.rawBytes > 5000);
+  assert.ok(streamResult.spillFilePath);
+  assert.ok(fs.existsSync(streamResult.spillFilePath));
+  assert.equal(streamResult.truncated, false);
+  assert.equal(streamResult.losslessRecovery, true);
+  assert.ok(streamResult.spillHash);
+  assert.ok(streamResult.compactedOutput.includes('PRESERVED FAILURE DIAGNOSTICS'));
+  assert.ok(streamResult.compactedOutput.includes('Worker crashed unexpectedly'));
+
+  // Clean up
+  fs.rmSync(path.dirname(streamResult.spillFilePath), { recursive: true, force: true });
+});
+
+test('MassiveContextNavigator: Byte-accurate offsets, repeated lines with CRLF/LF, and multibyte UTF-8 boundary crossing', () => {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'afyx-byte-boundary-test-'));
+  const testFile = path.join(tempDir, 'boundary-test.txt');
+
+  // Build a test file where:
+  // 1. Repeated identical lines with mixed CRLF and LF exist
+  // 2. Padding is exactly 65534 bytes, followed by a 4-byte UTF-8 emoji (🚀 = 0xF0 0x9F 0x99 0x80)
+  // crossing the 64KB (65536 byte) streaming chunk boundary
+  const parts = [];
+  parts.push('Repeated line header\r\n');
+  parts.push('Repeated line header\r\n');
+  parts.push('Repeated line header\n');
+
+  let currentLen = parts.reduce((acc, p) => acc + Buffer.byteLength(p, 'utf8'), 0);
+  const targetOffset = 65534;
+  const paddingNeeded = targetOffset - currentLen;
+  assert.ok(paddingNeeded > 0);
+  parts.push('X'.repeat(paddingNeeded)); // reaches exactly byte 65534
+
+  // Now append 4-byte UTF-8 emoji crossing byte 65536
+  parts.push('🚀 Rocket launch across chunk boundary\r\n');
+  parts.push('Final trailing line after boundary\n');
+
+  const fullContent = parts.join('');
+  const fullBuffer = Buffer.from(fullContent, 'utf8');
+  assert.equal(fullBuffer[65534], 0xf0);
+  assert.equal(fullBuffer[65535], 0x9f);
+  assert.equal(fullBuffer[65536], 0x9a);
+  assert.equal(fullBuffer[65537], 0x80);
+
+  fs.writeFileSync(testFile, fullBuffer);
+
+  try {
+    const navigator = new MassiveContextNavigator(tempDir, {
+      chunkSizeBytes: 16 * 1024,
+    });
+
+    const index = navigator.indexWorkspace();
+    assert.equal(index.status, 'INDEXED');
+
+    // Verify each indexed segment's startByte and endByte read exact content
+    const fileEntry = navigator.index.get('boundary-test.txt');
+    assert.ok(fileEntry);
+    assert.ok(fileEntry.segments.length > 1);
+
+    for (const seg of fileEntry.segments) {
+      const slice = navigator._readSlice(testFile, seg.startByte, seg.endByte);
+      const expectedSlice = fullBuffer.subarray(seg.startByte, seg.endByte).toString('utf8');
+      assert.equal(slice, expectedSlice, `Slice ${seg.id} must match exact byte-for-byte slice`);
+    }
+
+    // Verify retrieveContext retrieves the emoji intact
+    const result = navigator.retrieveContext('Rocket launch');
+    assert.equal(result.status, 'RETRIEVED');
+    assert.ok(result.segments.some((s) => s.content.includes('🚀 Rocket launch')));
 
   } finally {
     fs.rmSync(tempDir, { recursive: true, force: true });

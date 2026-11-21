@@ -726,7 +726,8 @@ function getBuiltinLazyAdapter(componentId, capability) {
         const inspector = new DbInspector(workspace);
         const relPath = req.payload?.path || req.payload?.file || (typeof req.payload === 'string' ? req.payload : 'data.sqlite');
         const out = inspector.inspectDataset(relPath, req.payload?.options || {});
-        return { status: out.status === 'INSPECTED' ? 'SUCCESS' : 'FAILED', output: out, evidence: [out] };
+        const isSuccess = out && (out.status === 'SCHEMA_INSPECTED' || out.status === 'INSPECTED' || out.status === 'HEADER_ONLY_FALLBACK');
+        return { status: isSuccess ? 'SUCCESS' : 'FAILED', output: out, evidence: [out] };
       }
       if (cap === 'afyx-cli-compactor' || req.taskType === 'cli-compaction') {
         const { CliCompactor } = await import('../afyx-context/src/cli-compactor.js');

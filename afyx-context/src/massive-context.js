@@ -306,9 +306,8 @@ export class MassiveContextNavigator {
       const bufferSize = 64 * 1024; // 64KB bounded streaming chunk
       const buffer = Buffer.alloc(bufferSize);
 
-      let bytesRead = 0;
-      let fileOffset = 0;
-      let leftover = '';
+      let fileReadOffset = 0;
+      let carriedBuffer = Buffer.alloc(0);
       let currentLineNumber = 1;
 
       let sliceStartByte = 0;
@@ -316,27 +315,39 @@ export class MassiveContextNavigator {
       let sliceLines = [];
       let currentHeading = '';
 
-      while (fileOffset < totalBytes) {
-        const readLength = Math.min(bufferSize, totalBytes - fileOffset);
-        bytesRead = readSync(fd, buffer, 0, readLength, fileOffset);
+      // Cumulative byte offset of the current line start in the file
+      let currentLineStartByte = 0;
+
+      while (fileReadOffset < totalBytes) {
+        const readLength = Math.min(bufferSize, totalBytes - fileReadOffset);
+        const bytesRead = readSync(fd, buffer, 0, readLength, fileReadOffset);
         if (bytesRead === 0) break;
 
-        const chunkText = leftover + buffer.toString('utf8', 0, bytesRead);
-        const lines = chunkText.split(/\r?\n/);
-        // The last line may be incomplete across the chunk boundary
-        leftover = lines.pop() ?? '';
+        const currentChunk = carriedBuffer.length > 0
+          ? Buffer.concat([carriedBuffer, buffer.subarray(0, bytesRead)])
+          : buffer.subarray(0, bytesRead);
 
-        for (let i = 0; i < lines.length; i++) {
-          const line = lines[i];
-          const lineByteLen = Buffer.byteLength(line, 'utf8') + 1;
+        let lineStart = 0;
+        let nlPos = -1;
+
+        while ((nlPos = currentChunk.indexOf(0x0a, lineStart)) !== -1) {
+          // Check for CRLF (\r\n) vs LF (\n)
+          const isCrLf = nlPos > lineStart && currentChunk[nlPos - 1] === 0x0d;
+          const lineBytes = isCrLf
+            ? currentChunk.subarray(lineStart, nlPos - 1)
+            : currentChunk.subarray(lineStart, nlPos);
+          const nlLen = isCrLf ? 2 : 1;
+
+          const line = lineBytes.toString('utf8');
+          const fullLineByteLength = lineBytes.length + nlLen;
+          const currentLineEndByte = currentLineStartByte + fullLineByteLength;
 
           if (line.startsWith('#') || line.startsWith('//') || line.startsWith('/*')) {
             currentHeading = line.replace(/^[#\s\/*]+/, '').trim();
           }
 
           sliceLines.push(line);
-          const currentByteOffset = fileOffset + (chunkText.indexOf(line) + lineByteLen);
-          const currentSliceBytes = currentByteOffset - sliceStartByte;
+          const currentSliceBytes = currentLineEndByte - sliceStartByte;
 
           if (currentSliceBytes >= this.chunkSizeBytes) {
             const sliceText = sliceLines.join('\n');
@@ -351,26 +362,36 @@ export class MassiveContextNavigator {
               startLine: sliceStartLine,
               endLine,
               startByte: sliceStartByte,
-              endByte: currentByteOffset,
+              endByte: currentLineEndByte,
               heading: currentHeading || basename(relPath),
               preview: sliceText.slice(0, 300),
               keywords,
               sha256: sliceHash,
             });
 
-            sliceStartByte = currentByteOffset;
+            sliceStartByte = currentLineEndByte;
             sliceStartLine = endLine + 1;
             sliceLines = [];
           }
+
           currentLineNumber++;
+          currentLineStartByte = currentLineEndByte;
+          lineStart = nlPos + 1;
         }
 
-        fileOffset += bytesRead;
+        // Remaining unparsed bytes in currentChunk after the last \n
+        carriedBuffer = currentChunk.subarray(lineStart);
+        fileReadOffset += bytesRead;
       }
 
-      // Handle any remaining lines in buffer or leftover
-      if (leftover.length > 0 || sliceLines.length > 0) {
-        if (leftover.length > 0) sliceLines.push(leftover);
+      // Handle any trailing bytes without newline at EOF
+      if (carriedBuffer.length > 0) {
+        const line = carriedBuffer.toString('utf8');
+        sliceLines.push(line);
+        currentLineStartByte += carriedBuffer.length;
+      }
+
+      if (sliceLines.length > 0) {
         const sliceText = sliceLines.join('\n');
         const sliceHash = sha256(sliceText);
 

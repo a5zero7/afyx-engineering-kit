@@ -13,8 +13,8 @@
     {
       "path": "afyx-context/src/cli-compactor.js",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "92823bc59201b6af3a9d92bb51cd026f94ec412633d3dd326dcdb8e0c2d6119e",
-      "evidence": "Pure Node.js terminal output compactor with secure private spill directories, 0o600 permissions, failure preservation and spill recovery (AFYX-329)."
+      "reviewedSha256": "44aa3690c38218c0b04ed9d3babb04d29616d69da95b82ea0943ccda1fde9779",
+      "evidence": "Pure Node.js terminal output compactor with fail-closed secure private spill directories, true chunk streaming to disk, honest truncation flags, and spill recovery (AFYX-329)."
     },
     {
       "path": "afyx-context/src/cli.js",
@@ -37,8 +37,8 @@
     {
       "path": "afyx-context/src/db-inspector.js",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "57f3ff2659e4944581d50a228f0e00df38fef53f31ca2ba5c49847049a27f072",
-      "evidence": "Strictly read-only data and schema inspector for CSV, JSON, NDJSON, SQLite, and external catalogs with path containment and SHA-256 invariance (AFYX-329)."
+      "reviewedSha256": "992434d74ceaa14c385757302a13c442c961b837e7ae669a6aed40bf58ad39ba",
+      "evidence": "Strictly read-only data and schema inspector for CSV, JSON, NDJSON, SQLite, and external catalogs with identifier escaping, SCHEMA_INSPECTED status separation, path containment, and SHA-256 invariance (AFYX-329)."
     },
     {
       "path": "afyx-context/src/docs-resolver.js",
@@ -109,8 +109,8 @@
     {
       "path": "afyx-context/src/massive-context.js",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "96d564390c93126945520e0189ea3000d1f0ed209c4536b40daf3a4746571ee8",
-      "evidence": "Out-of-core massive context navigator with coarse metadata indexing, path containment, and 64KB streaming chunk indexing (AFYX-329)."
+      "reviewedSha256": "6f84e7d23c1b9ceaceef5bf25451387fc2801ee58f6b2305365d1099caf5c25a",
+      "evidence": "Out-of-core massive context navigator with byte-accurate line offset tracking across CRLF/LF and multibyte UTF-8 boundaries, coarse metadata indexing, and path containment (AFYX-329)."
     },
     {
       "path": "afyx-context/src/memory.js",
@@ -2631,8 +2631,8 @@
     {
       "path": "scripts/afyx-capability-orchestrator.mjs",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "7c7acaeb52ea7b12506e31a62354e39b5735ce28af58baccf863cfc7cce5a107",
-      "evidence": "Universal capability orchestrator supporting all 8 modular tools with lazy activation and strict single primary domain budget (AFYX-329)."
+      "reviewedSha256": "ece1d3ad7711ee1efa5e57e4874267a00e4cc064d14bacd00d3a98af3525f03e",
+      "evidence": "Universal capability orchestrator supporting all 8 modular tools with lazy activation, SCHEMA_INSPECTED / HEADER_ONLY_FALLBACK interop, and strict single primary domain budget (AFYX-329)."
     },
     {
       "path": "scripts/afyx-claude-integration.mjs",

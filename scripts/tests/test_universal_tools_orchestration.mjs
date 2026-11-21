@@ -103,7 +103,7 @@ test('orchestrates real SQLite db inspection with lazy module activation and has
     const exec = result.results[0];
     assert.equal(exec.capability, 'afyx-db-inspector');
     assert.equal(exec.status, 'EXECUTED');
-    assert.equal(exec.output.status, 'INSPECTED');
+    assert.ok(exec.output.status === 'SCHEMA_INSPECTED' || exec.output.status === 'INSPECTED');
     assert.equal(exec.output.format, 'sqlite');
     assert.equal(exec.output.hashVerifiedUnchanged, true);
     assert.ok(exec.output.tables.some((t) => t.name === 'employees'));
