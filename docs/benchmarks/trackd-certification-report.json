@@ -1,0 +1,128 @@
+{
+  "contract": "AfyxTrackDCertification/v1",
+  "executionId": "POSTV1-CI-AND-TRACKD-CERTIFICATION",
+  "baselineRevision": "0900dac967b993df4e7531a34c307e6772c76abb",
+  "optimizedRevision": null,
+  "fixtureSha256": "ceede7fb16fdb7535fb9ce0dc651eeca4a2fe4fdf7cd25e14fe6567b889b58ec",
+  "environment": {
+    "node": "v26.12.1",
+    "os": "Windows_NT",
+    "release": "10.0.26300",
+    "arch": "x64",
+    "cpu": "AMD Ryzen 5 8645HS w/ Radeon 760M Graphics",
+    "logicalCpus": 12,
+    "memoryBytes": 33615630336
+  },
+  "methodology": {
+    "seed": 23,
+    "files": 216,
+    "languages": [
+      "TypeScript",
+      "Python",
+      "Go",
+      "SQL",
+      "YAML",
+      "JSON"
+    ],
+    "warmups": 1,
+    "iterationsPerWorkload": 15,
+    "command": "node scripts/benchmark-trackd.mjs --certification-baseline --files 216 --rounds 15 --seed 23",
+    "coldDefinition": "Indeks baru per sampel; cache OS dipertahankan",
+    "rss": "process.resourceUsage().maxRSS pada proses CLI Graph",
+    "heap": "heapUsed pada saat proses CLI keluar",
+    "mcpOnlyCommand": "node scripts/benchmark-trackd.mjs --certification-baseline --mcp-only --files 216 --rounds 15 --seed 23"
+  },
+  "metrics": {
+    "before": {
+      "coldIndex": {
+        "count": 15,
+        "p50Ms": 2445.107500000002,
+        "p95Ms": 3089.8073000000004,
+        "iqrMs": 761.3079000000034,
+        "maxChildPeakRssKiB": 266532,
+        "maxChildHeapUsedAtExitBytes": 22260224
+      },
+      "noopSync": {
+        "count": 15,
+        "p50Ms": 1223.3953000000038,
+        "p95Ms": 1668.0694000000003,
+        "iqrMs": 166.22359999999753,
+        "maxChildPeakRssKiB": 107384,
+        "maxChildHeapUsedAtExitBytes": 18782384
+      },
+      "query": {
+        "count": 15,
+        "p50Ms": 714.5483000000095,
+        "p95Ms": 1034.1563000000024,
+        "iqrMs": 95.13499999999476,
+        "maxChildPeakRssKiB": 93156,
+        "maxChildHeapUsedAtExitBytes": 17578288
+      },
+      "mcpConcurrency": {
+        "surface": "MCP stdio langsung, daemon OFF",
+        "startupMs": 307.6143000000002,
+        "concurrentRequests": 8,
+        "waves": 15,
+        "responses": 120,
+        "p50Ms": 2.676300000000083,
+        "p95Ms": 3.8849999999997635,
+        "iqrMs": 0.6531999999997424,
+        "responsesPerSecond": 2762.176595156928,
+        "sqliteBytes": {
+          "db": 385024,
+          "wal": 0,
+          "shm": 32768
+        },
+        "repeatabilityDigest": "7e2dc5b084566d87ea2a61cc4763ea268b5445146f09169ab8146dfe430700bd"
+      },
+      "sqliteWal": {
+        "db": 385024,
+        "wal": 0,
+        "shm": 32768
+      },
+      "runtimeBundleBytes": 3019976,
+      "runtimeBundleSha256": "04e1b064dc407dc0c0eb0053829883864ab13d517b86eac3077f85f7e57119e5"
+    },
+    "after": null,
+    "delta": null
+  },
+  "semanticQuality": {
+    "precision": null,
+    "recall": null,
+    "outputDigest": null,
+    "status": "NOT_MEASURED"
+  },
+  "security": {
+    "concurrencyAndWalTestsPassed": 18,
+    "gate": "PARTIAL",
+    "notes": "Regresi terfokus locking dan WAL. Pembatalan request dan isolasi transport belum disertifikasi."
+  },
+  "ci": {
+    "baseline": {
+      "ci": 44920599955,
+      "windowsInstaller": 44920599902,
+      "installerUx": 44920599854,
+      "graphBuild": 44920599871
+    },
+    "final": null,
+    "local": {
+      "powershellBindings": "2/2",
+      "windowsExeSmoke": "5/5 pada kandidat lokal sebelum perubahan terakhir",
+      "wslBashMinimal": "PASS",
+      "rootNpm": "35/35",
+      "focusedNode": "40/40",
+      "workspaceHygiene": "PASS",
+      "nativeSourceOwnership": "502/502",
+      "graphBuild": "PASS",
+      "remote": "BLOCKED"
+    }
+  },
+  "limitations": [
+    "Latency CLI dan MCP stdio diukur melalui kampanye terpisah. Verifikasi kesamaan digest hasil MCP menguji repeatability, bukan ground truth C8.",
+    "Daemon, antrean internal, kontensi writer nyata, cancellation dan peak heap belum diukur.",
+    "Korpus dasar belum mencakup rename, deletion atau mutation workload.",
+    "Tidak tersedia optimisasi tervalidasi atau pengukuran AFTER.",
+    "Ukuran SQLite berasal dari satu snapshot aktif setelah wave MCP. Ukuran bundle berlaku untuk ZIP win32-x64 yang dipakai smoke EXE."
+  ],
+  "candidateRevision": "321a3670eb81e7dc5e298d0e29f79533e8d17dd0"
+}
