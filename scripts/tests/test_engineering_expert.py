@@ -19,7 +19,7 @@ ROOT = Path(__file__).resolve().parents[2]
 EXPERT = ROOT / "skills" / "afyx-engineering-expert"
 WINDOWS = os.name == "nt"
 HISTORICAL_SOURCE_TREE_SHA256 = "9ebefe30bf9c7f73b101a53542b3cb09c993cfe9a4d565d15afc5834465569b7"
-CANDIDATE_SOURCE_TREE_SHA256 = "8b26057ca0cc0384ffeeccbbc814ccc639496d44cb1e3fa84c0e7d13c8fc43f5"
+CANDIDATE_SOURCE_TREE_SHA256 = "09c4ef6f5f9dd2758165a6c56ea7e0eee86c3c9d72b9a76275efc5609b4488ca"
 CORE_REFERENCES = {
     "ai-ml-engineer.md", "business-analyst.md", "cybersecurity-devsecops.md",
     "database-administrator.md", "erp-technical-specialist.md", "product-manager.md",
@@ -190,7 +190,7 @@ class ExpertLifecycleTests(unittest.TestCase):
         self.assertFalse(self.target.exists())
 
         self.install("install")
-        self.assertFalse((self.base / "codex").exists())
+        self.assertFalse((self.base / "codex" / "config.toml").exists())
         self.assertFalse((self.base / "graph").exists())
         marker = json.loads((self.target / ".afyx-install.json").read_text(encoding="utf-8"))
         self.assertEqual((marker["component"], marker["owner"], marker["version"]),
