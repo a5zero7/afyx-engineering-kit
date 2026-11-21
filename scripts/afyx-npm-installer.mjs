@@ -19,6 +19,11 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 export const PACKAGE_ROOT = resolve(__dirname, '..');
 const componentIds = new Set(JSON.parse(readFileSync(join(__dirname, 'components.json'), 'utf8')).components.map((entry) => entry.id));
+const legacyAliases = new Map([
+  ['efficient-coding', 'afyx-efficient-coding'],
+  ['odoo-engineering', 'afyx-odoo-engineering'],
+  ['codex-usage-tracking', 'afyx-usage-intelligence'],
+]);
 
 function checkedComponents(values, actions = false) {
   if (!Array.isArray(values)) throw new Error('Component selections must be an array.');
@@ -26,7 +31,7 @@ function checkedComponents(values, actions = false) {
     const match = typeof value === 'string' && (actions
       ? /^([a-z][a-z0-9-]*)=(skip|install|update|repair|adopt)$/.exec(value)
       : /^([a-z][a-z0-9-]*)$/.exec(value));
-    if (!match || !componentIds.has(match[1])) throw new Error(`Unknown or malformed component selection: ${String(value)}`);
+    if (!match || (!componentIds.has(match[1]) && !legacyAliases.has(match[1]))) throw new Error(`Unknown or malformed component selection: ${String(value)}`);
   }
   return values;
 }

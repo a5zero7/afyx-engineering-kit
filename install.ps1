@@ -62,8 +62,8 @@ if ($Provider.Count) {
 $bundledEfficientCoding = if (Test-Path (Join-Path $packageRoot 'skills\afyx-efficient-coding')) { Join-Path $packageRoot 'skills\afyx-efficient-coding' } else { Join-Path $packageRoot 'skills\efficient-coding' }
 $bundledOdooEngineering = if (Test-Path (Join-Path $packageRoot 'skills\afyx-odoo-engineering')) { Join-Path $packageRoot 'skills\afyx-odoo-engineering' } else { Join-Path $packageRoot 'skills\odoo-engineering' }
 $bundledEngineeringExpert = Join-Path $packageRoot 'skills\afyx-engineering-expert'
-$efficientTarget = Join-Path $SkillsRoot 'efficient-coding'
-$odooTarget = Join-Path $SkillsRoot 'odoo-engineering'
+$efficientTarget = Join-Path $SkillsRoot 'afyx-efficient-coding'
+$odooTarget = Join-Path $SkillsRoot 'afyx-odoo-engineering'
 $expertTarget = Join-Path $SkillsRoot 'afyx-engineering-expert'
 $usageTrackerInstaller = Join-Path $packageRoot 'scripts\install-codex-usage-tracker.ps1'
 $graphInstaller = Join-Path $packageRoot 'scripts\install-afyx-graph.ps1'
@@ -155,7 +155,7 @@ if ($wizardMode) {
     Enable-AfyxDashboard -Terminal $terminal -Providers $providerSnapshot
 }
 if (-not (Test-AfyxDashboard -Terminal $terminal)) {
-    Show-AfyxBanner -Terminal $terminal -Subtitle 'Interactive Installer v0.1.0-alpha.9 | Midnight Circuit'
+    Show-AfyxBanner -Terminal $terminal -Subtitle 'Interactive Installer v0.1.0-alpha.10 | Midnight Circuit'
 }
 
 try {
@@ -255,10 +255,16 @@ $Provider = @($providerIds | Where-Object { $_ -in $Provider })
 $providerSkillRoots = @()
 if ('codex' -in $Provider) {
     $providerSkillRoots += $(if ($PSBoundParameters.ContainsKey('SkillsRoot')) { $SkillsRoot } else { Join-Path $env:USERPROFILE '.agents\skills' })
+    $codexHomeSkills = Join-Path $codexHome 'skills'
+    if (Test-Path -LiteralPath $codexHomeSkills) { $providerSkillRoots += $codexHomeSkills }
 }
 if ('antigravity' -in $Provider) {
     if ($ProviderScope -eq 'workspace') { $providerSkillRoots += (Join-Path $WorkspaceRoot '.agents\skills') }
-    else { $providerSkillRoots += @((Join-Path $GeminiHome 'config\skills'), (Join-Path $GeminiHome 'antigravity-cli\skills')) }
+    else {
+        $providerSkillRoots += @((Join-Path $GeminiHome 'config\skills'), (Join-Path $GeminiHome 'antigravity-cli\skills'))
+        $antigravityIdeSkills = Join-Path $GeminiHome 'antigravity\skills'
+        if (Test-Path -LiteralPath $antigravityIdeSkills) { $providerSkillRoots += $antigravityIdeSkills }
+    }
 }
 if ('claude' -in $Provider) {
     $providerSkillRoots += $(if ($ProviderScope -eq 'workspace') { Join-Path $WorkspaceRoot '.claude\skills' } else { Join-Path $ClaudeHome 'skills' })
@@ -268,8 +274,8 @@ $primarySkillsPath = [System.IO.Path]::GetFullPath($SkillsRoot)
 $additionalSkillRoots = @($providerSkillRoots |
     Where-Object { [System.IO.Path]::GetFullPath($_) -ne $primarySkillsPath } |
     Select-Object -Unique)
-$efficientTarget = Join-Path $SkillsRoot 'efficient-coding'
-$odooTarget = Join-Path $SkillsRoot 'odoo-engineering'
+$efficientTarget = Join-Path $SkillsRoot 'afyx-efficient-coding'
+$odooTarget = Join-Path $SkillsRoot 'afyx-odoo-engineering'
 $expertTarget = Join-Path $SkillsRoot 'afyx-engineering-expert'
 $componentContext = New-AfyxComponentContext -SkillsRoot $SkillsRoot -GraphRoot $graphRuntimeRoot -ContextRoot $ContextRuntimeRoot -ForgeRoot $ForgeRuntimeRoot -CodexHome $codexHome
 $componentStates = @{}
@@ -407,12 +413,12 @@ function Get-ComponentAction([string]$Id, [string]$Label) {
 }
 
 function Resolve-ComponentAction([string]$Id, [string]$Label) {
-    if ($Id -eq 'codex-usage-tracking') {
+    if ($Id -eq 'codex-usage-tracking' -or $Id -eq 'afyx-usage-intelligence') {
         if ('codex' -notin $Provider) { return 'skip' }
         if ($InstallUsageTracker) {
-            $state = $componentStates[$Id]
-            if ($state.State -eq 'NOT INSTALLED') { return 'install' }
-            if ($state.State -in @('INCOMPLETE', 'INVALID', 'DRIFTED')) { return 'repair' }
+            $state = if ($componentStates.ContainsKey($Id)) { $componentStates[$Id] } elseif ($componentStates.ContainsKey('afyx-usage-intelligence')) { $componentStates['afyx-usage-intelligence'] } else { $componentStates['codex-usage-tracking'] }
+            if ($state -and $state.State -eq 'NOT INSTALLED') { return 'install' }
+            if ($state -and $state.State -in @('INCOMPLETE', 'INVALID', 'DRIFTED')) { return 'repair' }
             return 'update'
         }
         if ($SkipUsageTracker) { return 'skip' }
@@ -489,19 +495,22 @@ if (-not (Test-Path -LiteralPath $graphMetadataPath -PathType Leaf)) { throw 'Bu
 if (-not (Test-Path -LiteralPath $contextMetadataPath -PathType Leaf)) { throw 'Bundled Afyx Context metadata is missing.' }
 
 $componentLabels = [ordered]@{
-    'efficient-coding' = 'Afyx Efficient Coding'
-    'odoo-engineering' = 'Afyx Odoo Engineering'
+    'afyx-efficient-coding' = 'Afyx Efficient Coding'
+    'afyx-odoo-engineering' = 'Afyx Odoo Engineering'
     'afyx-engineering-expert' = 'Afyx Engineering Expert'
     'afyx-graph' = 'Afyx Graph'
     'afyx-context' = 'Afyx Context Engine'
     'afyx-forge' = 'Afyx Forge Core'
-    'codex-usage-tracking' = 'Afyx Usage Intelligence'
+    'afyx-usage-intelligence' = 'Afyx Usage Intelligence'
 }
 $actionDecisions = [ordered]@{}
 if ($controlPlan) {
     foreach ($decision in $componentLabels.GetEnumerator()) {
         $actionDecisions[$decision.Key] = Resolve-ComponentAction ([string]$decision.Key) ([string]$decision.Value)
     }
+    $actionDecisions['efficient-coding'] = $actionDecisions['afyx-efficient-coding']
+    $actionDecisions['odoo-engineering'] = $actionDecisions['afyx-odoo-engineering']
+    $actionDecisions['codex-usage-tracking'] = $actionDecisions['afyx-usage-intelligence']
 }
 
 if ($PlanJson -or $ExpectedPlan) {
@@ -515,7 +524,7 @@ if ($PlanJson -or $ExpectedPlan) {
             currentState = [string]$state.State
             # Match Resolve-ComponentAction: the Codex-only toolset is not a
             # desired install when no Codex provider was selected or it is OFF.
-            desired = [bool]$item.Desired -and ($id -ne 'codex-usage-tracking' -or ('codex' -in $Provider -and -not $SkipUsageTracker))
+            desired = [bool]$item.Desired -and ($id -notin @('codex-usage-tracking', 'afyx-usage-intelligence') -or ('codex' -in $Provider -and -not $SkipUsageTracker))
             backendAction = [string]$actionDecisions[$id]; target = [string]$state.Path
             ownership = [string]$item.ActualOwnership; version = [string]$state.Version
             availableVersion = Get-AvailableVersion $id
@@ -537,7 +546,7 @@ if ($PlanJson -or $ExpectedPlan) {
     $planInput.additionalTargets = @()
     foreach ($root in @($SkillsRoot) + @($additionalSkillRoots)) {
         foreach ($item in @($controlPlan.Components | Where-Object { $_.Desired })) {
-            if ($item.Id -in @('efficient-coding', 'odoo-engineering', 'afyx-engineering-expert') -or
+            if ($item.Id -in @('afyx-efficient-coding', 'afyx-odoo-engineering', 'afyx-engineering-expert', 'efficient-coding', 'odoo-engineering') -or
                 (-not $SkipProviderConfiguration -and $item.Id -in @('afyx-context', 'afyx-forge'))) {
                 $planInput.additionalTargets += [ordered]@{ id = $item.Id; type = 'skill'; target = (Join-Path $root $item.Id) }
             }
@@ -702,6 +711,7 @@ function Get-AfyxWorkflowProviderArguments([string]$Entry, [string[]]$TargetProv
         '--workspace-root', $WorkspaceRoot, '--gemini-home', $GeminiHome, '--codex-home', $codexHome,
         '--node', $nodeCommand.Source, '--entry', $Entry, '--server', 'afyx_workflow', '--mode', 'workflow',
         '--tool', 'afyx_workflow', '--install-root', $AfyxInstallRoot, '--authorize', 'afyx-graph,afyx-context')
+    if ($codexCommandDetected) { $arguments += @('--codex', $codexCommandDetected.Source) }
     if ($claudeCommandDetected) { $arguments += @('--claude', $claudeCommandDetected.Source) }
     elseif ($claudeVsCodeDetected) { $arguments += @('--claude-extension') }
     if ($ClaudeConfigDir) { $arguments += @('--claude-config-dir', $ClaudeConfigDir) }
@@ -728,17 +738,17 @@ if (-not $ValidateOnly -and $providerMcpRequested -and $nodeCommand -and ('codex
 if ($ValidateOnly) {
     [pscustomobject]@{
         BundledEfficientCoding = Test-SkillManifest $bundledEfficientCoding
-        InstalledEfficientCoding = $states['Efficient Coding'] -eq 'HEALTHY'
-        EfficientCodingState = $states['Efficient Coding']
-        EfficientCodingVersion = $componentStates['efficient-coding'].Version
+        InstalledEfficientCoding = ($states['Afyx Efficient Coding'] -eq 'HEALTHY' -or $states['Efficient Coding'] -eq 'HEALTHY')
+        EfficientCodingState = $(if ($states['Afyx Efficient Coding']) { $states['Afyx Efficient Coding'] } else { $states['Efficient Coding'] })
+        EfficientCodingVersion = $(if ($componentStates.ContainsKey('afyx-efficient-coding')) { $componentStates['afyx-efficient-coding'].Version } elseif ($componentStates.ContainsKey('efficient-coding')) { $componentStates['efficient-coding'].Version } else { '' })
         BundledOdooEngineering = Test-SkillManifest $bundledOdooEngineering
-        InstalledOdooEngineering = $states['Odoo Engineering'] -eq 'HEALTHY'
-        OdooEngineeringState = $states['Odoo Engineering']
-        OdooEngineeringVersion = $componentStates['odoo-engineering'].Version
+        InstalledOdooEngineering = ($states['Afyx Odoo Engineering'] -eq 'HEALTHY' -or $states['Odoo Engineering'] -eq 'HEALTHY')
+        OdooEngineeringState = $(if ($states['Afyx Odoo Engineering']) { $states['Afyx Odoo Engineering'] } else { $states['Odoo Engineering'] })
+        OdooEngineeringVersion = $(if ($componentStates.ContainsKey('afyx-odoo-engineering')) { $componentStates['afyx-odoo-engineering'].Version } elseif ($componentStates.ContainsKey('odoo-engineering')) { $componentStates['odoo-engineering'].Version } else { '' })
         BundledAfyxEngineeringExpert = Test-SkillManifest $bundledEngineeringExpert
         InstalledAfyxEngineeringExpert = $states['Afyx Engineering Expert'] -eq 'HEALTHY'
         AfyxEngineeringExpertState = $states['Afyx Engineering Expert']
-        AfyxEngineeringExpertVersion = $componentStates['afyx-engineering-expert'].Version
+        AfyxEngineeringExpertVersion = $(if ($componentStates.ContainsKey('afyx-engineering-expert')) { $componentStates['afyx-engineering-expert'].Version } else { '' })
         BundledAfyxGraphSource = Test-Path -LiteralPath (Join-Path $packageRoot 'afyx-graph\engine\package.json')
         InstalledAfyxGraph = $states['Afyx Graph'] -eq 'HEALTHY'
         AfyxGraphState = $states['Afyx Graph']
@@ -754,8 +764,8 @@ if ($ValidateOnly) {
         AfyxForgeState = $states['Afyx Forge Core']
         AfyxForgeVersion = (Get-Content -Raw -LiteralPath $forgeMetadataPath | ConvertFrom-Json).product_version
         AfyxForgeRuntimeRoot = $ForgeRuntimeRoot
-        InstalledUsageTracker = $states['Usage Tracking'] -eq 'HEALTHY'
-        UsageTrackerState = $states['Usage Tracking']
+        InstalledUsageTracker = ($states['Afyx Usage Intelligence'] -eq 'HEALTHY' -or $states['Usage Tracking'] -eq 'HEALTHY')
+        UsageTrackerState = $(if ($states['Afyx Usage Intelligence']) { $states['Afyx Usage Intelligence'] } else { $states['Usage Tracking'] })
         CodexCliDetected = $codexCliDetected
         VsCodeExtensionDetected = $vscodeExtensionDetected
         ControlPlanIdentity = if ($controlPlan) { $controlPlan.Identity } else { 'LEGACY_INTERACTIVE' }
@@ -942,8 +952,8 @@ $summary = [ordered]@{}
 $changesApplied = $false
 $skillActions = @{}
 $skillDefinitions = @(
-    @{ Id = 'efficient-coding'; Name = 'Efficient Coding'; Source = $bundledEfficientCoding; Target = $efficientTarget },
-    @{ Id = 'odoo-engineering'; Name = 'Odoo Engineering'; Source = $bundledOdooEngineering; Target = $odooTarget },
+    @{ Id = 'afyx-efficient-coding'; Name = 'Afyx Efficient Coding'; Source = $bundledEfficientCoding; Target = $efficientTarget },
+    @{ Id = 'afyx-odoo-engineering'; Name = 'Afyx Odoo Engineering'; Source = $bundledOdooEngineering; Target = $odooTarget },
     @{ Id = 'afyx-engineering-expert'; Name = 'Afyx Engineering Expert'; Source = $bundledEngineeringExpert; Target = $expertTarget }
 )
 # Prevalidate selected runtime companions before skill, runtime, or MCP mutation.
@@ -967,6 +977,9 @@ if (-not $SkipProviderConfiguration -and $Provider.Count) {
             }
         }
     }
+}
+if (-not $WhatIfPreference) {
+    Migrate-AfyxLegacySkills -TargetRoots (@($SkillsRoot) + @($additionalSkillRoots) + @($providerSkillRoots)) -BundledEfficientCoding $bundledEfficientCoding -BundledOdooEngineering $bundledOdooEngineering
 }
 foreach ($component in $skillDefinitions) {
     $skillActions[$component.Id] = if ($controlPlan) { [string]$actionDecisions[$component.Id] } else { Resolve-ComponentAction $component.Id $component.Name }
@@ -1059,7 +1072,11 @@ if ($shouldInstallHostBridge) {
         $summary['Afyx Universal Host Bridge'] = if ($bridgeResult.changed) { 'installed' } else { 'skipped' }
         if ($bridgeResult.changed) { $changesApplied = $true }
     }
-    $workflowProviders = @($Provider | Where-Object { $_ -eq 'antigravity' -or ($_ -eq 'claude' -and $ProviderScope -eq 'workspace') })
+    $workflowProviders = @($Provider | Where-Object {
+        ($_ -eq 'antigravity') -or
+        ($_ -eq 'claude') -or
+        ($_ -eq 'codex' -and $ProviderScope -eq 'global')
+    })
     if ($workflowProviders.Count -and (Test-Path -LiteralPath $hostBridgeInstalledEntry -PathType Leaf)) {
         $wfArguments = Get-AfyxWorkflowProviderArguments $hostBridgeInstalledEntry $workflowProviders
         if (-not $WhatIfPreference) { $wfArguments += '--apply' }
@@ -1148,7 +1165,10 @@ if ($forgeCompanionDesired -and $forgeReadyForCompanion -and $Provider.Count) {
     }
 }
 
-$usageAction = if ($controlPlan) { [string]$actionDecisions['codex-usage-tracking'] } else { Resolve-ComponentAction 'codex-usage-tracking' 'Usage Tracking' }
+$usageAction = if ($controlPlan) {
+    if ($actionDecisions.Contains('afyx-usage-intelligence')) { [string]$actionDecisions['afyx-usage-intelligence'] } else { [string]$actionDecisions['codex-usage-tracking'] }
+} else { Resolve-ComponentAction 'afyx-usage-intelligence' 'Usage Tracking' }
+if (-not $usageAction) { $usageAction = 'skip' }
 if ($usageAction -eq 'skip') { $summary['Usage Tracking'] = 'skipped'; Write-Host 'Usage Tracking: skipped' }
 else {
     Write-AfyxStatus -Status INFO -Name 'Usage Tracking' -Detail "$usageAction in progress" -Terminal $terminal
@@ -1180,7 +1200,7 @@ foreach ($entry in $summary.GetEnumerator()) {
         Detail = "outcome=$($entry.Value)"
     }
 }
-# Expose 8 Universal Native Capability Summaries (v0.1.0-alpha.9)
+# Expose 8 Universal Native Capability Summaries (v0.1.0-alpha.10)
 if ($states['Afyx Context Engine'] -eq 'HEALTHY' -or ($contextAction -and $contextAction -ne 'skip')) {
     $receipt += [pscustomobject]@{ Status = 'HEALTHY'; Name = 'Capability: afyx-work-ledger'; Detail = 'Cryptographic task ledger and verified execution receipts' }
     $receipt += [pscustomobject]@{ Status = 'HEALTHY'; Name = 'Capability: afyx-impact-simulator'; Detail = 'Deterministic change blast radius and ripple simulation' }

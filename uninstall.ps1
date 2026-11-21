@@ -1,4 +1,4 @@
-[CmdletBinding(SupportsShouldProcess)]
+﻿[CmdletBinding(SupportsShouldProcess)]
 param(
     [string]$SkillsRoot = (Join-Path $env:USERPROFILE '.agents\skills'),
     [Alias('Component')][string[]]$SelectedComponent = @(),
@@ -109,6 +109,7 @@ if ($RemoveProviderConfiguration) {
     $codexHost = Get-AfyxCodexHost
     $codexCommand = if ($codexHost.State -eq 'CLI_READY') { [pscustomobject]@{ Source = $codexHost.Path } } else { $null }
     $claudeCommand = Get-Command claude -ErrorAction SilentlyContinue
+    $claudeVsCodeDetected = [bool](Get-ChildItem -Path (Join-Path $env:USERPROFILE '.vscode\extensions\anthropic.claude-code-*') -Directory -ErrorAction SilentlyContinue | Select-Object -First 1)
     $installedEntry = Join-Path $graphRoot 'current\lib\dist\bin\afyx-graph.js'
     if (-not $nodeCommand) { throw 'Node.js is required to remove owned provider entries.' }
     if ('codex' -in $Provider -and -not $codexCommand) { throw "Codex MCP removal requires a native Codex CLI. $($codexHost.Detail)" }
@@ -128,14 +129,20 @@ if ($RemoveProviderConfiguration) {
         if ($LASTEXITCODE -ne 0 -or $providerResult.status -eq 'BLOCKED') { throw "Provider removal failed: $providerJson" }
     }
 
-    $workflowProviders = @($Provider | Where-Object { $_ -eq 'antigravity' -or ($_ -eq 'claude' -and $ProviderScope -eq 'workspace') })
+    $workflowProviders = @($Provider | Where-Object {
+        ($_ -eq 'antigravity') -or
+        ($_ -eq 'claude') -or
+        ($_ -eq 'codex' -and $ProviderScope -eq 'global')
+    })
     if ($workflowProviders.Count) {
         $hostBridgeEntry = Join-Path $HostBridgeRuntimeRoot 'current\afyx-host-bridge.mjs'
         $wfArguments = @((Join-Path $PSScriptRoot 'scripts\afyx-provider-integration.mjs'), '--providers', ($workflowProviders -join ','), '--scope', $ProviderScope,
             '--workspace-root', $WorkspaceRoot, '--gemini-home', $GeminiHome, '--codex-home', $codexHome, '--node', $nodeCommand.Source,
             '--entry', $hostBridgeEntry, '--server', 'afyx_workflow', '--mode', 'workflow', '--tool', 'afyx_workflow',
             '--install-root', $AfyxInstallRoot, '--authorize', 'afyx-graph,afyx-context', '--uninstall')
+        if ($codexCommand) { $wfArguments += @('--codex', $codexCommand.Source) }
         if ($claudeCommand) { $wfArguments += @('--claude', $claudeCommand.Source) }
+        elseif ($claudeVsCodeDetected) { $wfArguments += @('--claude-extension') }
         if ($ClaudeConfigDir) { $wfArguments += @('--claude-config-dir', $ClaudeConfigDir) }
         if (-not $WhatIfPreference) { $wfArguments += '--apply' }
         if (-not $WhatIfPreference) {

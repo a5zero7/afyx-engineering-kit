@@ -331,7 +331,7 @@ export async function runMidnightCircuit({ input = process.stdin, output = proce
   const backendOptions = () => ({ ...options, preset, provider: provider.join(','), providerScope: scope,
     customComponents: custom, skipProviderConfiguration: provider.length === 0, nonInteractive: true });
   const selectedComponents = () => presetComponents(preset, custom, pkgRoot)
-    .filter((id) => id !== 'codex-usage-tracking' || (platform === 'win32' && provider.includes('codex')));
+    .filter((id) => (id !== 'codex-usage-tracking' && id !== 'afyx-usage-intelligence') || (platform === 'win32' && provider.includes('codex')));
   if (!plain) output.write('\x1b[2J\x1b[H');
   const operation = async (phase, message, stage, action) => {
     const id = progressModel.begin(phase, message);
@@ -394,7 +394,7 @@ export async function runMidnightCircuit({ input = process.stdin, output = proce
       if (preset === 'custom') {
         const all = JSON.parse(readFileSync(join(pkgRoot, 'scripts', 'components.json'), 'utf8')).components
           .filter((entry) => (entry.platforms === 'all' || (platform === 'win32' && entry.platforms === 'windows')) &&
-            (entry.id !== 'codex-usage-tracking' || provider.includes('codex')));
+            ((entry.id !== 'codex-usage-tracking' && entry.id !== 'afyx-usage-intelligence') || provider.includes('codex')));
         const selected = await choose({ input, output, frame: (rows, _cursor, view) => frame(2, rows, ['Space: toggle components.'], '↑/↓: move  Space: toggle  Enter: confirm  Esc: back', view), options: all.map((entry) => ({ id: entry.id, label: entry.name || entry.id })), multiple: true });
         if (selected === null || selected.length === 0) continue;
         if (selected.includes('afyx-graph') && !runtimeSupport('full', platform, arch).supported) {

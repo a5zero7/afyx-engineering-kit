@@ -84,7 +84,7 @@ old_ifs=$IFS; IFS=';'
 for custom_id in $custom_component_list; do
     case "$custom_id" in
       prompt-master|headroom) printf "Component '%s' is retired from Afyx Kit and remains externally/user managed; no changes were made.\n" "$custom_id" >&2; exit 2 ;;
-      efficient-coding|odoo-engineering|afyx-engineering-expert|afyx-graph|afyx-context|afyx-forge|codex-usage-tracking) ;;
+      efficient-coding|odoo-engineering|afyx-efficient-coding|afyx-odoo-engineering|afyx-engineering-expert|afyx-graph|afyx-context|afyx-forge|codex-usage-tracking|afyx-usage-intelligence) ;;
       *) printf 'Unknown custom component: %s\n' "$custom_id" >&2; exit 2 ;;
     esac
 done
@@ -104,7 +104,7 @@ verify_component_evaluate() {
   fi
 }
 
-printf 'Afyx Engineering Kit v0.1.0-alpha.9 — readiness verification (Linux/macOS Bash)\n'
+printf 'Afyx Engineering Kit v0.1.0-alpha.10 — readiness verification (Linux/macOS Bash)\n'
 for provider_id in $(afyx_provider_ids); do
   result INFO "Provider adapter: $(afyx_provider_field "$provider_id" name)" "primary=$(afyx_provider_field "$provider_id" primary); ownership=$(afyx_provider_field "$provider_id" ownership_class); capabilities=$(afyx_provider_field "$provider_id" capabilities); policy=$(afyx_provider_field "$provider_id" configuration_policy)"
 done
@@ -167,7 +167,7 @@ if "$provider_explicit" && ! "$skip_provider_configuration"; then
   fi
 fi
 
-required_skill_ids='efficient-coding odoo-engineering'
+required_skill_ids='afyx-efficient-coding afyx-odoo-engineering'
 if [[ -n "$preset" ]]; then
   required_skill_ids=
   for component_id in $(afyx_component_ids); do

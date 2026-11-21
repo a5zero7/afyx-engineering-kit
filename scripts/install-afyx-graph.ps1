@@ -290,6 +290,9 @@ function Resolve-Archive {
             return Build-LocalArchive
         }
         if ($requestedRevision -and $identity.revisionStatus -ne 'MATCH') {
+            if ($env:AFYX_GRAPH_ACCEPT_LOCAL_CACHE -eq '1') {
+                return [pscustomobject]@{ Path = $local; Source = 'local-release-cache'; Commit = $identity.sourceRevision; RevisionStatus = $identity.revisionStatus; BuildProvenance = 'RELEASE_CACHE' }
+            }
             Write-Warning "Ignoring valid but stale local release cache (requested $requestedRevision; artifact $($identity.sourceRevision)); rebuilding from validated source."
             return Build-LocalArchive
         }

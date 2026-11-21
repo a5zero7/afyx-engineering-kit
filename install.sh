@@ -133,7 +133,7 @@ elif [[ "$provider_scope" == workspace && ",$provider_list," == *,claude,* ]]; t
   [[ "$skills_root" == "$claude_skills" ]] || additional_skill_roots+=("$claude_skills")
 fi
 
-printf 'Afyx Engineering Kit v0.1.0-alpha.9 — Linux/macOS installer (Bash)\n'
+printf 'Afyx Engineering Kit v0.1.0-alpha.10 — Linux/macOS installer (Bash)\n'
 
 valid_manifest() { [[ -s "$1/SKILL.md" ]] && [[ "$(head -n 1 "$1/SKILL.md")" == '---' ]]; }
 # One component truth: scripts/components.json, read through the shared library.
@@ -342,19 +342,21 @@ valid_manifest "$BUNDLED_EXPERT" || { printf 'Bundled Afyx Engineering Expert is
 [[ -s "$PACKAGE_ROOT/afyx-context/afyx-context.json" ]] || { printf 'Bundled Afyx Context metadata is missing.\n' >&2; exit 1; }
 [[ -s "$PACKAGE_ROOT/afyx-forge/afyx-forge.json" ]] || { printf 'Bundled Afyx Forge metadata is missing.\n' >&2; exit 1; }
 
-efficient_target="$skills_root/efficient-coding"
-odoo_target="$skills_root/odoo-engineering"
+efficient_target="$skills_root/afyx-efficient-coding"
+odoo_target="$skills_root/afyx-odoo-engineering"
 expert_target="$skills_root/afyx-engineering-expert"
-efficient_state="$(component_state efficient-coding)"
-odoo_state="$(component_state odoo-engineering)"
+efficient_state="$(component_state afyx-efficient-coding)"
+[[ "$efficient_state" != 'NOT INSTALLED' ]] || efficient_state="$(component_state efficient-coding)"
+odoo_state="$(component_state afyx-odoo-engineering)"
+[[ "$odoo_state" != 'NOT INSTALLED' ]] || odoo_state="$(component_state odoo-engineering)"
 expert_state="$(component_state afyx-engineering-expert)"
 afyx_graph_state="$(component_state afyx-graph)"
 afyx_context_state="$(component_state afyx-context)"
 afyx_forge_state="$(component_state afyx-forge)"
 
 printf '\nComponent Inventory\n'
-printf 'Efficient Coding: %s; installed=%s; available=%s; ownership=afyx\n' "$efficient_state" "$(component_version efficient-coding)" "$(available_version efficient-coding)"
-printf 'Odoo Engineering: %s; installed=%s; available=%s; ownership=afyx\n' "$odoo_state" "$(component_version odoo-engineering)" "$(available_version odoo-engineering)"
+printf 'Efficient Coding: %s; installed=%s; available=%s; ownership=afyx\n' "$efficient_state" "$(component_version afyx-efficient-coding)" "$(available_version afyx-efficient-coding)"
+printf 'Odoo Engineering: %s; installed=%s; available=%s; ownership=afyx\n' "$odoo_state" "$(component_version afyx-odoo-engineering)" "$(available_version afyx-odoo-engineering)"
 printf 'Afyx Engineering Expert: %s; installed=%s; available=%s; ownership=afyx\n' "$expert_state" "$(component_version afyx-engineering-expert)" "$(available_version afyx-engineering-expert)"
 printf 'Afyx Graph: %s; installed=%s; available=%s; ownership=afyx\n' "$afyx_graph_state" "$(component_version afyx-graph)" "$(available_version afyx-graph)"
 printf 'Afyx Context Engine: %s; installed=%s; available=%s; ownership=afyx\n' "$afyx_context_state" "$(component_version afyx-context)" "$(available_version afyx-context)"
@@ -524,11 +526,11 @@ if ! "$skip_provider_configuration" && [[ ",$provider_list," == *,codex,* ]] && 
 if ! "$skip_provider_configuration" && [[ ",$provider_list," == *,antigravity,* ]] && ! "$antigravity_detected"; then printf 'Selected Antigravity provider host was not detected.\n' >&2; exit 1; fi
 if ! "$skip_provider_configuration" && [[ ",$provider_list," == *,claude,* ]] && ! "$claude_cli_detected" && ! "$claude_vscode_detected"; then printf 'Selected Claude Code provider host was not detected.\n' >&2; exit 1; fi
 command -v git >/dev/null 2>&1 || { printf 'Git is required for Afyx source validation and lifecycle updates.\n' >&2; exit 1; }
-efficient_action="$(component_action efficient-coding 'Efficient Coding' "$efficient_state" "$(component_version efficient-coding)")"
-odoo_action="$(component_action odoo-engineering 'Odoo Engineering' "$odoo_state" "$(component_version odoo-engineering)")"
+efficient_action="$(component_action afyx-efficient-coding 'Afyx Efficient Coding' "$efficient_state" "$(component_version afyx-efficient-coding)")"
+odoo_action="$(component_action afyx-odoo-engineering 'Afyx Odoo Engineering' "$odoo_state" "$(component_version afyx-odoo-engineering)")"
 expert_action="$(component_action afyx-engineering-expert 'Afyx Engineering Expert' "$expert_state" "$(component_version afyx-engineering-expert)")"
 for additional_root in ${additional_skill_roots[@]+"${additional_skill_roots[@]}"}; do
-  for skill_spec in "efficient-coding|$efficient_action" "odoo-engineering|$odoo_action" "afyx-engineering-expert|$expert_action"; do
+  for skill_spec in "afyx-efficient-coding|$efficient_action" "afyx-odoo-engineering|$odoo_action" "afyx-engineering-expert|$expert_action"; do
     skill_id="${skill_spec%%|*}"; skill_action="${skill_spec#*|}"
     if ! "$implicit_preset" && [[ -n "$preset" ]] && afyx_component_desired "$skill_id" "$preset" "$custom_component_list" "$provider_list"; then skill_action=install; fi
     [[ "$skill_action" != skip && "$skill_action" != adopt ]] || continue
@@ -540,14 +542,18 @@ done
 if [[ -n "$expected_plan" ]]; then
   node "$PACKAGE_ROOT/scripts/afyx-install-contract.mjs" "${contract_args[@]}" >/dev/null || exit $?
 fi
+if ! "$dry_run"; then
+  target_migration_roots=("$skills_root" ${additional_skill_roots[@]+"${additional_skill_roots[@]}"})
+  afyx_migrate_legacy_skills "${target_migration_roots[@]}"
+fi
 run mkdir -p "$skills_root"
 efficient_result=skipped
 odoo_result=skipped
 expert_result=skipped
-if [[ "$efficient_action" == adopt ]]; then efficient_result="$(adopt_legacy_skill efficient-coding 'Efficient Coding' "$efficient_target")"
-elif [[ "$efficient_action" != skip ]]; then efficient_result="$(afyx_run_install_operation efficient-coding install "Installing efficient-coding" safe_skill_install efficient-coding 'Efficient Coding' "$BUNDLED_EFFICIENT" "$efficient_target" "$([[ "$efficient_action" == install ]] && printf false || printf true)")"; fi
-if [[ "$odoo_action" == adopt ]]; then odoo_result="$(adopt_legacy_skill odoo-engineering 'Odoo Engineering' "$odoo_target")"
-elif [[ "$odoo_action" != skip ]]; then odoo_result="$(afyx_run_install_operation odoo-engineering install "Installing odoo-engineering" safe_skill_install odoo-engineering 'Odoo Engineering' "$BUNDLED_ODOO" "$odoo_target" "$([[ "$odoo_action" == install ]] && printf false || printf true)")"; fi
+if [[ "$efficient_action" == adopt ]]; then efficient_result="$(adopt_legacy_skill afyx-efficient-coding 'Afyx Efficient Coding' "$efficient_target")"
+elif [[ "$efficient_action" != skip ]]; then efficient_result="$(afyx_run_install_operation afyx-efficient-coding install "Installing afyx-efficient-coding" safe_skill_install afyx-efficient-coding 'Afyx Efficient Coding' "$BUNDLED_EFFICIENT" "$efficient_target" "$([[ "$efficient_action" == install ]] && printf false || printf true)")"; fi
+if [[ "$odoo_action" == adopt ]]; then odoo_result="$(adopt_legacy_skill afyx-odoo-engineering 'Afyx Odoo Engineering' "$odoo_target")"
+elif [[ "$odoo_action" != skip ]]; then odoo_result="$(afyx_run_install_operation afyx-odoo-engineering install "Installing afyx-odoo-engineering" safe_skill_install afyx-odoo-engineering 'Afyx Odoo Engineering' "$BUNDLED_ODOO" "$odoo_target" "$([[ "$odoo_action" == install ]] && printf false || printf true)")"; fi
 if [[ "$expert_action" == adopt ]]; then
   printf 'Afyx Engineering Expert has no trusted legacy provenance and cannot be adopted.\n' >&2
   exit 1
@@ -575,8 +581,8 @@ replicate_provider_skill() {
     printf '%s [%s]: %s\n' "$label" "$root" "$result"
   done
 }
-replicate_provider_skill efficient-coding 'Efficient Coding' "$BUNDLED_EFFICIENT" "$efficient_action"
-replicate_provider_skill odoo-engineering 'Odoo Engineering' "$BUNDLED_ODOO" "$odoo_action"
+replicate_provider_skill afyx-efficient-coding 'Afyx Efficient Coding' "$BUNDLED_EFFICIENT" "$efficient_action"
+replicate_provider_skill afyx-odoo-engineering 'Afyx Odoo Engineering' "$BUNDLED_ODOO" "$odoo_action"
 replicate_provider_skill afyx-engineering-expert 'Afyx Engineering Expert' "$BUNDLED_EXPERT" "$expert_action"
 
 graph_result=skipped
@@ -703,7 +709,7 @@ if "$forge_companion_desired" && { [[ "$forge_action" != skip ]] || [[ "$afyx_fo
   done
 fi
 
-printf '\nInstallation Summary (v0.1.0-alpha.9)\n[%s] Afyx Efficient Coding\n[%s] Afyx Odoo Engineering\n[%s] Afyx Engineering Expert\n[%s] Afyx Graph\n[%s] Afyx Context Engine\n[%s] Afyx Forge Core\n[SKIPPED] Afyx Usage Intelligence (Windows-only)\n' "$efficient_result" "$odoo_result" "$expert_result" "$graph_result" "$context_result" "$forge_result"
+printf '\nInstallation Summary (v0.1.0-alpha.10)\n[%s] Afyx Efficient Coding\n[%s] Afyx Odoo Engineering\n[%s] Afyx Engineering Expert\n[%s] Afyx Graph\n[%s] Afyx Context Engine\n[%s] Afyx Forge Core\n[SKIPPED] Afyx Usage Intelligence (Windows-only)\n' "$efficient_result" "$odoo_result" "$expert_result" "$graph_result" "$context_result" "$forge_result"
 if [[ "$context_result" != skipped && "$context_result" != NOT_INSTALLED ]]; then
   printf '[HEALTHY] Capability: afyx-work-ledger (cryptographic task ledger and execution receipts)\n'
   printf '[HEALTHY] Capability: afyx-impact-simulator (deterministic change blast radius simulation)\n'

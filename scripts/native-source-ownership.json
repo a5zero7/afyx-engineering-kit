@@ -2727,7 +2727,7 @@
     {
       "path": "scripts/afyx-host-bridge-lifecycle.mjs",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "33c52ee746c5f20f2abe5c66031ba4a7cd4438e2493324717c187207ceb92bde",
+      "reviewedSha256": "3ee88297869a899aa5b40c6fa65e48801faf27d949f16fc842126533a64e4536",
       "evidence": "MB18 AFYX-105/347: reviewed complete installed flat bundle includes browser manager, optional host boundary and five native document modules; verified installed conversion and selective uninstall in disposable fixtures."
     },
     {
@@ -2781,7 +2781,7 @@
     {
       "path": "scripts/afyx-midnight-circuit.mjs",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "3e1dde8d673dd6fe2010e86a07869476b056475217fce9bbd651ec59906a6b44",
+      "reviewedSha256": "72b49729222a6539fd7258ba411996360b6a8b40b5486c92b7b6d2badb692694",
       "evidence": "MB12 native-source review retained. MB14 AFYX-328 technical delta review: six existing pre-planning callbacks now forward keyboard focus and provider scroll offsets to the existing renderer; no new UI architecture, dependency, or upstream implementation. Regression confirms focus, visible row movement, safe cancellation and zero planning; 33 focused UI/inventory tests pass. Evidence AFYX-MB14-20261116; legal clearance remains separate."
     },
     {
@@ -2817,8 +2817,8 @@
     {
       "path": "scripts/afyx-npm-installer.mjs",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "b3b39e36c676a7cf18180b877b0e00059e223a658ac989e92fe499fa56e81019",
-      "evidence": "Installer UX v2 with synchronized universal capability summaries, help text, and version 0.1.0-alpha.9 (AFYX-329)."
+      "reviewedSha256": "d077fb2d24cd9197c5665749d36e0fb5a7a9270e0a36ec69d5af28f18acb8756",
+      "evidence": "Installer UX v2 with synchronized universal capability summaries, help text, and version 0.1.0-alpha.10 (AFYX-77)."
     },
     {
       "path": "scripts/afyx-optional-capabilities.mjs",
@@ -2841,7 +2841,7 @@
     {
       "path": "scripts/afyx-provider-integration.mjs",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "80377457075b90d4f39d38de3a81f9a4659018e68913700c934e4e5a2ec45bfc",
+      "reviewedSha256": "0f54f27204d191e851a6a2b9ade136e19a4085f2ac6b30785eeb7c5b19b3a2d4",
       "evidence": "AFYX native source: authored from AFYX functional requirements; verified clean room implementation with zero third-party code import."
     },
     {

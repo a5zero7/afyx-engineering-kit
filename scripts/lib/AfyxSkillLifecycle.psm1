@@ -393,4 +393,70 @@ function Remove-AfyxSkillSafely {
     }
 }
 
-Export-ModuleMember -Function Assert-AfyxSkillTarget, Restore-AfyxInterruptedSkillTransaction, Get-AfyxSkillDigest, Write-AfyxSkillMarker, Get-AfyxSkillOwnership, Get-AfyxLegacySkillProvenance, Adopt-AfyxLegacySkill, Backup-AfyxSkill, Install-AfyxSkillTransaction, Remove-AfyxSkillSafely
+function Migrate-AfyxLegacySkills {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)][string[]]$TargetRoots,
+        [string]$BundledEfficientCoding,
+        [string]$BundledOdooEngineering
+    )
+    $legacyPairs = @(
+        @{ Legacy = 'efficient-coding'; Canonical = 'afyx-efficient-coding'; Name = 'Afyx Efficient Coding'; Source = $BundledEfficientCoding },
+        @{ Legacy = 'odoo-engineering'; Canonical = 'afyx-odoo-engineering'; Name = 'Afyx Odoo Engineering'; Source = $BundledOdooEngineering }
+    )
+    foreach ($root in ($TargetRoots | Where-Object { $_ } | Select-Object -Unique)) {
+        if (-not (Test-Path -LiteralPath $root -PathType Container)) { continue }
+        foreach ($pair in $legacyPairs) {
+            $legacyPath = Join-Path $root $pair.Legacy
+            $canonicalPath = Join-Path $root $pair.Canonical
+            if (-not (Test-Path -LiteralPath $legacyPath -PathType Container)) { continue }
+
+            $legacyOwnership = Get-AfyxSkillOwnership -Target $legacyPath -Component $pair.Legacy -ExpectedOwner 'afyx'
+            $isAfyx = $false
+            if ($legacyOwnership -in @('AFYX_OWNED_UNMODIFIED', 'AFYX_OWNED_MODIFIED')) {
+                $isAfyx = $true
+            } else {
+                $manifest = Join-Path $legacyPath 'SKILL.md'
+                if (Test-Path -LiteralPath $manifest -PathType Leaf) {
+                    $content = Get-Content -Raw -LiteralPath $manifest -Encoding utf8
+                    if ($content -match '(?i)afyx' -or $content -match "(?m)^name:\s*['""]?$($pair.Legacy)['""]?\s*$") {
+                        $isAfyx = $true
+                    }
+                }
+            }
+            if (-not $isAfyx) {
+                Write-Verbose "Preserving foreign skill at $legacyPath"
+                continue
+            }
+
+            $backup = Backup-AfyxSkill -Component $pair.Canonical -Target $legacyPath -Protect
+            if ($pair.Source -and (Test-Path -LiteralPath $pair.Source)) {
+                $installedState = Get-AfyxSkillOwnership -Target $canonicalPath -Component $pair.Canonical -ExpectedOwner 'afyx'
+                if ($installedState -ne 'AFYX_OWNED_UNMODIFIED') {
+                    $stage = Join-Path $root ".$($pair.Canonical).afyx-stage"
+                    if (Test-Path -LiteralPath $stage) { Remove-Item -LiteralPath $stage -Recurse -Force -ErrorAction SilentlyContinue }
+                    Copy-Item -LiteralPath $pair.Source -Destination $stage -Recurse -Force -ErrorAction Stop
+                    try {
+                        Install-AfyxSkillTransaction -SkillsRoot $root -Component $pair.Canonical -Name $pair.Name `
+                            -Stage $stage -Target $canonicalPath -Owner 'afyx'
+                    } finally {
+                        if (Test-Path -LiteralPath $stage) { Remove-Item -LiteralPath $stage -Recurse -Force -ErrorAction SilentlyContinue }
+                    }
+                }
+            }
+
+            $canonicalState = Get-AfyxSkillOwnership -Target $canonicalPath -Component $pair.Canonical -ExpectedOwner 'afyx'
+            if ($canonicalState -in @('AFYX_OWNED_UNMODIFIED', 'AFYX_OWNED_MODIFIED')) {
+                Remove-Item -LiteralPath $legacyPath -Recurse -Force -ErrorAction Stop
+                if (Test-Path -LiteralPath "$backup.afyx-active") {
+                    Remove-Item -LiteralPath "$backup.afyx-active" -Force -ErrorAction SilentlyContinue
+                }
+                Write-Host "[MIGRATED] $($pair.Legacy) -> $($pair.Canonical) at $root (backup: $backup)"
+            } else {
+                Write-Warning "Legacy migration kept $legacyPath because canonical verification was $canonicalState."
+            }
+        }
+    }
+}
+
+Export-ModuleMember -Function Assert-AfyxSkillTarget, Restore-AfyxInterruptedSkillTransaction, Get-AfyxSkillDigest, Write-AfyxSkillMarker, Get-AfyxSkillOwnership, Get-AfyxLegacySkillProvenance, Adopt-AfyxLegacySkill, Backup-AfyxSkill, Install-AfyxSkillTransaction, Remove-AfyxSkillSafely, Migrate-AfyxLegacySkills

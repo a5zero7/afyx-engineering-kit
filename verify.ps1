@@ -55,10 +55,16 @@ if ($unknownProviders.Count) { throw "Unknown provider(s): $($unknownProviders -
 $providerSkillRoots = @()
 if ('codex' -in $Provider) {
     $providerSkillRoots += $(if ($PSBoundParameters.ContainsKey('SkillsRoot')) { $SkillsRoot } else { Join-Path $env:USERPROFILE '.agents\skills' })
+    $codexHomeSkills = Join-Path $codexHome 'skills'
+    if (Test-Path -LiteralPath $codexHomeSkills) { $providerSkillRoots += $codexHomeSkills }
 }
 if ('antigravity' -in $Provider) {
     if ($ProviderScope -eq 'workspace') { $providerSkillRoots += (Join-Path $WorkspaceRoot '.agents\skills') }
-    else { $providerSkillRoots += @((Join-Path $GeminiHome 'config\skills'), (Join-Path $GeminiHome 'antigravity-cli\skills')) }
+    else {
+        $providerSkillRoots += @((Join-Path $GeminiHome 'config\skills'), (Join-Path $GeminiHome 'antigravity-cli\skills'))
+        $antigravityIdeSkills = Join-Path $GeminiHome 'antigravity\skills'
+        if (Test-Path -LiteralPath $antigravityIdeSkills) { $providerSkillRoots += $antigravityIdeSkills }
+    }
 }
 if ('claude' -in $Provider) {
     $providerSkillRoots += $(if ($ProviderScope -eq 'workspace') { Join-Path $WorkspaceRoot '.claude\skills' } else { Join-Path $ClaudeHome 'skills' })
@@ -92,7 +98,7 @@ foreach ($id in $CustomComponent) {
 }
 $controlPlan = if ($Preset) { Get-AfyxControlPlan -Preset $Preset -CustomComponent $CustomComponent -Provider $Provider -Context $componentContext -StateById $componentStates } else { $null }
 
-Show-AfyxBanner -Terminal $terminal -Subtitle 'Readiness Verification v0.1.0-alpha.9 | Midnight Circuit'
+Show-AfyxBanner -Terminal $terminal -Subtitle 'Readiness Verification v0.1.0-alpha.10 | Midnight Circuit'
 $gitSource = Get-Command git -ErrorAction SilentlyContinue
 if ($gitSource -and (Test-Path -LiteralPath (Join-Path $PSScriptRoot '.git'))) {
     $sourceCommit = (& git -C $PSScriptRoot rev-parse HEAD 2>$null) -join ''
@@ -137,7 +143,7 @@ if ($controlPlan) {
     foreach ($item in $controlPlan.Components) {
         if ($item.Drift -eq 'IN_SYNC') { Write-Result 'OK' "Plan/$($item.Id)" 'IN_SYNC' }
         elseif ($item.Drift -eq 'NOT_APPLICABLE' -or -not $item.Desired) { Write-Result 'INFO' "Plan/$($item.Id)" "$($item.Drift); preserved" }
-        elseif ($item.Id -eq 'codex-usage-tracking' -and $item.Drift -eq 'MISSING') { Write-Result 'INFO' "Plan/$($item.Id)" 'optional; explicit installation was not requested' }
+        elseif (($item.Id -eq 'codex-usage-tracking' -or $item.Id -eq 'afyx-usage-intelligence') -and $item.Drift -eq 'MISSING') { Write-Result 'INFO' "Plan/$($item.Id)" 'optional; explicit installation was not requested' }
         else { Write-Result 'FAIL' "Plan/$($item.Id)" "$($item.Drift); ownership=$($item.ActualOwnership); repair=$($item.Repair)"; $coreFailure = $true }
     }
 }
@@ -233,6 +239,8 @@ if ($antigravityRequired) {
     }
 }
 
+$claude = $null
+$claudeVsCode = [bool](Get-ChildItem -Path (Join-Path $env:USERPROFILE '.vscode\extensions\anthropic.claude-code-*') -Directory -ErrorAction SilentlyContinue | Select-Object -First 1)
 if ($claudeRequired) {
     $claude = Get-Command claude.exe -ErrorAction SilentlyContinue
     if (-not $claude) { $claude = Get-Command claude.cmd -ErrorAction SilentlyContinue }
@@ -246,7 +254,7 @@ if ($claudeRequired) {
             Write-Result 'FAIL' 'Claude Code host' 'version command failed'
             $coreFailure = $true
         }
-    } elseif ([bool](Get-ChildItem -Path (Join-Path $env:USERPROFILE '.vscode\extensions\anthropic.claude-code-*') -Directory -ErrorAction SilentlyContinue | Select-Object -First 1)) {
+    } elseif ($claudeVsCode) {
         Write-Result 'OK' 'Claude Code host' 'supported VS Code extension detected; standalone CLI is not installed'
     } else {
         Write-Result 'FAIL' 'Claude Code host' 'not found; install Claude Code CLI or the supported Claude Code VS Code extension'
@@ -397,7 +405,11 @@ if (-not $usagePresent) {
 }
 
 if ($Provider.Count -and $node -and -not $SkipProviderConfiguration) {
-    $workflowProviders = @($Provider | Where-Object { $_ -eq 'antigravity' -or ($_ -eq 'claude' -and $ProviderScope -eq 'workspace') })
+    $workflowProviders = @($Provider | Where-Object {
+        ($_ -eq 'antigravity') -or
+        ($_ -eq 'claude') -or
+        ($_ -eq 'codex' -and $ProviderScope -eq 'global')
+    })
     $bridgeLifecycle = Join-Path $PSScriptRoot 'scripts\afyx-host-bridge-lifecycle.mjs'
     $bridgeJson = (& $node.Source $bridgeLifecycle '--runtime-root' $HostBridgeRuntimeRoot 2>$null) -join ''
     try { $bridge = $bridgeJson | ConvertFrom-AfyxJson -Depth 10 }
@@ -410,7 +422,9 @@ if ($Provider.Count -and $node -and -not $SkipProviderConfiguration) {
                 '--codex-home', $codexHome, '--node', $node.Source, '--entry', $bridge.entry,
                 '--server', 'afyx_workflow', '--mode', 'workflow', '--tool', 'afyx_workflow',
                 '--install-root', $AfyxInstallRoot, '--authorize', 'afyx-graph,afyx-context', '--verify')
-            if ($claudeCommand) { $providerArgs += @('--claude', $claudeCommand.Source) }
+            if ($codex) { $providerArgs += @('--codex', $codex.Source) }
+            if ($claude) { $providerArgs += @('--claude', $claude.Source) }
+            elseif ($claudeVsCode) { $providerArgs += @('--claude-extension') }
             if ($ClaudeConfigDir) { $providerArgs += @('--claude-config-dir', $ClaudeConfigDir) }
             $providerJson = (& $node.Source @providerArgs 2>$null) -join ''
             try { $providerResult = $providerJson | ConvertFrom-AfyxJson -Depth 20 }

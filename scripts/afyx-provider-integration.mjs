@@ -191,7 +191,12 @@ export function inspectAntigravity(options) {
     assertSafePath(paths.base, legacy);
     const legacyDocument = parseObject(legacy);
     if (legacyDocument.mcpServers?.[server]) {
-      return { paths, ownership, document, marker, actual: null, expected: expectedEntry(options), claim: null, state: 'MCP_BLOCKED_LEGACY_DUPLICATE', owned: false, legacy, server };
+      const legacyOwnership = `${legacy}.afyx-ownership.json`;
+      const legacyMarker = parseObject(legacyOwnership);
+      const isLegacyOwned = legacyMarker.entries?.[server]?.provider === 'antigravity';
+      if (!isLegacyOwned) {
+        return { paths, ownership, document, marker, actual: null, expected: expectedEntry(options), claim: null, state: 'MCP_BLOCKED_LEGACY_DUPLICATE', owned: false, legacy, server };
+      }
     }
   }
   const actual = document.mcpServers?.[server] ?? null;
@@ -272,6 +277,21 @@ export async function integrateAntigravity(options) {
         if (Object.keys(inspection.marker.entries).length === 0) delete inspection.marker.entries;
       }
       atomicJson(inspection.paths.config, inspection.document);
+      if ((options.scope || 'global') === 'global') {
+        const legacy = resolve(options.geminiHome || resolve(homedir(), '.gemini'), 'antigravity', 'mcp_config.json');
+        if (existsSync(legacy)) {
+          const legacyDoc = parseObject(legacy);
+          const legacyOwnership = `${legacy}.afyx-ownership.json`;
+          const legacyMarker = parseObject(legacyOwnership);
+          if (legacyMarker.entries?.[inspection.server]?.provider === 'antigravity' && legacyDoc.mcpServers?.[inspection.server]) {
+            delete legacyDoc.mcpServers[inspection.server];
+            if (Object.keys(legacyDoc.mcpServers).length === 0) delete legacyDoc.mcpServers;
+            atomicJson(legacy, legacyDoc);
+            delete legacyMarker.entries[inspection.server];
+            atomicJson(legacyOwnership, legacyMarker);
+          }
+        }
+      }
       updateKnownState(backup);
       if (inspection.marker.entries) atomicJson(inspection.ownership, inspection.marker);
       else rmSync(inspection.ownership, { force: true });
@@ -321,6 +341,21 @@ export async function integrateAntigravity(options) {
         entry: inspection.expected,
       };
       atomicJson(inspection.paths.config, inspection.document);
+      if ((options.scope || 'global') === 'global') {
+        const legacy = resolve(options.geminiHome || resolve(homedir(), '.gemini'), 'antigravity', 'mcp_config.json');
+        if (existsSync(legacy)) {
+          const legacyDoc = parseObject(legacy);
+          const legacyOwnership = `${legacy}.afyx-ownership.json`;
+          const legacyMarker = parseObject(legacyOwnership);
+          if (legacyMarker.entries?.[inspection.server]?.provider === 'antigravity' && legacyDoc.mcpServers?.[inspection.server]) {
+            delete legacyDoc.mcpServers[inspection.server];
+            if (Object.keys(legacyDoc.mcpServers).length === 0) delete legacyDoc.mcpServers;
+            atomicJson(legacy, legacyDoc);
+            delete legacyMarker.entries[inspection.server];
+            atomicJson(legacyOwnership, legacyMarker);
+          }
+        }
+      }
       updateKnownState(backup);
       atomicJson(inspection.ownership, inspection.marker);
       markerKnown = snapshot(inspection.ownership);

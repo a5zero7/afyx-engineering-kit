@@ -271,8 +271,14 @@ if [[ -z "$archive_path" ]]; then
   if [[ -f "$local_archive" ]]; then
     if archive_checksum_valid "$local_archive" && archive_bundle_identity_valid "$local_archive" && read_archive_identity "$local_archive"; then
       if [[ "$requested_revision" != UNKNOWN && "$artifact_revision_status" != MATCH ]]; then
-        printf 'Ignoring valid but stale local release cache (requested %s; artifact %s); rebuilding from validated source.\n' "$requested_revision" "$artifact_revision" >&2
-        build_local_archive
+        if [[ "${AFYX_GRAPH_ACCEPT_LOCAL_CACHE:-0}" == "1" ]]; then
+          archive_path="$local_archive"
+          artifact_source=local-release-cache
+          source_revision="$artifact_revision"
+        else
+          printf 'Ignoring valid but stale local release cache (requested %s; artifact %s); rebuilding from validated source.\n' "$requested_revision" "$artifact_revision" >&2
+          build_local_archive
+        fi
       else
         archive_path="$local_archive"
         artifact_source=local-release-cache
