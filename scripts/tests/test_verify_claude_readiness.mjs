@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { spawnSync } from 'node:child_process';
@@ -51,7 +51,7 @@ for (const shell of windows ? ['powershell.exe', 'pwsh.exe'] : ['bash']) {
       if (scenario === 'cli-only' || scenario === 'broken-cli-with-extension') {
         writeFileSync(join(bin, 'claude.cmd'), `@echo off\r\necho Claude Code test CLI\r\nexit /b ${scenario === 'cli-only' ? 0 : 9}\r\n`);
       }
-      const skill = join(skillsRoot, 'efficient-coding/SKILL.md');
+      const skill = existsSync(join(skillsRoot, 'afyx-efficient-coding/SKILL.md')) ? join(skillsRoot, 'afyx-efficient-coding/SKILL.md') : join(skillsRoot, 'efficient-coding/SKILL.md');
       if (scenario === 'modified-skill') writeFileSync(skill, readFileSync(skill, 'utf8') + '\nUser-owned change must remain.\n');
       const beforeSkill = readFileSync(skill);
       const result = invoke('verify', { reportJson: true });

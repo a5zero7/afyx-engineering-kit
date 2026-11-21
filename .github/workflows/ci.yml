@@ -115,7 +115,7 @@ jobs:
           if ($failed) { exit 1 }
       - name: Usage Tracker deterministic tests
         shell: pwsh
-        run: ./tools/codex-usage/tests/run-tests.ps1
+        run: ./tools/afyx-usage-intelligence/tests/run-tests.ps1
       - name: Forge frozen input newline portability
         run: python -m unittest scripts.tests.test_forge_portability -v
       - name: Native universal integration and security regressions (serialized)
@@ -183,9 +183,9 @@ jobs:
           cp -R skills/afyx-efficient-coding skills/afyx-odoo-engineering "$root/"
           # Default skills must verify without Prompt Master; the overall exit may be non-zero only because no Codex host exists on a CI runner.
           /bin/bash ./verify.sh --skills-root "$root" | tee verify.out || true
-          grep -q '^\[OK\] Efficient Coding' verify.out
-          grep -q '^\[OK\] Odoo Engineering' verify.out
-          ! grep -q '^\[FAIL\] \(Efficient Coding\|Odoo Engineering\)' verify.out
+          grep -q '^\[OK\] Afyx Efficient Coding' verify.out
+          grep -q '^\[OK\] Afyx Odoo Engineering' verify.out
+          ! grep -q '^\[FAIL\] \(Afyx Efficient Coding\|Afyx Odoo Engineering\)' verify.out
           ! grep -q '^\[FAIL\] Prompt Master' verify.out
           rm -f verify.out
       - name: Native universal integration and security regressions (serialized)

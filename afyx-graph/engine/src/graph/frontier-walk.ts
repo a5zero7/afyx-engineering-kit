@@ -13,12 +13,17 @@ import { edgeIdentity, edgesAround, farEnd, passesKindFilter, resolveWalkRequest
 
 /** Structural links are explored ahead of everything else; ties keep adjacency order. */
 function structuralFirst(edges: Edge[]): Edge[] {
+  if (edges.length <= 1) return edges;
   const containment: Edge[] = [];
   const calls: Edge[] = [];
   const rest: Edge[] = [];
-  for (const edge of edges) {
-    (edge.kind === 'contains' ? containment : edge.kind === 'calls' ? calls : rest).push(edge);
+  for (let i = 0; i < edges.length; i++) {
+    const edge = edges[i]!;
+    if (edge.kind === 'contains') containment.push(edge);
+    else if (edge.kind === 'calls') calls.push(edge);
+    else rest.push(edge);
   }
+  if (containment.length === 0 && calls.length === 0) return edges;
   return containment.concat(calls, rest);
 }
 

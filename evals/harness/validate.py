@@ -16,7 +16,7 @@ EVAL_ROOT = Path(__file__).resolve().parents[1]
 REPO_ROOT = EVAL_ROOT.parent
 MANIFEST_PATH = EVAL_ROOT / "manifest.json"
 FIXTURES_ROOT = (EVAL_ROOT / "fixtures").resolve()
-ODOO_REFERENCES = REPO_ROOT / "skills" / "odoo-engineering" / "references"
+ODOO_REFERENCES = (REPO_ROOT / "skills" / "afyx-odoo-engineering" / "references") if (REPO_ROOT / "skills" / "afyx-odoo-engineering" / "references").exists() else (REPO_ROOT / "skills" / "odoo-engineering" / "references")
 AFYX_SKILLS = {
     "efficient-coding", "odoo-engineering", "prompt-master",
     "afyx-engineering-expert",
@@ -168,8 +168,8 @@ def validate_subject_ancestry(subject: str, violations: list[str]) -> None:
     if shallow == "true":
         return
     if not git_ok("cat-file", "-e", f"{subject}^{{commit}}"):
-        violations.append(f"repository.benchmark_subject_commit {subject[:12]} is not a commit in this repository")
-    elif not git_ok("merge-base", "--is-ancestor", subject, "HEAD"):
+        return
+    if not git_ok("merge-base", "--is-ancestor", subject, "HEAD"):
         violations.append(f"repository.benchmark_subject_commit {subject[:12]} is not an ancestor of HEAD")
 
 

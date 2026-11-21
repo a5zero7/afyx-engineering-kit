@@ -65,6 +65,8 @@ class NodeSqliteAdapter implements SqliteDatabase {
   private readonly native: any;
   /** How many `transaction()` bodies are currently running on this connection. */
   private transactionDepth = 0;
+  private readonly statementCache = new Map<string, SqliteStatement>();
+  private readonly maxCachedStatements = 256;
 
   constructor(dbPath: string, opts?: { readOnly?: boolean }) {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -79,7 +81,16 @@ class NodeSqliteAdapter implements SqliteDatabase {
   }
 
   prepare(sql: string): SqliteStatement {
-    return wrapStatement(this.native.prepare(sql));
+    let stmt = this.statementCache.get(sql);
+    if (!stmt) {
+      if (this.statementCache.size >= this.maxCachedStatements) {
+        const oldest = this.statementCache.keys().next().value;
+        if (oldest !== undefined) this.statementCache.delete(oldest);
+      }
+      stmt = wrapStatement(this.native.prepare(sql));
+      this.statementCache.set(sql, stmt);
+    }
+    return stmt;
   }
 
   exec(sql: string): void {
@@ -128,6 +139,7 @@ class NodeSqliteAdapter implements SqliteDatabase {
 
   /** `DatabaseSync.close()` throws when already closed; callers close defensively, so it must not. */
   close(): void {
+    this.statementCache.clear();
     if (this.native.isOpen) this.native.close();
   }
 }

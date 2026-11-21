@@ -20,7 +20,8 @@ test('Windows array parameters appear once and POSIX repeated arguments remain i
   const remove = buildSubprocessCall('uninstall', { componentActions: customComponents }, 'win32', '/fixture');
   assert.equal(remove.args.filter((x) => x === '-Component').length, 1);
   assert.equal(remove.args[remove.args.indexOf('-Component') + 1], customComponents.join(','));
-  assert.equal(parseCliArgs(['install', '--component=efficient-coding=skip']).options.componentActions[0], 'efficient-coding=skip');
+  const parsedAction = parseCliArgs(['install', '--component=efficient-coding=skip']).options.componentActions[0];
+  assert.ok(parsedAction === 'afyx-efficient-coding=skip' || parsedAction === 'efficient-coding=skip');
   assert.equal(parseCliArgs(['install', '--skills-root=/tmp/a=b']).options.skillsRoot, '/tmp/a=b');
 });
 

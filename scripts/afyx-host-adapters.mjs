@@ -192,9 +192,9 @@ export function createInstalledHostAdapters({
   const graphEntrypoint = join(resolvedInstallRoot, 'graph', 'current', 'lib', 'dist', 'bin', 'afyx-graph.js');
   const contextCliEntrypoint = join(resolvedInstallRoot, 'context', 'current', 'dist', 'cli.js');
   const forgeEntrypoint = join(resolvedInstallRoot, 'forge', 'current', 'bin', 'afyx-forge.js');
-  const odooSkillDir = skillRoots['odoo-engineering'] ?? join(resolvedInstallRoot, 'skills', 'odoo-engineering');
+  const odooSkillDir = skillRoots['odoo-engineering'] ?? skillRoots['afyx-odoo-engineering'] ?? (existsSync(join(resolvedInstallRoot, 'skills', 'afyx-odoo-engineering')) ? join(resolvedInstallRoot, 'skills', 'afyx-odoo-engineering') : join(resolvedInstallRoot, 'skills', 'odoo-engineering'));
   const expertSkillDir = skillRoots['afyx-engineering-expert'] ?? join(resolvedInstallRoot, 'skills', 'afyx-engineering-expert');
-  const efficientSkillDir = skillRoots['efficient-coding'] ?? join(resolvedInstallRoot, 'skills', 'efficient-coding');
+  const efficientSkillDir = skillRoots['efficient-coding'] ?? skillRoots['afyx-efficient-coding'] ?? (existsSync(join(resolvedInstallRoot, 'skills', 'afyx-efficient-coding')) ? join(resolvedInstallRoot, 'skills', 'afyx-efficient-coding') : join(resolvedInstallRoot, 'skills', 'efficient-coding'));
   const codexToolFile = codexToolsRoot ? join(resolve(codexToolsRoot), 'CodexUsage.psm1') : null;
 
   let documentationCatalog, usageAnalytics, nativeExecution, githubReader;

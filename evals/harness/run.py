@@ -199,8 +199,8 @@ def snapshot(root: Path) -> dict[str, str]:
 def skill_sources() -> dict[str, Path]:
     user_root = Path.home() / ".agents" / "skills"
     return {
-        "efficient-coding": REPO_ROOT / "skills" / "efficient-coding",
-        "odoo-engineering": REPO_ROOT / "skills" / "odoo-engineering",
+        "efficient-coding": (REPO_ROOT / "skills" / "afyx-efficient-coding") if (REPO_ROOT / "skills" / "afyx-efficient-coding").exists() else (REPO_ROOT / "skills" / "efficient-coding"),
+        "odoo-engineering": (REPO_ROOT / "skills" / "afyx-odoo-engineering") if (REPO_ROOT / "skills" / "afyx-odoo-engineering").exists() else (REPO_ROOT / "skills" / "odoo-engineering"),
         "prompt-master": user_root / "prompt-master",
         "afyx-engineering-expert": REPO_ROOT / "skills" / "afyx-engineering-expert",
     }

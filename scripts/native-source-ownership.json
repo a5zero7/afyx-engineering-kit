@@ -2,7 +2,7 @@
   "schema": 1,
   "baselineRevision": "c4e4d8e29de239a2fcbc0db8ac65eea2276e7b00",
   "scope": "AFYX-320 comprehensive production source inventory",
-  "totalProductionFiles": 501,
+  "totalProductionFiles": 502,
   "entries": [
     {
       "path": "afyx-context/src/budget.js",
@@ -451,7 +451,7 @@
     {
       "path": "afyx-graph/engine/src/db/query-session.ts",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "7ef3366488edc3348853d4b90c4184958f64273716500efa39657c6774d092fb",
+      "reviewedSha256": "cc04db106be61070c07b914b6431ce46182af71989548b3bcebd58a26ddc7418",
       "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
     },
     {
@@ -475,7 +475,7 @@
     {
       "path": "afyx-graph/engine/src/db/row-mappers.ts",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "847d55f9d031ce60116aa71b97008233df4e5d20b2b3f1a467e680181c084a0e",
+      "reviewedSha256": "c82d598acb987167fd7d868176525e8ad6f4418bc92c04a3426ab2e1de96d8fe",
       "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
     },
     {
@@ -505,7 +505,7 @@
     {
       "path": "afyx-graph/engine/src/db/sqlite-adapter.ts",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "7d106bfe505a0a61880ea6dcdc31c8ac82c167c94a0a57532d012d4d42b2a90f",
+      "reviewedSha256": "5506ebce0ff99c4f8cf0c8c9bae66a250b5a2c60c681b0a00712183b0219f76c",
       "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
     },
     {
@@ -673,7 +673,7 @@
     {
       "path": "afyx-graph/engine/src/extraction/index.ts",
       "classification": "PUBLIC_API_BARREL",
-      "reviewedSha256": "8ab5450993ce7c220eddfaa621b8aad389a446372e986423663b690071380b69",
+      "reviewedSha256": "121257e986fd7ee4cda1e9e5b1ef5e88e0dcdcbe7a512d66cf25d9cc9483b1a6",
       "evidence": "MB15 Windows Git RCA: reviewed lazy ignore-policy evaluation and empty-candidate short circuit only after Git freshness plus persisted dirty paths are checked; no cross-call cache, permission, checksum or restored-edit semantics changed. Positive/negative Git and ignore regressions retained."
     },
     {
@@ -931,7 +931,7 @@
     {
       "path": "afyx-graph/engine/src/extraction/reconciliation.ts",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "b8d67e9e740fdf47b2622ababff246093f5c0f30554ede844aa6428071cc90af",
+      "reviewedSha256": "60c9de856f150556d2182bddeb86986ef0b28e1f264bbe5b0a13d1d7370f0f18",
       "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
     },
     {
@@ -1051,7 +1051,7 @@
     {
       "path": "afyx-graph/engine/src/graph/frontier-walk.ts",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "3358e6913b15488675ada19b7f346b97e733066ee8b29583ed61db633ca77aeb",
+      "reviewedSha256": "81573a4bf3619150270091473f08631181747cd137a92ed4d87ec719fcb96a26",
       "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
     },
     {
@@ -1923,7 +1923,7 @@
     {
       "path": "afyx-graph/engine/src/resolution/lru-cache.ts",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "52ba5458bbb855fecc213dbded208c0c085b33d1cce993d53b684517efead796",
+      "reviewedSha256": "7f065c753792965051edc7edfa3f0ad5766e23d701430efedb33ee96c9e0ea13",
       "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
     },
     {
@@ -2775,7 +2775,7 @@
     {
       "path": "scripts/afyx-host-adapters.mjs",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "113151dd9917702680d31013f006644aca59f3d9da43985e027c46967d56ab07",
+      "reviewedSha256": "1683d4ad2c08fe946c1209639f84750b2c2da61c3bdc9a3eb3d79fe87e5f48e4",
       "evidence": "MB16 AFYX-283: reviewed bounded Engineering Expert selection, lexical domain hints, and host ceiling consumption; no external logic imported."
     },
     {
@@ -2931,7 +2931,7 @@
     {
       "path": "scripts/afyx-universal-runtime.mjs",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "982e7bc6a118510d15bbf0860c0eb4ad42cb8a4071f6389c8f6795eadac0a4f2",
+      "reviewedSha256": "4d740458e4372e7b3193d8d2553fd45621b523d47759937ebcf21a8841b98a00",
       "evidence": "MB12 review: authored from AFYX functional requirements and existing reviewed 251f73a contracts; no upstream implementation, prompts, assets or dependency imported. Trusted-host boundaries and negative/regression tests recorded in MB12-native-consolidation-20261114-r1."
     },
     {
@@ -2939,6 +2939,12 @@
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
       "reviewedSha256": "8ebdd3e1ce0e7219a5e278d1a0654e84a2a4a9c18b9d53a0959b3c1ce255ec0d",
       "evidence": "AFYX native source: authored from AFYX functional requirements; verified clean room implementation with zero third-party code import."
+    },
+    {
+      "path": "scripts/benchmark-trackd.mjs",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "6e4ff205d887ed3e27823e1336fc1fc9a24af9ca15c1b820cb583cbb19e96a3a",
+      "evidence": "Track D native performance benchmark harness: executes reproducible persistence, traversal, and lifecycle workloads."
     },
     {
       "path": "scripts/benchmark-graph-memory.mjs",

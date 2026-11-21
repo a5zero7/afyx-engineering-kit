@@ -2934,10 +2934,16 @@ export class ExtractionOrchestrator {
   }
 
   finishGitIndexState(snapshot: { head: string; stamp: string; dirty: string[] | null }, full: boolean, retries: string[] = []): void {
-    const after = getGitChangedFiles(this.rootDir);
-    if (!snapshot.dirty || !after) return;
+    if (!snapshot.dirty) return;
     const commit = full ? snapshot.head : snapshot.stamp;
-    const paths = [...new Set([...snapshot.dirty, ...after.added, ...after.modified, ...after.deleted, ...retries])].sort();
+    const paths = (retries.length === 0 && !full)
+      ? snapshot.dirty.slice().sort()
+      : (() => {
+          const after = getGitChangedFiles(this.rootDir);
+          return after
+            ? [...new Set([...snapshot.dirty!, ...after.added, ...after.modified, ...after.deleted, ...retries])].sort()
+            : snapshot.dirty!.slice().sort();
+        })();
     // The embedded commit makes a torn pair fail closed: readers reject a dirty
     // set that doesn't match the separately stored commit. Write the set first.
     this.queries.setMetadata('indexed_dirty_paths', JSON.stringify({ commit, paths }));

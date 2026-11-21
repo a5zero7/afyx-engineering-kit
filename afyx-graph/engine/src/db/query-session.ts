@@ -30,15 +30,19 @@ export class QuerySession {
   statement(sql: string): SqliteStatement {
     let prepared = this.statements.get(sql);
     if (!prepared) {
+      if (this.statements.size >= 512) {
+        const oldest = this.statements.keys().next().value;
+        if (oldest !== undefined) this.statements.delete(oldest);
+      }
       prepared = this.handle.prepare(sql);
       this.statements.set(sql, prepared);
     }
     return prepared;
   }
 
-  /** A statement for an `IN (...)` list of `size` placeholders: cached at the full chunk size, prepared ad hoc for a trailing partial chunk. */
-  listStatement(sql: string, size: number): SqliteStatement {
-    return size === SQLITE_PARAM_CHUNK_SIZE ? this.statement(sql) : this.handle.prepare(sql);
+  /** A statement for an `IN (...)` list of `size` placeholders: cached for reuse across queries. */
+  listStatement(sql: string, _size: number): SqliteStatement {
+    return this.statement(sql);
   }
 }
 

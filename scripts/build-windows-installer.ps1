@@ -198,7 +198,11 @@ $zipHash  afyx-kit-payload.zip
     $manifestFile = Join-Path $OutputDir 'build-manifest.json'
     $kitVersion = (Get-Content -Raw -LiteralPath (Join-Path $repoRoot 'package.json') | ConvertFrom-Json).version
     function Get-StagedSkillVersion([string]$Skill) {
-        $source = Get-Content -Raw -LiteralPath (Join-Path $repoRoot "skills/$Skill/SKILL.md")
+        $path = Join-Path $repoRoot "skills/$Skill/SKILL.md"
+        if (-not (Test-Path -LiteralPath $path)) {
+            $path = Join-Path $repoRoot "skills/afyx-$Skill/SKILL.md"
+        }
+        $source = Get-Content -Raw -LiteralPath $path
         if ($source -notmatch '(?m)^\s*version:\s*"?([0-9]+\.[0-9]+\.[0-9]+)"?\s*$') { throw "Missing version metadata for $Skill" }
         return $Matches[1]
     }

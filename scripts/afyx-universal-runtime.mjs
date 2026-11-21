@@ -65,6 +65,7 @@ const KNOWN_LAYOUT = Object.freeze(Object.fromEntries(
       root: Object.freeze(root),
       required: Object.freeze([...new Set(required)]),
       identity: component.marker_file || component.version_source?.split('#')[0] || required[0],
+      fallbackIdentity: required[0],
       codexTools,
     })];
   }),
@@ -87,10 +88,15 @@ function isWithin(parent, child) {
   return rel === '' || (!rel.startsWith('..') && !isAbsolute(rel));
 }
 
-function metadataIdentity(root, identityFile) {
-  const path = join(root, identityFile);
+function metadataIdentity(root, identityFile, fallbackFile) {
+  let file = identityFile;
+  let path = join(root, file);
+  if ((!existsSync(path) || !statSync(path).isFile()) && fallbackFile) {
+    file = fallbackFile;
+    path = join(root, file);
+  }
   if (!existsSync(path) || !statSync(path).isFile()) return null;
-  if (identityFile.endsWith('.json')) {
+  if (file.endsWith('.json')) {
     const metadata = readJson(path);
     if (!metadata) return null;
     const declared = metadata?.source_revision ?? metadata?.sourceRevision ??
@@ -222,8 +228,10 @@ function skillRootFor(provider, componentId, providerSkillRoots) {
 function ownedSkill(root, componentId) {
   if (!root || !existsSync(root) || lstatSync(root).isSymbolicLink()) return false;
   const marker = readJson(join(root, '.afyx-install.json'));
-  if (marker?.schema !== 1 || marker.product !== 'Afyx Codex Engineering Kit'
-    || marker.component !== componentId || marker.owner !== 'afyx'
+  const canonicalId = componentId.startsWith('afyx-') ? componentId : `afyx-${componentId}`;
+  const unPrefixed = componentId.replace(/^afyx-/, '');
+  if (marker?.schema !== 1 || (marker.product !== 'Afyx Codex Engineering Kit' && marker.product !== 'Afyx Engineering Kit')
+    || (marker.component !== componentId && marker.component !== canonicalId && marker.component !== unPrefixed) || marker.owner !== 'afyx'
     || !/^[0-9a-f]{64}$/.test(marker.content_sha256 ?? '')) return false;
   const files = [];
   function visit(dir) {
@@ -264,7 +272,13 @@ function inspectKnownComponents({
 }) {
   const states = {};
   const evidence = [];
+  const aliasesMap = {
+    'afyx-efficient-coding': 'efficient-coding',
+    'afyx-odoo-engineering': 'odoo-engineering',
+    'afyx-usage-intelligence': 'codex-usage-tracking',
+  };
   for (const [componentId, layout] of Object.entries(KNOWN_LAYOUT)) {
+    const alias = aliasesMap[componentId];
     const providerRoot = layout.root[0] === 'skills'
       ? skillRootFor(provider, componentId, providerSkillRoots) : null;
     const root = layout.codexTools
@@ -275,15 +289,16 @@ function inspectKnownComponents({
       : [];
     const installed = Boolean(root) && (!providerRoot || root !== providerRoot || ownedSkill(root, componentId))
       && requiredPaths.every((path) => existsSync(path) && statSync(path).isFile());
-    const sourceIdentity = installed ? metadataIdentity(root, layout.identity) : null;
+    const sourceIdentity = installed ? metadataIdentity(root, layout.identity, layout.fallbackIdentity) : null;
     const enabled = installed && componentEnabled(
       componentId,
-      componentSettings?.[componentId],
+      componentSettings?.[componentId] ?? (alias ? componentSettings?.[alias] : undefined),
       environment,
     );
-    const override = componentStateOverrides?.[componentId] ?? {};
+    const override = componentStateOverrides?.[componentId] ?? (alias ? componentStateOverrides?.[alias] : undefined) ?? {};
+    const authorized = authorizations?.[componentId] === true || (alias ? authorizations?.[alias] === true : false);
     const inspectGraph = componentId === 'afyx-graph' && installed && enabled && sourceIdentity !== null &&
-      override.healthy !== false && override.compatible !== false && authorizations?.[componentId] === true && probeGraph;
+      override.healthy !== false && override.compatible !== false && authorized && probeGraph;
     if (inspectGraph) preparationEvents.push('afyx-graph/status');
     const graph = inspectGraph
       ? measureGraphStage(preparationTimings, 'initial-status', () => inspectGraphIndex(projectRoot, join(root, 'current', 'lib', 'dist', 'bin', 'afyx-graph.js'), nodePath, environment, probeTimeoutMs))
@@ -293,7 +308,7 @@ function inspectKnownComponents({
       enabled,
       healthy: installed && override.healthy !== false,
       compatible: installed && override.compatible !== false,
-      authorized: authorizations?.[componentId] === true,
+      authorized,
       sourceIdentity: installed
         ? (typeof override.sourceIdentity === 'string' ? override.sourceIdentity : sourceIdentity)
         : null,
@@ -304,6 +319,9 @@ function inspectKnownComponents({
         indexFresh: override.indexFresh ?? graph.indexFresh,
       } : {}),
     };
+    if (alias) {
+      states[alias] = states[componentId];
+    }
     evidence.push(Object.freeze({
       componentId,
       root,

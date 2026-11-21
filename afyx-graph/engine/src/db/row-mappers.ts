@@ -108,9 +108,9 @@ export function rowToEdge(row: EdgeRow): Edge {
     source: row.source,
     target: row.target,
     kind: row.kind as EdgeKind,
-    metadata: decodedJson(row.metadata),
-    line: present(row.line),
-    column: present(row.col),
+    metadata: row.metadata === null || row.metadata === '' ? undefined : safeJsonParse(row.metadata, undefined),
+    line: row.line === null ? undefined : row.line,
+    column: row.col === null ? undefined : row.col,
     provenance: row.provenance as Edge['provenance'],
   };
 }

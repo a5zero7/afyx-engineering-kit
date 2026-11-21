@@ -311,10 +311,10 @@ replacement_authorized() {
 }
 
 safe_skill_install() {
-  local component="$1" label="$2" source="$3" target="$4" replace="$5" skills_root="${6:-$skills_root}" parent stage version authorize=false
+  local component="$1" label="$2" source="$3" target="$4" replace="$5" target_skills_root="${6:-$skills_root}" parent stage version authorize=false
   if [[ -e "$target" && "$replace" != true ]]; then printf skipped; return; fi
   if "$dry_run"; then printf 'planned'; return; fi
-  parent="$(dirname "$target")"; afyx_assert_skill_target "$skills_root" "$target" || return 1
+  parent="$(dirname "$target")"; afyx_assert_skill_target "$target_skills_root" "$target" || return 1
   stage="$(mktemp -d "$parent/.skill-stage.XXXXXX")" || return 1
   if ! cp -a "$source/." "$stage/"; then rm -rf -- "$stage"; return 1; fi
   version="$(afyx_skill_version "$source")"
@@ -667,7 +667,7 @@ if "$context_companion_desired" && { [[ "$context_action" != skip ]] || [[ "$afy
     esac
     # safe_skill_install uses skills_root for its ownership boundary; override
     # it only in the subshell for the currently selected provider root.
-    context_skill_result="$(skills_root="$context_skill_root"; safe_skill_install afyx-context 'Afyx Context Companion' "$context_skill_source" "$context_skill_target" "$context_skill_replace")"
+    context_skill_result="$(skills_root="$context_skill_root"; safe_skill_install afyx-context 'Afyx Context Companion' "$context_skill_source" "$context_skill_target" "$context_skill_replace" "$context_skill_root")"
     printf 'Afyx Context Companion [%s]: %s\n' "$context_skill_root" "$context_skill_result"
   done
 fi
@@ -701,7 +701,7 @@ if "$forge_companion_desired" && { [[ "$forge_action" != skip ]] || [[ "$afyx_fo
       AFYX_OWNED_MODIFIED) replacement_authorized afyx-forge || exit 1; forge_skill_replace=true ;;
       *) printf 'Refusing automatic Forge companion replacement at %s because ownership is %s.\n' "$forge_skill_target" "$AFYX_OWNERSHIP_STATE" >&2; exit 1 ;;
     esac
-    forge_skill_result="$(skills_root="$forge_skill_root"; safe_skill_install afyx-forge 'Afyx Forge Companion' "$forge_skill_source" "$forge_skill_target" "$forge_skill_replace")"
+    forge_skill_result="$(skills_root="$forge_skill_root"; safe_skill_install afyx-forge 'Afyx Forge Companion' "$forge_skill_source" "$forge_skill_target" "$forge_skill_replace" "$forge_skill_root")"
     printf 'Afyx Forge Companion [%s]: %s\n' "$forge_skill_root" "$forge_skill_result"
   done
 fi

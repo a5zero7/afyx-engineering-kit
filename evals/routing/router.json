@@ -4,12 +4,12 @@
   "skills": {
     "efficient-coding": {
       "source": "repository",
-      "skill_file": "skills/efficient-coding/SKILL.md",
+      "skill_file": "skills/afyx-efficient-coding/SKILL.md",
       "anchors": ["coding work", "prompt writing", "document-only"]
     },
     "odoo-engineering": {
       "source": "repository",
-      "skill_file": "skills/odoo-engineering/SKILL.md",
+      "skill_file": "skills/afyx-odoo-engineering/SKILL.md",
       "anchors": ["Odoo"]
     },
     "afyx-engineering-expert": {

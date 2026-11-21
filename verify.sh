@@ -136,14 +136,17 @@ for additional_root in ${additional_skill_roots[@]+"${additional_skill_roots[@]}
     else result INFO "Provider skill/$component_id" "$additional_root; not selected"; fi
   done
 done
-if [[ -n "$preset" ]] && ! "$skip_provider_configuration"; then
+if [[ -n "$preset" ]] && ! "$skip_provider_configuration" && [[ -n "$provider_list" ]]; then
   for component_id in afyx-context afyx-forge; do
     afyx_component_desired "$component_id" "$preset" "$custom_component_list" "$provider_list" || continue
     if [[ "$component_id" == afyx-context && "${AFYX_CONTEXT_OPT_IN:-}" == 0 ]]; then continue; fi
-    for companion_root in "$skills_root" "${additional_skill_roots[@]}"; do
+    for companion_root in ${additional_skill_roots[@]+"${additional_skill_roots[@]}"}; do
+      [[ -n "$companion_root" ]] || continue
       afyx_classify_skill "$companion_root/$component_id" "$component_id" afyx
       if [[ "$AFYX_OWNERSHIP_STATE" == AFYX_OWNED_UNMODIFIED ]]; then
         result OK "Provider companion/$component_id" "$companion_root; ownership verified"
+      elif [[ "$AFYX_OWNERSHIP_STATE" == NOT_INSTALLED ]]; then
+        result INFO "Provider companion/$component_id" "$companion_root; provider integration is not configured"
       else
         result FAIL "Provider companion/$component_id" "$companion_root; $AFYX_OWNERSHIP_STATE"
         core_failure=true

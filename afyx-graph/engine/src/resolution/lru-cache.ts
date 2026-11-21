@@ -21,10 +21,10 @@ export class LRUCache<K, V> {
   }
 
   get(key: K): V | undefined {
-    if (!this.storage.has(key)) {
+    const val = this.storage.get(key);
+    if (val === undefined) {
       return undefined;
     }
-    const val = this.storage.get(key) as V;
     // Move key to the end of iteration order by re-inserting
     this.storage.delete(key);
     this.storage.set(key, val);

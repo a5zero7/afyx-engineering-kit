@@ -60,7 +60,7 @@ export async function reconcileSources(input: ReconciliationInput): Promise<Reco
   };
 
   for (const tracked of input.trackedFiles) {
-    if (!currentSet.has(tracked.path) || !input.io.exists(tracked.path)) {
+    if (!currentSet.has(tracked.path)) {
       input.onRemove(tracked);
       filesRemoved++;
     }
@@ -78,6 +78,11 @@ export async function reconcileSources(input: ReconciliationInput): Promise<Reco
           continue;
         }
       } catch (error) {
+        if ((error as NodeJS.ErrnoException)?.code === 'ENOENT' || !input.io.exists(filePath)) {
+          input.onRemove(tracked);
+          filesRemoved++;
+          continue;
+        }
         input.onReadFailure?.(filePath, 'stat', error);
         failedFilePaths.push(filePath);
         continue;
@@ -88,6 +93,11 @@ export async function reconcileSources(input: ReconciliationInput): Promise<Reco
     try {
       content = input.io.read(filePath);
     } catch (error) {
+      if (tracked && ((error as NodeJS.ErrnoException)?.code === 'ENOENT' || !input.io.exists(filePath))) {
+        input.onRemove(tracked);
+        filesRemoved++;
+        continue;
+      }
       input.onReadFailure?.(filePath, 'read', error);
       failedFilePaths.push(filePath);
       continue;

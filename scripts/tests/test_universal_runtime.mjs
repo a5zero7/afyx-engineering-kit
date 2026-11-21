@@ -53,7 +53,13 @@ function fixture() {
 }
 
 function installRegistrySkeleton(fx, id) {
-  const component = COMPONENTS.find((item) => item.id === id);
+  const component = COMPONENTS.find((item) =>
+    item.id === id ||
+    item.id === `afyx-${id}` ||
+    (id === 'codex-usage-tracking' && item.id === 'afyx-usage-intelligence') ||
+    item.aliases?.includes?.(id) ||
+    item.install_path === id
+  );
   assert.ok(component, `Missing registry component ${id}`);
   const root = component.type === 'skill'
     ? join(fx.installRoot, 'skills', component.install_path)
@@ -77,8 +83,10 @@ function installRegistrySkeleton(fx, id) {
 }
 
 function installSkill(fx, id) {
+  const component = COMPONENTS.find((item) => item.id === id || item.id === `afyx-${id}` || item.install_path === id);
+  const installPath = component?.install_path || id;
   installRegistrySkeleton(fx, id);
-  write(join(fx.installRoot, 'skills', id, 'SKILL.md'), `# ${id}\n`);
+  write(join(fx.installRoot, 'skills', installPath, 'SKILL.md'), `# ${id}\n`);
 }
 
 function installContext(fx) {
@@ -363,9 +371,9 @@ test('Graph discovers an immediate workspace index and rejects stale or foreign 
 test('provider-managed skill requires matching ownership marker and unchanged content', () => {
   const fx = fixture();
   try {
-    const component = COMPONENTS.find((item) => item.id === 'efficient-coding');
+    const component = COMPONENTS.find((item) => item.id === 'afyx-efficient-coding' || item.id === 'efficient-coding');
     const providerRoot = join(fx.root, 'provider-skills');
-    const skillRoot = join(providerRoot, 'efficient-coding');
+    const skillRoot = join(providerRoot, 'afyx-efficient-coding');
     const files = component.required_files.split(';');
     for (const file of files) write(join(skillRoot, ...file.split('/')), file === 'SKILL.md' ? '# Efficient Coding\n' : 'reference\n');
     const ordered = files.map((file) => join(skillRoot, ...file.split('/'))).sort((a, b) => {
@@ -374,10 +382,12 @@ test('provider-managed skill requires matching ownership marker and unchanged co
     });
     const lines = ordered.map((file) => `${createHash('sha256').update(readFileSync(file)).digest('hex').toUpperCase()}  ./${file.slice(skillRoot.length + 1).replaceAll('\\', '/')}`);
     const digest = createHash('sha256').update(`${lines.join('\n')}\n`).digest('hex');
-    write(join(skillRoot, '.afyx-install.json'), JSON.stringify({ schema: 1, product: 'Afyx Codex Engineering Kit', component: 'efficient-coding', owner: 'afyx', content_sha256: digest }));
+    write(join(skillRoot, '.afyx-install.json'), JSON.stringify({ schema: 1, product: 'Afyx Engineering Kit', component: 'afyx-efficient-coding', owner: 'afyx', content_sha256: digest }));
     const options = { ...fx, provider: 'codex', providerSkillRoots: { codex: providerRoot } };
+    assert.equal(createInstalledAfyxRuntime(options).componentStates['afyx-efficient-coding'].installed, true);
     assert.equal(createInstalledAfyxRuntime(options).componentStates['efficient-coding'].installed, true);
     write(join(skillRoot, 'SKILL.md'), '# Modified\n');
+    assert.equal(createInstalledAfyxRuntime(options).componentStates['afyx-efficient-coding'].installed, false);
     assert.equal(createInstalledAfyxRuntime(options).componentStates['efficient-coding'].installed, false);
   } finally { fx.cleanup(); }
 });
