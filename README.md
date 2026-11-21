@@ -142,9 +142,9 @@ and [Component Guide](docs/COMPONENTS.md) for capability and limitation details.
 
 ## Install AFYX Engineering Kit — Windows & WSL2
 
-### Public npm Alpha (pending release clearance)
+### Public npm Alpha (v0.1.0-alpha.9)
 
-With Node.js 22.5 or newer, the intended public registry command is:
+With Node.js 22.5 or newer, the public registry command is:
 
 ```bash
 npx afyx-engineering-kit install
@@ -153,14 +153,14 @@ npx afyx-engineering-kit install
 In a release containing Midnight Circuit, an interactive ANSI terminal shows
 Detect → Select → Configure → Review/Apply → Finish. Use `--ui plain` for text
 output; CI and terminals without ANSI support use the text flow automatically.
-macOS does not yet have a verified Full Graph archive.
+**Platform Support:** Full runtime tested on Windows x64 and Linux x64 (WSL2 Ubuntu);
+macOS is pilot-gated (standalone skills supported; Full prebuilt Graph runtime archive pilot-gated).
 
 Use `--preset recommended` for core engineering skills or `--preset full`
 for the prebuilt Graph, Context, Forge, and applicable skills. `full` requires
 Windows x64 or Linux x64 for Graph. Provider configuration is optional and
 remains subject to each host's native prerequisites. Confirm the intended Alpha
-version with `npm view afyx-engineering-kit@latest version`. Until the registry
-lists a cleared release, use the GitHub prerelease tarball below.
+version with `npm view afyx-engineering-kit@latest version`.
 
 ### Local Developer Setup (Bare NPX Resolution)
 
@@ -197,10 +197,10 @@ archive and `.afyx-source-revision` marker. Its download link will be added
 after the public release and anonymous installation checks pass. Node.js 22.5+
 is required; Windows PowerShell 5.1 and PowerShell 7 are the intended hosts.
 
-Alternatively, use the prebuilt tarball from the [v0.1.0-alpha.2 GitHub prerelease](https://github.com/a5zero7/afyx-engineering-kit/releases/tag/v0.1.0-alpha.2):
+Alternatively, use the prebuilt tarball from the [v0.1.0-alpha.9 GitHub prerelease](https://github.com/a5zero7/afyx-engineering-kit/releases/tag/v0.1.0-alpha.9):
 
 ```bash
-npm exec --yes --package="https://github.com/a5zero7/afyx-engineering-kit/releases/download/v0.1.0-alpha.2/afyx-engineering-kit-0.1.0-alpha.2.tgz" -- afyx-engineering-kit install --preset full --no-build-fallback --non-interactive --skip-provider-configuration
+npm exec --yes --package="https://github.com/a5zero7/afyx-engineering-kit/releases/download/v0.1.0-alpha.9/afyx-engineering-kit-0.1.0-alpha.9.tgz" -- afyx-engineering-kit install --preset full --no-build-fallback --non-interactive --skip-provider-configuration
 ```
 
 `full` installs the prebuilt Graph runtime, Context, Forge, and applicable
