@@ -235,8 +235,8 @@ afyx_backup_skill() (
 )
 afyx_adopt_legacy_skill() {
   local component="$1" target="$2" owner="$3" version="${4:-}" legacy_digest="${5:-}" legacy_version="${6:-}" repository="${7:-}" revision="${8:-}"
-  local state backup before after exclude exclude_entry exclude_had=false exclude_tmp
-  afyx_assert_skill_target "$skills_root" "$target" || return 1
+  local state backup before after exclude exclude_entry exclude_had=false exclude_tmp root="${skills_root:-$(dirname "$target")}"
+  afyx_assert_skill_target "$root" "$target" || return 1
   afyx_recover_skill_transaction "$target" || return 1
   afyx_classify_skill "$target" "$component" "$owner"; state="$AFYX_OWNERSHIP_STATE"
   if [[ "$state" == AFYX_OWNED_UNMODIFIED || "$state" == EXTERNAL_UPSTREAM ]]; then printf 'ALREADY_ADOPTED'; return 0; fi

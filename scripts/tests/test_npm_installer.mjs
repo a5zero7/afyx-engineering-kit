@@ -153,6 +153,15 @@ test('parseCliArgs detects missing option values', () => {
   assert.match(res.errors[0], /--preset requires a value/);
 });
 
+test('parseCliArgs rejects flag-swallowing when option values are missing or flag tokens', () => {
+  for (const flag of ['--skills-root', '--workspace-root', '--graph-runtime-root']) {
+    const res = parseCliArgs(['install', flag, '--dry-run']);
+    assert.ok(res.errors.length > 0, `Expected error for ${flag} --dry-run`);
+    assert.match(res.errors[0], new RegExp(`${flag} requires a value`));
+    assert.equal(res.options.dryRun, undefined, `dryRun should not be set for failed parse`);
+  }
+});
+
 test('buildSubprocessCall maps Windows arguments to PowerShell', () => {
   const call = buildSubprocessCall('install', {
     preset: 'full',

@@ -1,4 +1,4 @@
-[CmdletBinding(SupportsShouldProcess)]
+﻿[CmdletBinding(SupportsShouldProcess)]
 param(
     [string]$SkillsRoot = (Join-Path $env:USERPROFILE '.agents\skills'),
     [switch]$Force,
@@ -306,7 +306,7 @@ foreach ($specification in $ComponentAction) {
     Assert-ActiveComponentId $Matches[1]
     $componentActions[$Matches[1]] = $Matches[2]
 }
-$knownSelectable = @('efficient-coding', 'odoo-engineering', 'afyx-engineering-expert', 'afyx-graph', 'afyx-context', 'afyx-forge', 'codex-usage-tracking')
+$knownSelectable = @('afyx-efficient-coding', 'afyx-odoo-engineering', 'efficient-coding', 'odoo-engineering', 'afyx-engineering-expert', 'afyx-graph', 'afyx-context', 'afyx-forge', 'afyx-usage-intelligence', 'codex-usage-tracking')
 foreach ($id in $componentActions.Keys) { if ($id -notin $knownSelectable) { throw "Unknown selectable component: $id" } }
 if ($Preset -and $Preset -notin @('minimal', 'recommended', 'full', 'custom')) { throw "Unknown preset: $Preset" }
 if (-not $Preset -and $CustomComponent.Count) { throw '-CustomComponent requires -Preset custom.' }
@@ -318,13 +318,13 @@ $controlPlan = if ($Preset) { Get-AfyxControlPlan -Preset $Preset -CustomCompone
 
 function Get-AvailableVersion([string]$Id) {
     switch ($Id) {
-        'afyx-efficient-coding', 'efficient-coding' { return Get-AfyxSkillVersion -Directory $bundledEfficientCoding }
-        'afyx-odoo-engineering', 'odoo-engineering' { return Get-AfyxSkillVersion -Directory $bundledOdooEngineering }
+        { $_ -in @('afyx-efficient-coding', 'efficient-coding') } { return Get-AfyxSkillVersion -Directory $bundledEfficientCoding }
+        { $_ -in @('afyx-odoo-engineering', 'odoo-engineering') } { return Get-AfyxSkillVersion -Directory $bundledOdooEngineering }
         'afyx-engineering-expert' { return Get-AfyxSkillVersion -Directory $bundledEngineeringExpert }
         'afyx-graph' { return (Get-Content -Raw -LiteralPath $graphMetadataPath | ConvertFrom-Json).product_version }
         'afyx-context' { return (Get-Content -Raw -LiteralPath $contextMetadataPath | ConvertFrom-Json).product_version }
         'afyx-forge' { return (Get-Content -Raw -LiteralPath $forgeMetadataPath | ConvertFrom-Json).product_version }
-        'afyx-usage-intelligence', 'codex-usage-tracking' {
+        { $_ -in @('afyx-usage-intelligence', 'codex-usage-tracking') } {
             $usageMetaPath = Join-Path $packageRoot 'tools\afyx-usage-intelligence\metadata.json'
             if (Test-Path -LiteralPath $usageMetaPath -PathType Leaf) {
                 return (Get-Content -Raw -LiteralPath $usageMetaPath -Encoding utf8 | ConvertFrom-Json).product_version
@@ -1080,7 +1080,7 @@ if ($shouldInstallHostBridge) {
         ($_ -eq 'claude') -or
         ($_ -eq 'codex' -and $ProviderScope -eq 'global')
     })
-    if ($workflowProviders.Count -and (Test-Path -LiteralPath $hostBridgeInstalledEntry -PathType Leaf)) {
+    if (-not $SkipProviderConfiguration -and -not $SkipGraphMcp -and $workflowProviders.Count -and (Test-Path -LiteralPath $hostBridgeInstalledEntry -PathType Leaf)) {
         $wfArguments = Get-AfyxWorkflowProviderArguments $hostBridgeInstalledEntry $workflowProviders
         if (-not $WhatIfPreference) { $wfArguments += '--apply' }
         if ($WhatIfPreference) { Write-Host "WhatIf: would configure host bridge MCP entries through ProviderAdapter/v1" }

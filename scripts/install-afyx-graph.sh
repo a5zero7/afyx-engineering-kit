@@ -146,7 +146,7 @@ archive_checksum_valid() {
 archive_bundle_identity_valid() {
   local path="$1" probe bundle
   probe="$(mktemp -d "${TMPDIR:-/tmp}/afyx-graph-probe.XXXXXX")" || return 1
-  if ! tar -xzf "$path" -C "$probe" >/dev/null 2>&1; then rm -rf -- "$probe"; return 1; fi
+  if tar -tzf "$path" 2>/dev/null | grep -E '(^|/)(\.\.)(/|$)|^/' >/dev/null 2>&1 || ! tar -xzf "$path" --no-same-owner --no-same-permissions -C "$probe" >/dev/null 2>&1; then rm -rf -- "$probe"; return 1; fi
   bundle="$probe/afyx-graph-$target"
   [[ -f "$bundle/bin/afyx-graph" && -f "$bundle/metadata.json" && -f "$bundle/LICENSE" ]] &&
     grep -q '"product_name"[[:space:]]*:[[:space:]]*"Afyx Graph"' "$bundle/metadata.json" &&
@@ -161,7 +161,7 @@ archive_bundle_identity_valid() {
 read_archive_identity() {
   local path="$1" probe bundle json
   probe="$(mktemp -d "${TMPDIR:-/tmp}/afyx-graph-identity.XXXXXX")" || return 1
-  if ! tar -xzf "$path" -C "$probe" >/dev/null 2>&1; then rm -rf -- "$probe"; return 1; fi
+  if tar -tzf "$path" 2>/dev/null | grep -E '(^|/)(\.\.)(/|$)|^/' >/dev/null 2>&1 || ! tar -xzf "$path" --no-same-owner --no-same-permissions -C "$probe" >/dev/null 2>&1; then rm -rf -- "$probe"; return 1; fi
   bundle="$probe/afyx-graph-$target"
   json="$(node "$ARTIFACT_IDENTITY" inspect --metadata "$bundle/metadata.json" --requested-revision "$requested_revision")" || {
     rm -rf -- "$probe"; return 1;
@@ -348,7 +348,8 @@ expected_lower="$(printf '%s' "$expected" | tr '[:upper:]' '[:lower:]')"
 [[ "$actual_lower" == "$expected_lower" ]] || { printf 'Checksum mismatch for %s\n' "$asset" >&2; exit 1; }
 
 mkdir -p "$transaction/extract" "$transaction/prepared"
-tar -xzf "$archive_path" -C "$transaction/extract"
+tar -tzf "$archive_path" 2>/dev/null | grep -E '(^|/)(\.\.)(/|$)|^/' >/dev/null 2>&1 && { printf 'Archive contains unsafe entries.\n' >&2; exit 1; }
+tar -xzf "$archive_path" --no-same-owner --no-same-permissions -C "$transaction/extract"
 bundle="$transaction/extract/afyx-graph-$target"
 for required in bin/afyx-graph metadata.json LICENSE; do
   [[ -f "$bundle/$required" ]] || { printf 'Staged Afyx Graph bundle is incomplete: %s\n' "$required" >&2; exit 1; }

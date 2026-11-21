@@ -124,6 +124,16 @@ export const LANGUAGES = [
   'unknown',
   'shell',
   'powershell',
+  // Track C Wave 3B polyglot languages (AFYX-225 & AFYX-226)
+  'groovy',
+  'elixir',
+  'zig',
+  'fsharp',
+  'clojure',
+  'haskell',
+  'ocaml',
+  'julia',
+  'perl',
 ] as const;
 
 export type Language = (typeof LANGUAGES)[number];

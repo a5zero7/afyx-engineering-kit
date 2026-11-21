@@ -48,7 +48,10 @@ describe('search behavior contract', () => {
         kinds: string[]; languages: string[]; nameFilters: string[];
         pathFilters: string[]; text: string;
       }>;
-      const addedLanguages = ['csv', 'shell', 'powershell'];
+      const addedLanguages = [
+        'csv', 'shell', 'powershell',
+        'groovy', 'elixir', 'zig', 'fsharp', 'clojure', 'haskell', 'ocaml', 'julia', 'perl',
+      ];
       const additions = parsed.filter((entry) => entry.languages.length === 1 && addedLanguages.includes(entry.languages[0]!));
       expect(additions).toEqual(addedLanguages.map((language) => ({
         kinds: [], languages: [language], nameFilters: [], pathFilters: [], text: 'sample',

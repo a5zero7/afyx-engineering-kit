@@ -164,6 +164,13 @@ Examples:
 `;
 }
 
+export function resolveComponentId(id) {
+  if (id === 'efficient-coding') return 'afyx-efficient-coding';
+  if (id === 'odoo-engineering') return 'afyx-odoo-engineering';
+  if (id === 'codex-usage-tracking') return 'afyx-usage-intelligence';
+  return id;
+}
+
 export function parseCliArgs(rawArgs) {
   const result = {
     command: null,
@@ -225,6 +232,23 @@ export function parseCliArgs(rawArgs) {
       return result;
     }
 
+    const extractOptionValue = (flagName) => {
+      if (arg.includes('=')) {
+        return arg.slice(arg.indexOf('=') + 1);
+      }
+      if (i + 1 >= args.length) {
+        result.errors.push(`${flagName} requires a value`);
+        return null;
+      }
+      const nextToken = args[i + 1];
+      if (nextToken.startsWith('-')) {
+        result.errors.push(`${flagName} requires a value`);
+        return null;
+      }
+      i++;
+      return nextToken;
+    };
+
     if (arg === '--dry-run' || arg === '-n' || arg === '--what-if') {
       if (recordOption('dryRun', arg)) result.options.dryRun = true;
     } else if (arg === '--validate-only') {
@@ -252,53 +276,72 @@ export function parseCliArgs(rawArgs) {
     } else if (arg === '--non-interactive' || arg === '-y' || arg === '--yes') {
       if (recordOption('nonInteractive', arg)) result.options.nonInteractive = true;
     } else if (arg === '--ui' || arg.startsWith('--ui=')) {
-      const val = arg.includes('=') ? arg.slice(arg.indexOf('=') + 1) : args[++i];
-      if (!['auto', 'tui', 'plain'].includes(val)) result.errors.push('--ui requires auto, tui, or plain');
+      const val = extractOptionValue('--ui');
+      if (val === null) {}
+      else if (!['auto', 'tui', 'plain'].includes(val)) result.errors.push('--ui requires auto, tui, or plain');
       else if (recordOption('ui', '--ui')) result.options.ui = val;
     } else if (arg === '--preset' || arg.startsWith('--preset=')) {
-      const val = arg.includes('=') ? arg.slice(arg.indexOf('=') + 1) : args[++i];
-      if (!val) result.errors.push('--preset requires a value');
+      const val = extractOptionValue('--preset');
+      if (val === null) {}
+      else if (!val) result.errors.push('--preset requires a value');
       else if (recordOption('preset', '--preset')) result.options.preset = val;
     } else if (arg === '--provider' || arg.startsWith('--provider=')) {
-      const val = arg.includes('=') ? arg.slice(arg.indexOf('=') + 1) : args[++i];
-      if (!val) result.errors.push('--provider requires a value');
+      const val = extractOptionValue('--provider');
+      if (val === null) {}
+      else if (!val) result.errors.push('--provider requires a value');
       else if (recordOption('provider', '--provider')) result.options.provider = val;
     } else if (arg === '--provider-scope' || arg.startsWith('--provider-scope=')) {
-      const val = arg.includes('=') ? arg.slice(arg.indexOf('=') + 1) : args[++i];
-      if (!val) result.errors.push('--provider-scope requires a value');
+      const val = extractOptionValue('--provider-scope');
+      if (val === null) {}
+      else if (!val) result.errors.push('--provider-scope requires a value');
       else if (recordOption('providerScope', '--provider-scope')) result.options.providerScope = val;
     } else if (arg === '--workspace-root' || arg.startsWith('--workspace-root=')) {
-      const val = arg.includes('=') ? arg.slice(arg.indexOf('=') + 1) : args[++i];
-      if (!val) result.errors.push('--workspace-root requires a value');
+      const val = extractOptionValue('--workspace-root');
+      if (val === null) {}
+      else if (!val) result.errors.push('--workspace-root requires a value');
       else if (recordOption('workspaceRoot', '--workspace-root')) result.options.workspaceRoot = val;
     } else if (arg === '--skills-root' || arg.startsWith('--skills-root=')) {
-      const val = arg.includes('=') ? arg.slice(arg.indexOf('=') + 1) : args[++i];
-      if (!val) result.errors.push('--skills-root requires a value');
+      const val = extractOptionValue('--skills-root');
+      if (val === null) {}
+      else if (!val) result.errors.push('--skills-root requires a value');
       else if (recordOption('skillsRoot', '--skills-root')) result.options.skillsRoot = val;
     } else if (arg === '--context-runtime-root' || arg.startsWith('--context-runtime-root=')) {
-      const val = arg.includes('=') ? arg.slice(arg.indexOf('=') + 1) : args[++i];
-      if (!val) result.errors.push('--context-runtime-root requires a value');
+      const val = extractOptionValue('--context-runtime-root');
+      if (val === null) {}
+      else if (!val) result.errors.push('--context-runtime-root requires a value');
       else if (recordOption('contextRuntimeRoot', '--context-runtime-root')) result.options.contextRuntimeRoot = val;
     } else if (arg === '--forge-runtime-root' || arg.startsWith('--forge-runtime-root=')) {
-      const val = arg.includes('=') ? arg.slice(arg.indexOf('=') + 1) : args[++i];
-      if (!val) result.errors.push('--forge-runtime-root requires a value');
+      const val = extractOptionValue('--forge-runtime-root');
+      if (val === null) {}
+      else if (!val) result.errors.push('--forge-runtime-root requires a value');
       else if (recordOption('forgeRuntimeRoot', '--forge-runtime-root')) result.options.forgeRuntimeRoot = val;
     } else if (arg === '--graph-runtime-root' || arg.startsWith('--graph-runtime-root=')) {
-      const val = arg.includes('=') ? arg.slice(arg.indexOf('=') + 1) : args[++i];
-      if (!val) result.errors.push('--graph-runtime-root requires a value');
+      const val = extractOptionValue('--graph-runtime-root');
+      if (val === null) {}
+      else if (!val) result.errors.push('--graph-runtime-root requires a value');
       else if (recordOption('graphRuntimeRoot', '--graph-runtime-root')) result.options.graphRuntimeRoot = val;
     } else if (arg === '--project' || arg.startsWith('--project=')) {
-      const val = arg.includes('=') ? arg.slice(arg.indexOf('=') + 1) : args[++i];
-      if (!val) result.errors.push('--project requires a value');
+      const val = extractOptionValue('--project');
+      if (val === null) {}
+      else if (!val) result.errors.push('--project requires a value');
       else if (recordOption('project', '--project')) result.options.project = val;
     } else if (arg === '--custom-component' || arg.startsWith('--custom-component=')) {
-      const val = arg.includes('=') ? arg.slice(arg.indexOf('=') + 1) : args[++i];
-      if (!val) result.errors.push('--custom-component requires a value');
-      else if (recordOption('customComponents', '--custom-component')) result.options.customComponents.push(val);
+      const val = extractOptionValue('--custom-component');
+      if (val === null) {}
+      else if (!val) result.errors.push('--custom-component requires a value');
+      else if (recordOption('customComponents', '--custom-component')) result.options.customComponents.push(resolveComponentId(val));
     } else if (arg === '--component' || arg.startsWith('--component=')) {
-      const val = arg.includes('=') ? arg.slice(arg.indexOf('=') + 1) : args[++i];
-      if (!val) result.errors.push('--component requires a value');
-      else if (recordOption('componentActions', '--component')) result.options.componentActions.push(val);
+      const val = extractOptionValue('--component');
+      if (val === null) {}
+      else if (!val) result.errors.push('--component requires a value');
+      else if (recordOption('componentActions', '--component')) {
+        if (val.includes('=')) {
+          const [cId, cAction] = val.split('=');
+          result.options.componentActions.push(`${resolveComponentId(cId)}=${cAction}`);
+        } else {
+          result.options.componentActions.push(val);
+        }
+      }
     } else {
       result.errors.push(`Unknown option: "${arg}"`);
     }
@@ -307,6 +350,10 @@ export function parseCliArgs(rawArgs) {
   // Cross-option validation
   if (result.options.skipProviderConfiguration && result.options.provider) {
     result.errors.push('--skip-provider-configuration cannot be used together with --provider');
+  }
+
+  if (result.errors.length > 0) {
+    result.options = {};
   }
 
   return result;
@@ -375,8 +422,7 @@ export function buildSubprocessCall(command, options = {}, platform = process.pl
       psArgs.push('-WhatIf');
     }
     if (effectiveOptions.nonInteractive && (command === 'install' || command === 'update' || command === 'uninstall')) {
-      // Windows PowerShell 5.1 -File cannot bind a string Boolean to a switch.
-      // These entrypoints use CI for prompt suppression and retain ShouldProcess.
+      env.AFYX_NONINTERACTIVE = '1';
       env.CI = '1';
     }
 
@@ -418,8 +464,8 @@ export function buildSubprocessCall(command, options = {}, platform = process.pl
     shArgs.push('--update-installed');
   }
 
-  // In Linux/macOS bash scripts, non-interactive mode is activated by CI=1
   if (effectiveOptions.nonInteractive) {
+    env.AFYX_NONINTERACTIVE = '1';
     env.CI = '1';
   }
 
@@ -480,14 +526,19 @@ export function executeSubprocess(callInfo, { onExit = null, onOutput = null } =
     };
 
     const handleSigInt = () => {
-      if (currentChild && !currentChild.killed) currentChild.kill('SIGINT');
+      if (currentChild && !currentChild.killed) {
+        if (onOutput) currentChild.kill('SIGINT');
+      } else {
+        process.exit(130);
+      }
     };
     const handleSigTerm = () => {
       if (currentChild && !currentChild.killed) currentChild.kill('SIGTERM');
+      else process.exit(143);
     };
 
-    process.on('SIGINT', handleSigInt);
-    process.on('SIGTERM', handleSigTerm);
+    process.once('SIGINT', handleSigInt);
+    process.once('SIGTERM', handleSigTerm);
 
     const run = (exe, args) => {
       let child;

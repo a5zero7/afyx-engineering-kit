@@ -29,7 +29,7 @@ $SelectedComponent = @($SelectedComponent | ForEach-Object { $_ -split ',' } | F
 $Provider = @($Provider | ForEach-Object { $_ -split ',' } | ForEach-Object { $_.Trim() } | Where-Object { $_ })
 $codexHome = if ($env:CODEX_HOME) { $env:CODEX_HOME } else { Join-Path $env:USERPROFILE '.codex' }
 
-Write-Host 'Afyx Codex Engineering Kit — Windows uninstaller (PowerShell)'
+Write-Host 'Afyx Engineering Kit — Windows uninstaller (PowerShell)'
 if ($All) {
     $RemoveUsageTracker = $true
     $RemoveAfyxGraph = $true

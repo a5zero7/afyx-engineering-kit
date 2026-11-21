@@ -15,3 +15,9 @@ export {
   type OdooImpactedSecurityAsset,
   type OdooImpactedModule,
 } from './odoo-impact';
+export {
+  computeMultiLayerImpact,
+  type MultiLayerImpactHost,
+  type MultiLayerImpactOptions,
+  type MultiLayerImpactResult,
+} from './multi-layer-impact';

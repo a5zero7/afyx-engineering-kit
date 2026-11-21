@@ -76,10 +76,24 @@ export async function crossDomainCicdInfraDbApiEdges(
 
     // Check for Docker commands
     if (text.includes('docker build') || text.includes('docker-compose') || text.includes('docker compose')) {
+      const fileMatch = text.match(/(?:-f|--file)\s+([^\s"']+)/);
+      const specifiedFile = fileMatch && fileMatch[1] ? fileMatch[1].replace(/\\/g, '/').toLowerCase() : null;
+
       for (const [filePath, targetNode] of fileToNodeMap.entries()) {
-        const base = path.posix.basename(filePath).toLowerCase();
-        if (base === 'dockerfile' || base.startsWith('docker-compose') || base.startsWith('compose.')) {
-          addEdge(cicdNode.id, targetNode.id, 'calls');
+        const lowerPath = filePath.toLowerCase();
+        const base = path.posix.basename(lowerPath);
+        const isContainerFile = base === 'dockerfile' || base.startsWith('dockerfile.') || base.startsWith('docker-compose') || base.startsWith('compose.');
+        if (!isContainerFile) continue;
+
+        if (specifiedFile) {
+          if (lowerPath.endsWith(specifiedFile) || base === specifiedFile) {
+            addEdge(cicdNode.id, targetNode.id, 'calls');
+          }
+        } else {
+          // Default: match root or container directory
+          if (!lowerPath.includes('/') || lowerPath.startsWith('docker/') || lowerPath.startsWith('.docker/')) {
+            addEdge(cicdNode.id, targetNode.id, 'calls');
+          }
         }
       }
     }
@@ -87,17 +101,28 @@ export async function crossDomainCicdInfraDbApiEdges(
     // Check for Terraform commands
     if (text.includes('terraform ') || text.includes('tofu ')) {
       for (const [filePath, targetNode] of fileToNodeMap.entries()) {
-        if (filePath.endsWith('.tf') || filePath.endsWith('.tofu')) {
-          addEdge(cicdNode.id, targetNode.id, 'calls');
+        const lowerPath = filePath.toLowerCase();
+        if (lowerPath.endsWith('.tf') || lowerPath.endsWith('.tofu')) {
+          if (!lowerPath.includes('/') || lowerPath.startsWith('terraform/') || lowerPath.startsWith('infra/')) {
+            addEdge(cicdNode.id, targetNode.id, 'calls');
+          }
         }
       }
     }
 
     // Check for Ansible commands
     if (text.includes('ansible-playbook') || text.includes('ansible ')) {
+      const pbMatch = text.match(/ansible-playbook\s+([^\s"']+)/);
+      const specifiedPb = pbMatch && pbMatch[1] ? pbMatch[1].replace(/\\/g, '/').toLowerCase() : null;
+
       for (const [filePath, targetNode] of fileToNodeMap.entries()) {
-        const base = path.posix.basename(filePath).toLowerCase();
-        if (base.startsWith('playbook') || base === 'site.yml' || base === 'site.yaml') {
+        const lowerPath = filePath.toLowerCase();
+        const base = path.posix.basename(lowerPath);
+        if (specifiedPb) {
+          if (lowerPath.endsWith(specifiedPb) || base === specifiedPb) {
+            addEdge(cicdNode.id, targetNode.id, 'calls');
+          }
+        } else if (base.startsWith('playbook') || base === 'site.yml' || base === 'site.yaml') {
           addEdge(cicdNode.id, targetNode.id, 'calls');
         }
       }

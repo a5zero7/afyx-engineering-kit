@@ -19,13 +19,13 @@ provider_scope=global
 workspace_root="$PWD"
 codex_home="${CODEX_HOME:-$HOME/.codex}"
 gemini_home="${AFYX_GEMINI_HOME:-$HOME/.gemini}"
-claude_home="${CLAUDE_HOME:-$HOME/.claude}"
+claude_home="${CLAUDE_CONFIG_DIR:-${CLAUDE_HOME:-$HOME/.claude}}"
 claude_config_dir="${CLAUDE_CONFIG_DIR:-}"
 
-printf 'Afyx Codex Engineering Kit — Linux/macOS uninstaller (Bash)\n'
+printf 'Afyx Engineering Kit — Linux/macOS uninstaller (Bash)\n'
 
 usage() {
-  printf '%s\n' 'Usage: ./uninstall.sh [--skills-root PATH] [--context-runtime-root PATH] [--forge-runtime-root PATH] [--component AFYX-SKILL-ID] [--remove-provider-configuration] [--provider codex|antigravity[,..]] [--provider-scope global|workspace] [--workspace-root PATH] [--gemini-home PATH] [--remove-afyx-graph] [--remove-afyx-context] [--remove-afyx-forge] [--dry-run]'
+  printf '%s\n' 'Usage: ./uninstall.sh [--skills-root PATH] [--context-runtime-root PATH] [--forge-runtime-root PATH] [--component AFYX-SKILL-ID] [--remove-provider-configuration] [--provider codex|antigravity|claude[,..]] [--provider-scope global|workspace] [--workspace-root PATH] [--gemini-home PATH] [--claude-home PATH] [--claude-config-dir PATH] [--remove-afyx-graph] [--remove-afyx-context] [--remove-afyx-forge] [--dry-run]'
 }
 
 while (($#)); do

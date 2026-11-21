@@ -12,7 +12,7 @@
   },
   "scripts": {
     "prepack": "node scripts/prepare-g6-package.mjs",
-    "test": "node --test scripts/tests/test_npm_installer.mjs"
+    "test": "node --test scripts/tests/test_npm_installer.mjs scripts/tests/test_macos_installer_parity.mjs"
   },
   "files": [
     ".afyx-source-revision",

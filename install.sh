@@ -34,6 +34,7 @@ provider_list=codex
 provider_explicit=false
 provider_scope=global
 workspace_root="$PWD"
+codex_home="${CODEX_HOME:-$HOME/.codex}"
 gemini_home="${AFYX_GEMINI_HOME:-$HOME/.gemini}"
 claude_home="${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
 claude_config_dir="${CLAUDE_CONFIG_DIR:-}"
@@ -44,33 +45,35 @@ contract_plan_ready=false
 contract_plan_actions=()
 
 usage() {
-  printf '%s\n' 'Usage: ./install.sh [--skills-root PATH] [--context-runtime-root PATH] [--forge-runtime-root PATH] [--provider codex|antigravity|claude[,..]] [--provider-scope global|workspace] [--workspace-root PATH] [--gemini-home PATH] [--claude-home PATH] [--claude-config-dir PATH] [--skip-provider-configuration] [--preset minimal|recommended|full|custom] [--custom-component ID] [--component ID=skip|install|update|repair|adopt] [--update-installed] [--force] [--validate-only] [--dry-run]'
+  printf '%s\n' 'Usage: ./install.sh [--skills-root PATH] [--context-runtime-root PATH] [--forge-runtime-root PATH] [--graph-runtime-root PATH] [--provider codex|antigravity|claude[,..]] [--provider-scope global|workspace] [--workspace-root PATH] [--codex-home PATH] [--gemini-home PATH] [--claude-home PATH] [--claude-config-dir PATH] [--skip-provider-configuration] [--preset minimal|recommended|full|custom] [--custom-component ID] [--component ID=skip|install|update|repair|adopt] [--update-installed] [--force] [--validate-only] [--dry-run]'
 }
 
 while (($#)); do
   case "$1" in
-    --skills-root) (($# >= 2)) || { printf '%s\n' '--skills-root requires a value.' >&2; exit 2; }; skills_root="$2"; skills_root_explicit=true; shift 2 ;;
-    --context-runtime-root) (($# >= 2)) || { printf '%s\n' '--context-runtime-root requires a value.' >&2; exit 2; }; context_root="$2"; shift 2 ;;
-    --forge-runtime-root) (($# >= 2)) || { printf '%s\n' '--forge-runtime-root requires a value.' >&2; exit 2; }; forge_root="$2"; shift 2 ;;
+    --skills-root) (($# >= 2)) && [[ "$2" != -* ]] || { printf '%s\n' '--skills-root requires a value.' >&2; exit 2; }; skills_root="$2"; skills_root_explicit=true; shift 2 ;;
+    --context-runtime-root) (($# >= 2)) && [[ "$2" != -* ]] || { printf '%s\n' '--context-runtime-root requires a value.' >&2; exit 2; }; context_root="$2"; shift 2 ;;
+    --forge-runtime-root) (($# >= 2)) && [[ "$2" != -* ]] || { printf '%s\n' '--forge-runtime-root requires a value.' >&2; exit 2; }; forge_root="$2"; shift 2 ;;
+    --graph-runtime-root) (($# >= 2)) && [[ "$2" != -* ]] || { printf '%s\n' '--graph-runtime-root requires a value.' >&2; exit 2; }; graph_root="$2"; shift 2 ;;
     --force) force=true; shift ;;
-    --component) (($# >= 2)) || { printf '%s\n' '--component requires a value.' >&2; exit 2; }; component_actions+=("$2"); component_action_count=$((component_action_count + 1)); shift 2 ;;
-    --preset) (($# >= 2)) || { printf '%s\n' '--preset requires a value.' >&2; exit 2; }; preset="$2"; shift 2 ;;
-    --custom-component) (($# >= 2)) || { printf '%s\n' '--custom-component requires a value.' >&2; exit 2; }; custom_component_list="${custom_component_list:+$custom_component_list;}$2"; shift 2 ;;
+    --component) (($# >= 2)) && [[ "$2" != -* ]] || { printf '%s\n' '--component requires a value.' >&2; exit 2; }; component_actions+=("$2"); component_action_count=$((component_action_count + 1)); shift 2 ;;
+    --preset) (($# >= 2)) && [[ "$2" != -* ]] || { printf '%s\n' '--preset requires a value.' >&2; exit 2; }; preset="$2"; shift 2 ;;
+    --custom-component) (($# >= 2)) && [[ "$2" != -* ]] || { printf '%s\n' '--custom-component requires a value.' >&2; exit 2; }; custom_component_list="${custom_component_list:+$custom_component_list;}$2"; shift 2 ;;
     --update-installed) update_installed=true; shift ;;
     --offline) offline=true; shift ;;
     --no-build-fallback) no_build_fallback=true; shift ;;
     --allow-dirty-source) allow_dirty_source=true; shift ;;
     --allow-downgrade) allow_downgrade=true; shift ;;
     --skip-graph-mcp) skip_graph_mcp=true; shift ;;
-    --provider) (($# >= 2)) || { printf '%s\n' '--provider requires a value.' >&2; exit 2; }; provider_list="$2"; provider_explicit=true; shift 2 ;;
-    --provider-scope) (($# >= 2)) || { printf '%s\n' '--provider-scope requires a value.' >&2; exit 2; }; provider_scope="$2"; shift 2 ;;
-    --workspace-root) (($# >= 2)) || { printf '%s\n' '--workspace-root requires a value.' >&2; exit 2; }; workspace_root="$2"; shift 2 ;;
-    --gemini-home) (($# >= 2)) || { printf '%s\n' '--gemini-home requires a value.' >&2; exit 2; }; gemini_home="$2"; shift 2 ;;
-    --claude-home) (($# >= 2)) || { printf '%s\n' '--claude-home requires a value.' >&2; exit 2; }; claude_home="$2"; shift 2 ;;
-    --claude-config-dir) (($# >= 2)) || { printf '%s\n' '--claude-config-dir requires a value.' >&2; exit 2; }; claude_config_dir="$2"; shift 2 ;;
+    --provider) (($# >= 2)) && [[ "$2" != -* ]] || { printf '%s\n' '--provider requires a value.' >&2; exit 2; }; provider_list="$2"; provider_explicit=true; shift 2 ;;
+    --provider-scope) (($# >= 2)) && [[ "$2" != -* ]] || { printf '%s\n' '--provider-scope requires a value.' >&2; exit 2; }; provider_scope="$2"; shift 2 ;;
+    --workspace-root) (($# >= 2)) && [[ "$2" != -* ]] || { printf '%s\n' '--workspace-root requires a value.' >&2; exit 2; }; workspace_root="$2"; shift 2 ;;
+    --codex-home) (($# >= 2)) && [[ "$2" != -* ]] || { printf '%s\n' '--codex-home requires a value.' >&2; exit 2; }; codex_home="$2"; shift 2 ;;
+    --gemini-home) (($# >= 2)) && [[ "$2" != -* ]] || { printf '%s\n' '--gemini-home requires a value.' >&2; exit 2; }; gemini_home="$2"; shift 2 ;;
+    --claude-home) (($# >= 2)) && [[ "$2" != -* ]] || { printf '%s\n' '--claude-home requires a value.' >&2; exit 2; }; claude_home="$2"; shift 2 ;;
+    --claude-config-dir) (($# >= 2)) && [[ "$2" != -* ]] || { printf '%s\n' '--claude-config-dir requires a value.' >&2; exit 2; }; claude_config_dir="$2"; shift 2 ;;
     --skip-provider-configuration) skip_provider_configuration=true; shift ;;
     --plan-json) plan_json=true; shift ;;
-    --expected-plan) (($# >= 2)) || exit 2; expected_plan="$2"; shift 2 ;;
+    --expected-plan) (($# >= 2)) && [[ "$2" != -* ]] || exit 2; expected_plan="$2"; shift 2 ;;
     --validate-only) validate_only=true; shift ;;
     --dry-run) dry_run=true; shift ;;
     -h|--help) usage; exit 0 ;;
@@ -81,7 +84,7 @@ if { "$plan_json" || [[ -n "$expected_plan" ]]; } && [[ -z "$preset" ]]; then
   printf 'Structured planning requires an explicit preset.\n' >&2; exit 2
 fi
 
-if [[ "$provider_explicit" == false && "$skip_provider_configuration" == false && -z "$preset" && -t 0 && -t 1 && -z "${CI:-}" && "${AFYX_INSTALL_UI_OWNER:-}" != node ]]; then
+if [[ "$provider_explicit" == false && "$skip_provider_configuration" == false && -z "$preset" && -t 0 && -t 1 && -z "${CI:-}" && -z "${AFYX_NONINTERACTIVE:-}" && "${AFYX_INSTALL_UI_OWNER:-}" != node ]]; then
   if command -v node >/dev/null 2>&1; then
     exec node "$PACKAGE_ROOT/bin/afyx-engineering-kit.mjs" install
   fi
@@ -221,7 +224,7 @@ explicit_action() {
 }
 
 component_action() {
-  local id="$1" label="$2" state="$3" installed="$4" available action= answer default
+  local id="$1" label="$2" state="$3" installed="$4" available action="" answer="" default=""
   if "$contract_plan_ready"; then
     local contract_decision
     for contract_decision in ${contract_plan_actions[@]+"${contract_plan_actions[@]}"}; do
@@ -389,7 +392,7 @@ for provider_id in $provider_list; do
   if [[ "$provider_id" == codex ]]; then
     provider_name=Codex
     if "$codex_cli_detected" || "$vscode_extension_detected"; then provider_detected=true; else provider_detected=false; fi
-    provider_path="${CODEX_HOME:-$HOME/.codex}/config.toml"
+    provider_path="$codex_home/config.toml"
   elif [[ "$provider_id" == antigravity ]]; then
     provider_name=Antigravity
     provider_detected="$antigravity_detected"
@@ -499,7 +502,7 @@ if "$plan_json" || [[ -n "$expected_plan" ]]; then
     done
   done
   if ! "$skip_provider_configuration"; then
-    [[ ",$provider_list," != *,codex,* ]] || contract_args+=(--config "${CODEX_HOME:-$HOME/.codex}/config.toml")
+    [[ ",$provider_list," != *,codex,* ]] || contract_args+=(--config "$codex_home/config.toml")
     if [[ ",$provider_list," == *,antigravity,* ]]; then
       if [[ "$provider_scope" == workspace ]]; then contract_args+=(--config "$workspace_root/.agents/mcp_config.json")
       else contract_args+=(--config "$gemini_home/config/mcp_config.json"); fi

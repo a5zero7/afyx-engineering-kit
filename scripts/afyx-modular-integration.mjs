@@ -104,7 +104,7 @@ export const PRODUCT_INVENTORY = Object.freeze({
   }),
   'afyx-odoo-engineering': Object.freeze({
     id: 'afyx-odoo-engineering',
-    canonicalName: 'AFYX Odoo Engineering',
+    canonicalName: 'Afyx Odoo Engineering',
     type: 'skill',
     primaryCapability: 'odoo-framework-authority',
     domainAuthority: 'Odoo-specific technical and framework authority.',
@@ -116,7 +116,7 @@ export const PRODUCT_INVENTORY = Object.freeze({
   }),
   'afyx-efficient-coding': Object.freeze({
     id: 'afyx-efficient-coding',
-    canonicalName: 'AFYX Efficient Coding',
+    canonicalName: 'Afyx Efficient Coding',
     type: 'skill',
     primaryCapability: 'focused-coding-discipline',
     domainAuthority: 'Focused coding discipline and proportional implementation guidance.',
@@ -128,7 +128,7 @@ export const PRODUCT_INVENTORY = Object.freeze({
   }),
   'afyx-usage-intelligence': Object.freeze({
     id: 'afyx-usage-intelligence',
-    canonicalName: 'AFYX Usage Intelligence',
+    canonicalName: 'Afyx Usage Intelligence',
     type: 'toolset',
     primaryCapability: 'universal-usage-telemetry',
     domainAuthority: 'Universal multi-provider usage telemetry.',
@@ -140,7 +140,7 @@ export const PRODUCT_INVENTORY = Object.freeze({
   }),
   'odoo-engineering': Object.freeze({
     id: 'afyx-odoo-engineering',
-    canonicalName: 'AFYX Odoo Engineering',
+    canonicalName: 'Afyx Odoo Engineering',
     type: 'skill',
     primaryCapability: 'odoo-framework-authority',
     domainAuthority: 'Odoo-specific technical and framework authority.',
@@ -152,7 +152,7 @@ export const PRODUCT_INVENTORY = Object.freeze({
   }),
   'efficient-coding': Object.freeze({
     id: 'afyx-efficient-coding',
-    canonicalName: 'AFYX Efficient Coding',
+    canonicalName: 'Afyx Efficient Coding',
     type: 'skill',
     primaryCapability: 'focused-coding-discipline',
     domainAuthority: 'Focused coding discipline and proportional implementation guidance.',
@@ -164,7 +164,7 @@ export const PRODUCT_INVENTORY = Object.freeze({
   }),
   'codex-usage-tracking': Object.freeze({
     id: 'afyx-usage-intelligence',
-    canonicalName: 'AFYX Usage Intelligence',
+    canonicalName: 'Afyx Codex Usage Tracking',
     type: 'toolset',
     primaryCapability: 'universal-usage-telemetry',
     domainAuthority: 'Universal multi-provider usage telemetry.',

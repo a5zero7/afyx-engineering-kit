@@ -148,8 +148,8 @@ if ($controlPlan) {
 }
 foreach ($additionalRoot in $additionalSkillRoots) {
     foreach ($component in Get-AfyxComponentContract | Where-Object { $_.type -eq 'skill' -and $_.ownership -eq 'afyx' }) {
-        $desired = -not $controlPlan -or [string]$component.id -in $controlPlan.DesiredComponents
         $target = Join-Path $additionalRoot ([string]$component.install_path)
+        $desired = if ($controlPlan) { [string]$component.id -in $controlPlan.DesiredComponents } else { Test-Path -LiteralPath $target }
         $ownership = Get-AfyxSkillOwnership -Target $target -Component ([string]$component.id) -ExpectedOwner ([string]$component.ownership)
         if ($ownership -eq 'AFYX_OWNED_UNMODIFIED') { Write-Result 'OK' "Provider skill/$($component.id)" "$additionalRoot; ownership verified" }
         elseif ($ownership -eq 'NOT_INSTALLED' -and -not $desired) { Write-Result 'INFO' "Provider skill/$($component.id)" "$additionalRoot; not selected" }
@@ -279,6 +279,9 @@ switch ($graph.State) {
     'NOT INSTALLED' { Write-Result 'INFO' 'Afyx Graph' 'not installed (optional)' }
     'HEALTHY' {
         $graphCli = Join-Path $graph.Path 'bin\afyx-graph.cmd'
+        if (-not (Test-Path -LiteralPath $graphCli)) {
+            $graphCli = Join-Path $graph.Path 'current\bin\afyx-graph.cmd'
+        }
         try {
             $reported = (& $graphCli --version 2>$null) -join ' '
             if ($LASTEXITCODE -ne 0 -or $reported -notmatch [regex]::Escape([string]$graph.Version)) { throw 'version mismatch' }
@@ -432,15 +435,20 @@ if ($Provider.Count -and $node -and -not $SkipProviderConfiguration) {
             try { $providerResult = $providerJson | ConvertFrom-AfyxJson -Depth 20 }
             catch { $providerResult = $null }
             if (-not $providerResult -or $providerResult.status -eq 'BLOCKED') {
-                Write-Result 'FAIL' 'Afyx workflow MCP' $(if ($providerJson) { $providerJson } else { 'provider verification failed' })
-                $coreFailure = $true
+                $isDesired = if ($controlPlan) { 'afyx-host-bridge' -in $controlPlan.DesiredComponents } else { $true }
+                if ($isDesired) {
+                    Write-Result 'FAIL' 'Afyx workflow MCP' $(if ($providerJson) { $providerJson } else { 'provider verification failed' })
+                    $coreFailure = $true
+                } else {
+                    Write-Result 'INFO' 'Afyx workflow MCP' $(if ($providerJson) { $providerJson } else { 'not configured (optional)' })
+                }
             } else {
                 Write-Result 'OK' 'Afyx workflow MCP' $providerResult.status
             }
         } else {
             Write-Result 'INFO' 'Afyx workflow MCP' 'session/workspace-isolated; direct CLI and session override available'
         }
-    } elseif ($workflowProviders.Count -or (Test-Path -LiteralPath $HostBridgeRuntimeRoot)) {
+    } elseif (($controlPlan -and 'afyx-host-bridge' -in $controlPlan.DesiredComponents) -or ($Preset -eq 'full' -and $workflowProviders.Count)) {
         Write-Result 'FAIL' 'Afyx Universal Host Bridge' $(if ($bridgeJson) { $bridgeJson } else { 'not installed or integrity verification failed' })
         $coreFailure = $true
     } else {

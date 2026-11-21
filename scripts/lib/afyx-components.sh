@@ -55,11 +55,27 @@ afyx_preset_valid() {
   case "$1" in minimal|recommended|full|custom) return 0 ;; *) return 1 ;; esac
 }
 
+afyx_resolve_component_id() {
+  case "$1" in
+    efficient-coding) printf '%s\n' "afyx-efficient-coding" ;;
+    odoo-engineering) printf '%s\n' "afyx-odoo-engineering" ;;
+    codex-usage-tracking) printf '%s\n' "afyx-usage-intelligence" ;;
+    *) printf '%s\n' "$1" ;;
+  esac
+}
+
 afyx_component_desired() {
   local id="$1" preset="$2" custom="${3:-}" providers="${4:-codex}" memberships restriction provider
   afyx_preset_valid "$preset" || return 2
   if [[ "$preset" == custom ]]; then
-    case ";$custom;" in *";$id;"*) ;; *) return 1 ;; esac
+    local resolved_id; resolved_id="$(afyx_resolve_component_id "$id")"
+    local item found=false
+    local old_ifs="$IFS"; IFS=';'
+    for item in $custom; do
+      if [[ "$(afyx_resolve_component_id "$item")" == "$resolved_id" ]]; then found=true; break; fi
+    done
+    IFS="$old_ifs"
+    "$found" || return 1
   else
     memberships="$(afyx_component_field "$id" presets)"
     case ";$memberships;" in *";$preset;"*) ;; *) return 1 ;; esac
@@ -108,7 +124,7 @@ afyx_control_classify() {
 }
 
 afyx_control_plan_identity() {
-  local preset="$1" custom="${2:-}" providers="${3:-codex}" id desired= separator=
+  local preset="$1" custom="${2:-}" providers="${3:-codex}" id desired="" separator=""
   afyx_preset_valid "$preset" || return 2
   for id in $(afyx_component_ids); do
     [[ "$(afyx_component_field "$id" type)" == detected-cli ]] && continue

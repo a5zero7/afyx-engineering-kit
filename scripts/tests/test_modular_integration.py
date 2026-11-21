@@ -102,12 +102,12 @@ console.log(JSON.stringify({{ levels: PRODUCT_MATURITY_LEVELS, inventory: PRODUC
         components = {c["id"]: c for c in self.registry_data["components"]}
 
         expected_display_names = {
-            "efficient-coding": "Afyx Efficient Coding",
-            "odoo-engineering": "Afyx Odoo Engineering",
+            "afyx-efficient-coding": "Afyx Efficient Coding",
+            "afyx-odoo-engineering": "Afyx Odoo Engineering",
             "afyx-engineering-expert": "Afyx Engineering Expert",
             "afyx-graph": "Afyx Graph",
             "afyx-context": "Afyx Context Engine",
-            "codex-usage-tracking": "Afyx Codex Usage Tracking",
+            "afyx-usage-intelligence": "Afyx Usage Intelligence",
         }
 
         for comp_id, expected_name in expected_display_names.items():

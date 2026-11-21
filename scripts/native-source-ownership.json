@@ -2,7 +2,7 @@
   "schema": 1,
   "baselineRevision": "c4e4d8e29de239a2fcbc0db8ac65eea2276e7b00",
   "scope": "AFYX-320 comprehensive production source inventory",
-  "totalProductionFiles": 498,
+  "totalProductionFiles": 501,
   "entries": [
     {
       "path": "afyx-context/src/budget.js",
@@ -661,7 +661,7 @@
     {
       "path": "afyx-graph/engine/src/extraction/grammars.ts",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "37f335f5932ebbb2542eef56b9d6f314b08f08f66a9036afd933694bf69706ec",
+      "reviewedSha256": "5790f4af1921e6b2231ad5e44202658bcce742bba1dfd319f8609946b3e64d51",
       "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
     },
     {
@@ -763,7 +763,7 @@
     {
       "path": "afyx-graph/engine/src/extraction/native/fact-extractor.ts",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "b2c974efb4ecb96fd1067dcb8cb5e92b15b5b863eaff00cc5300c3771133bf82",
+      "reviewedSha256": "5a881bbd5d7b49a27efdd4d5ee8db2187c63336e3fdf94956936856535db7074",
       "evidence": "Independently authored AFYX native component implementing source-grounded grammar and AST symbol extraction."
     },
     {
@@ -795,6 +795,12 @@
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
       "reviewedSha256": "5b82e48b9913a68f701b7be145cc4efc99579aca36890d9a8b76e268f85cb504",
       "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/extraction/native/polyglot-expansion-facts.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "evidence": "Track C Wave 3B (AFYX-225, AFYX-226 / C5): Native Polyglot semantic fact extractor covering Groovy, Elixir, Zig, F#, Clojure, Haskell, OCaml, Julia, and Perl.",
+      "reviewedSha256": "a900116c5e91425c20ef138fa76ee5d6872ee3825b5fc8374dc2a8fdbced1a09"
     },
     {
       "path": "afyx-graph/engine/src/extraction/native/powershell-facts.ts",
@@ -1148,8 +1154,14 @@
     {
       "path": "afyx-graph/engine/src/impact/index.ts",
       "classification": "PUBLIC_API_BARREL",
-      "reviewedSha256": "0640eec439df9fdf1952d2e2d906485c28269a7328575021301dd14a640c0bc8",
+      "reviewedSha256": "c25452272eaa48a864fb6c323457ebe2fa7d586a14e27186fbb0a6a72b64fa77",
       "evidence": "AFYX public module barrel export surface; exposes stable interface without independent algorithmic logic."
+    },
+    {
+      "path": "afyx-graph/engine/src/impact/multi-layer-impact.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "evidence": "Track C Wave 3B (AFYX-229, AFYX-230, AFYX-231 / C7): Multi-layer impact analysis engine computing symbol blast radius, cross-domain cascading impact, and framework/cross-repo routing.",
+      "reviewedSha256": "e7144133696a105388551724d0e2f652e38d8611f8e542f8c423ce68a54d8315"
     },
     {
       "path": "afyx-graph/engine/src/impact/odoo-impact.ts",
@@ -1634,13 +1646,13 @@
     {
       "path": "afyx-graph/engine/src/resolution/cross-domain-cicd-infra-db-api.ts",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "87bc0b7871547c83a3c5b031f40197f680a435051383384e599f2df640fda5b0",
+      "reviewedSha256": "5fda0b46ab492843b13d8f96392aab74a715bca926c9691072e024c464218251",
       "evidence": "Track C Wave 3A (AFYX-228 / C6.2): Native Cross-domain resolver linking CI/CD, Infrastructure (Terraform), Ansible, Database schemas, and API/Schemas."
     },
     {
       "path": "afyx-graph/engine/src/resolution/cross-domain-source-build-container.ts",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "d7bfb28d34af15c9bcb2732b03c5846264c73f3982770e6c1bb4b8345ebd41ab",
+      "reviewedSha256": "6c55d909cb0f452fbcdedc1daede449dbcc3770de84904f55bf16410e1637b96",
       "evidence": "Track C Wave 3A (AFYX-227 / C6.1): Native Cross-domain resolver linking Source code, Build systems, and Container assets."
     },
     {
@@ -1736,7 +1748,7 @@
     {
       "path": "afyx-graph/engine/src/resolution/frameworks/index.ts",
       "classification": "PUBLIC_API_BARREL",
-      "reviewedSha256": "cc4833bd4553eb8c9578a0467e92d07891a2685d766884bd7c2c244c9a703412",
+      "reviewedSha256": "c4f57648239eda4fe94fb44f916c32dc29d29457a83681aee505ea7b47e9852f",
       "evidence": "V1-CAPABILITY-CLOSURE-C01 (AFYX-223): Registered native angularResolver in framework resolver registry."
     },
     {
@@ -1750,6 +1762,12 @@
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
       "reviewedSha256": "0290ad0f00e751483a4aa281038722d61075964d8cb18a13752f7306aecae397",
       "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/resolution/frameworks/mobile.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "evidence": "Track C Wave 3B (AFYX-224 / C4.3): Native Mobile framework navigation resolver covering Flutter routes, Android Jetpack Compose / Intent navigation, and React Native screen navigation.",
+      "reviewedSha256": "ed888cd7bddd9e7499efe81df4ce130a96d8f165256363d50e8fecefdec951bf"
     },
     {
       "path": "afyx-graph/engine/src/resolution/frameworks/nestjs.ts",
@@ -2195,7 +2213,7 @@
     {
       "path": "afyx-graph/engine/src/types.ts",
       "classification": "PUBLIC_CONTRACT",
-      "reviewedSha256": "1505d763ebbc32b3bf5a40088019044b38bfe400ec32777f4a7f4b26cf915dee",
+      "reviewedSha256": "87fe6aa94b48783b5e9880c8f54dd53a2ebff9cd914fff1c4afe57ceda4808eb",
       "evidence": "AFYX structural type definitions, contracts, and schema interfaces; pure type vocabulary."
     },
     {
@@ -2823,7 +2841,7 @@
     {
       "path": "scripts/afyx-modular-integration.mjs",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "71d9cbeeb5a60a6795757e2b87f4ae79ab39534620e591e168d7cfb0b1be264a",
+      "reviewedSha256": "90bb52a3166821aa19012d63b98939616058ecd3200ddd715133328b09f904aa",
       "evidence": "MB18 AFYX-105/190/347: reviewed versioned browser/document inventory entries, SOURCE_READY maturity and ON_DEMAND activation without changing installed presets or triggering unrelated capabilities."
     },
     {
@@ -2853,7 +2871,7 @@
     {
       "path": "scripts/afyx-npm-installer.mjs",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "d077fb2d24cd9197c5665749d36e0fb5a7a9270e0a36ec69d5af28f18acb8756",
+      "reviewedSha256": "93fd208f8735b222953d361e461fe18c82b2ee8d266b03eb776ca2b397ed9bfb",
       "evidence": "Installer UX v2 with synchronized universal capability summaries, help text, and version 0.1.0-alpha.12 (AFYX-77)."
     },
     {

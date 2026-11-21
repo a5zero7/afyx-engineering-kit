@@ -77,7 +77,7 @@ class DoctorTests(unittest.TestCase):
         return active
 
     def install_core(self) -> None:
-        for name in ("efficient-coding", "odoo-engineering"):
+        for name in ("afyx-efficient-coding", "afyx-odoo-engineering"):
             shutil.copytree(ROOT / "skills" / name, self.skills / name)
 
     def git_project(self) -> str:
@@ -104,16 +104,16 @@ class DoctorTests(unittest.TestCase):
         for shell, (code, out) in self.doctors().items():
             self.assertEqual(code, 1, shell)
             self.assertIn("NOT READY", out, shell)
-            for name in ("Efficient Coding", "Odoo Engineering"):
+            for name in ("Afyx Efficient Coding", "Afyx Odoo Engineering"):
                 self.assertIn(f"[FAIL] {name}", out, shell)
 
     def test_healthy_core_is_reported_with_versions(self) -> None:
         self.install_core()
         for shell, (_code, out) in self.doctors().items():
             separator = "—" if shell == "bash" else "-"
-            self.assertIn(f"[OK] Efficient Coding {separator} 1.2.2", out, shell)
-            self.assertIn(f"[OK] Odoo Engineering {separator} 1.2.0", out, shell)
-            self.assertNotIn("[FAIL] Efficient Coding", out, shell)
+            self.assertIn(f"[OK] Afyx Efficient Coding {separator} 1.2.2", out, shell)
+            self.assertIn(f"[OK] Afyx Odoo Engineering {separator} 1.2.0", out, shell)
+            self.assertNotIn("[FAIL] Afyx Efficient Coding", out, shell)
 
     def test_optional_expert_is_reported_without_affecting_core_readiness(self) -> None:
         self.install_core()

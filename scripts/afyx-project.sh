@@ -32,7 +32,7 @@ while (($#)); do
 done
 [[ "$format" == json || "$format" == text ]] || { printf 'Invalid --format: %s\n' "$format" >&2; exit 2; }
 
-in_range() { (($1 >= SUPPORTED_MIN && $1 <= SUPPORTED_MAX)); }
+in_range() { [[ -n "$1" ]] && (("$1" >= SUPPORTED_MIN && "$1" <= SUPPORTED_MAX)); }
 json_escape() { printf '%s' "$1" | sed -e 's/\\/\\\\/g' -e 's/"/\\"/g'; }
 first_number() { grep -Eo '[0-9]+' | head -n 1; }
 

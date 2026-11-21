@@ -34,9 +34,10 @@ case "$runtime_root" in
   /|[A-Za-z]:/|[A-Za-z]:\\|[A-Za-z]:) printf '%s\n' 'Afyx Forge runtime root cannot be a filesystem root.' >&2; exit 1 ;;
 esac
 
-case "$runtime_root" in
-  *\.\.*|*\\..\\*|*/../*) printf '%s\n' 'Afyx Forge runtime root must not contain traversal segments.' >&2; exit 1 ;;
-esac
+if [[ "$runtime_root" =~ (^|[/\\])\.\.([/\\]|$) ]]; then
+  printf '%s\n' 'Afyx Forge runtime root must not contain traversal segments.' >&2
+  exit 1
+fi
 
 normalize_path() {
   local p="$1"
@@ -64,8 +65,14 @@ host_path() {
 CANONICAL_SOURCE="$(normalize_path "$SOURCE_ROOT")"
 CANONICAL_RUNTIME="$(normalize_path "$runtime_root")"
 
-case "$CANONICAL_RUNTIME/" in "$CANONICAL_SOURCE/"*) printf '%s\n' 'Afyx Forge runtime root must not overlap bundled source.' >&2; exit 1 ;; esac
-case "$CANONICAL_SOURCE/" in "$CANONICAL_RUNTIME/"*) printf '%s\n' 'Afyx Forge runtime root must not contain bundled source.' >&2; exit 1 ;; esac
+if [[ "$CANONICAL_RUNTIME" == "$CANONICAL_SOURCE" || "$CANONICAL_RUNTIME" == "$CANONICAL_SOURCE"/* ]]; then
+  printf '%s\n' 'Afyx Forge runtime root must not overlap bundled source.' >&2
+  exit 1
+fi
+if [[ "$CANONICAL_SOURCE" == "$CANONICAL_RUNTIME"/* ]]; then
+  printf '%s\n' 'Afyx Forge runtime root must not contain bundled source.' >&2
+  exit 1
+fi
 
 for candidate in "$runtime_root" "$recovery_root"; do
   probe="$candidate"

@@ -1,3 +1,4 @@
+#!/usr/bin/env bash
 # Native Bash 3.2 adapter for the shared installer progress protocol.
 if [[ "${AFYX_INSTALL_PROGRESS:-0}" == 1 ]]; then exec 3>&1; fi
 afyx_progress_escape() {

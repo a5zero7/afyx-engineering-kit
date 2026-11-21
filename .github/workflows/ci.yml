@@ -180,7 +180,7 @@ jobs:
         run: |
           root="$RUNNER_TEMP/skills"
           mkdir -p "$root"
-          cp -R skills/efficient-coding skills/odoo-engineering "$root/"
+          cp -R skills/afyx-efficient-coding skills/afyx-odoo-engineering "$root/"
           # Default skills must verify without Prompt Master; the overall exit may be non-zero only because no Codex host exists on a CI runner.
           /bin/bash ./verify.sh --skills-root "$root" | tee verify.out || true
           grep -q '^\[OK\] Efficient Coding' verify.out

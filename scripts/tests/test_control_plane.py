@@ -74,7 +74,12 @@ class ControlPlaneContractTests(unittest.TestCase):
             }
         )
         if WINDOWS:
-            (self.fake_bin / "codex.cmd").write_text("@echo codex-test\r\n", encoding="utf-8")
+            (self.fake_bin / "codex.cmd").write_text(
+                '@if "%~1"=="--version" (echo codex 0.1.0 & exit /b 0)\r\n'
+                '@if "%~1"=="mcp" (echo MCP server not found 1>&2 & exit /b 1)\r\n'
+                '@echo codex-test\r\n',
+                encoding="utf-8",
+            )
         else:
             codex = self.fake_bin / "codex"
             codex.write_text("#!/bin/sh\necho codex-test\n", encoding="utf-8")
@@ -168,20 +173,20 @@ class ControlPlaneContractTests(unittest.TestCase):
         self.assertNotIn("headroom", by_id)
         self.assertEqual(
             {item["id"] for item in contract["components"] if "minimal" in item["presets"].split(";")},
-            {"efficient-coding", "odoo-engineering"},
+            {"afyx-efficient-coding", "afyx-odoo-engineering"},
         )
         self.assertEqual(
             {item["id"] for item in contract["components"] if "recommended" in item["presets"].split(";")},
-            {"efficient-coding", "odoo-engineering", "afyx-engineering-expert"},
+            {"afyx-efficient-coding", "afyx-odoo-engineering", "afyx-engineering-expert"},
         )
         self.assertEqual(
             {item["id"] for item in contract["components"] if "full" in item["presets"].split(";")},
-            {"efficient-coding", "odoo-engineering", "afyx-engineering-expert", "afyx-graph", "afyx-context", "afyx-forge", "codex-usage-tracking"},
+            {"afyx-efficient-coding", "afyx-odoo-engineering", "afyx-engineering-expert", "afyx-graph", "afyx-context", "afyx-forge", "afyx-usage-intelligence"},
         )
-        self.assertEqual(by_id["codex-usage-tracking"]["providers"], "codex")
+        self.assertEqual(by_id["afyx-usage-intelligence"]["providers"], "codex;antigravity;claude")
     def test_legacy_verify_preserves_retired_external_skill(self) -> None:
-        shutil.copytree(ROOT / "skills/efficient-coding", self.skills / "efficient-coding")
-        shutil.copytree(ROOT / "skills/odoo-engineering", self.skills / "odoo-engineering")
+        shutil.copytree(ROOT / "skills/afyx-efficient-coding", self.skills / "afyx-efficient-coding")
+        shutil.copytree(ROOT / "skills/afyx-odoo-engineering", self.skills / "afyx-odoo-engineering")
         prompt = self.skills / "prompt-master"
         prompt.mkdir()
         (prompt / "SKILL.md").write_text("---\nname: prompt-master\ndescription: structural fixture\n---\n", encoding="utf-8")
@@ -191,37 +196,37 @@ class ControlPlaneContractTests(unittest.TestCase):
         self.assertIn("Core readiness", legacy.stdout)
         self.assertNotIn("Prompt Master", legacy.stdout)
         self.assertEqual(tree_digest(prompt), before)
-        self.assertFalse((self.skills / "efficient-coding" / ".afyx-install.json").exists())
+        self.assertFalse((self.skills / "afyx-efficient-coding" / ".afyx-install.json").exists())
 
     def test_minimal_install_verify_is_idempotent_and_preserves_config(self) -> None:
         first = self.install_preset()
-        self.assertIn("v1|minimal|codex|efficient-coding,odoo-engineering", first.stdout)
-        self.assertTrue((self.skills / "efficient-coding" / ".afyx-install.json").is_file())
-        self.assertTrue((self.skills / "odoo-engineering" / ".afyx-install.json").is_file())
+        self.assertIn("v1|minimal|codex|afyx-efficient-coding,afyx-odoo-engineering", first.stdout)
+        self.assertTrue((self.skills / "afyx-efficient-coding" / ".afyx-install.json").is_file())
+        self.assertTrue((self.skills / "afyx-odoo-engineering" / ".afyx-install.json").is_file())
         self.assertFalse((self.skills / "prompt-master").exists())
         first_digest = tree_digest(self.skills)
         second = self.install_preset()
         self.assertIn("IN_SYNC", second.stdout)
         self.assertEqual(tree_digest(self.skills), first_digest)
         updated = self.update_preset()
-        self.assertIn("v1|minimal|codex|efficient-coding,odoo-engineering", updated.stdout)
+        self.assertIn("v1|minimal|codex|afyx-efficient-coding,afyx-odoo-engineering", updated.stdout)
         self.assertEqual(tree_digest(self.skills), first_digest)
         verified = self.verify_preset()
-        self.assertIn("Plan/efficient-coding", verified.stdout)
+        self.assertIn("Plan/afyx-efficient-coding", verified.stdout)
         self.assertIn("IN_SYNC", verified.stdout)
         self.assertEqual((self.codex / "config.toml").read_bytes(), self.config_before)
 
     def test_user_owned_install_is_blocked_without_mutation(self) -> None:
-        foreign = self.skills / "efficient-coding"
-        shutil.copytree(ROOT / "skills/efficient-coding", foreign)
+        foreign = self.skills / "afyx-efficient-coding"
+        shutil.copytree(ROOT / "skills/afyx-efficient-coding", foreign)
         before = tree_digest(foreign)
         blocked = self.install_preset(expected=1)
         self.assertIn("blocked before mutation", blocked.stdout + blocked.stderr)
         self.assertEqual(tree_digest(foreign), before)
         if WINDOWS:
-            explicit = self.lifecycle("install", "-ComponentAction", "efficient-coding=repair", "-SkipUsageTracker", "-SkipGraphMcp", expected=(1, 2))
+            explicit = self.lifecycle("install", "-ComponentAction", "afyx-efficient-coding=repair", "-SkipUsageTracker", "-SkipGraphMcp", expected=(1, 2))
         else:
-            explicit = self.lifecycle("install", "--component", "efficient-coding=repair", "--skip-graph-mcp", expected=(1, 2))
+            explicit = self.lifecycle("install", "--component", "afyx-efficient-coding=repair", "--skip-graph-mcp", expected=(1, 2))
         self.assertIn("does not permit", explicit.stdout + explicit.stderr)
         self.assertEqual(tree_digest(foreign), before)
 
@@ -252,13 +257,13 @@ class ControlPlaneContractTests(unittest.TestCase):
             )
             git.chmod(git.stat().st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
             installed = self.lifecycle("install", "--preset", "recommended", "--offline", "--skip-graph-mcp")
-        self.assertIn("v1|recommended|codex|efficient-coding,odoo-engineering,afyx-engineering-expert", installed.stdout)
+        self.assertIn("v1|recommended|codex|afyx-efficient-coding,afyx-odoo-engineering,afyx-engineering-expert", installed.stdout)
         self.assertNotIn("prompt-master", installed.stdout.split("Desired State Plan:", 1)[-1].splitlines()[0])
         self.assertEqual(tree_digest(prompt), prompt_before)
         git_calls = git_log.read_text(encoding="utf-8") if git_log.exists() else ""
         self.assertNotIn("fetch", git_calls)
         self.assertNotIn("clone", git_calls)
-        self.assertTrue((self.skills / "efficient-coding").is_dir())
+        self.assertTrue((self.skills / "afyx-efficient-coding").is_dir())
         self.assertTrue((self.skills / "afyx-engineering-expert").is_dir())
         self.assertEqual((self.codex / "config.toml").read_bytes(), self.config_before)
 
@@ -398,14 +403,14 @@ class ControlPlaneContractTests(unittest.TestCase):
 
     def test_afyx_owned_drift_is_detected_and_repaired_with_backup(self) -> None:
         self.install_preset()
-        target = self.skills / "efficient-coding" / "SKILL.md"
+        target = self.skills / "afyx-efficient-coding" / "SKILL.md"
         target.write_text(target.read_text(encoding="utf-8") + "\nuser drift\n", encoding="utf-8")
         drifted = self.verify_preset(expected=1)
         self.assertIn("MODIFIED", drifted.stdout + drifted.stderr)
         repaired = self.install_preset()
         self.assertIn("repair=REPAIR", repaired.stdout)
-        self.assertEqual(target.read_bytes(), (ROOT / "skills/efficient-coding/SKILL.md").read_bytes())
-        self.assertTrue(any(path.is_dir() for path in (self.backups / "efficient-coding").iterdir()))
+        self.assertEqual(target.read_bytes(), (ROOT / "skills/afyx-efficient-coding/SKILL.md").read_bytes())
+        self.assertTrue(any(path.is_dir() for path in (self.backups / "afyx-efficient-coding").iterdir()))
         self.verify_preset()
         self.assertEqual((self.codex / "config.toml").read_bytes(), self.config_before)
 
@@ -460,7 +465,7 @@ class ControlPlaneContractTests(unittest.TestCase):
         )
         self.assertEqual(
             result.stdout.strip(),
-            "v1|full|antigravity|efficient-coding,odoo-engineering,afyx-engineering-expert,afyx-graph,afyx-context,afyx-forge",
+            "v1|full|antigravity|afyx-efficient-coding,afyx-odoo-engineering,afyx-engineering-expert,afyx-graph,afyx-context,afyx-forge,afyx-usage-intelligence",
         )
 
 

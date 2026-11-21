@@ -38,6 +38,7 @@ import { cicsResolver } from './cics';
 import { terraformResolver } from './terraform';
 import { odooResolver } from './odoo';
 import { graphqlResolver, grpcResolver } from './api-contracts';
+import { mobileNavigationResolver } from './mobile';
 
 /**
  * All registered framework resolvers
@@ -103,6 +104,8 @@ const FRAMEWORK_RESOLVERS: FrameworkResolver[] = [
   graphqlResolver,
   // Protocol Buffers & gRPC RPC Handlers
   grpcResolver,
+  // Mobile UI & Navigation (Flutter, Android Jetpack Compose, React Native)
+  mobileNavigationResolver,
 ];
 
 /**

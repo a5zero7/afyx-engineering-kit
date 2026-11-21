@@ -128,14 +128,6 @@ unverified unless an artifact has an independently verified attestation.
 - Engineering Expert is usable as a skill, while final D.6 substantive review is
   still outside the accepted claims.
 
-**Verified CI checkpoint (2026-11-05):** the `dev` merge
-[`e332230`](https://github.com/a5zero7/afyx-engineering-kit/commit/e332230a2c0ba162b447af1359cf591057ce26b6)
-closed a Windows Vitest hook-timeout regression. The four post-merge workflows
-reported `SUCCESS`: [Graph Build](https://github.com/a5zero7/afyx-engineering-kit/actions/runs/41988333699),
-[Kit CI](https://github.com/a5zero7/afyx-engineering-kit/actions/runs/41988333765),
-[Windows Installer](https://github.com/a5zero7/afyx-engineering-kit/actions/runs/41988333733), and
-[Phase 8 Dogfood](https://github.com/a5zero7/afyx-engineering-kit/actions/runs/41988333780).
-This is a CI checkpoint, **not** independent installed-product or Stable v1 acceptance.
 
 See [Product Vision](docs/PRODUCT_VISION.md) for the maintained product contract
 and [Component Guide](docs/COMPONENTS.md) for capability and limitation details.

@@ -214,7 +214,10 @@ verify_component_evaluate afyx-graph
 case "$AFYX_STATE" in
   'NOT INSTALLED') result INFO 'Afyx Graph' 'not installed (optional)' ;;
   HEALTHY)
-    graph_cli="$AFYX_PATH/current/bin/afyx-graph"
+    graph_cli="$AFYX_PATH/bin/afyx-graph"
+    if [[ ! -x "$graph_cli" ]]; then
+      graph_cli="$AFYX_PATH/current/bin/afyx-graph"
+    fi
     if graph_reported="$($graph_cli --version 2>/dev/null)" && [[ "$graph_reported" == *"$AFYX_VERSION"* ]] && "$graph_cli" help >/dev/null 2>&1; then
       result OK 'Afyx Graph' "$graph_reported; executable verification passed"
     else result FAIL 'Afyx Graph' 'metadata is healthy but executable verification failed'; core_failure=true; fi

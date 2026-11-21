@@ -117,6 +117,17 @@ function Get-AfyxProviderRegistry {
     return @((Get-AfyxControlPlaneContract -Path $Path).providers)
 }
 
+function Resolve-AfyxComponentId {
+    [CmdletBinding()]
+    param([Parameter(Mandatory)][string]$Id)
+    switch ($Id) {
+        'efficient-coding' { return 'afyx-efficient-coding' }
+        'odoo-engineering' { return 'afyx-odoo-engineering' }
+        'codex-usage-tracking' { return 'afyx-usage-intelligence' }
+        default { return $Id }
+    }
+}
+
 function Get-AfyxDesiredComponentIds {
     [CmdletBinding()]
     param(
@@ -126,7 +137,7 @@ function Get-AfyxDesiredComponentIds {
     )
     $components = @(Get-AfyxComponentContract -Path $Path)
     if ($CustomComponent.Count) {
-        $CustomComponent = @($CustomComponent | ForEach-Object { $_ -split ',' } | ForEach-Object { $_.Trim() } | Where-Object { $_ })
+        $CustomComponent = @($CustomComponent | ForEach-Object { $_ -split ',' } | ForEach-Object { $_.Trim() } | Where-Object { $_ } | ForEach-Object { Resolve-AfyxComponentId $_ })
     }
     $selectable = @($components | Where-Object { $_.type -ne 'detected-cli' } | ForEach-Object { [string]$_.id })
     if ($Preset -eq 'custom') {
@@ -426,4 +437,4 @@ function Get-AfyxComponentStates {
     }
 }
 
-Export-ModuleMember -Function Get-AfyxPlatform, Get-AfyxCodexHost, New-AfyxComponentContext, Get-AfyxComponentContract, Get-AfyxControlPlaneContract, Get-AfyxProviderRegistry, Get-AfyxDesiredComponentIds, Get-AfyxControlPlan, Get-AfyxComponentRoot, Test-AfyxSkillManifest, Get-AfyxSkillVersion, Get-AfyxComponentState, Get-AfyxComponentStates
+Export-ModuleMember -Function Get-AfyxPlatform, Get-AfyxCodexHost, New-AfyxComponentContext, Get-AfyxComponentContract, Get-AfyxControlPlaneContract, Get-AfyxProviderRegistry, Get-AfyxDesiredComponentIds, Resolve-AfyxComponentId, Get-AfyxControlPlan, Get-AfyxComponentRoot, Test-AfyxSkillManifest, Get-AfyxSkillVersion, Get-AfyxComponentState, Get-AfyxComponentStates

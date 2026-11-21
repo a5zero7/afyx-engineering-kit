@@ -17,6 +17,7 @@ import { extractNativeVbnetFacts } from './vbnet-facts';
 import { extractNativeErlangFacts } from './erlang-facts';
 import { extractNativeTerraformFacts } from './terraform-facts';
 import { extractNativeCobolFacts } from './cobol-facts';
+import { extractNativePolyglotFacts } from './polyglot-expansion-facts';
 import { addNativeLombokFacts } from './java-lombok-facts';
 
 const CALL_EXCLUSIONS = new Set([
@@ -208,6 +209,13 @@ export function extractNativeFacts(filePath: string, source: string, language: L
   if (language === 'erlang') return extractNativeErlangFacts(filePath, source);
   if (language === 'terraform') return extractNativeTerraformFacts(filePath, source);
   if (language === 'cobol') return extractNativeCobolFacts(filePath, source);
+  if (
+    language === 'groovy' || language === 'elixir' || language === 'zig' ||
+    language === 'fsharp' || language === 'clojure' || language === 'haskell' ||
+    language === 'ocaml' || language === 'julia' || language === 'perl'
+  ) {
+    return extractNativePolyglotFacts(filePath, source, language);
+  }
   const started = Date.now();
   const scan = scanSource(source, {
     hashComments: ['python', 'ruby', 'r'].includes(language),

@@ -20,6 +20,31 @@ import type { MaybeYield } from './cooperative-yield';
 
 const FANOUT_CAP = 20;
 
+const GENERIC_BASENAMES = new Set([
+  'index.ts', 'index.js', 'index.mjs', 'index.cjs', 'index.d.ts',
+  'main.ts', 'main.js', 'main.py', 'main.go', 'main.rs',
+  'app.ts', 'app.js', 'app.py',
+  'test.ts', 'test.js', 'test.py', 'test.go',
+  'mod.rs', 'lib.rs', 'setup.py', '__init__.py',
+  'package.json', 'tsconfig.json', 'readme.md', 'license',
+]);
+
+function matchesTargetFile(text: string, targetPath: string): boolean {
+  if (text.includes(targetPath)) return true;
+  const targetBase = path.posix.basename(targetPath);
+  if (GENERIC_BASENAMES.has(targetBase.toLowerCase())) {
+    const parentDir = path.posix.basename(path.posix.dirname(targetPath));
+    if (parentDir && parentDir !== '.' && text.includes(`${parentDir}/${targetBase}`)) {
+      return true;
+    }
+    return false;
+  }
+  if (!targetBase.includes('.')) return false;
+  const escaped = targetBase.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const regex = new RegExp(`(?:^|[^a-zA-Z0-9_/-])${escaped}(?:[^a-zA-Z0-9_/-]|$)`, 'i');
+  return regex.test(text);
+}
+
 export async function crossDomainSourceBuildContainerEdges(
   ctx: ResolutionContext,
   maybeYield: MaybeYield,
@@ -87,11 +112,7 @@ export async function crossDomainSourceBuildContainerEdges(
     let matches = 0;
     for (const [targetPath, targetNode] of fileToNodeMap.entries()) {
       if (targetPath === node.filePath) continue;
-      const targetBase = path.posix.basename(targetPath);
-      if (
-        textToScan.includes(targetPath) ||
-        (targetBase.includes('.') && textToScan.includes(targetBase))
-      ) {
+      if (matchesTargetFile(textToScan, targetPath)) {
         addEdge(node.id, targetNode.id, 'references');
         matches++;
         if (matches >= FANOUT_CAP) break;
@@ -110,11 +131,13 @@ export async function crossDomainSourceBuildContainerEdges(
   for (const sNode of shellNodes) {
     // If shell node has a docstring or signature containing build/run commands
     const text = `${sNode.docstring || ''} ${sNode.signature || ''} ${sNode.name}`;
+    let sMatches = 0;
     for (const [targetPath, targetNode] of fileToNodeMap.entries()) {
       if (targetPath === sNode.filePath) continue;
-      const targetBase = path.posix.basename(targetPath);
-      if (text.includes(targetBase) || text.includes(targetPath)) {
+      if (matchesTargetFile(text, targetPath)) {
         addEdge(sNode.id, targetNode.id, 'calls');
+        sMatches++;
+        if (sMatches >= FANOUT_CAP) break;
       }
     }
   }

@@ -12749,7 +12749,7 @@ describe('Unsupported-language projects report what they skipped (#1502)', () =>
     runGit('config', 'user.name', 'Test');
     fs.writeFileSync(path.join(tempDir, 'a.move'), 'module a {}');
     fs.writeFileSync(path.join(tempDir, 'b.move'), 'module b {}');
-    fs.writeFileSync(path.join(tempDir, 'c.pl'), 'print 1;');
+    fs.writeFileSync(path.join(tempDir, 'c.ada'), 'procedure c is begin null; end c;');
     runGit('add', '-A');
     runGit('commit', '-q', '-m', 'unsupported only');
 
@@ -12758,20 +12758,20 @@ describe('Unsupported-language projects report what they skipped (#1502)', () =>
 
     expect(files).toEqual([]);
     expect(stats.unsupportedByExtension.get('.move')).toBe(2);
-    expect(stats.unsupportedByExtension.get('.pl')).toBe(1);
+    expect(stats.unsupportedByExtension.get('.ada')).toBe(1);
   });
 
   it('counts them on the filesystem-walk path too (non-git project)', async () => {
     fs.mkdirSync(tempDir, { recursive: true });
     fs.writeFileSync(path.join(tempDir, 'a.move'), 'module a {}');
-    fs.writeFileSync(path.join(tempDir, 'b.pl'), 'print 1;');
+    fs.writeFileSync(path.join(tempDir, 'b.ada'), 'procedure b is begin null; end b;');
 
     const stats: ScanSkipStats = { unsupportedByExtension: new Map() };
     const files = await scanDirectoryAsync(tempDir, undefined, stats);
 
     expect(files).toEqual([]);
     expect(stats.unsupportedByExtension.get('.move')).toBe(1);
-    expect(stats.unsupportedByExtension.get('.pl')).toBe(1);
+    expect(stats.unsupportedByExtension.get('.ada')).toBe(1);
   });
 
   it('stays silent when every file was indexable', async () => {
