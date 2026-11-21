@@ -372,8 +372,11 @@ function Get-ComponentAction([string]$Id, [string]$Label) {
                     $comp = Compare-AfyxVersion $state.Version $available
                     if ($comp -lt 0) { $action = 'update' }
                     elseif ($comp -gt 0 -and ($AllowDowngrade -or $Force)) { $action = 'downgrade' }
-                    else { $action = 'update' }
-                } else { $action = 'update' }
+                    elseif ($planItem.Drift -eq 'IN_SYNC' -or $comp -eq 0) {
+                        $action = if ($Force) { 'update' } else { 'skip' }
+                    }
+                    else { $action = if ($Force) { 'update' } else { 'skip' } }
+                } else { $action = 'skip' }
             }
         } else {
             $action = 'skip'
@@ -415,7 +418,10 @@ function Get-ComponentAction([string]$Id, [string]$Label) {
     }
     if ($action -eq 'blocked') { return $action }
     $allowed = switch ($state.State) {
-        'NOT INSTALLED' { @('install', 'skip') }
+        'NOT INSTALLED' {
+            $legacyPath = Join-Path $SkillsRoot ($Id -replace '^afyx-', '')
+            if (Test-Path -LiteralPath $legacyPath) { @('install', 'adopt', 'skip') } else { @('install', 'skip') }
+        }
         'HEALTHY' { @('update', 'downgrade', 'repair', 'adopt', 'skip') }
         { $_ -in @('INCOMPLETE', 'INVALID', 'DRIFTED') } { @('repair', 'skip') }
         'UNKNOWN' { @('adopt', 'skip') }
@@ -485,18 +491,32 @@ function Install-ManagedSkillSafely([string]$Component, [string]$Name, [string]$
 }
 
 function Adopt-LegacySkillSafely([string]$Component, [string]$Name, [string]$Target) {
-    $contract = @(Get-AfyxComponentContract | Where-Object { $_.id -eq $Component })[0]
+    $resolvedTarget = $Target
+    $resolvedComponent = $Component
+    $leaf = Split-Path -Leaf $resolvedTarget
+    if ($leaf -ne $Component -and ($leaf -eq ($Component -replace '^afyx-', '') -or "afyx-$leaf" -eq $Component)) {
+        $resolvedComponent = $leaf
+    }
+    elseif (-not (Test-Path -LiteralPath $resolvedTarget)) {
+        $legacyName = $Component -replace '^afyx-', ''
+        $legacyTarget = Join-Path (Split-Path -Parent $Target) $legacyName
+        if (Test-Path -LiteralPath $legacyTarget) {
+            $resolvedTarget = $legacyTarget
+            $resolvedComponent = $legacyName
+        }
+    }
+    $contract = @(Get-AfyxComponentContract | Where-Object { $_.id -eq $Component -or $_.id -eq "afyx-$Component" })[0]
     $legacyVersion = if ($contract.PSObject.Properties['legacy_version']) { [string]$contract.legacy_version } else { '' }
     $legacyDigest = if ($contract.PSObject.Properties['legacy_content_digest']) { [string]$contract.legacy_content_digest } else { '' }
     $repository = if ($contract.PSObject.Properties['source']) { [string]$contract.source } else { '' }
     $revision = if ($contract.PSObject.Properties['source_revision']) { [string]$contract.source_revision } else { '' }
-    $current = Get-AfyxSkillOwnership -Target $Target -Component $Component -ExpectedOwner ([string]$contract.ownership)
+    $current = Get-AfyxSkillOwnership -Target $resolvedTarget -Component $resolvedComponent -ExpectedOwner ([string]$contract.ownership)
     if ($current -in @('AFYX_OWNED_UNMODIFIED', 'EXTERNAL_UPSTREAM')) { return 'already adopted' }
-    $provenance = Get-AfyxLegacySkillProvenance -Target $Target -Component $Component -Owner ([string]$contract.ownership) `
+    $provenance = Get-AfyxLegacySkillProvenance -Target $resolvedTarget -Component $resolvedComponent -Owner ([string]$contract.ownership) `
         -LegacyVersion $legacyVersion -LegacyContentSha256 $legacyDigest -SourceRepository $repository -SourceRevision $revision
     if ($provenance -ne 'MATCH') { throw "Refusing to adopt $Name because legacy provenance is $provenance." }
-    if ($WhatIfPreference) { Write-Host "WhatIf: would adopt verified legacy $Name at $Target after durable backup"; return 'planned adoption' }
-    return Adopt-AfyxLegacySkill -SkillsRoot $SkillsRoot -Target $Target -Component $Component -Owner ([string]$contract.ownership) `
+    if ($WhatIfPreference) { Write-Host "WhatIf: would adopt verified legacy $Name at $resolvedTarget after durable backup"; return 'planned adoption' }
+    return Adopt-AfyxLegacySkill -SkillsRoot $SkillsRoot -Target $resolvedTarget -Component $resolvedComponent -Owner ([string]$contract.ownership) `
         -Version $legacyVersion -LegacyVersion $legacyVersion -LegacyContentSha256 $legacyDigest `
         -SourceRepository $repository -SourceRevision $revision
 }
@@ -993,7 +1013,17 @@ if (-not $SkipProviderConfiguration -and $Provider.Count) {
     }
 }
 if (-not $WhatIfPreference) {
-    Migrate-AfyxLegacySkills -TargetRoots (@($SkillsRoot) + @($additionalSkillRoots) + @($providerSkillRoots)) -BundledEfficientCoding $bundledEfficientCoding -BundledOdooEngineering $bundledOdooEngineering
+    $adoptExcludes = @{}
+    foreach ($k in $componentActions.Keys) {
+        if ($componentActions[$k] -eq 'adopt') {
+            $adoptExcludes[$k] = $true
+            $adoptExcludes["afyx-$k"] = $true
+            $adoptExcludes[($k -replace '^afyx-', '')] = $true
+        }
+    }
+    Migrate-AfyxLegacySkills -TargetRoots (@($SkillsRoot) + @($additionalSkillRoots) + @($providerSkillRoots)) `
+        -BundledEfficientCoding $bundledEfficientCoding -BundledOdooEngineering $bundledOdooEngineering `
+        -ExcludeComponents $adoptExcludes
 }
 foreach ($component in $skillDefinitions) {
     $skillActions[$component.Id] = if ($controlPlan) { [string]$actionDecisions[$component.Id] } else { Resolve-ComponentAction $component.Id $component.Name }
@@ -1013,7 +1043,15 @@ foreach ($component in $skillDefinitions) {
     $action = $skillActions[$component.Id]
     if ($action -eq 'skip') { $summary[$component.Name] = 'skipped'; continue }
     Write-AfyxStatus -Status INFO -Name $component.Name -Detail "$action in progress" -Terminal $terminal
-    if ($action -eq 'adopt') { $summary[$component.Name] = Adopt-LegacySkillSafely $component.Id $component.Name $component.Target }
+    if ($action -eq 'adopt') {
+        $targetPath = $component.Target
+        if (-not (Test-Path -LiteralPath $targetPath)) {
+            $legacyName = $component.Id -replace '^afyx-', ''
+            $legacyPath = Join-Path (Split-Path -Parent $targetPath) $legacyName
+            if (Test-Path -LiteralPath $legacyPath) { $targetPath = $legacyPath }
+        }
+        $summary[$component.Name] = Adopt-LegacySkillSafely $component.Id $component.Name $targetPath
+    }
     else { $summary[$component.Name] = Install-ManagedSkillSafely $component.Id $component.Name $component.Source $component.Target ($action -in @('update', 'repair', 'downgrade')) }
     if (-not $WhatIfPreference) { $changesApplied = $true }
 }
@@ -1129,8 +1167,9 @@ if ($contextCompanionDesired -and $contextReadyForCompanion -and $Provider.Count
         if ($ownership -notin @('NOT_INSTALLED', 'AFYX_OWNED_UNMODIFIED', 'AFYX_OWNED_MODIFIED')) {
             throw "Refusing automatic Context companion replacement at $target because ownership is $ownership."
         }
-        $summary["Afyx Context Companion [$root]"] = Install-ManagedSkillSafely 'afyx-context' 'Afyx Context Companion' $contextCompanionSource $target ($ownership -ne 'NOT_INSTALLED') $root ($ownership -eq 'AFYX_OWNED_MODIFIED')
-        if (-not $WhatIfPreference) { $changesApplied = $true }
+        $replace = ($ownership -ne 'NOT_INSTALLED') -and ($contextAction -ne 'skip' -or $ownership -eq 'AFYX_OWNED_MODIFIED' -or $Force -or $UpdateInstalled)
+        $summary["Afyx Context Companion [$root]"] = Install-ManagedSkillSafely 'afyx-context' 'Afyx Context Companion' $contextCompanionSource $target $replace $root ($ownership -eq 'AFYX_OWNED_MODIFIED')
+        if (-not $WhatIfPreference -and $replace) { $changesApplied = $true }
     }
 }
 

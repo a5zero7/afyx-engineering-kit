@@ -162,7 +162,8 @@ class LegacySkillAdoptionTests(unittest.TestCase):
 
     def test_unsafe_target_is_refused(self) -> None:
         destination = self.base / "foreign-destination"
-        shutil.copytree(ROOT / "skills" / "efficient-coding", destination)
+        source = ROOT / "skills" / "afyx-efficient-coding" if (ROOT / "skills" / "afyx-efficient-coding").exists() else ROOT / "skills" / "efficient-coding"
+        shutil.copytree(source, destination)
         self.skills.mkdir()
         target = self.skills / "efficient-coding"
         try:

@@ -128,7 +128,8 @@ function Get-AfyxSkillOwnership {
         $markerPath = Join-Path $Target $script:MarkerName
         if (-not (Test-Path -LiteralPath $markerPath -PathType Leaf)) { return 'FOREIGN_UNPROVEN' }
         $marker = Get-Content -Raw -LiteralPath $markerPath -Encoding utf8 | ConvertFrom-Json -ErrorAction Stop
-        if ($marker.schema -ne 1 -or $marker.product -ne 'Afyx Codex Engineering Kit' -or $marker.component -ne $Component -or $marker.owner -ne $ExpectedOwner) { return 'FOREIGN_UNPROVEN' }
+        $validComponent = ($marker.component -eq $Component -or $marker.component -eq ($Component -replace '^afyx-', '') -or "afyx-$($marker.component)" -eq $Component)
+        if ($marker.schema -ne 1 -or $marker.product -ne 'Afyx Codex Engineering Kit' -or -not $validComponent -or $marker.owner -ne $ExpectedOwner) { return 'FOREIGN_UNPROVEN' }
         if ($ExpectedOwner -eq 'afyx') {
             if ([string]$marker.content_sha256 -notmatch '^[0-9a-f]{64}$') { return 'FOREIGN_UNPROVEN' }
             if ((Get-AfyxSkillDigest -Directory $Target) -eq $marker.content_sha256) { return 'AFYX_OWNED_UNMODIFIED' }
@@ -170,7 +171,8 @@ function Get-AfyxLegacySkillProvenance {
             $nameMatch = [regex]::Match($content, '(?m)^name:\s*["'']?([^"''\r\n]+?)["'']?\s*$')
             $versionMatch = [regex]::Match($content, '(?m)^\s*version:\s*["'']?([^"''\s]+)["'']?\s*$')
             if (-not $nameMatch.Success) { return 'UNKNOWN' }
-            if ($nameMatch.Groups[1].Value.Trim() -ne $Component) { return 'FOREIGN' }
+            $expectedNames = @($Component, ($Component -replace '^afyx-', ''), "afyx-$Component")
+            if ($nameMatch.Groups[1].Value.Trim() -notin $expectedNames) { return 'FOREIGN' }
             if ($versionMatch.Success -and $versionMatch.Groups[1].Value -eq $LegacyVersion) { return 'MODIFIED' }
             return 'UNKNOWN'
         }
@@ -398,7 +400,8 @@ function Migrate-AfyxLegacySkills {
     param(
         [Parameter(Mandatory)][string[]]$TargetRoots,
         [string]$BundledEfficientCoding,
-        [string]$BundledOdooEngineering
+        [string]$BundledOdooEngineering,
+        [hashtable]$ExcludeComponents = @{}
     )
     $legacyPairs = @(
         @{ Legacy = 'efficient-coding'; Canonical = 'afyx-efficient-coding'; Name = 'Afyx Efficient Coding'; Source = $BundledEfficientCoding },
@@ -407,15 +410,27 @@ function Migrate-AfyxLegacySkills {
     foreach ($root in ($TargetRoots | Where-Object { $_ } | Select-Object -Unique)) {
         if (-not (Test-Path -LiteralPath $root -PathType Container)) { continue }
         foreach ($pair in $legacyPairs) {
+            if ($ExcludeComponents.ContainsKey($pair.Legacy) -or $ExcludeComponents.ContainsKey($pair.Canonical)) { continue }
             $legacyPath = Join-Path $root $pair.Legacy
             $canonicalPath = Join-Path $root $pair.Canonical
             if (-not (Test-Path -LiteralPath $legacyPath -PathType Container)) { continue }
 
             $legacyOwnership = Get-AfyxSkillOwnership -Target $legacyPath -Component $pair.Legacy -ExpectedOwner 'afyx'
-            if ($legacyOwnership -ne 'AFYX_OWNED_UNMODIFIED') {
-                $contract = Get-AfyxComponentContract | Where-Object { $_.id -eq $pair.Canonical }
-                $proof = Get-AfyxLegacySkillProvenance -Target $legacyPath -Component $pair.Legacy -Owner 'afyx' -LegacyVersion $contract.legacy_version -LegacyContentSha256 $contract.legacy_content_digest
-                if ($proof -ne 'MATCH') { continue }
+            $isAfyx = $false
+            if ($legacyOwnership -in @('AFYX_OWNED_UNMODIFIED', 'AFYX_OWNED_MODIFIED')) {
+                $isAfyx = $true
+            } else {
+                $manifest = Join-Path $legacyPath 'SKILL.md'
+                if (Test-Path -LiteralPath $manifest -PathType Leaf) {
+                    $content = Get-Content -Raw -LiteralPath $manifest -Encoding utf8
+                    if ($content -match '(?i)afyx' -or $content -match "(?m)^name:\s*['""]?$($pair.Legacy)['""]?\s*$") {
+                        $isAfyx = $true
+                    }
+                }
+            }
+            if (-not $isAfyx) {
+                Write-Verbose "Preserving foreign skill at $legacyPath"
+                continue
             }
             $backup = Backup-AfyxSkill -Component $pair.Canonical -Target $legacyPath -Protect
             if ($pair.Source -and (Test-Path -LiteralPath $pair.Source)) {

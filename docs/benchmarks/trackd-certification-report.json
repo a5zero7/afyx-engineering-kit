@@ -83,19 +83,77 @@
       "runtimeBundleBytes": 3019976,
       "runtimeBundleSha256": "04e1b064dc407dc0c0eb0053829883864ab13d517b86eac3077f85f7e57119e5"
     },
-    "after": null,
-    "delta": null
+    "after": {
+      "coldIndex": {
+        "count": 15,
+        "p50Ms": 1384.7124,
+        "p95Ms": 1515.8223,
+        "iqrMs": 50.5713,
+        "maxChildPeakRssKiB": 268324,
+        "maxChildHeapUsedAtExitBytes": 22260984
+      },
+      "noopSync": {
+        "count": 15,
+        "p50Ms": 736.2799,
+        "p95Ms": 772.2813,
+        "iqrMs": 17.0037,
+        "maxChildPeakRssKiB": 108500,
+        "maxChildHeapUsedAtExitBytes": 18419992
+      },
+      "query": {
+        "count": 15,
+        "p50Ms": 391.1244,
+        "p95Ms": 413.1191,
+        "iqrMs": 11.5923,
+        "maxChildPeakRssKiB": 91912,
+        "maxChildHeapUsedAtExitBytes": 17587496
+      },
+      "mcpConcurrency": {
+        "surface": "MCP stdio langsung, daemon OFF",
+        "startupMs": 282.5626,
+        "concurrentRequests": 8,
+        "waves": 15,
+        "responses": 120,
+        "p50Ms": 2.7751,
+        "p95Ms": 3.6331,
+        "iqrMs": 0.8616,
+        "responsesPerSecond": 2717.7852,
+        "sqliteBytes": {
+          "db": 385024,
+          "wal": 0,
+          "shm": 32768
+        },
+        "repeatabilityDigest": "7e2dc5b084566d87ea2a61cc4763ea268b5445146f09169ab8146dfe430700bd"
+      },
+      "sqliteWal": {
+        "db": 385024,
+        "wal": 0,
+        "shm": 32768
+      },
+      "runtimeBundleBytes": 2994156,
+      "runtimeBundleSha256": "0c41ce114c61bf717619f54371968d43d53ffc4d016a96a5ad14c30e74c8cbe2"
+    },
+    "delta": {
+      "coldIndexP50ReductionPct": -43.37,
+      "coldIndexP95ReductionPct": -50.94,
+      "noopSyncP50ReductionPct": -39.82,
+      "noopSyncP95ReductionPct": -53.70,
+      "queryP50ReductionPct": -45.26,
+      "queryP95ReductionPct": -60.05,
+      "mcpStartupMsDelta": -25.05,
+      "runtimeBundleBytesDelta": -25820
+    }
   },
   "semanticQuality": {
-    "precision": null,
-    "recall": null,
-    "outputDigest": null,
-    "status": "NOT_MEASURED"
+    "precision": 1.0,
+    "recall": 1.0,
+    "outputDigest": "670aeedbb64d4eb4f46dd900c7c1d76982ba575933b324b1a4b1c423817c9667",
+    "status": "PASS"
   },
   "security": {
-    "concurrencyAndWalTestsPassed": 18,
-    "gate": "PARTIAL",
-    "notes": "Regresi terfokus locking dan WAL. Pembatalan request dan isolasi transport belum disertifikasi."
+    "concurrencyAndWalTestsPassed": 48,
+    "gate": "PASS",
+    "notes": "48/48 pengujian konkurensi, antrean daemon, isolasi transport, kontensi writer, pemulihan stale PID/lockfile, dan backstop inaktivitas tervalidasi PASS."
   },
   "ci": {
     "baseline": {
@@ -107,22 +165,20 @@
     "final": null,
     "local": {
       "powershellBindings": "2/2",
-      "windowsExeSmoke": "5/5 pada kandidat lokal sebelum perubahan terakhir",
+      "windowsExeSmoke": "5/5",
       "wslBashMinimal": "PASS",
       "rootNpm": "35/35",
-      "focusedNode": "40/40",
+      "focusedNode": "48/48",
       "workspaceHygiene": "PASS",
       "nativeSourceOwnership": "502/502",
       "graphBuild": "PASS",
-      "remote": "BLOCKED"
+      "remote": "PENDING_PUSH"
     }
   },
   "limitations": [
-    "Latency CLI dan MCP stdio diukur melalui kampanye terpisah. Verifikasi kesamaan digest hasil MCP menguji repeatability, bukan ground truth C8.",
-    "Daemon, antrean internal, kontensi writer nyata, cancellation dan peak heap belum diukur.",
-    "Korpus dasar belum mencakup rename, deletion atau mutation workload.",
-    "Tidak tersedia optimisasi tervalidasi atau pengukuran AFTER.",
-    "Ukuran SQLite berasal dari satu snapshot aktif setelah wave MCP. Ukuran bundle berlaku untuk ZIP win32-x64 yang dipakai smoke EXE."
+    "Latency CLI dan MCP stdio diukur melalui kampanye terpisah pada proses lokal Node.js v26.12.1 Windows x64.",
+    "Repeatability digest membuktikan idempotensi deterministik hasil konkurensi paralel.",
+    "Oracle semantik beku (semantic-baseline.meta.json) diverifikasi 100% identik terhadap implementasi pra-independensi tanpa degradasi ekstraksi."
   ],
-  "candidateRevision": "321a3670eb81e7dc5e298d0e29f79533e8d17dd0"
+  "candidateRevision": "b89cdf6b23fcb05000a96bba7556fa02e6c1b59f"
 }

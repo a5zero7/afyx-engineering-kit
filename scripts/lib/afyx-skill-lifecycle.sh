@@ -71,7 +71,7 @@ afyx_classify_skill() {
   [[ -f "$marker" && ! -L "$marker" ]] || return 0
   owner="$(afyx_marker_value "$marker" owner)"
   marked_component="$(afyx_marker_value "$marker" component)"
-  [[ "$owner" == "$expected_owner" && "$marked_component" == "$component" ]] || return 0
+  [[ "$owner" == "$expected_owner" && ( "$marked_component" == "$component" || "$marked_component" == "${component#afyx-}" || "afyx-$marked_component" == "$component" ) ]] || return 0
   if [[ "$owner" == afyx ]]; then
     recorded="$(afyx_marker_value "$marker" content_sha256)"
     [[ ${#recorded} -eq 64 && "$recorded" != *[!0-9a-fA-F]* ]] || return 0
@@ -108,7 +108,7 @@ afyx_legacy_skill_provenance() {
     name="$(sed -n 's/^name:[[:space:]]*\([^[:space:]]*\).*/\1/p' "$manifest" | head -n 1)"
     version="$(sed -n 's/^[[:space:]]*version:[[:space:]]*"\{0,1\}\([^"[:space:]]*\).*/\1/p' "$manifest" | head -n 1)"
     if [[ -z "$name" ]]; then return 0
-    elif [[ "$name" != "$component" ]]; then AFYX_LEGACY_PROVENANCE=FOREIGN
+    elif [[ "$name" != "$component" && "$name" != "${component#afyx-}" && "afyx-$name" != "$component" ]]; then AFYX_LEGACY_PROVENANCE=FOREIGN
     elif [[ -n "$version" && "$version" == "$legacy_version" ]]; then AFYX_LEGACY_PROVENANCE=MODIFIED
     fi
     return 0
@@ -338,18 +338,21 @@ afyx_migrate_legacy_skills() {
     [[ -n "$root" && -d "$root" ]] || continue
     for pair in "efficient-coding|afyx-efficient-coding|Afyx Efficient Coding|${BUNDLED_EFFICIENT:-}" "odoo-engineering|afyx-odoo-engineering|Afyx Odoo Engineering|${BUNDLED_ODOO:-}"; do
       IFS='|' read -r legacy_id canonical_id label source <<< "$pair"
+      [[ " ${AFYX_MIGRATE_EXCLUDE:-} " == *" $legacy_id "* || " ${AFYX_MIGRATE_EXCLUDE:-} " == *" $canonical_id "* ]] && continue
       legacy_path="$root/$legacy_id"
       canonical_path="$root/$canonical_id"
       [[ -d "$legacy_path" ]] || continue
 
-      [[ ! -L "$root" && ! -L "$legacy_path" && ! -L "$canonical_path" ]] || continue
+      is_afyx=false
       afyx_classify_skill "$legacy_path" "$legacy_id" afyx
-      if [[ "$AFYX_OWNERSHIP_STATE" != AFYX_OWNED_UNMODIFIED ]]; then
-        afyx_legacy_skill_provenance "$legacy_path" "$legacy_id" afyx \
-          "$(afyx_component_field "$canonical_id" legacy_content_digest_bash)" \
-          "$(afyx_component_field "$canonical_id" legacy_version)"
-        [[ "$AFYX_LEGACY_PROVENANCE" == MATCH ]] || continue
+      if [[ "$AFYX_OWNERSHIP_STATE" == AFYX_OWNED_UNMODIFIED || "$AFYX_OWNERSHIP_STATE" == AFYX_OWNED_MODIFIED ]]; then
+        is_afyx=true
+      elif [[ -f "$legacy_path/SKILL.md" ]]; then
+        if grep -qi "afyx" "$legacy_path/SKILL.md" 2>/dev/null || grep -qE "^name:[[:space:]]*[\"']?${legacy_id}[\"']?" "$legacy_path/SKILL.md" 2>/dev/null; then
+          is_afyx=true
+        fi
       fi
+      [[ "$is_afyx" == true ]] || continue
 
       backup="$(afyx_backup_skill "$canonical_id" "$legacy_path" true)" || continue
       if [[ -n "$source" && -d "$source" ]]; then

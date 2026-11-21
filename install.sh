@@ -249,8 +249,10 @@ component_action() {
     elif [[ "$state" == HEALTHY && -n "$available" && -n "$installed" ]]; then
       if version_lt "$installed" "$available"; then action=update
       elif version_lt "$available" "$installed" && { "$allow_downgrade" || "$force"; }; then action=repair
+      elif [[ "$AFYX_DRIFT" == IN_SYNC || "$installed" == "$available" ]]; then
+        if "$force"; then action=update; else action=skip; fi
       else action=update; fi
-    else action=update; fi
+    else action=skip; fi
   elif "$force"; then
     if [[ "$state" == UNKNOWN ]]; then printf '%s ownership is unknown; --force cannot take ownership.\n' "$label" >&2; return 2
     elif [[ "$state" == 'NOT INSTALLED' ]]; then action=install
@@ -279,7 +281,7 @@ component_action() {
     case "$answer" in [aA]|[aA][dD][oO][pP][tT]) action=adopt ;; *) action=skip ;; esac
   fi
   case "$state:$action" in
-    'NOT INSTALLED':install|'NOT INSTALLED':skip|HEALTHY:update|HEALTHY:adopt|HEALTHY:skip|INCOMPLETE:repair|INCOMPLETE:skip|INVALID:repair|INVALID:skip|DRIFTED:repair|DRIFTED:skip|UNKNOWN:adopt|UNKNOWN:skip) ;;
+    'NOT INSTALLED':install|'NOT INSTALLED':adopt|'NOT INSTALLED':skip|HEALTHY:update|HEALTHY:adopt|HEALTHY:skip|INCOMPLETE:repair|INCOMPLETE:skip|INVALID:repair|INVALID:skip|DRIFTED:repair|DRIFTED:skip|UNKNOWN:adopt|UNKNOWN:skip) ;;
     *) printf '%s state %s does not permit action %s.\n' "$label" "$state" "$action" >&2; return 2 ;;
   esac
   printf '%s' "$action"
@@ -333,11 +335,23 @@ safe_skill_install() {
 
 adopt_legacy_skill() {
   local component="$1" label="$2" target="$3" owner legacy_version legacy_digest repository revision provenance
+  if [[ ! -e "$target" ]]; then
+    local legacy_alias="${component#afyx-}"
+    if [[ -e "$(dirname -- "$target")/$legacy_alias" ]]; then
+      target="$(dirname -- "$target")/$legacy_alias"
+      component="$legacy_alias"
+    fi
+  fi
   owner="$(afyx_component_field "$component" ownership)"
+  [[ -n "$owner" ]] || owner="$(afyx_component_field "afyx-$component" ownership)"
   legacy_version="$(afyx_component_field "$component" legacy_version)"
+  [[ -n "$legacy_version" ]] || legacy_version="$(afyx_component_field "afyx-$component" legacy_version)"
   legacy_digest="$(afyx_component_field "$component" legacy_content_digest_bash)"
+  [[ -n "$legacy_digest" ]] || legacy_digest="$(afyx_component_field "afyx-$component" legacy_content_digest_bash)"
   repository="$(afyx_component_field "$component" source)"
+  [[ -n "$repository" ]] || repository="$(afyx_component_field "afyx-$component" source)"
   revision="$(afyx_component_field "$component" source_revision)"
+  [[ -n "$revision" ]] || revision="$(afyx_component_field "afyx-$component" source_revision)"
   afyx_classify_skill "$target" "$component" "$owner"
   if [[ "$AFYX_OWNERSHIP_STATE" == AFYX_OWNED_UNMODIFIED || "$AFYX_OWNERSHIP_STATE" == EXTERNAL_UPSTREAM ]]; then
     printf 'already adopted'; return 0
@@ -556,6 +570,10 @@ if [[ -n "$expected_plan" ]]; then
 fi
 if ! "$dry_run"; then
   target_migration_roots=("$skills_root" ${additional_skill_roots[@]+"${additional_skill_roots[@]}"})
+  AFYX_MIGRATE_EXCLUDE=""
+  [[ "$efficient_action" == adopt ]] && AFYX_MIGRATE_EXCLUDE+=" efficient-coding afyx-efficient-coding "
+  [[ "$odoo_action" == adopt ]] && AFYX_MIGRATE_EXCLUDE+=" odoo-engineering afyx-odoo-engineering "
+  export AFYX_MIGRATE_EXCLUDE
   afyx_migrate_legacy_skills "${target_migration_roots[@]}"
 fi
 run mkdir -p "$skills_root"
