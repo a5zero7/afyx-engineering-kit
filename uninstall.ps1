@@ -73,6 +73,13 @@ $contract = @(Get-AfyxComponentContract)
 if ($RemovePromptMaster) {
     throw "Component 'prompt-master' is retired from Afyx Kit and remains externally/user managed; no changes were made."
 }
+$SelectedComponent = @($SelectedComponent | ForEach-Object {
+    switch ($_) {
+        'efficient-coding' { 'afyx-efficient-coding' }
+        'odoo-engineering' { 'afyx-odoo-engineering' }
+        default { $_ }
+    }
+})
 foreach ($id in $SelectedComponent) {
     if ($id -in @('prompt-master', 'headroom')) {
         throw "Component '$id' is retired from Afyx Kit and remains externally/user managed; no changes were made."

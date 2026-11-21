@@ -218,6 +218,10 @@ explicit_action() {
     case "$specification" in *=*) id="${specification%%=*}"; action="${specification#*=}" ;; *) printf 'Invalid --component value: %s\n' "$specification" >&2; return 2 ;; esac
     case "$id" in prompt-master|headroom) retired_component_error "$id" ;; afyx-efficient-coding|afyx-odoo-engineering|efficient-coding|odoo-engineering|afyx-engineering-expert|afyx-graph|afyx-context|afyx-forge|afyx-usage-intelligence|codex-usage-tracking) ;; *) printf 'Unknown selectable component: %s\n' "$id" >&2; return 2 ;; esac
     case "$action" in skip|install|update|repair|adopt) ;; *) printf 'Invalid action for %s: %s\n' "$id" "$action" >&2; return 2 ;; esac
+    case "$id" in
+      efficient-coding|odoo-engineering) id="afyx-$id" ;;
+      codex-usage-tracking) id=afyx-usage-intelligence ;;
+    esac
     [[ "$id" == "$wanted" ]] && { printf '%s' "$action"; return 0; }
   done
   return 1
@@ -312,6 +316,7 @@ replacement_authorized() {
 
 safe_skill_install() {
   local component="$1" label="$2" source="$3" target="$4" replace="$5" target_skills_root="${6:-$skills_root}" parent stage version authorize=false
+  local skills_root="$target_skills_root"
   if [[ -e "$target" && "$replace" != true ]]; then printf skipped; return; fi
   if "$dry_run"; then printf 'planned'; return; fi
   parent="$(dirname "$target")"; afyx_assert_skill_target "$target_skills_root" "$target" || return 1

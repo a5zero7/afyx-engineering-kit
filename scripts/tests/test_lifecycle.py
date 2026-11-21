@@ -17,13 +17,13 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 WINDOWS = os.name == "nt"
 SELECTABLE = [
-    "efficient-coding",
-    "odoo-engineering",
+    "afyx-efficient-coding",
+    "afyx-odoo-engineering",
     "afyx-engineering-expert",
     "afyx-graph",
     "afyx-context",
     "afyx-forge",
-    "codex-usage-tracking",
+    "afyx-usage-intelligence",
 ]
 
 

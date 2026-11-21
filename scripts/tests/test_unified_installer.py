@@ -19,8 +19,8 @@ from scripts.tests.test_provider_transaction import fake_codex
 ROOT = Path(__file__).resolve().parents[2]
 WINDOWS = os.name == "nt"
 COMPONENTS = [
-    "efficient-coding",
-    "odoo-engineering",
+    "afyx-efficient-coding",
+    "afyx-odoo-engineering",
     "afyx-engineering-expert",
     "afyx-graph",
     "afyx-context",
@@ -287,7 +287,7 @@ class UnifiedInstallerIntegrationTests(unittest.TestCase):
         result = self.invoke("install.ps1", self.common(providers="@('codex')") + " -Confirm:$false", expected=1)
         self.assertIn("Provider companion preflight blocked before mutation", result.stdout + result.stderr)
         self.assertEqual(sentinel.read_text(encoding="utf-8"), "foreign user skill\\n")
-        self.assertFalse((self.skills / "efficient-coding").exists())
+        self.assertFalse((self.skills / "afyx-efficient-coding").exists())
         self.assertFalse((self.context / "metadata.json").exists())
         self.assertFalse((self.codex_home / "config.toml").exists())
 

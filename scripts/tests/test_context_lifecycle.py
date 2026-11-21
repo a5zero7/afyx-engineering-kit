@@ -48,9 +48,9 @@ class ContextLifecycleContractTests(unittest.TestCase):
         self.assertEqual(context["install_root"], "afyx_context_root")
         self.assertEqual(context["presets"], "full")
         expected = {
-            "minimal": {"efficient-coding", "odoo-engineering"},
-            "recommended": {"efficient-coding", "odoo-engineering", "afyx-engineering-expert"},
-            "full": {"efficient-coding", "odoo-engineering", "afyx-engineering-expert", "afyx-graph", "afyx-context", "afyx-forge", "codex-usage-tracking"},
+            "minimal": {"afyx-efficient-coding", "afyx-odoo-engineering"},
+            "recommended": {"afyx-efficient-coding", "afyx-odoo-engineering", "afyx-engineering-expert"},
+            "full": {"afyx-efficient-coding", "afyx-odoo-engineering", "afyx-engineering-expert", "afyx-graph", "afyx-context", "afyx-forge", "afyx-usage-intelligence"},
         }
         for preset, members in expected.items():
             actual = {item["id"] for item in contract["components"] if preset in item["presets"].split(";")}

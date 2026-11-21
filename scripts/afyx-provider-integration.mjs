@@ -217,14 +217,14 @@ export function inspectAntigravity(options) {
   let owned = false;
   if (actual) {
     const isAfyx = isAfyxServerEntry(server, actual);
-    const claimed = (claimValid && claimedEntryEquivalent(actual, claim.entry)) || isAfyx;
+    const claimed = claimValid && claimedEntryEquivalent(actual, claim.entry);
     if (actual.disabled === true) {
       state = claimed ? 'MCP_DISABLED_OWNED' : 'MCP_DISABLED_UNOWNED';
       owned = claimed;
     } else if (entryEquivalent(actual, expected)) {
       state = claimed ? 'MCP_CONFIGURED' : 'MCP_CONFIGURED_UNOWNED';
-      owned = true;
-    } else if (claimed) {
+      owned = claimed;
+    } else if (claimed || (!claim && isAfyx)) {
       state = 'MCP_STALE_OWNED';
       owned = true;
     } else {
@@ -271,7 +271,7 @@ export async function integrateAntigravity(options) {
   }
   if (options.uninstall) {
     if (inspection.state === 'MCP_NOT_CONFIGURED') return { ...result, status: 'UNAVAILABLE', detail: 'No provider entry is configured.' };
-    if (!inspection.owned && !isAfyxServerEntry(inspection.server, inspection.actual)) return { ...result, status: 'BLOCKED', reason: 'UNOWNED_ENTRY', detail: 'Matching but unowned entry was preserved.' };
+    if (!inspection.owned) return { ...result, status: 'BLOCKED', reason: 'UNOWNED_ENTRY', detail: 'Matching but unowned entry was preserved.' };
     if (!options.apply) return { ...result, status: 'CONFIGURED', detail: 'Removal is planned but not consented.' };
     const backup = createConfigurationBackup({
       provider: 'antigravity',
@@ -604,7 +604,8 @@ async function runTransactionalLifecycle(options, selection) {
   for (const item of selection) {
     try {
       const result = await item.adapter[preflightOperation](preflightOptions);
-      plans.push({ item, result, capture: captureProviderState(item.provider, options) });
+      const blocked = ['BLOCKED', 'INCOMPATIBLE'].includes(result.status);
+      plans.push({ item, result, capture: blocked ? null : captureProviderState(item.provider, options) });
     } catch {
       plans.push({ item, result: recoveryBlockedResult(item.provider, 'RECOVERY_SNAPSHOT_FAILED',
         'Provider recovery boundary could not be established.') });

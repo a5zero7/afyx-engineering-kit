@@ -204,11 +204,11 @@ class ExpertLifecycleTests(unittest.TestCase):
         self.install("repair")
         self.assertTrue((self.target / "workflows" / "review-audit.md").is_file())
 
-        shutil.copytree(ROOT / "skills" / "efficient-coding", self.skills / "efficient-coding")
+        shutil.copytree(ROOT / "skills" / "afyx-efficient-coding", self.skills / "afyx-efficient-coding")
         removed = self.uninstall()
         self.assertEqual(removed.returncode, 0, removed.stdout + removed.stderr)
         self.assertFalse(self.target.exists())
-        self.assertTrue((self.skills / "efficient-coding" / "SKILL.md").is_file())
+        self.assertTrue((self.skills / "afyx-efficient-coding" / "SKILL.md").is_file())
 
     def test_existing_modified_install_is_not_silently_overwritten(self) -> None:
         self.install("install")

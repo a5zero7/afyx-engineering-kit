@@ -71,7 +71,7 @@ class SkillLifecycleSecurityTests(unittest.TestCase):
                 "-SkillsRoot",
                 str(self.skills),
                 "-ComponentAction",
-                f"efficient-coding={action}",
+                f"afyx-efficient-coding={action}",
                 "-SkipUsageTracker",
                 "-SkipGraphMcp",
             ]
@@ -82,7 +82,7 @@ class SkillLifecycleSecurityTests(unittest.TestCase):
                 "--skills-root",
                 str(self.skills),
                 "--component",
-                f"efficient-coding={action}",
+                f"afyx-efficient-coding={action}",
                 "--skip-graph-mcp",
             ]
         result = subprocess.run(command, cwd=ROOT, env=self.env, capture_output=True, text=True)
@@ -100,13 +100,13 @@ class SkillLifecycleSecurityTests(unittest.TestCase):
 
     def test_fresh_install_idempotent_repair_backup_and_restore(self) -> None:
         self.run_install("install")
-        target = self.skills / "efficient-coding"
+        target = self.skills / "afyx-efficient-coding"
         marker = json.loads((target / ".afyx-install.json").read_text(encoding="utf-8"))
-        self.assertEqual((marker["component"], marker["owner"]), ("efficient-coding", "afyx"))
+        self.assertEqual((marker["component"], marker["owner"]), ("afyx-efficient-coding", "afyx"))
         self.assertRegex(marker["content_sha256"], r"^[0-9a-f]{64}$")
 
         self.run_install("update")
-        copies = [path for path in (self.backups / "efficient-coding").iterdir() if path.is_dir()]
+        copies = [path for path in (self.backups / "afyx-efficient-coding").iterdir() if path.is_dir()]
         self.assertEqual(len(copies), 1)
         self.assertTrue(Path(str(copies[0]) + ".afyx-backup").is_file())
         self.assertTrue((copies[0] / ".afyx-install.json").is_file())
@@ -118,7 +118,7 @@ class SkillLifecycleSecurityTests(unittest.TestCase):
 
     def test_modified_foreign_and_malformed_targets_are_not_deleted(self) -> None:
         self.run_install("install")
-        target = self.skills / "efficient-coding"
+        target = self.skills / "afyx-efficient-coding"
         skill = target / "SKILL.md"
         skill.write_text(skill.read_text(encoding="utf-8") + "\nuser modification\n", encoding="utf-8")
         refused = self.run_uninstall(expected=1)
@@ -139,7 +139,7 @@ class SkillLifecycleSecurityTests(unittest.TestCase):
 
     def test_failed_backup_preserves_existing_installation(self) -> None:
         self.run_install("install")
-        target = self.skills / "efficient-coding"
+        target = self.skills / "afyx-efficient-coding"
         before = hashlib.sha256((target / "SKILL.md").read_bytes()).hexdigest()
         shutil.rmtree(self.backups, ignore_errors=True)
         self.backups.write_text("blocks backup directory creation", encoding="utf-8")
@@ -174,9 +174,9 @@ class SkillLifecycleSecurityTests(unittest.TestCase):
 
         first = subprocess.run(command, cwd=ROOT, env=self.env, capture_output=True, text=True)
         self.assertEqual(first.returncode, 0, first.stdout + first.stderr)
-        source = (ROOT / "skills/efficient-coding/SKILL.md").read_bytes()
-        ide_target = gemini / "config/skills/efficient-coding"
-        cli_target = gemini / "antigravity-cli/skills/efficient-coding"
+        source = (ROOT / "skills/afyx-efficient-coding/SKILL.md").read_bytes()
+        ide_target = gemini / "config/skills/afyx-efficient-coding"
+        cli_target = gemini / "antigravity-cli/skills/afyx-efficient-coding"
         for target in (ide_target, cli_target):
             with (target / "SKILL.md").open("a", encoding="utf-8") as handle:
                 handle.write("\n<!-- secondary-root drift -->\n")
@@ -196,8 +196,8 @@ class SkillLifecycleSecurityTests(unittest.TestCase):
 
     def test_interrupted_swap_is_recovered_before_retry(self) -> None:
         self.run_install("install")
-        target = self.skills / "efficient-coding"
-        recovery = self.skills / ".efficient-coding.afyx-old"
+        target = self.skills / "afyx-efficient-coding"
+        recovery = self.skills / ".afyx-efficient-coding.afyx-old"
         target.rename(recovery)
         result = self.run_install("install")
         self.assertIn("Recovered interrupted skill transaction", result.stdout + result.stderr)
@@ -220,7 +220,7 @@ class SkillLifecycleSecurityTests(unittest.TestCase):
         sentinel.write_text("keep", encoding="utf-8")
         self.skills.mkdir()
         try:
-            (self.skills / "efficient-coding").symlink_to(destination, target_is_directory=True)
+            (self.skills / "afyx-efficient-coding").symlink_to(destination, target_is_directory=True)
         except OSError as error:
             self.skipTest(f"symlink creation unavailable: {error}")
         self.run_uninstall(expected=1)

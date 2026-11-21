@@ -152,7 +152,7 @@ foreach ($additionalRoot in $additionalSkillRoots) {
         $desired = if ($controlPlan) { [string]$component.id -in $controlPlan.DesiredComponents } else { Test-Path -LiteralPath $target }
         $ownership = Get-AfyxSkillOwnership -Target $target -Component ([string]$component.id) -ExpectedOwner ([string]$component.ownership)
         if ($ownership -eq 'AFYX_OWNED_UNMODIFIED') { Write-Result 'OK' "Provider skill/$($component.id)" "$additionalRoot; ownership verified" }
-        elseif ($ownership -eq 'NOT_INSTALLED' -and -not $desired) { Write-Result 'INFO' "Provider skill/$($component.id)" "$additionalRoot; not selected" }
+        elseif ($ownership -eq 'NOT_INSTALLED' -and (-not $desired -or $SkipProviderConfiguration)) { Write-Result 'INFO' "Provider skill/$($component.id)" "$additionalRoot; not selected" }
         elseif ($desired) { Write-Result 'FAIL' "Provider skill/$($component.id)" "$additionalRoot; $ownership"; $coreFailure = $true }
     }
 }

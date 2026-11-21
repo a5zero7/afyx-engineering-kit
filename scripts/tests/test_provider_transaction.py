@@ -29,10 +29,10 @@ const home=process.env.CODEX_HOME;
 const config=path.join(home,'config.toml');
 const args=process.argv.slice(2);
 if(fs.existsSync(path.join(home,'HANG'))){const end=Date.now()+2000;while(Date.now()<end){}}
-if(args[0]!=='mcp'||args[2]!=='afyx_graph')process.exit(64);
+if(args[0]!=='mcp'||!['afyx_graph','afyx_workflow'].includes(args[2]))process.exit(64);
 if(args[1]!=='get')process.exit(64);
 if(!fs.existsSync(config)){console.error('MCP server afyx_graph not found');process.exit(1);}
-const text=fs.readFileSync(config,'utf8');
+const text=fs.readFileSync(config,'utf8').split('[mcp_servers.'+args[2]+']')[1]?.split(/\r?\n\s*\[/)[0]??'';
 const command=text.match(/^command = (.+)$/m);
 const values=text.match(/^args = (.+)$/m);
 if(!command||!values){console.error('MCP server afyx_graph not found');process.exit(1);}

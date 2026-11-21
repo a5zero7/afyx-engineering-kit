@@ -2895,8 +2895,8 @@
     {
       "path": "scripts/afyx-provider-integration.mjs",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "5499d6f781dec2f4b76f1d6c03c6e9b451b0c319cc7dd00c980ec8800fe3dc98",
-      "evidence": "AFYX native source: authored from AFYX functional requirements; verified clean room implementation with zero third-party code import. AFYX-77: bounded installer maintenance authored against existing AFYX contracts."
+      "reviewedSha256": "0cdf6b8355f84d818669994131592da2297ce9208a58ed9f7d833facd14f74b6",
+      "evidence": "AFYX native source: authored from AFYX functional requirements; verified clean room implementation with zero third-party code import. AFYX-77: bounded installer maintenance authored against existing AFYX contracts. POSTV1-CI-AND-TRACKD-CERTIFICATION: koreksi AFYX berdasarkan log CI dan kontrak lifecycle native."
     },
     {
       "path": "scripts/afyx-provider-inventory.mjs",
@@ -2943,8 +2943,8 @@
     {
       "path": "scripts/benchmark-trackd.mjs",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "6e4ff205d887ed3e27823e1336fc1fc9a24af9ca15c1b820cb583cbb19e96a3a",
-      "evidence": "Track D native performance benchmark harness: executes reproducible persistence, traversal, and lifecycle workloads."
+      "reviewedSha256": "244182001b78b85a26bb0ff6524059c30fd500fecd15f1b43f83f3ddde40037f",
+      "evidence": "Track D native performance benchmark harness: executes reproducible persistence, traversal, and lifecycle workloads. POSTV1-CI-AND-TRACKD-CERTIFICATION: koreksi AFYX berdasarkan log CI dan kontrak lifecycle native."
     },
     {
       "path": "scripts/benchmark-graph-memory.mjs",

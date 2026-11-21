@@ -10,7 +10,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 BASELINE = ROOT / "scripts" / "tests" / "fixtures" / "legacy-odoo-engineering-1.1.0"
-CANDIDATE = ROOT / "skills" / "odoo-engineering"
+CANDIDATE = ROOT / "skills" / "afyx-odoo-engineering"
 
 
 def corpus(root: Path) -> str:

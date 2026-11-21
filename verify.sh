@@ -132,7 +132,7 @@ for additional_root in ${additional_skill_roots[@]+"${additional_skill_roots[@]}
     if [[ -n "$preset" ]]; then afyx_component_desired "$component_id" "$preset" "$custom_component_list" "$provider_list" && desired=true || :; elif [[ -e "$target" ]]; then desired=true; fi
     afyx_classify_skill "$target" "$component_id" afyx
     if [[ "$AFYX_OWNERSHIP_STATE" == AFYX_OWNED_UNMODIFIED ]]; then result OK "Provider skill/$component_id" "$additional_root; ownership verified"
-    elif [[ "$desired" == true ]]; then result FAIL "Provider skill/$component_id" "$additional_root; $AFYX_OWNERSHIP_STATE"; core_failure=true
+    elif [[ "$desired" == true ]] && { ! "$skip_provider_configuration" || [[ "$AFYX_OWNERSHIP_STATE" != NOT_INSTALLED ]]; }; then result FAIL "Provider skill/$component_id" "$additional_root; $AFYX_OWNERSHIP_STATE"; core_failure=true
     else result INFO "Provider skill/$component_id" "$additional_root; not selected"; fi
   done
 done

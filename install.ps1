@@ -304,7 +304,13 @@ foreach ($specification in $ComponentAction) {
         throw "Invalid -ComponentAction '$specification'. Use component-id=skip|install|update|repair|adopt."
     }
     Assert-ActiveComponentId $Matches[1]
-    $componentActions[$Matches[1]] = $Matches[2]
+    $id = switch ($Matches[1]) {
+        'efficient-coding' { 'afyx-efficient-coding' }
+        'odoo-engineering' { 'afyx-odoo-engineering' }
+        'codex-usage-tracking' { 'afyx-usage-intelligence' }
+        default { $Matches[1] }
+    }
+    $componentActions[$id] = $Matches[2]
 }
 $knownSelectable = @('afyx-efficient-coding', 'afyx-odoo-engineering', 'efficient-coding', 'odoo-engineering', 'afyx-engineering-expert', 'afyx-graph', 'afyx-context', 'afyx-forge', 'afyx-usage-intelligence', 'codex-usage-tracking')
 foreach ($id in $componentActions.Keys) { if ($id -notin $knownSelectable) { throw "Unknown selectable component: $id" } }
@@ -737,6 +743,7 @@ if (-not $ValidateOnly -and $providerMcpRequested -and $nodeCommand -and ('codex
         -not ($_.reason -in @('GRAPH_RUNTIME_UNAVAILABLE', 'MCP_RUNTIME_UNAVAILABLE') -and $graphAction -ne 'skip')
     })
     foreach ($blocked in $preflightBlocked) {
+        if ($blocked.status -eq 'INCOMPATIBLE') { throw "Provider scope is incompatible: $($blocked.provider) ($($blocked.reason))." }
         Write-Warning "Provider preflight blocked: $($blocked.provider) ($($blocked.reason))."
     }
 }

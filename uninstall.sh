@@ -31,7 +31,7 @@ usage() {
 while (($#)); do
   case "$1" in
     --skills-root) (($# >= 2)) || { printf '%s\n' '--skills-root requires a value.' >&2; exit 2; }; skills_root="$2"; skills_root_explicit=true; shift 2 ;;
-    --component) (($# >= 2)) || { printf '%s\n' '--component requires a value.' >&2; exit 2; }; selected_components+=("$2"); selected_component_count=$((selected_component_count + 1)); shift 2 ;;
+    --component) (($# >= 2)) || { printf '%s\n' '--component requires a value.' >&2; exit 2; }; selected="$2"; case "$selected" in efficient-coding|odoo-engineering) selected="afyx-$selected" ;; esac; selected_components+=("$selected"); selected_component_count=$((selected_component_count + 1)); shift 2 ;;
     --context-runtime-root) (($# >= 2)) || { printf '%s\n' '--context-runtime-root requires a value.' >&2; exit 2; }; context_root="$2"; shift 2 ;;
     --forge-runtime-root) (($# >= 2)) || { printf '%s\n' '--forge-runtime-root requires a value.' >&2; exit 2; }; forge_root="$2"; shift 2 ;;
     --remove-prompt-master) remove_prompt_master=true; shift ;;

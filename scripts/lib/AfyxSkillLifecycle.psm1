@@ -412,28 +412,16 @@ function Migrate-AfyxLegacySkills {
             if (-not (Test-Path -LiteralPath $legacyPath -PathType Container)) { continue }
 
             $legacyOwnership = Get-AfyxSkillOwnership -Target $legacyPath -Component $pair.Legacy -ExpectedOwner 'afyx'
-            $isAfyx = $false
-            if ($legacyOwnership -in @('AFYX_OWNED_UNMODIFIED', 'AFYX_OWNED_MODIFIED')) {
-                $isAfyx = $true
-            } else {
-                $manifest = Join-Path $legacyPath 'SKILL.md'
-                if (Test-Path -LiteralPath $manifest -PathType Leaf) {
-                    $content = Get-Content -Raw -LiteralPath $manifest -Encoding utf8
-                    if ($content -match '(?i)afyx' -or $content -match "(?m)^name:\s*['""]?$($pair.Legacy)['""]?\s*$") {
-                        $isAfyx = $true
-                    }
-                }
+            if ($legacyOwnership -ne 'AFYX_OWNED_UNMODIFIED') {
+                $contract = Get-AfyxComponentContract | Where-Object { $_.id -eq $pair.Canonical }
+                $proof = Get-AfyxLegacySkillProvenance -Target $legacyPath -Component $pair.Legacy -Owner 'afyx' -LegacyVersion $contract.legacy_version -LegacyContentSha256 $contract.legacy_content_digest
+                if ($proof -ne 'MATCH') { continue }
             }
-            if (-not $isAfyx) {
-                Write-Verbose "Preserving foreign skill at $legacyPath"
-                continue
-            }
-
             $backup = Backup-AfyxSkill -Component $pair.Canonical -Target $legacyPath -Protect
             if ($pair.Source -and (Test-Path -LiteralPath $pair.Source)) {
                 $installedState = Get-AfyxSkillOwnership -Target $canonicalPath -Component $pair.Canonical -ExpectedOwner 'afyx'
                 if ($installedState -ne 'AFYX_OWNED_UNMODIFIED') {
-                    $stage = Join-Path $root ".$($pair.Canonical).afyx-stage"
+                    $stage = Join-Path $root ".$($pair.Canonical).afyx-stage-$([guid]::NewGuid().ToString('N'))"
                     if (Test-Path -LiteralPath $stage) { Remove-Item -LiteralPath $stage -Recurse -Force -ErrorAction SilentlyContinue }
                     Copy-Item -LiteralPath $pair.Source -Destination $stage -Recurse -Force -ErrorAction Stop
                     try {
@@ -446,7 +434,7 @@ function Migrate-AfyxLegacySkills {
             }
 
             $canonicalState = Get-AfyxSkillOwnership -Target $canonicalPath -Component $pair.Canonical -ExpectedOwner 'afyx'
-            if ($canonicalState -in @('AFYX_OWNED_UNMODIFIED', 'AFYX_OWNED_MODIFIED')) {
+            if ($canonicalState -eq 'AFYX_OWNED_UNMODIFIED') {
                 Remove-Item -LiteralPath $legacyPath -Recurse -Force -ErrorAction Stop
                 if (Test-Path -LiteralPath "$backup.afyx-active") {
                     Remove-Item -LiteralPath "$backup.afyx-active" -Force -ErrorAction SilentlyContinue

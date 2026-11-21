@@ -462,7 +462,7 @@ if ($withArg.WizardMode -or $withArg.Count -ne 1) { throw 'WithArg failed' }
             )
             self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
             self.assertNotIn("The property 'Count' cannot be found on this object", result.stdout + result.stderr)
-            self.assertIn("Interactive Installer | Midnight Circuit", result.stdout)
+            self.assertRegex(result.stdout, r"Interactive Installer(?: v[^ ]+)? \| Midnight Circuit")
             self.assertIn("Component Inventory", result.stdout)
             self.assertIn("Prerequisite Inventory", result.stdout)
             self.assertIn("Provider Plan", result.stdout)

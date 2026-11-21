@@ -422,7 +422,7 @@ console.log(JSON.stringify(res));
         cap = res["activatedCapabilities"][0]
         self.assertEqual(cap["provider"], "antigravity")
         self.assertEqual(cap["surface"], "skills")
-        self.assertEqual(cap["surfaceDetails"]["skillName"], "efficient-coding")
+        self.assertEqual(cap["surfaceDetails"]["skillName"], "afyx-efficient-coding")
 
     # -------------------------------------------------------------------------
     # Bounded Telemetry & Claims Verification

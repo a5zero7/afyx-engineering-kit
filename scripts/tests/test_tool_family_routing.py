@@ -10,7 +10,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 ROUTER = ROOT / "scripts" / "afyx-tool-family-routing.mjs"
-GUIDANCE = ROOT / "skills" / "efficient-coding" / "references" / "tool-routing.md"
+GUIDANCE = ROOT / "skills" / "afyx-efficient-coding" / "references" / "tool-routing.md"
 
 
 def candidate(name, owner, capability, surface="mcp", **kwargs):

@@ -15,8 +15,8 @@ for (const shell of process.platform === 'win32' ? ['powershell.exe', 'pwsh.exe'
     const root = mkdtempSync(join(realpathSync(tmpdir()), 'afyx-native-binding-'));
     t.after(() => rmSync(root, { recursive: true }));
     const profile = join(root, 'profile'); mkdirSync(profile);
-    const ids = ['efficient-coding', 'odoo-engineering'];
-    const options = { preset: 'custom', customComponents: ids, skillsRoot: join(root, 'skills'),
+    const ids = ['afyx-efficient-coding', 'afyx-odoo-engineering'];
+    const options = { preset: 'custom', customComponents: ['efficient-coding', 'odoo-engineering'], skillsRoot: join(root, 'skills'),
       skipProviderConfiguration: true, nonInteractive: true };
     const env = { ...process.env, HOME: profile, USERPROFILE: profile, CODEX_HOME: join(profile, '.codex'),
       AFYX_GEMINI_HOME: join(profile, '.gemini'), CLAUDE_CONFIG_DIR: join(profile, '.claude'),
@@ -37,7 +37,7 @@ for (const shell of process.platform === 'win32' ? ['powershell.exe', 'pwsh.exe'
     assert.deepEqual(plan.components.filter((c) => c.desired).map((c) => c.id).sort(), ids.slice().sort());
     if (process.platform === 'win32') {
       const full = decodeContract(run('install', { ...options, preset: 'full', customComponents: [], planJson: true }), 'AfyxInstallPlan/v1');
-      const usage = full.components.find((component) => component.id === 'codex-usage-tracking');
+      const usage = full.components.find((component) => component.id === 'afyx-usage-intelligence');
       assert.equal(usage.desired, false, 'No-provider Full must not require the Codex-only toolset');
       assert.equal(usage.backendAction, 'skip');
       assert.equal(full.components.find((component) => component.id === 'afyx-graph').desired, true);

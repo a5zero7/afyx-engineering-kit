@@ -906,7 +906,7 @@ print(answer)
             freeze.directory_content_sha256(frozen_source),
         )
 
-        current_source = ROOT / "skills" / "efficient-coding"
+        current_source = ROOT / "skills" / "afyx-efficient-coding"
         current_hash = freeze.directory_content_sha256(current_source)
         self.assertNotEqual(current_hash, frozen_efficient["content_sha256"])
         self.assertRegex(

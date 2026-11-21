@@ -30,6 +30,12 @@ $claude = Join-Path $disposable 'claude'
 $fakeBin = Join-Path $disposable 'fake-bin'
 $backupRoot = Join-Path $disposable '.afyx\backups'
 
+$profileVariables = @{ HOME = $disposable; USERPROFILE = $disposable; APPDATA = (Join-Path $disposable 'AppData\Roaming'); LOCALAPPDATA = (Join-Path $disposable 'AppData\Local'); AFYX_INSTALL_ROOT = (Join-Path $disposable '.afyx'); AFYX_HOST_BRIDGE_RUNTIME_ROOT = (Join-Path $disposable 'host-bridge') }
+$savedProfile = @{}
+foreach ($name in $profileVariables.Keys) {
+    $savedProfile[$name] = [Environment]::GetEnvironmentVariable($name, 'Process')
+    [Environment]::SetEnvironmentVariable($name, $profileVariables[$name], 'Process')
+}
 $originalPath = $env:PATH
 $originalBackupRoot = $env:AFYX_BACKUP_ROOT
 $hadBackupRoot = Test-Path Env:AFYX_BACKUP_ROOT
@@ -47,42 +53,16 @@ try {
 const fs = require('fs');
 const path = require('path');
 const home = process.env.CODEX_HOME || process.cwd();
-const state = path.join(home, 'fixture-state.json');
-const args = process.argv.slice(2);
-if (args.length === 0 || args[0] === '--version') {
-  console.log('codex-cli 0.1.0-mock');
-  process.exit(0);
-}
-const scope = args[0];
-const action = args[1];
-const name = args[2];
-if (scope === 'mcp') {
-  if (action === 'get') {
-    if (!fs.existsSync(state)) {
-      console.error('MCP server afyx_graph not found');
-      process.exit(1);
-    }
-    const content = fs.readFileSync(state, 'utf8');
-    if (!content || !content.trim()) {
-      console.error('MCP server afyx_graph not found');
-      process.exit(1);
-    }
-    console.log(content);
-    process.exit(0);
-  } else if (action === 'add') {
-    const sep = args.indexOf('--');
-    const cmd = args.slice(sep + 1);
-    fs.mkdirSync(home, { recursive: true });
-    fs.writeFileSync(state, JSON.stringify({ transport: { type: 'stdio', command: cmd[0], args: cmd.slice(1) } }));
-    process.exit(0);
-  } else if (action === 'remove') {
-    if (fs.existsSync(state)) {
-      fs.rmSync(state, { force: true });
-    }
-    process.exit(0);
-  }
-}
-process.exit(0);
+const [scope, action, name] = process.argv.slice(2);
+if (scope === '--version') { console.log('codex-cli 0.1.0-mock'); process.exit(0); }
+if (scope !== 'mcp' || action !== 'get' || !['afyx_graph', 'afyx_workflow'].includes(name)) process.exit(64);
+const config = path.join(home, 'config.toml');
+const content = fs.existsSync(config) ? fs.readFileSync(config, 'utf8') : '';
+const section = content.split('[mcp_servers.' + name + ']')[1]?.split(/\r?\n\s*\[/)[0];
+const command = section?.match(/^command = (.+)$/m);
+const args = section?.match(/^args = (.+)$/m);
+if (!command || !args) { console.error('MCP server ' + name + ' not found'); process.exit(1); }
+console.log(JSON.stringify({ transport: { type: 'stdio', command: JSON.parse(command[1]), args: JSON.parse(args[1]) } }));
 '@
     Set-Content -LiteralPath $fakeCodexJs -Value $fakeCodexJsContent -Encoding utf8
     $fakeCodexCmdContent = "@echo off`r`nnode `"%~dp0fake-codex.js`" %*`r`n"
@@ -157,8 +137,8 @@ my_custom_env = "production"
     $contextCmd = Join-Path $context 'current\bin\afyx-context.cmd'
     $graphCmd = Join-Path $graph 'bin\afyx-graph.cmd'
     $usageMod = Join-Path $codex 'tools\CodexUsage.psm1'
-    $skill1 = Join-Path $skills 'efficient-coding\SKILL.md'
-    $skill2 = Join-Path $skills 'odoo-engineering\SKILL.md'
+    $skill1 = Join-Path $skills 'afyx-efficient-coding\SKILL.md'
+    $skill2 = Join-Path $skills 'afyx-odoo-engineering\SKILL.md'
     $skill3 = Join-Path $skills 'afyx-engineering-expert\SKILL.md'
 
     foreach ($f in @($forgeCmd, $contextCmd, $graphCmd, $usageMod, $skill1, $skill2, $skill3)) {
@@ -218,6 +198,7 @@ finally {
     }
     Remove-Item Env:AFYX_GRAPH_RUNTIME_ROOT -ErrorAction SilentlyContinue
     Remove-Item Env:CODEX_HOME -ErrorAction SilentlyContinue
+    foreach ($name in $savedProfile.Keys) { [Environment]::SetEnvironmentVariable($name, $savedProfile[$name], 'Process') }
     if ($hadBackupRoot) { $env:AFYX_BACKUP_ROOT = $originalBackupRoot }
     else { Remove-Item Env:AFYX_BACKUP_ROOT -ErrorAction SilentlyContinue }
 }

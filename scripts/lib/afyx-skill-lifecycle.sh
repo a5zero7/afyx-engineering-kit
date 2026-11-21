@@ -333,7 +333,7 @@ afyx_remove_skill() {
 }
 
 afyx_migrate_legacy_skills() {
-  local target_roots=("$@") root pair legacy_id canonical_id label source legacy_path canonical_path is_afyx backup
+  local target_roots=("$@") root pair legacy_id canonical_id label source legacy_path canonical_path backup stage
   for root in "${target_roots[@]}"; do
     [[ -n "$root" && -d "$root" ]] || continue
     for pair in "efficient-coding|afyx-efficient-coding|Afyx Efficient Coding|${BUNDLED_EFFICIENT:-}" "odoo-engineering|afyx-odoo-engineering|Afyx Odoo Engineering|${BUNDLED_ODOO:-}"; do
@@ -342,32 +342,29 @@ afyx_migrate_legacy_skills() {
       canonical_path="$root/$canonical_id"
       [[ -d "$legacy_path" ]] || continue
 
-      is_afyx=false
+      [[ ! -L "$root" && ! -L "$legacy_path" && ! -L "$canonical_path" ]] || continue
       afyx_classify_skill "$legacy_path" "$legacy_id" afyx
-      if [[ "$AFYX_OWNERSHIP_STATE" == AFYX_OWNED_UNMODIFIED || "$AFYX_OWNERSHIP_STATE" == AFYX_OWNED_MODIFIED ]]; then
-        is_afyx=true
-      elif [[ -f "$legacy_path/SKILL.md" ]]; then
-        if grep -qi "afyx" "$legacy_path/SKILL.md" 2>/dev/null || grep -qE "^name:[[:space:]]*[\"']?${legacy_id}[\"']?" "$legacy_path/SKILL.md" 2>/dev/null; then
-          is_afyx=true
-        fi
+      if [[ "$AFYX_OWNERSHIP_STATE" != AFYX_OWNED_UNMODIFIED ]]; then
+        afyx_legacy_skill_provenance "$legacy_path" "$legacy_id" afyx \
+          "$(afyx_component_field "$canonical_id" legacy_content_digest_bash)" \
+          "$(afyx_component_field "$canonical_id" legacy_version)"
+        [[ "$AFYX_LEGACY_PROVENANCE" == MATCH ]] || continue
       fi
-      [[ "$is_afyx" == true ]] || continue
 
       backup="$(afyx_backup_skill "$canonical_id" "$legacy_path" true)" || continue
       if [[ -n "$source" && -d "$source" ]]; then
         afyx_classify_skill "$canonical_path" "$canonical_id" afyx
         if [[ "$AFYX_OWNERSHIP_STATE" != AFYX_OWNED_UNMODIFIED ]]; then
-          stage="$root/.$canonical_id.afyx-stage"
-          rm -rf -- "$stage"
-          mkdir -p "$stage"
-          cp -R "$source/." "$stage/" 2>/dev/null || cp -r "$source/." "$stage/"
-          afyx_install_skill_transaction "$root" "$canonical_id" "$label" "$stage" "$canonical_path" afyx >/dev/null 2>&1 || :
-          rm -rf -- "$stage"
+          stage="$(mktemp -d "$root/.$canonical_id.afyx-stage.XXXXXX")" || continue
+          if cp -R "$source/." "$stage/"; then
+            (skills_root="$root"; afyx_promote_skill "$canonical_id" "$label" "$stage" "$canonical_path" afyx "$(afyx_skill_version "$source")") || :
+          fi
+          [[ ! -d "$stage" ]] || rm -rf -- "$stage"
         fi
       fi
 
       afyx_classify_skill "$canonical_path" "$canonical_id" afyx
-      if [[ "$AFYX_OWNERSHIP_STATE" == AFYX_OWNED_UNMODIFIED || "$AFYX_OWNERSHIP_STATE" == AFYX_OWNED_MODIFIED ]]; then
+      if [[ "$AFYX_OWNERSHIP_STATE" == AFYX_OWNED_UNMODIFIED ]]; then
         rm -rf -- "$legacy_path"
         rm -f -- "$backup.afyx-active"
         printf '[MIGRATED] %s -> %s at %s (backup: %s)\n' "$legacy_id" "$canonical_id" "$root" "$backup"
