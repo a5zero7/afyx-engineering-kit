@@ -1,13 +1,23 @@
-# AFYX v1.0 — Draf catatan rilis dan kandidat freeze
+# AFYX Engineering Kit v1.0.0 — Catatan rilis dan verifikasi
 
-**Status: RC freeze candidate, untuk peninjauan internal.** Baseline sumber
-adalah `eaa409691064b37beed47b2939797c6517a7ad05` pada `dev`. Artefak RC harus
-dibangun dari commit pengiriman yang persis dan membawa SHA tersebut. Identitas
-rilis publik, versi final, dan tanda tangan komersial menunggu keputusan Owner.
-Metadata Kit tetap `0.1.0-alpha.12` dan metadata Graph `1.0.0`.
-`main` dibekukan pada `9adf4271da76283ef3b63185c92de4b1238ab03f` menunggu AFYX-87.
+Versi Kit dan Graph adalah `1.0.0`. Status publikasi harus diverifikasi
+melalui tag `v1.0.0`, parity `dev` dan `main`, serta metadata registry.
+Gunakan SHA pada manifest distribusi; artefak harus berasal dari commit
+integrasi yang ditunjuk tag.
 
-## Cakupan kandidat
+Owner mengizinkan installer Windows tanpa tanda tangan berdasarkan
+`OWNER_SIGNING_WAIVER_V1` (AFYX-85, komentar 11458, rujukan Owner).
+Status Authenticode yang diharapkan adalah `NotSigned`. Windows dapat
+menampilkan peringatan SmartScreen. Verifikasi sumber, SHA-256, dan
+manifest sebelum menjalankan paket. Attestation build memiliki cakupan
+provenance yang terpisah dari Authenticode.
+
+Bundel aktif mempertahankan lisensi AFYX dan mengikuti kontrak distribusi
+tanpa notice historis yang usang. Dasar keputusan produk dan keterbatasan
+pembanding historis tercatat dalam
+[rencana independensi](AFYX_INDEPENDENCE_PLAN.md#status-teknis-afyx-359).
+
+## Cakupan rilis
 
 - Graph menyediakan indeks lokal, penelusuran simbol dan relasi, CLI, dan MCP
   opsional. Target paket Kit mencakup bundel Graph Windows x64, Linux x64,
@@ -29,9 +39,8 @@ Metadata Kit tetap `0.1.0-alpha.12` dan metadata Graph `1.0.0`.
 
 ## Dasar keputusan dan gerbang
 
-Snapshot yang diberikan Owner mencatat **355 dari 363 Done** serta delapan
-gerbang terbuka (AFYX-77, AFYX-83, AFYX-84, AFYX-85, AFYX-86, AFYX-9, AFYX-87,
-AFYX-11). Snapshot itu mencatat AFYX-346, AFYX-8, dan AFYX-359 Done berdasarkan
+Snapshot Owner untuk promosi mencatat **361 dari 363 Done**, dengan
+AFYX-87 dan AFYX-11 masih terbuka. Snapshot itu mencatat AFYX-346, AFYX-8, dan AFYX-359 Done berdasarkan
 keputusan Owner. Status Jira tersebut belum dibaca ulang lewat konektor.
 Bukti teknis OFF/ON sebelumnya menunjukkan satu panggilan Graph di sesi ON,
 dengan batas pada atribusi jawaban, persetujuan MCP, dan review independen.
@@ -54,8 +63,9 @@ terbatas dan cakupan hash tidak menentukan kepemilikan hak cipta secara hukum.
    penandatanganan, terbitkan checksum atas byte yang sudah ditandatangani
    melalui proses rilis yang disetujui.
 
-Publikasi tetap diblokir sampai pemeriksaan lintas platform pada SHA kandidat,
-penandatanganan tepercaya, dan gerbang akhir AFYX-87 serta AFYX-11 terpenuhi.
+Penerimaan AFYX-87 memerlukan parity sumber, CI, tag, checksum, waiver
+dan publikasi yang terverifikasi. AFYX-11 menunggu penerimaan AFYX-87
+dan ketersediaan distribusi publik.
 
 ## Riwayat Technical Alpha
 

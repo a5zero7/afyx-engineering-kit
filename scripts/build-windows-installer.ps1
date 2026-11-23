@@ -211,7 +211,7 @@ $zipHash  afyx-kit-payload.zip
     }
     $buildManifest = [ordered]@{
         product_name         = "Afyx Engineering Kit"
-        distribution_channel = "technical-alpha"
+        distribution_channel = $(if (($kitVersion -split '\+', 2)[0] -match '^\d+\.\d+\.\d+$') { 'stable' } else { 'technical-alpha' })
         package_name         = "AfyxSetup.exe"
         package_version      = $kitVersion
         target_platform      = "win32-x64"

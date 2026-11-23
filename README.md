@@ -1,8 +1,10 @@
 # AFYX Engineering Kit
 
-Kandidat freeze v1.0 sedang disiapkan untuk peninjauan internal. Versi Kit
-masih `0.1.0-alpha.12`. Lihat [catatan kandidat rilis](docs/RELEASE_READINESS.md)
-untuk cakupan platform, verifikasi artefak, serta status penandatanganan.
+**Versi Kit 1.0.0.** Publikasi diverifikasi melalui tag Git dan metadata
+registry npm. Installer Windows tidak bertanda tangan berdasarkan
+`OWNER_SIGNING_WAIVER_V1`; Windows dapat menampilkan peringatan SmartScreen.
+Cocokkan checksum dan revisi sumber sebelum menjalankan installer.
+[Catatan dan verifikasi rilis](docs/RELEASE_READINESS.md)
 
 
 **Local-first engineering intelligence, adaptive guidance, and evidence-driven validation for AI coding agents.**
@@ -19,9 +21,9 @@ on its own or combine eligible capabilities through shared installation and
 routing contracts. The design prioritizes source evidence, permission boundaries,
 focused validation, and failure isolation over unqualified automation claims.
 
-**Status:** Technical Alpha · **Full runtime tested:** Windows x64 and Linux x64
-(WSL2 Ubuntu) · **macOS/ARM Full:** no bundled Graph archive; runtime untested ·
-**Integration:** Optional and task-driven.
+**Distribusi Kit:** Windows x64, Linux x64, macOS ARM64, dan macOS Intel.
+Paket Graph per target diverifikasi melalui checksum dan manifest. Penerimaan
+integrasi provider mengikuti izin host dan cakupan pilot yang terdokumentasi.
 
 Graph, Forge, Context Engine, and Engineering Expert provide four foundational
 engineering pillars. Efficient Coding and Odoo Engineering are **equally
@@ -82,10 +84,10 @@ installable IDs, presets, supported platforms, and ownership. Consult the
 
 ## Kit and component versions
 
-The Kit is `0.1.0-alpha.12` (Technical Alpha). Independent component versions
+The Kit version is `1.0.0`. Independent component versions
 track their individual CLI and contract compatibility. The Kit version tracks
 distribution and installer releases, so a component can retain its version
-while the Kit evolves. The Kit's Stable v1 gates remain open.
+while the Kit evolves. Verifikasi status distribusi pada catatan rilis.
 
 | Component | Version |
 |---|---|
@@ -188,25 +190,22 @@ and [Component Guide](docs/COMPONENTS.md) for capability and limitation details.
 
 ## Install AFYX Engineering Kit — Windows & WSL2
 
-### Public npm Alpha (v0.1.0-alpha.12)
+### Instalasi npm v1.0.0
 
-With Node.js 22.5 or newer, the public registry command is:
+Gunakan Node.js 22.5 atau lebih baru. Setelah versi publik terverifikasi dengan
+`npm view afyx-engineering-kit@1.0.0 version`, gunakan:
 
 ```bash
-npx afyx-engineering-kit install
+npx afyx-engineering-kit@1.0.0 install
 ```
 
 In a release containing Midnight Circuit, an interactive ANSI terminal shows
 Detect → Select → Configure → Review/Apply → Finish. Use `--ui plain` for text
 output; CI and terminals without ANSI support use the text flow automatically.
-**Platform Support:** Full runtime tested on Windows x64 and Linux x64 (WSL2 Ubuntu);
-macOS is pilot-gated (standalone skills supported; Full prebuilt Graph runtime archive pilot-gated).
-
-Use `--preset recommended` for core engineering skills or `--preset full`
-for the prebuilt Graph, Context, Forge, and applicable skills. `full` requires
-Windows x64 or Linux x64 for Graph. Provider configuration is optional and
-remains subject to each host's native prerequisites. Confirm the intended Alpha
-version with `npm view afyx-engineering-kit@latest version`.
+Verifikasi dukungan target di manifest bundel. Gunakan `--preset recommended`
+untuk skill utama, atau `--preset full` untuk menyertakan Graph, Context, Forge,
+dan skill yang berlaku. Konfigurasi provider bersifat opsional dan mengikuti
+prasyarat host.
 
 ### Local Developer Setup (Bare NPX Resolution)
 
@@ -243,7 +242,7 @@ archive and `.afyx-source-revision` marker. Its download link will be added
 after the public release and anonymous installation checks pass. Node.js 22.5+
 is required; Windows PowerShell 5.1 and PowerShell 7 are the intended hosts.
 
-Alternatively, use the prebuilt tarball from the [v0.1.0-alpha.12 GitHub prerelease](https://github.com/a5zero7/afyx-engineering-kit/releases/tag/v0.1.0-alpha.12):
+Untuk reproduksi historis Alpha, gunakan tarball dari [prarilis GitHub v0.1.0-alpha.12](https://github.com/a5zero7/afyx-engineering-kit/releases/tag/v0.1.0-alpha.12):
 
 ```bash
 npm exec --yes --package="https://github.com/a5zero7/afyx-engineering-kit/releases/download/v0.1.0-alpha.12/afyx-engineering-kit-0.1.0-alpha.12.tgz" -- afyx-engineering-kit install --preset full --no-build-fallback --non-interactive --skip-provider-configuration

@@ -1,12 +1,12 @@
 # Afyx v1 Master Roadmap
 
-## Status kandidat freeze v1.0
+## Promosi AFYX Engineering Kit v1.0.0
 
-Baseline RC adalah `eaa409691064b37beed47b2939797c6517a7ad05`.
-Snapshot Owner mencatat 355/363 Done. Gerbang AFYX-87 dan AFYX-11
-masih menahan promosi dan publikasi. Bukti artefak dan signing mengikuti
-[catatan kandidat rilis](RELEASE_READINESS.md).
-
+Baseline kandidat adalah `aee53853941dbeed6c837e95ce17018b93ea117c`.
+Owner menyetujui promosi dari tree `dev` dan installer Windows
+`NotSigned` melalui `OWNER_SIGNING_WAIVER_V1` (AFYX-85, komentar 11458).
+Snapshot Owner mencatat 361/363 Done. AFYX-87 dan AFYX-11 memerlukan
+verifikasi kanal publik. [Catatan rilis](RELEASE_READINESS.md)
 
 **Checkpoint AFYX-359, 23 November 2026 (Amandemen #11441 & #11443).** Owner
 secara formal mengesahkan penggantian *clean-room* pra-v1.0 atas 26 path
