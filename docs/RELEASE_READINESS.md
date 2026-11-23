@@ -1,3 +1,64 @@
+# AFYX v1.0 — Draf catatan rilis dan kandidat freeze
+
+**Status: RC freeze candidate, untuk peninjauan internal.** Baseline sumber
+adalah `eaa409691064b37beed47b2939797c6517a7ad05` pada `dev`. Artefak RC harus
+dibangun dari commit pengiriman yang persis dan membawa SHA tersebut. Identitas
+rilis publik, versi final, dan tanda tangan komersial menunggu keputusan Owner.
+Metadata Kit tetap `0.1.0-alpha.12` dan metadata Graph `1.0.0`.
+`main` dibekukan pada `9adf4271da76283ef3b63185c92de4b1238ab03f` menunggu AFYX-87.
+
+## Cakupan kandidat
+
+- Graph menyediakan indeks lokal, penelusuran simbol dan relasi, CLI, dan MCP
+  opsional. Target paket Kit mencakup bundel Graph Windows x64, Linux x64,
+  macOS ARM64, dan macOS Intel x64. Pemeriksaan paket dan pengujian runtime
+  pada host asli merupakan bukti terpisah.
+- Context mengurangi keluaran secara lokal dan memungkinkan pemulihan bukti
+  asli. Forge menyediakan perencanaan dan diagnostik engineering. Kit juga
+  membawa skill Efficient Coding, Odoo Engineering, dan Engineering Expert.
+  Dukungan provider serta batas tiap komponen mengikuti
+  [kontrak komponen](COMPONENTS.md).
+- Ikuti [panduan Kit](../README.md) untuk instalasi, pembaruan, verifikasi,
+  uninstall, dan pemulihan. Runtime Graph memerlukan Node.js 22.5 atau lebih
+  baru. Jalankan preview bila tersedia, simpan backup, dan gunakan opsi
+  pemulihan yang sesuai dengan komponen dan host.
+- Integrasi bergantung pada izin provider dan workspace. Konfigurasi milik
+  pengguna, data sumber, dan profil harian tetap tunduk pada batas ownership.
+  Ukuran token dan durasi teramati per sesi. Satu pasangan evaluasi tidak
+  menetapkan penghematan umum atau keunggulan pada host lain.
+
+## Dasar keputusan dan gerbang
+
+Snapshot yang diberikan Owner mencatat **355 dari 363 Done** serta delapan
+gerbang terbuka (AFYX-77, AFYX-83, AFYX-84, AFYX-85, AFYX-86, AFYX-9, AFYX-87,
+AFYX-11). Snapshot itu mencatat AFYX-346, AFYX-8, dan AFYX-359 Done berdasarkan
+keputusan Owner. Status Jira tersebut belum dibaca ulang lewat konektor.
+Bukti teknis OFF/ON sebelumnya menunjukkan satu panggilan Graph di sesi ON,
+dengan batas pada atribusi jawaban, persetujuan MCP, dan review independen.
+Keputusan distribusi tanpa notice historis dicatat di
+[rencana independensi](AFYX_INDEPENDENCE_PLAN.md#status-teknis-afyx-359).
+Manifest 514 berkas adalah cakupan validasi teknis. Komparator historis tetap
+terbatas dan cakupan hash tidak menentukan kepemilikan hak cipta secara hukum.
+
+## Verifikasi artefak
+
+1. Cocokkan commit checkout bersih dengan SHA remote yang disetujui.
+2. Bangun paket Kit dan Graph dengan skrip repositori. Cocokkan penanda
+   sumber Kit dan metadata bundel dengan commit tersebut.
+3. Hitung ulang SHA-256 setiap file dan bandingkan dengan `SHA256SUMS` dan
+   `RELEASE-MANIFEST.json`. Periksa target, versi, identitas sumber, isi
+   tarball, payload lisensi AFYX, dan absennya notice historis.
+4. Untuk executable installer Windows yang akan didistribusikan, gunakan
+   sertifikat tepercaya di bawah kendali Owner. Verifikasi dengan
+   `Get-AuthenticodeSignature` dan `signtool verify /pa /v`. Setelah
+   penandatanganan, terbitkan checksum atas byte yang sudah ditandatangani
+   melalui proses rilis yang disetujui.
+
+Publikasi tetap diblokir sampai pemeriksaan lintas platform pada SHA kandidat,
+penandatanganan tepercaya, dan gerbang akhir AFYX-87 serta AFYX-11 terpenuhi.
+
+## Riwayat Technical Alpha
+
 # Afyx Technical Alpha — Distribution Readiness & Release Checklist
 
 **Target:** Windows Technical Alpha Distribution Gate (AFYX-77 / AFYX-130 / AFYX-131)\

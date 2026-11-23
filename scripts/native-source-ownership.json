@@ -3003,7 +3003,7 @@
     {
       "path": "scripts/verify-graph-archive.mjs",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "cfc144643dad78c8e1f9788d8d24bc997fa7583fb51068b5a46cbcfc6342facc",
+      "reviewedSha256": "4671b6a0698ba7744174ccda3a574a6ffce5ce2d2ee647cea307637a38f7da4c",
       "evidence": "AFYX native source: authored from AFYX functional requirements; verified clean room implementation with zero third-party code import."
     },
     {

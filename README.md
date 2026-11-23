@@ -1,5 +1,10 @@
 # AFYX Engineering Kit
 
+Kandidat freeze v1.0 sedang disiapkan untuk peninjauan internal. Versi Kit
+masih `0.1.0-alpha.12`. Lihat [catatan kandidat rilis](docs/RELEASE_READINESS.md)
+untuk cakupan platform, verifikasi artefak, serta status penandatanganan.
+
+
 **Local-first engineering intelligence, adaptive guidance, and evidence-driven validation for AI coding agents.**
 
 > **Individually Reliable. Collectively Solid.**

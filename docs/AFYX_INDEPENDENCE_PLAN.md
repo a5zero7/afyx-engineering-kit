@@ -2,6 +2,11 @@
 
 ## Status teknis AFYX-359
 
+Baseline freeze RC adalah `eaa409691064b37beed47b2939797c6517a7ad05`.
+Cakupan validasi manifest adalah 514 berkas produksi. Kesimpulan historis
+mengenai retensi notice di bawah bagian keputusan Owner berlaku untuk
+artefak pada zamannya.
+
 ### Keputusan formal Owner: disposisi zero-notice pra-v1.0
 
 Pada 23 November 2026 (checkpoint AFYX-359, komentar `11441` & `11443`), Owner
@@ -21,7 +26,7 @@ Keputusan Owner ini merupakan arahan tata kelola produk dan kebijakan rilis,
 **bukan** sertifikasi atau tinjauan hukum pihak ketiga independen yang tidak
 dilaksanakan. Batas keterbukaan historis tetap dijaga di bawah ini.
 
-### Status perbandingan sumber dan atribusi MIT
+### Riwayat perbandingan sumber dan kebijakan atribusi sebelumnya
 
 Pada baseline pengembangan, perbandingan path relatif dan blob Git pada sumber
 Graph/UI mencatat hubungan historis terhadap 26 path pada baseline publik AFYX

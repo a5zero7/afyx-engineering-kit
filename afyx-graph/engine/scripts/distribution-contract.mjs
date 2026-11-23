@@ -36,6 +36,11 @@ export function artifactPlan(target) {
 
 export class DistributionError extends Error {}
 
+export function isObsoleteNotice(path) {
+  const base = path.split(/[\\/]/).pop().toLowerCase();
+  return base.startsWith('third_party_notices') || /^notice(\.|$)/.test(base);
+}
+
 function requireFile(path, label = path) {
   if (!existsSync(path) || !statSync(path).isFile()) throw new DistributionError(`missing ${label}`);
   return path;
@@ -110,10 +115,7 @@ export function verifyBundle(root, target) {
       throw new DistributionError(`${legal.bundlePath} digest mismatch`);
     }
   }
-  const obsoleteNotices = walkFiles(bundle).filter((file) => {
-    const base = relative(bundle, file).split(sep).pop().toLowerCase();
-    return base.startsWith('third_party_notices') || /^notice(\.|$)/.test(base);
-  });
+  const obsoleteNotices = walkFiles(bundle).filter(isObsoleteNotice);
   if (obsoleteNotices.length > 0) {
     throw new DistributionError(`bundle must not contain obsolete third-party notice files: ${obsoleteNotices.map((f) => relative(bundle, f)).join(', ')}`);
   }

@@ -1,5 +1,13 @@
 # Afyx v1 Master Roadmap
 
+## Status kandidat freeze v1.0
+
+Baseline RC adalah `eaa409691064b37beed47b2939797c6517a7ad05`.
+Snapshot Owner mencatat 355/363 Done. Gerbang AFYX-87 dan AFYX-11
+masih menahan promosi dan publikasi. Bukti artefak dan signing mengikuti
+[catatan kandidat rilis](RELEASE_READINESS.md).
+
+
 **Checkpoint AFYX-359, 23 November 2026 (Amandemen #11441 & #11443).** Owner
 secara formal mengesahkan penggantian *clean-room* pra-v1.0 atas 26 path
 Graph/UI dan penghapusan notice historis CodeGraph (`THIRD_PARTY_NOTICES.md`)
