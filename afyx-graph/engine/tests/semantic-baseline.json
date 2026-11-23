@@ -1,0 +1,2505 @@
+{
+  "typescript": {
+    "files": 3,
+    "nodes": 10,
+    "edges": 14,
+    "relations": {
+      "calls": 1,
+      "contains": 7,
+      "extends": 1,
+      "imports": 4,
+      "instantiates": 1
+    },
+    "languages": {
+      "typescript": 3
+    },
+    "fileList": [
+      {
+        "path": "src/parser.ts",
+        "language": "typescript"
+      },
+      {
+        "path": "src/service.ts",
+        "language": "typescript"
+      },
+      {
+        "path": "test/service.test.ts",
+        "language": "typescript"
+      }
+    ],
+    "nodeList": [
+      {
+        "kind": "class",
+        "name": "ApiService",
+        "filePath": "src/service.ts",
+        "startLine": 3,
+        "endLine": 3
+      },
+      {
+        "kind": "class",
+        "name": "BaseService",
+        "filePath": "src/service.ts",
+        "startLine": 2,
+        "endLine": 2
+      },
+      {
+        "kind": "constant",
+        "name": "service",
+        "filePath": "test/service.test.ts",
+        "startLine": 2,
+        "endLine": 2
+      },
+      {
+        "kind": "file",
+        "name": "parser.ts",
+        "filePath": "src/parser.ts",
+        "startLine": 1,
+        "endLine": 2
+      },
+      {
+        "kind": "file",
+        "name": "service.test.ts",
+        "filePath": "test/service.test.ts",
+        "startLine": 1,
+        "endLine": 3
+      },
+      {
+        "kind": "file",
+        "name": "service.ts",
+        "filePath": "src/service.ts",
+        "startLine": 1,
+        "endLine": 4
+      },
+      {
+        "kind": "function",
+        "name": "parseToken",
+        "filePath": "src/parser.ts",
+        "startLine": 1,
+        "endLine": 1
+      },
+      {
+        "kind": "import",
+        "name": "../src/service",
+        "filePath": "test/service.test.ts",
+        "startLine": 1,
+        "endLine": 1
+      },
+      {
+        "kind": "import",
+        "name": "./parser",
+        "filePath": "src/service.ts",
+        "startLine": 1,
+        "endLine": 1
+      },
+      {
+        "kind": "method",
+        "name": "authenticate",
+        "filePath": "src/service.ts",
+        "startLine": 2,
+        "endLine": 2
+      }
+    ],
+    "edgeList": [
+      {
+        "kind": "calls",
+        "source": "method:authenticate@src/service.ts:2",
+        "target": "function:parseToken@src/parser.ts:1"
+      },
+      {
+        "kind": "contains",
+        "source": "class:BaseService@src/service.ts:2",
+        "target": "method:authenticate@src/service.ts:2"
+      },
+      {
+        "kind": "contains",
+        "source": "file:parser.ts@src/parser.ts:1",
+        "target": "function:parseToken@src/parser.ts:1"
+      },
+      {
+        "kind": "contains",
+        "source": "file:service.test.ts@test/service.test.ts:1",
+        "target": "constant:service@test/service.test.ts:2"
+      },
+      {
+        "kind": "contains",
+        "source": "file:service.test.ts@test/service.test.ts:1",
+        "target": "import:../src/service@test/service.test.ts:1"
+      },
+      {
+        "kind": "contains",
+        "source": "file:service.ts@src/service.ts:1",
+        "target": "class:ApiService@src/service.ts:3"
+      },
+      {
+        "kind": "contains",
+        "source": "file:service.ts@src/service.ts:1",
+        "target": "class:BaseService@src/service.ts:2"
+      },
+      {
+        "kind": "contains",
+        "source": "file:service.ts@src/service.ts:1",
+        "target": "import:./parser@src/service.ts:1"
+      },
+      {
+        "kind": "extends",
+        "source": "class:ApiService@src/service.ts:3",
+        "target": "class:BaseService@src/service.ts:2"
+      },
+      {
+        "kind": "imports",
+        "source": "file:service.test.ts@test/service.test.ts:1",
+        "target": "class:ApiService@src/service.ts:3"
+      },
+      {
+        "kind": "imports",
+        "source": "file:service.test.ts@test/service.test.ts:1",
+        "target": "import:../src/service@test/service.test.ts:1"
+      },
+      {
+        "kind": "imports",
+        "source": "file:service.ts@src/service.ts:1",
+        "target": "function:parseToken@src/parser.ts:1"
+      },
+      {
+        "kind": "imports",
+        "source": "file:service.ts@src/service.ts:1",
+        "target": "import:./parser@src/service.ts:1"
+      },
+      {
+        "kind": "instantiates",
+        "source": "constant:service@test/service.test.ts:2",
+        "target": "class:ApiService@src/service.ts:3"
+      }
+    ],
+    "search": [
+      {
+        "name": "parseToken",
+        "kind": "function",
+        "filePath": "src/parser.ts",
+        "score": 105.58770806565178
+      },
+      {
+        "name": "./parser",
+        "kind": "import",
+        "filePath": "src/service.ts",
+        "score": 2.6581462898477937
+      }
+    ],
+    "symbolLookup": {
+      "name": "parseToken",
+      "kind": "function",
+      "filePath": "src/parser.ts"
+    },
+    "fileLookup": {
+      "path": "src/service.ts",
+      "language": "typescript"
+    },
+    "dependencies": [
+      "src/parser.ts"
+    ],
+    "dependents": [
+      {
+        "file": "src/parser.ts",
+        "dependents": [
+          "src/service.ts"
+        ]
+      }
+    ],
+    "inheritance": {
+      "nodes": [
+        {
+          "name": "ApiService",
+          "kind": "class",
+          "filePath": "src/service.ts"
+        },
+        {
+          "name": "BaseService",
+          "kind": "class",
+          "filePath": "src/service.ts"
+        }
+      ],
+      "edges": [
+        {
+          "source": "class:2c26df7b833bc0ec3fba1c54dae30a9e",
+          "target": "class:43d13bb3ba61be5a465b839feeecdf9d",
+          "kind": "extends"
+        }
+      ]
+    },
+    "context": {
+      "focal": [
+        {
+          "name": "parseToken",
+          "kind": "function",
+          "filePath": "src/parser.ts"
+        }
+      ],
+      "ancestors": [
+        {
+          "name": "parser.ts",
+          "kind": "file",
+          "filePath": "src/parser.ts"
+        }
+      ],
+      "children": [],
+      "incomingRefs": [
+        {
+          "node": {
+            "name": "authenticate",
+            "kind": "method",
+            "filePath": "src/service.ts"
+          },
+          "edge": {
+            "source": "method:31698b10782bf0410350d69a905d377c",
+            "target": "function:374ff3d3a9980dd3d35636897d360a3a",
+            "kind": "calls"
+          }
+        },
+        {
+          "node": {
+            "name": "service.ts",
+            "kind": "file",
+            "filePath": "src/service.ts"
+          },
+          "edge": {
+            "source": "file:src/service.ts",
+            "target": "function:374ff3d3a9980dd3d35636897d360a3a",
+            "kind": "imports"
+          }
+        }
+      ],
+      "outgoingRefs": [],
+      "types": [],
+      "imports": []
+    },
+    "callers": [
+      {
+        "name": "authenticate",
+        "kind": "method",
+        "filePath": "src/service.ts"
+      },
+      {
+        "name": "service.ts",
+        "kind": "file",
+        "filePath": "src/service.ts"
+      }
+    ],
+    "callees": [
+      {
+        "name": "parseToken",
+        "kind": "function",
+        "filePath": "src/parser.ts"
+      }
+    ],
+    "impact": [
+      {
+        "name": "authenticate",
+        "kind": "method",
+        "filePath": "src/service.ts"
+      },
+      {
+        "name": "parseToken",
+        "kind": "function",
+        "filePath": "src/parser.ts"
+      },
+      {
+        "name": "service.ts",
+        "kind": "file",
+        "filePath": "src/service.ts"
+      }
+    ],
+    "relevantContext": {
+      "nodes": [
+        {
+          "name": "authenticate",
+          "kind": "method",
+          "filePath": "src/service.ts"
+        },
+        {
+          "name": "BaseService",
+          "kind": "class",
+          "filePath": "src/service.ts"
+        },
+        {
+          "name": "parseToken",
+          "kind": "function",
+          "filePath": "src/parser.ts"
+        }
+      ],
+      "edges": [
+        {
+          "source": "class:43d13bb3ba61be5a465b839feeecdf9d",
+          "target": "method:31698b10782bf0410350d69a905d377c",
+          "kind": "contains"
+        },
+        {
+          "source": "method:31698b10782bf0410350d69a905d377c",
+          "target": "function:374ff3d3a9980dd3d35636897d360a3a",
+          "kind": "calls"
+        }
+      ]
+    },
+    "affectedTests": {
+      "changedFiles": [
+        "src/parser.ts"
+      ],
+      "affectedTests": [
+        "test/service.test.ts"
+      ],
+      "totalDependentsTraversed": 2
+    },
+    "status": {
+      "indexState": "complete",
+      "backend": "node-sqlite",
+      "journalMode": "wal"
+    }
+  },
+  "javascript": {
+    "files": 3,
+    "nodes": 10,
+    "edges": 14,
+    "relations": {
+      "calls": 1,
+      "contains": 7,
+      "extends": 1,
+      "imports": 4,
+      "instantiates": 1
+    },
+    "languages": {
+      "javascript": 3
+    },
+    "fileList": [
+      {
+        "path": "src/parser.js",
+        "language": "javascript"
+      },
+      {
+        "path": "src/service.js",
+        "language": "javascript"
+      },
+      {
+        "path": "test/service.test.js",
+        "language": "javascript"
+      }
+    ],
+    "nodeList": [
+      {
+        "kind": "class",
+        "name": "ApiService",
+        "filePath": "src/service.js",
+        "startLine": 3,
+        "endLine": 3
+      },
+      {
+        "kind": "class",
+        "name": "BaseService",
+        "filePath": "src/service.js",
+        "startLine": 2,
+        "endLine": 2
+      },
+      {
+        "kind": "constant",
+        "name": "service",
+        "filePath": "test/service.test.js",
+        "startLine": 2,
+        "endLine": 2
+      },
+      {
+        "kind": "file",
+        "name": "parser.js",
+        "filePath": "src/parser.js",
+        "startLine": 1,
+        "endLine": 2
+      },
+      {
+        "kind": "file",
+        "name": "service.js",
+        "filePath": "src/service.js",
+        "startLine": 1,
+        "endLine": 4
+      },
+      {
+        "kind": "file",
+        "name": "service.test.js",
+        "filePath": "test/service.test.js",
+        "startLine": 1,
+        "endLine": 3
+      },
+      {
+        "kind": "function",
+        "name": "parseToken",
+        "filePath": "src/parser.js",
+        "startLine": 1,
+        "endLine": 1
+      },
+      {
+        "kind": "import",
+        "name": "../src/service.js",
+        "filePath": "test/service.test.js",
+        "startLine": 1,
+        "endLine": 1
+      },
+      {
+        "kind": "import",
+        "name": "./parser.js",
+        "filePath": "src/service.js",
+        "startLine": 1,
+        "endLine": 1
+      },
+      {
+        "kind": "method",
+        "name": "authenticate",
+        "filePath": "src/service.js",
+        "startLine": 2,
+        "endLine": 2
+      }
+    ],
+    "edgeList": [
+      {
+        "kind": "calls",
+        "source": "method:authenticate@src/service.js:2",
+        "target": "function:parseToken@src/parser.js:1"
+      },
+      {
+        "kind": "contains",
+        "source": "class:BaseService@src/service.js:2",
+        "target": "method:authenticate@src/service.js:2"
+      },
+      {
+        "kind": "contains",
+        "source": "file:parser.js@src/parser.js:1",
+        "target": "function:parseToken@src/parser.js:1"
+      },
+      {
+        "kind": "contains",
+        "source": "file:service.js@src/service.js:1",
+        "target": "class:ApiService@src/service.js:3"
+      },
+      {
+        "kind": "contains",
+        "source": "file:service.js@src/service.js:1",
+        "target": "class:BaseService@src/service.js:2"
+      },
+      {
+        "kind": "contains",
+        "source": "file:service.js@src/service.js:1",
+        "target": "import:./parser.js@src/service.js:1"
+      },
+      {
+        "kind": "contains",
+        "source": "file:service.test.js@test/service.test.js:1",
+        "target": "constant:service@test/service.test.js:2"
+      },
+      {
+        "kind": "contains",
+        "source": "file:service.test.js@test/service.test.js:1",
+        "target": "import:../src/service.js@test/service.test.js:1"
+      },
+      {
+        "kind": "extends",
+        "source": "class:ApiService@src/service.js:3",
+        "target": "class:BaseService@src/service.js:2"
+      },
+      {
+        "kind": "imports",
+        "source": "file:service.js@src/service.js:1",
+        "target": "file:parser.js@src/parser.js:1"
+      },
+      {
+        "kind": "imports",
+        "source": "file:service.js@src/service.js:1",
+        "target": "function:parseToken@src/parser.js:1"
+      },
+      {
+        "kind": "imports",
+        "source": "file:service.test.js@test/service.test.js:1",
+        "target": "class:ApiService@src/service.js:3"
+      },
+      {
+        "kind": "imports",
+        "source": "file:service.test.js@test/service.test.js:1",
+        "target": "file:service.js@src/service.js:1"
+      },
+      {
+        "kind": "instantiates",
+        "source": "constant:service@test/service.test.js:2",
+        "target": "class:ApiService@src/service.js:3"
+      }
+    ],
+    "search": [
+      {
+        "name": "parseToken",
+        "kind": "function",
+        "filePath": "src/parser.js",
+        "score": 105.60251904259898
+      },
+      {
+        "name": "./parser.js",
+        "kind": "import",
+        "filePath": "src/service.js",
+        "score": 2.52215177360772
+      }
+    ],
+    "symbolLookup": {
+      "name": "parseToken",
+      "kind": "function",
+      "filePath": "src/parser.js"
+    },
+    "fileLookup": {
+      "path": "src/service.js",
+      "language": "javascript"
+    },
+    "dependencies": [
+      "src/parser.js"
+    ],
+    "dependents": [
+      {
+        "file": "src/parser.js",
+        "dependents": [
+          "src/service.js"
+        ]
+      }
+    ],
+    "inheritance": {
+      "nodes": [
+        {
+          "name": "ApiService",
+          "kind": "class",
+          "filePath": "src/service.js"
+        },
+        {
+          "name": "BaseService",
+          "kind": "class",
+          "filePath": "src/service.js"
+        }
+      ],
+      "edges": [
+        {
+          "source": "class:ba9f7a396e24e9424954f6e58f4bb39b",
+          "target": "class:d639ce1e2ebbec72a5d4cbb2ecb8a218",
+          "kind": "extends"
+        }
+      ]
+    },
+    "context": {
+      "focal": [
+        {
+          "name": "parseToken",
+          "kind": "function",
+          "filePath": "src/parser.js"
+        }
+      ],
+      "ancestors": [
+        {
+          "name": "parser.js",
+          "kind": "file",
+          "filePath": "src/parser.js"
+        }
+      ],
+      "children": [],
+      "incomingRefs": [
+        {
+          "node": {
+            "name": "authenticate",
+            "kind": "method",
+            "filePath": "src/service.js"
+          },
+          "edge": {
+            "source": "method:6bd98ed274dc1feb996b0f621cdc20f0",
+            "target": "function:ef4400f88dd94732e02ad55632e956de",
+            "kind": "calls"
+          }
+        },
+        {
+          "node": {
+            "name": "service.js",
+            "kind": "file",
+            "filePath": "src/service.js"
+          },
+          "edge": {
+            "source": "file:src/service.js",
+            "target": "function:ef4400f88dd94732e02ad55632e956de",
+            "kind": "imports"
+          }
+        }
+      ],
+      "outgoingRefs": [],
+      "types": [],
+      "imports": []
+    },
+    "callers": [
+      {
+        "name": "authenticate",
+        "kind": "method",
+        "filePath": "src/service.js"
+      },
+      {
+        "name": "service.js",
+        "kind": "file",
+        "filePath": "src/service.js"
+      }
+    ],
+    "callees": [
+      {
+        "name": "parseToken",
+        "kind": "function",
+        "filePath": "src/parser.js"
+      }
+    ],
+    "impact": [
+      {
+        "name": "authenticate",
+        "kind": "method",
+        "filePath": "src/service.js"
+      },
+      {
+        "name": "parseToken",
+        "kind": "function",
+        "filePath": "src/parser.js"
+      },
+      {
+        "name": "service.js",
+        "kind": "file",
+        "filePath": "src/service.js"
+      },
+      {
+        "name": "service.test.js",
+        "kind": "file",
+        "filePath": "test/service.test.js"
+      }
+    ],
+    "relevantContext": {
+      "nodes": [
+        {
+          "name": "authenticate",
+          "kind": "method",
+          "filePath": "src/service.js"
+        },
+        {
+          "name": "BaseService",
+          "kind": "class",
+          "filePath": "src/service.js"
+        },
+        {
+          "name": "parseToken",
+          "kind": "function",
+          "filePath": "src/parser.js"
+        }
+      ],
+      "edges": [
+        {
+          "source": "class:d639ce1e2ebbec72a5d4cbb2ecb8a218",
+          "target": "method:6bd98ed274dc1feb996b0f621cdc20f0",
+          "kind": "contains"
+        },
+        {
+          "source": "method:6bd98ed274dc1feb996b0f621cdc20f0",
+          "target": "function:ef4400f88dd94732e02ad55632e956de",
+          "kind": "calls"
+        }
+      ]
+    },
+    "affectedTests": {
+      "changedFiles": [
+        "src/parser.js"
+      ],
+      "affectedTests": [
+        "test/service.test.js"
+      ],
+      "totalDependentsTraversed": 2
+    },
+    "status": {
+      "indexState": "complete",
+      "backend": "node-sqlite",
+      "journalMode": "wal"
+    }
+  },
+  "python": {
+    "files": 3,
+    "nodes": 10,
+    "edges": 12,
+    "relations": {
+      "calls": 1,
+      "contains": 7,
+      "extends": 1,
+      "imports": 2,
+      "instantiates": 1
+    },
+    "languages": {
+      "python": 3
+    },
+    "fileList": [
+      {
+        "path": "parser.py",
+        "language": "python"
+      },
+      {
+        "path": "service.py",
+        "language": "python"
+      },
+      {
+        "path": "test_service.py",
+        "language": "python"
+      }
+    ],
+    "nodeList": [
+      {
+        "kind": "class",
+        "name": "ApiService",
+        "filePath": "service.py",
+        "startLine": 7,
+        "endLine": 8
+      },
+      {
+        "kind": "class",
+        "name": "BaseService",
+        "filePath": "service.py",
+        "startLine": 3,
+        "endLine": 5
+      },
+      {
+        "kind": "file",
+        "name": "parser.py",
+        "filePath": "parser.py",
+        "startLine": 1,
+        "endLine": 3
+      },
+      {
+        "kind": "file",
+        "name": "service.py",
+        "filePath": "service.py",
+        "startLine": 1,
+        "endLine": 9
+      },
+      {
+        "kind": "file",
+        "name": "test_service.py",
+        "filePath": "test_service.py",
+        "startLine": 1,
+        "endLine": 5
+      },
+      {
+        "kind": "function",
+        "name": "parse_token",
+        "filePath": "parser.py",
+        "startLine": 1,
+        "endLine": 2
+      },
+      {
+        "kind": "function",
+        "name": "test_service",
+        "filePath": "test_service.py",
+        "startLine": 3,
+        "endLine": 4
+      },
+      {
+        "kind": "import",
+        "name": "parser",
+        "filePath": "service.py",
+        "startLine": 1,
+        "endLine": 1
+      },
+      {
+        "kind": "import",
+        "name": "service",
+        "filePath": "test_service.py",
+        "startLine": 1,
+        "endLine": 1
+      },
+      {
+        "kind": "method",
+        "name": "authenticate",
+        "filePath": "service.py",
+        "startLine": 4,
+        "endLine": 5
+      }
+    ],
+    "edgeList": [
+      {
+        "kind": "calls",
+        "source": "method:authenticate@service.py:4",
+        "target": "function:parse_token@parser.py:1"
+      },
+      {
+        "kind": "contains",
+        "source": "class:BaseService@service.py:3",
+        "target": "method:authenticate@service.py:4"
+      },
+      {
+        "kind": "contains",
+        "source": "file:parser.py@parser.py:1",
+        "target": "function:parse_token@parser.py:1"
+      },
+      {
+        "kind": "contains",
+        "source": "file:service.py@service.py:1",
+        "target": "class:ApiService@service.py:7"
+      },
+      {
+        "kind": "contains",
+        "source": "file:service.py@service.py:1",
+        "target": "class:BaseService@service.py:3"
+      },
+      {
+        "kind": "contains",
+        "source": "file:service.py@service.py:1",
+        "target": "import:parser@service.py:1"
+      },
+      {
+        "kind": "contains",
+        "source": "file:test_service.py@test_service.py:1",
+        "target": "function:test_service@test_service.py:3"
+      },
+      {
+        "kind": "contains",
+        "source": "file:test_service.py@test_service.py:1",
+        "target": "import:service@test_service.py:1"
+      },
+      {
+        "kind": "extends",
+        "source": "class:ApiService@service.py:7",
+        "target": "class:BaseService@service.py:3"
+      },
+      {
+        "kind": "imports",
+        "source": "file:service.py@service.py:1",
+        "target": "function:parse_token@parser.py:1"
+      },
+      {
+        "kind": "imports",
+        "source": "file:test_service.py@test_service.py:1",
+        "target": "class:ApiService@service.py:7"
+      },
+      {
+        "kind": "instantiates",
+        "source": "function:test_service@test_service.py:3",
+        "target": "class:ApiService@service.py:7"
+      }
+    ],
+    "search": [
+      {
+        "name": "parse_token",
+        "kind": "function",
+        "filePath": "parser.py",
+        "score": 105.56771590811408
+      },
+      {
+        "name": "parser",
+        "kind": "import",
+        "filePath": "service.py",
+        "score": 2.550013437799225
+      }
+    ],
+    "symbolLookup": {
+      "name": "parse_token",
+      "kind": "function",
+      "filePath": "parser.py"
+    },
+    "fileLookup": {
+      "path": "service.py",
+      "language": "python"
+    },
+    "dependencies": [
+      "parser.py"
+    ],
+    "dependents": [
+      {
+        "file": "parser.py",
+        "dependents": [
+          "service.py"
+        ]
+      }
+    ],
+    "inheritance": {
+      "nodes": [
+        {
+          "name": "ApiService",
+          "kind": "class",
+          "filePath": "service.py"
+        },
+        {
+          "name": "BaseService",
+          "kind": "class",
+          "filePath": "service.py"
+        }
+      ],
+      "edges": [
+        {
+          "source": "class:3c9d8c316c21ee78ea8fe240759d8100",
+          "target": "class:65d3008077a492b4b500d678cd37b2eb",
+          "kind": "extends"
+        }
+      ]
+    },
+    "context": {
+      "focal": [
+        {
+          "name": "parse_token",
+          "kind": "function",
+          "filePath": "parser.py"
+        }
+      ],
+      "ancestors": [
+        {
+          "name": "parser.py",
+          "kind": "file",
+          "filePath": "parser.py"
+        }
+      ],
+      "children": [],
+      "incomingRefs": [
+        {
+          "node": {
+            "name": "authenticate",
+            "kind": "method",
+            "filePath": "service.py"
+          },
+          "edge": {
+            "source": "method:7065821cd71ada75a1a03e3410c45efe",
+            "target": "function:beb787e695691ef4e24921ab4279a4e1",
+            "kind": "calls"
+          }
+        },
+        {
+          "node": {
+            "name": "service.py",
+            "kind": "file",
+            "filePath": "service.py"
+          },
+          "edge": {
+            "source": "file:service.py",
+            "target": "function:beb787e695691ef4e24921ab4279a4e1",
+            "kind": "imports"
+          }
+        }
+      ],
+      "outgoingRefs": [],
+      "types": [],
+      "imports": []
+    },
+    "callers": [
+      {
+        "name": "authenticate",
+        "kind": "method",
+        "filePath": "service.py"
+      },
+      {
+        "name": "service.py",
+        "kind": "file",
+        "filePath": "service.py"
+      }
+    ],
+    "callees": [
+      {
+        "name": "parse_token",
+        "kind": "function",
+        "filePath": "parser.py"
+      }
+    ],
+    "impact": [
+      {
+        "name": "authenticate",
+        "kind": "method",
+        "filePath": "service.py"
+      },
+      {
+        "name": "parse_token",
+        "kind": "function",
+        "filePath": "parser.py"
+      },
+      {
+        "name": "service.py",
+        "kind": "file",
+        "filePath": "service.py"
+      }
+    ],
+    "relevantContext": {
+      "nodes": [
+        {
+          "name": "authenticate",
+          "kind": "method",
+          "filePath": "service.py"
+        },
+        {
+          "name": "BaseService",
+          "kind": "class",
+          "filePath": "service.py"
+        },
+        {
+          "name": "parse_token",
+          "kind": "function",
+          "filePath": "parser.py"
+        }
+      ],
+      "edges": [
+        {
+          "source": "class:65d3008077a492b4b500d678cd37b2eb",
+          "target": "method:7065821cd71ada75a1a03e3410c45efe",
+          "kind": "contains"
+        },
+        {
+          "source": "method:7065821cd71ada75a1a03e3410c45efe",
+          "target": "function:beb787e695691ef4e24921ab4279a4e1",
+          "kind": "calls"
+        }
+      ]
+    },
+    "affectedTests": {
+      "changedFiles": [
+        "parser.py"
+      ],
+      "affectedTests": [
+        "test_service.py"
+      ],
+      "totalDependentsTraversed": 2
+    },
+    "status": {
+      "indexState": "complete",
+      "backend": "node-sqlite",
+      "journalMode": "wal"
+    }
+  },
+  "java": {
+    "files": 4,
+    "nodes": 17,
+    "edges": 19,
+    "relations": {
+      "calls": 2,
+      "contains": 13,
+      "implements": 1,
+      "instantiates": 2,
+      "references": 1
+    },
+    "languages": {
+      "java": 4
+    },
+    "fileList": [
+      {
+        "path": "src/main/java/app/Formatter.java",
+        "language": "java"
+      },
+      {
+        "path": "src/main/java/app/Renderer.java",
+        "language": "java"
+      },
+      {
+        "path": "src/main/java/app/UpperFormatter.java",
+        "language": "java"
+      },
+      {
+        "path": "src/test/java/app/RendererTest.java",
+        "language": "java"
+      }
+    ],
+    "nodeList": [
+      {
+        "kind": "class",
+        "name": "Renderer",
+        "filePath": "src/main/java/app/Renderer.java",
+        "startLine": 3,
+        "endLine": 8
+      },
+      {
+        "kind": "class",
+        "name": "RendererTest",
+        "filePath": "src/test/java/app/RendererTest.java",
+        "startLine": 3,
+        "endLine": 7
+      },
+      {
+        "kind": "class",
+        "name": "UpperFormatter",
+        "filePath": "src/main/java/app/UpperFormatter.java",
+        "startLine": 3,
+        "endLine": 7
+      },
+      {
+        "kind": "field",
+        "name": "formatter",
+        "filePath": "src/main/java/app/Renderer.java",
+        "startLine": 4,
+        "endLine": 4
+      },
+      {
+        "kind": "file",
+        "name": "Formatter.java",
+        "filePath": "src/main/java/app/Formatter.java",
+        "startLine": 1,
+        "endLine": 6
+      },
+      {
+        "kind": "file",
+        "name": "Renderer.java",
+        "filePath": "src/main/java/app/Renderer.java",
+        "startLine": 1,
+        "endLine": 9
+      },
+      {
+        "kind": "file",
+        "name": "RendererTest.java",
+        "filePath": "src/test/java/app/RendererTest.java",
+        "startLine": 1,
+        "endLine": 8
+      },
+      {
+        "kind": "file",
+        "name": "UpperFormatter.java",
+        "filePath": "src/main/java/app/UpperFormatter.java",
+        "startLine": 1,
+        "endLine": 8
+      },
+      {
+        "kind": "interface",
+        "name": "Formatter",
+        "filePath": "src/main/java/app/Formatter.java",
+        "startLine": 3,
+        "endLine": 5
+      },
+      {
+        "kind": "method",
+        "name": "format",
+        "filePath": "src/main/java/app/Formatter.java",
+        "startLine": 4,
+        "endLine": 4
+      },
+      {
+        "kind": "method",
+        "name": "format",
+        "filePath": "src/main/java/app/UpperFormatter.java",
+        "startLine": 4,
+        "endLine": 6
+      },
+      {
+        "kind": "method",
+        "name": "render",
+        "filePath": "src/main/java/app/Renderer.java",
+        "startLine": 5,
+        "endLine": 7
+      },
+      {
+        "kind": "method",
+        "name": "testRender",
+        "filePath": "src/test/java/app/RendererTest.java",
+        "startLine": 4,
+        "endLine": 6
+      },
+      {
+        "kind": "namespace",
+        "name": "app",
+        "filePath": "src/main/java/app/Formatter.java",
+        "startLine": 1,
+        "endLine": 1
+      },
+      {
+        "kind": "namespace",
+        "name": "app",
+        "filePath": "src/main/java/app/Renderer.java",
+        "startLine": 1,
+        "endLine": 1
+      },
+      {
+        "kind": "namespace",
+        "name": "app",
+        "filePath": "src/main/java/app/UpperFormatter.java",
+        "startLine": 1,
+        "endLine": 1
+      },
+      {
+        "kind": "namespace",
+        "name": "app",
+        "filePath": "src/test/java/app/RendererTest.java",
+        "startLine": 1,
+        "endLine": 1
+      }
+    ],
+    "edgeList": [
+      {
+        "kind": "calls",
+        "source": "method:format@src/main/java/app/Formatter.java:4",
+        "target": "method:format@src/main/java/app/UpperFormatter.java:4"
+      },
+      {
+        "kind": "calls",
+        "source": "method:render@src/main/java/app/Renderer.java:5",
+        "target": "method:format@src/main/java/app/Formatter.java:4"
+      },
+      {
+        "kind": "contains",
+        "source": "class:Renderer@src/main/java/app/Renderer.java:3",
+        "target": "field:formatter@src/main/java/app/Renderer.java:4"
+      },
+      {
+        "kind": "contains",
+        "source": "class:Renderer@src/main/java/app/Renderer.java:3",
+        "target": "method:render@src/main/java/app/Renderer.java:5"
+      },
+      {
+        "kind": "contains",
+        "source": "class:RendererTest@src/test/java/app/RendererTest.java:3",
+        "target": "method:testRender@src/test/java/app/RendererTest.java:4"
+      },
+      {
+        "kind": "contains",
+        "source": "class:UpperFormatter@src/main/java/app/UpperFormatter.java:3",
+        "target": "method:format@src/main/java/app/UpperFormatter.java:4"
+      },
+      {
+        "kind": "contains",
+        "source": "file:Formatter.java@src/main/java/app/Formatter.java:1",
+        "target": "namespace:app@src/main/java/app/Formatter.java:1"
+      },
+      {
+        "kind": "contains",
+        "source": "file:Renderer.java@src/main/java/app/Renderer.java:1",
+        "target": "namespace:app@src/main/java/app/Renderer.java:1"
+      },
+      {
+        "kind": "contains",
+        "source": "file:RendererTest.java@src/test/java/app/RendererTest.java:1",
+        "target": "namespace:app@src/test/java/app/RendererTest.java:1"
+      },
+      {
+        "kind": "contains",
+        "source": "file:UpperFormatter.java@src/main/java/app/UpperFormatter.java:1",
+        "target": "namespace:app@src/main/java/app/UpperFormatter.java:1"
+      },
+      {
+        "kind": "contains",
+        "source": "interface:Formatter@src/main/java/app/Formatter.java:3",
+        "target": "method:format@src/main/java/app/Formatter.java:4"
+      },
+      {
+        "kind": "contains",
+        "source": "namespace:app@src/main/java/app/Formatter.java:1",
+        "target": "interface:Formatter@src/main/java/app/Formatter.java:3"
+      },
+      {
+        "kind": "contains",
+        "source": "namespace:app@src/main/java/app/Renderer.java:1",
+        "target": "class:Renderer@src/main/java/app/Renderer.java:3"
+      },
+      {
+        "kind": "contains",
+        "source": "namespace:app@src/main/java/app/UpperFormatter.java:1",
+        "target": "class:UpperFormatter@src/main/java/app/UpperFormatter.java:3"
+      },
+      {
+        "kind": "contains",
+        "source": "namespace:app@src/test/java/app/RendererTest.java:1",
+        "target": "class:RendererTest@src/test/java/app/RendererTest.java:3"
+      },
+      {
+        "kind": "implements",
+        "source": "class:UpperFormatter@src/main/java/app/UpperFormatter.java:3",
+        "target": "interface:Formatter@src/main/java/app/Formatter.java:3"
+      },
+      {
+        "kind": "instantiates",
+        "source": "field:formatter@src/main/java/app/Renderer.java:4",
+        "target": "class:UpperFormatter@src/main/java/app/UpperFormatter.java:3"
+      },
+      {
+        "kind": "instantiates",
+        "source": "method:testRender@src/test/java/app/RendererTest.java:4",
+        "target": "class:Renderer@src/main/java/app/Renderer.java:3"
+      },
+      {
+        "kind": "references",
+        "source": "field:formatter@src/main/java/app/Renderer.java:4",
+        "target": "interface:Formatter@src/main/java/app/Formatter.java:3"
+      }
+    ],
+    "search": [
+      {
+        "name": "Formatter",
+        "kind": "interface",
+        "filePath": "src/main/java/app/Formatter.java",
+        "score": 104.33707987078981
+      },
+      {
+        "name": "formatter",
+        "kind": "field",
+        "filePath": "src/main/java/app/Renderer.java",
+        "score": 85.32191224599104
+      },
+      {
+        "name": "Formatter.java",
+        "kind": "file",
+        "filePath": "src/main/java/app/Formatter.java",
+        "score": 44.240981287051774
+      },
+      {
+        "name": "format",
+        "kind": "method",
+        "filePath": "src/main/java/app/Formatter.java",
+        "score": 24.918874069955343
+      }
+    ],
+    "symbolLookup": {
+      "name": "format",
+      "kind": "method",
+      "filePath": "src/main/java/app/Formatter.java"
+    },
+    "fileLookup": {
+      "path": "src/main/java/app/Renderer.java",
+      "language": "java"
+    },
+    "dependencies": [
+      "src/main/java/app/Formatter.java",
+      "src/main/java/app/UpperFormatter.java"
+    ],
+    "dependents": [
+      {
+        "file": "src/main/java/app/Formatter.java",
+        "dependents": [
+          "src/main/java/app/Renderer.java",
+          "src/main/java/app/UpperFormatter.java"
+        ]
+      }
+    ],
+    "inheritance": {
+      "nodes": [
+        {
+          "name": "Formatter",
+          "kind": "interface",
+          "filePath": "src/main/java/app/Formatter.java"
+        },
+        {
+          "name": "UpperFormatter",
+          "kind": "class",
+          "filePath": "src/main/java/app/UpperFormatter.java"
+        }
+      ],
+      "edges": [
+        {
+          "source": "class:d7ded477ebdf995facff0f5968e4d16c",
+          "target": "interface:e96e17918c8ca80d05cbd1796111316b",
+          "kind": "implements"
+        }
+      ]
+    },
+    "context": {
+      "focal": [
+        {
+          "name": "format",
+          "kind": "method",
+          "filePath": "src/main/java/app/Formatter.java"
+        }
+      ],
+      "ancestors": [
+        {
+          "name": "app",
+          "kind": "namespace",
+          "filePath": "src/main/java/app/Formatter.java"
+        },
+        {
+          "name": "Formatter.java",
+          "kind": "file",
+          "filePath": "src/main/java/app/Formatter.java"
+        },
+        {
+          "name": "Formatter",
+          "kind": "interface",
+          "filePath": "src/main/java/app/Formatter.java"
+        }
+      ],
+      "children": [],
+      "incomingRefs": [
+        {
+          "node": {
+            "name": "render",
+            "kind": "method",
+            "filePath": "src/main/java/app/Renderer.java"
+          },
+          "edge": {
+            "source": "method:a74155a987f7d036a3fb7c6981b6d6be",
+            "target": "method:ede6fb27fa255544c089fad7893da214",
+            "kind": "calls"
+          }
+        }
+      ],
+      "outgoingRefs": [
+        {
+          "node": {
+            "name": "format",
+            "kind": "method",
+            "filePath": "src/main/java/app/UpperFormatter.java"
+          },
+          "edge": {
+            "source": "method:ede6fb27fa255544c089fad7893da214",
+            "target": "method:e5290a6069011bdc4bbc7b86cabf3c28",
+            "kind": "calls"
+          }
+        }
+      ],
+      "types": [],
+      "imports": []
+    },
+    "callers": [
+      {
+        "name": "render",
+        "kind": "method",
+        "filePath": "src/main/java/app/Renderer.java"
+      }
+    ],
+    "callees": [
+      {
+        "name": "format",
+        "kind": "method",
+        "filePath": "src/main/java/app/Formatter.java"
+      }
+    ],
+    "impact": [
+      {
+        "name": "format",
+        "kind": "method",
+        "filePath": "src/main/java/app/Formatter.java"
+      },
+      {
+        "name": "render",
+        "kind": "method",
+        "filePath": "src/main/java/app/Renderer.java"
+      }
+    ],
+    "relevantContext": {
+      "nodes": [
+        {
+          "name": "app",
+          "kind": "namespace",
+          "filePath": "src/main/java/app/Formatter.java"
+        },
+        {
+          "name": "app",
+          "kind": "namespace",
+          "filePath": "src/main/java/app/Renderer.java"
+        },
+        {
+          "name": "format",
+          "kind": "method",
+          "filePath": "src/main/java/app/Formatter.java"
+        },
+        {
+          "name": "format",
+          "kind": "method",
+          "filePath": "src/main/java/app/UpperFormatter.java"
+        },
+        {
+          "name": "Formatter",
+          "kind": "interface",
+          "filePath": "src/main/java/app/Formatter.java"
+        },
+        {
+          "name": "render",
+          "kind": "method",
+          "filePath": "src/main/java/app/Renderer.java"
+        },
+        {
+          "name": "Renderer",
+          "kind": "class",
+          "filePath": "src/main/java/app/Renderer.java"
+        },
+        {
+          "name": "testRender",
+          "kind": "method",
+          "filePath": "src/test/java/app/RendererTest.java"
+        },
+        {
+          "name": "UpperFormatter",
+          "kind": "class",
+          "filePath": "src/main/java/app/UpperFormatter.java"
+        }
+      ],
+      "edges": [
+        {
+          "source": "class:3910b2f9aefce79d5ad4beb8d9b6d764",
+          "target": "method:a74155a987f7d036a3fb7c6981b6d6be",
+          "kind": "contains"
+        },
+        {
+          "source": "class:d7ded477ebdf995facff0f5968e4d16c",
+          "target": "interface:e96e17918c8ca80d05cbd1796111316b",
+          "kind": "implements"
+        },
+        {
+          "source": "class:d7ded477ebdf995facff0f5968e4d16c",
+          "target": "method:e5290a6069011bdc4bbc7b86cabf3c28",
+          "kind": "contains"
+        },
+        {
+          "source": "interface:e96e17918c8ca80d05cbd1796111316b",
+          "target": "method:ede6fb27fa255544c089fad7893da214",
+          "kind": "contains"
+        },
+        {
+          "source": "method:11603d8c64b1329473b4ae8b41fd27c1",
+          "target": "class:3910b2f9aefce79d5ad4beb8d9b6d764",
+          "kind": "instantiates"
+        },
+        {
+          "source": "method:a74155a987f7d036a3fb7c6981b6d6be",
+          "target": "method:ede6fb27fa255544c089fad7893da214",
+          "kind": "calls"
+        },
+        {
+          "source": "method:ede6fb27fa255544c089fad7893da214",
+          "target": "method:e5290a6069011bdc4bbc7b86cabf3c28",
+          "kind": "calls"
+        },
+        {
+          "source": "namespace:408d4205e647e2591af6be1ae8f10766",
+          "target": "class:3910b2f9aefce79d5ad4beb8d9b6d764",
+          "kind": "contains"
+        },
+        {
+          "source": "namespace:7733be7f1c711604e44565c5664eae48",
+          "target": "interface:e96e17918c8ca80d05cbd1796111316b",
+          "kind": "contains"
+        }
+      ]
+    },
+    "affectedTests": {
+      "changedFiles": [
+        "src/main/java/app/Formatter.java"
+      ],
+      "affectedTests": [
+        "src/test/java/app/RendererTest.java"
+      ],
+      "totalDependentsTraversed": 3
+    },
+    "status": {
+      "indexState": "complete",
+      "backend": "node-sqlite",
+      "journalMode": "wal"
+    }
+  },
+  "go": {
+    "files": 3,
+    "nodes": 9,
+    "edges": 9,
+    "relations": {
+      "calls": 2,
+      "contains": 6,
+      "imports": 1
+    },
+    "languages": {
+      "go": 3
+    },
+    "fileList": [
+      {
+        "path": "service/service_test.go",
+        "language": "go"
+      },
+      {
+        "path": "service/service.go",
+        "language": "go"
+      },
+      {
+        "path": "text/text.go",
+        "language": "go"
+      }
+    ],
+    "nodeList": [
+      {
+        "kind": "file",
+        "name": "service_test.go",
+        "filePath": "service/service_test.go",
+        "startLine": 1,
+        "endLine": 10
+      },
+      {
+        "kind": "file",
+        "name": "service.go",
+        "filePath": "service/service.go",
+        "startLine": 1,
+        "endLine": 8
+      },
+      {
+        "kind": "file",
+        "name": "text.go",
+        "filePath": "text/text.go",
+        "startLine": 1,
+        "endLine": 8
+      },
+      {
+        "kind": "function",
+        "name": "Handle",
+        "filePath": "service/service.go",
+        "startLine": 5,
+        "endLine": 7
+      },
+      {
+        "kind": "function",
+        "name": "Normalize",
+        "filePath": "text/text.go",
+        "startLine": 5,
+        "endLine": 7
+      },
+      {
+        "kind": "function",
+        "name": "TestHandle",
+        "filePath": "service/service_test.go",
+        "startLine": 5,
+        "endLine": 9
+      },
+      {
+        "kind": "import",
+        "name": "example.com/app/text",
+        "filePath": "service/service.go",
+        "startLine": 3,
+        "endLine": 3
+      },
+      {
+        "kind": "import",
+        "name": "strings",
+        "filePath": "text/text.go",
+        "startLine": 3,
+        "endLine": 3
+      },
+      {
+        "kind": "import",
+        "name": "testing",
+        "filePath": "service/service_test.go",
+        "startLine": 3,
+        "endLine": 3
+      }
+    ],
+    "edgeList": [
+      {
+        "kind": "calls",
+        "source": "function:Handle@service/service.go:5",
+        "target": "function:Normalize@text/text.go:5"
+      },
+      {
+        "kind": "calls",
+        "source": "function:TestHandle@service/service_test.go:5",
+        "target": "function:Handle@service/service.go:5"
+      },
+      {
+        "kind": "contains",
+        "source": "file:service_test.go@service/service_test.go:1",
+        "target": "function:TestHandle@service/service_test.go:5"
+      },
+      {
+        "kind": "contains",
+        "source": "file:service_test.go@service/service_test.go:1",
+        "target": "import:testing@service/service_test.go:3"
+      },
+      {
+        "kind": "contains",
+        "source": "file:service.go@service/service.go:1",
+        "target": "function:Handle@service/service.go:5"
+      },
+      {
+        "kind": "contains",
+        "source": "file:service.go@service/service.go:1",
+        "target": "import:example.com/app/text@service/service.go:3"
+      },
+      {
+        "kind": "contains",
+        "source": "file:text.go@text/text.go:1",
+        "target": "function:Normalize@text/text.go:5"
+      },
+      {
+        "kind": "contains",
+        "source": "file:text.go@text/text.go:1",
+        "target": "import:strings@text/text.go:3"
+      },
+      {
+        "kind": "imports",
+        "source": "file:service.go@service/service.go:1",
+        "target": "import:example.com/app/text@service/service.go:3"
+      }
+    ],
+    "search": [
+      {
+        "name": "Normalize",
+        "kind": "function",
+        "filePath": "text/text.go",
+        "score": 93.6614621602067
+      }
+    ],
+    "symbolLookup": {
+      "name": "Normalize",
+      "kind": "function",
+      "filePath": "text/text.go"
+    },
+    "fileLookup": {
+      "path": "service/service.go",
+      "language": "go"
+    },
+    "dependencies": [
+      "text/text.go"
+    ],
+    "dependents": [
+      {
+        "file": "text/text.go",
+        "dependents": [
+          "service/service.go"
+        ]
+      }
+    ],
+    "inheritance": {
+      "nodes": [],
+      "edges": []
+    },
+    "context": {
+      "focal": [
+        {
+          "name": "Normalize",
+          "kind": "function",
+          "filePath": "text/text.go"
+        }
+      ],
+      "ancestors": [
+        {
+          "name": "text.go",
+          "kind": "file",
+          "filePath": "text/text.go"
+        }
+      ],
+      "children": [],
+      "incomingRefs": [
+        {
+          "node": {
+            "name": "Handle",
+            "kind": "function",
+            "filePath": "service/service.go"
+          },
+          "edge": {
+            "source": "function:c2bac057990513152a479560f2b1ab0a",
+            "target": "function:48ed7e9f67928744d3f6f0e290add45e",
+            "kind": "calls"
+          }
+        }
+      ],
+      "outgoingRefs": [],
+      "types": [],
+      "imports": []
+    },
+    "callers": [
+      {
+        "name": "Handle",
+        "kind": "function",
+        "filePath": "service/service.go"
+      }
+    ],
+    "callees": [
+      {
+        "name": "Normalize",
+        "kind": "function",
+        "filePath": "text/text.go"
+      }
+    ],
+    "impact": [
+      {
+        "name": "Handle",
+        "kind": "function",
+        "filePath": "service/service.go"
+      },
+      {
+        "name": "Normalize",
+        "kind": "function",
+        "filePath": "text/text.go"
+      },
+      {
+        "name": "TestHandle",
+        "kind": "function",
+        "filePath": "service/service_test.go"
+      }
+    ],
+    "relevantContext": {
+      "nodes": [
+        {
+          "name": "Handle",
+          "kind": "function",
+          "filePath": "service/service.go"
+        },
+        {
+          "name": "Normalize",
+          "kind": "function",
+          "filePath": "text/text.go"
+        },
+        {
+          "name": "TestHandle",
+          "kind": "function",
+          "filePath": "service/service_test.go"
+        }
+      ],
+      "edges": [
+        {
+          "source": "function:c2bac057990513152a479560f2b1ab0a",
+          "target": "function:48ed7e9f67928744d3f6f0e290add45e",
+          "kind": "calls"
+        },
+        {
+          "source": "function:e00869b862a1b2d2623736e59c7a89df",
+          "target": "function:c2bac057990513152a479560f2b1ab0a",
+          "kind": "calls"
+        }
+      ]
+    },
+    "affectedTests": {
+      "changedFiles": [
+        "text/text.go"
+      ],
+      "affectedTests": [
+        "service/service_test.go"
+      ],
+      "totalDependentsTraversed": 2
+    },
+    "status": {
+      "indexState": "complete",
+      "backend": "node-sqlite",
+      "journalMode": "wal"
+    }
+  },
+  "odoo": {
+    "files": 11,
+    "nodes": 28,
+    "edges": 31,
+    "relations": {
+      "calls": 3,
+      "contains": 17,
+      "imports": 11
+    },
+    "languages": {
+      "python": 10,
+      "xml": 1
+    },
+    "fileList": [
+      {
+        "path": "addons/base_mod/__init__.py",
+        "language": "python"
+      },
+      {
+        "path": "addons/base_mod/__manifest__.py",
+        "language": "python"
+      },
+      {
+        "path": "addons/base_mod/models/__init__.py",
+        "language": "python"
+      },
+      {
+        "path": "addons/base_mod/models/partner.py",
+        "language": "python"
+      },
+      {
+        "path": "addons/base_mod/tests/__init__.py",
+        "language": "python"
+      },
+      {
+        "path": "addons/base_mod/tests/test_partner.py",
+        "language": "python"
+      },
+      {
+        "path": "addons/base_mod/views/partner_views.xml",
+        "language": "xml"
+      },
+      {
+        "path": "addons/dep_mod/__init__.py",
+        "language": "python"
+      },
+      {
+        "path": "addons/dep_mod/__manifest__.py",
+        "language": "python"
+      },
+      {
+        "path": "addons/dep_mod/models/__init__.py",
+        "language": "python"
+      },
+      {
+        "path": "addons/dep_mod/models/partner_ext.py",
+        "language": "python"
+      }
+    ],
+    "nodeList": [
+      {
+        "kind": "class",
+        "name": "ResPartner",
+        "filePath": "addons/base_mod/models/partner.py",
+        "startLine": 4,
+        "endLine": 21
+      },
+      {
+        "kind": "class",
+        "name": "ResPartnerExt",
+        "filePath": "addons/dep_mod/models/partner_ext.py",
+        "startLine": 4,
+        "endLine": 9
+      },
+      {
+        "kind": "class",
+        "name": "TestPartner",
+        "filePath": "addons/base_mod/tests/test_partner.py",
+        "startLine": 4,
+        "endLine": 7
+      },
+      {
+        "kind": "file",
+        "name": "__init__.py",
+        "filePath": "addons/base_mod/__init__.py",
+        "startLine": 1,
+        "endLine": 2
+      },
+      {
+        "kind": "file",
+        "name": "__init__.py",
+        "filePath": "addons/base_mod/models/__init__.py",
+        "startLine": 1,
+        "endLine": 2
+      },
+      {
+        "kind": "file",
+        "name": "__init__.py",
+        "filePath": "addons/base_mod/tests/__init__.py",
+        "startLine": 1,
+        "endLine": 2
+      },
+      {
+        "kind": "file",
+        "name": "__init__.py",
+        "filePath": "addons/dep_mod/__init__.py",
+        "startLine": 1,
+        "endLine": 2
+      },
+      {
+        "kind": "file",
+        "name": "__init__.py",
+        "filePath": "addons/dep_mod/models/__init__.py",
+        "startLine": 1,
+        "endLine": 2
+      },
+      {
+        "kind": "file",
+        "name": "__manifest__.py",
+        "filePath": "addons/base_mod/__manifest__.py",
+        "startLine": 1,
+        "endLine": 2
+      },
+      {
+        "kind": "file",
+        "name": "__manifest__.py",
+        "filePath": "addons/dep_mod/__manifest__.py",
+        "startLine": 1,
+        "endLine": 2
+      },
+      {
+        "kind": "file",
+        "name": "partner_ext.py",
+        "filePath": "addons/dep_mod/models/partner_ext.py",
+        "startLine": 1,
+        "endLine": 10
+      },
+      {
+        "kind": "file",
+        "name": "partner_views.xml",
+        "filePath": "addons/base_mod/views/partner_views.xml",
+        "startLine": 1,
+        "endLine": 13
+      },
+      {
+        "kind": "file",
+        "name": "partner.py",
+        "filePath": "addons/base_mod/models/partner.py",
+        "startLine": 1,
+        "endLine": 22
+      },
+      {
+        "kind": "file",
+        "name": "test_partner.py",
+        "filePath": "addons/base_mod/tests/test_partner.py",
+        "startLine": 1,
+        "endLine": 8
+      },
+      {
+        "kind": "import",
+        "name": ".",
+        "filePath": "addons/base_mod/__init__.py",
+        "startLine": 1,
+        "endLine": 1
+      },
+      {
+        "kind": "import",
+        "name": ".",
+        "filePath": "addons/base_mod/models/__init__.py",
+        "startLine": 1,
+        "endLine": 1
+      },
+      {
+        "kind": "import",
+        "name": ".",
+        "filePath": "addons/base_mod/tests/__init__.py",
+        "startLine": 1,
+        "endLine": 1
+      },
+      {
+        "kind": "import",
+        "name": ".",
+        "filePath": "addons/dep_mod/__init__.py",
+        "startLine": 1,
+        "endLine": 1
+      },
+      {
+        "kind": "import",
+        "name": ".",
+        "filePath": "addons/dep_mod/models/__init__.py",
+        "startLine": 1,
+        "endLine": 1
+      },
+      {
+        "kind": "import",
+        "name": "odoo.tests",
+        "filePath": "addons/base_mod/tests/test_partner.py",
+        "startLine": 1,
+        "endLine": 1
+      },
+      {
+        "kind": "import",
+        "name": "odoo",
+        "filePath": "addons/base_mod/models/partner.py",
+        "startLine": 1,
+        "endLine": 1
+      },
+      {
+        "kind": "import",
+        "name": "odoo",
+        "filePath": "addons/dep_mod/models/partner_ext.py",
+        "startLine": 1,
+        "endLine": 1
+      },
+      {
+        "kind": "method",
+        "name": "_bonus",
+        "filePath": "addons/base_mod/models/partner.py",
+        "startLine": 17,
+        "endLine": 18
+      },
+      {
+        "kind": "method",
+        "name": "_compute_loyalty",
+        "filePath": "addons/base_mod/models/partner.py",
+        "startLine": 10,
+        "endLine": 12
+      },
+      {
+        "kind": "method",
+        "name": "action_reward",
+        "filePath": "addons/base_mod/models/partner.py",
+        "startLine": 20,
+        "endLine": 21
+      },
+      {
+        "kind": "method",
+        "name": "compute_loyalty",
+        "filePath": "addons/base_mod/models/partner.py",
+        "startLine": 14,
+        "endLine": 15
+      },
+      {
+        "kind": "method",
+        "name": "compute_loyalty",
+        "filePath": "addons/dep_mod/models/partner_ext.py",
+        "startLine": 7,
+        "endLine": 9
+      },
+      {
+        "kind": "method",
+        "name": "test_loyalty",
+        "filePath": "addons/base_mod/tests/test_partner.py",
+        "startLine": 5,
+        "endLine": 7
+      }
+    ],
+    "edgeList": [
+      {
+        "kind": "calls",
+        "source": "method:action_reward@addons/base_mod/models/partner.py:20",
+        "target": "method:compute_loyalty@addons/base_mod/models/partner.py:14"
+      },
+      {
+        "kind": "calls",
+        "source": "method:compute_loyalty@addons/base_mod/models/partner.py:14",
+        "target": "method:_bonus@addons/base_mod/models/partner.py:17"
+      },
+      {
+        "kind": "calls",
+        "source": "method:test_loyalty@addons/base_mod/tests/test_partner.py:5",
+        "target": "method:compute_loyalty@addons/base_mod/models/partner.py:14"
+      },
+      {
+        "kind": "contains",
+        "source": "class:ResPartner@addons/base_mod/models/partner.py:4",
+        "target": "method:_bonus@addons/base_mod/models/partner.py:17"
+      },
+      {
+        "kind": "contains",
+        "source": "class:ResPartner@addons/base_mod/models/partner.py:4",
+        "target": "method:_compute_loyalty@addons/base_mod/models/partner.py:10"
+      },
+      {
+        "kind": "contains",
+        "source": "class:ResPartner@addons/base_mod/models/partner.py:4",
+        "target": "method:action_reward@addons/base_mod/models/partner.py:20"
+      },
+      {
+        "kind": "contains",
+        "source": "class:ResPartner@addons/base_mod/models/partner.py:4",
+        "target": "method:compute_loyalty@addons/base_mod/models/partner.py:14"
+      },
+      {
+        "kind": "contains",
+        "source": "class:ResPartnerExt@addons/dep_mod/models/partner_ext.py:4",
+        "target": "method:compute_loyalty@addons/dep_mod/models/partner_ext.py:7"
+      },
+      {
+        "kind": "contains",
+        "source": "class:TestPartner@addons/base_mod/tests/test_partner.py:4",
+        "target": "method:test_loyalty@addons/base_mod/tests/test_partner.py:5"
+      },
+      {
+        "kind": "contains",
+        "source": "file:__init__.py@addons/base_mod/__init__.py:1",
+        "target": "import:.@addons/base_mod/__init__.py:1"
+      },
+      {
+        "kind": "contains",
+        "source": "file:__init__.py@addons/base_mod/models/__init__.py:1",
+        "target": "import:.@addons/base_mod/models/__init__.py:1"
+      },
+      {
+        "kind": "contains",
+        "source": "file:__init__.py@addons/base_mod/tests/__init__.py:1",
+        "target": "import:.@addons/base_mod/tests/__init__.py:1"
+      },
+      {
+        "kind": "contains",
+        "source": "file:__init__.py@addons/dep_mod/__init__.py:1",
+        "target": "import:.@addons/dep_mod/__init__.py:1"
+      },
+      {
+        "kind": "contains",
+        "source": "file:__init__.py@addons/dep_mod/models/__init__.py:1",
+        "target": "import:.@addons/dep_mod/models/__init__.py:1"
+      },
+      {
+        "kind": "contains",
+        "source": "file:partner_ext.py@addons/dep_mod/models/partner_ext.py:1",
+        "target": "class:ResPartnerExt@addons/dep_mod/models/partner_ext.py:4"
+      },
+      {
+        "kind": "contains",
+        "source": "file:partner_ext.py@addons/dep_mod/models/partner_ext.py:1",
+        "target": "import:odoo@addons/dep_mod/models/partner_ext.py:1"
+      },
+      {
+        "kind": "contains",
+        "source": "file:partner.py@addons/base_mod/models/partner.py:1",
+        "target": "class:ResPartner@addons/base_mod/models/partner.py:4"
+      },
+      {
+        "kind": "contains",
+        "source": "file:partner.py@addons/base_mod/models/partner.py:1",
+        "target": "import:odoo@addons/base_mod/models/partner.py:1"
+      },
+      {
+        "kind": "contains",
+        "source": "file:test_partner.py@addons/base_mod/tests/test_partner.py:1",
+        "target": "class:TestPartner@addons/base_mod/tests/test_partner.py:4"
+      },
+      {
+        "kind": "contains",
+        "source": "file:test_partner.py@addons/base_mod/tests/test_partner.py:1",
+        "target": "import:odoo.tests@addons/base_mod/tests/test_partner.py:1"
+      },
+      {
+        "kind": "imports",
+        "source": "file:__init__.py@addons/base_mod/__init__.py:1",
+        "target": "file:__init__.py@addons/base_mod/models/__init__.py:1"
+      },
+      {
+        "kind": "imports",
+        "source": "file:__init__.py@addons/base_mod/__init__.py:1",
+        "target": "import:.@addons/base_mod/__init__.py:1"
+      },
+      {
+        "kind": "imports",
+        "source": "file:__init__.py@addons/base_mod/models/__init__.py:1",
+        "target": "file:partner.py@addons/base_mod/models/partner.py:1"
+      },
+      {
+        "kind": "imports",
+        "source": "file:__init__.py@addons/base_mod/models/__init__.py:1",
+        "target": "import:.@addons/base_mod/models/__init__.py:1"
+      },
+      {
+        "kind": "imports",
+        "source": "file:__init__.py@addons/base_mod/tests/__init__.py:1",
+        "target": "file:test_partner.py@addons/base_mod/tests/test_partner.py:1"
+      },
+      {
+        "kind": "imports",
+        "source": "file:__init__.py@addons/base_mod/tests/__init__.py:1",
+        "target": "import:.@addons/base_mod/tests/__init__.py:1"
+      },
+      {
+        "kind": "imports",
+        "source": "file:__init__.py@addons/dep_mod/__init__.py:1",
+        "target": "file:__init__.py@addons/dep_mod/models/__init__.py:1"
+      },
+      {
+        "kind": "imports",
+        "source": "file:__init__.py@addons/dep_mod/__init__.py:1",
+        "target": "import:.@addons/dep_mod/__init__.py:1"
+      },
+      {
+        "kind": "imports",
+        "source": "file:__init__.py@addons/dep_mod/models/__init__.py:1",
+        "target": "file:partner_ext.py@addons/dep_mod/models/partner_ext.py:1"
+      },
+      {
+        "kind": "imports",
+        "source": "file:__init__.py@addons/dep_mod/models/__init__.py:1",
+        "target": "import:.@addons/dep_mod/models/__init__.py:1"
+      },
+      {
+        "kind": "imports",
+        "source": "file:test_partner.py@addons/base_mod/tests/test_partner.py:1",
+        "target": "import:odoo.tests@addons/base_mod/tests/test_partner.py:1"
+      }
+    ],
+    "search": [
+      {
+        "name": "compute_loyalty",
+        "kind": "method",
+        "filePath": "addons/base_mod/models/partner.py",
+        "score": 94.19520400612465
+      },
+      {
+        "name": "compute_loyalty",
+        "kind": "method",
+        "filePath": "addons/dep_mod/models/partner_ext.py",
+        "score": 94.19520400612465
+      },
+      {
+        "name": "_compute_loyalty",
+        "kind": "method",
+        "filePath": "addons/base_mod/models/partner.py",
+        "score": 29.195204006124648
+      }
+    ],
+    "symbolLookup": {
+      "name": "compute_loyalty",
+      "kind": "method",
+      "filePath": "addons/base_mod/models/partner.py"
+    },
+    "fileLookup": {
+      "path": "addons/dep_mod/models/partner_ext.py",
+      "language": "python"
+    },
+    "dependencies": [],
+    "dependents": [
+      {
+        "file": "addons/base_mod/models/partner.py",
+        "dependents": [
+          "addons/base_mod/models/__init__.py",
+          "addons/base_mod/tests/test_partner.py"
+        ]
+      }
+    ],
+    "inheritance": {
+      "nodes": [
+        {
+          "name": "ResPartnerExt",
+          "kind": "class",
+          "filePath": "addons/dep_mod/models/partner_ext.py"
+        }
+      ],
+      "edges": []
+    },
+    "context": {
+      "focal": [
+        {
+          "name": "compute_loyalty",
+          "kind": "method",
+          "filePath": "addons/base_mod/models/partner.py"
+        }
+      ],
+      "ancestors": [
+        {
+          "name": "partner.py",
+          "kind": "file",
+          "filePath": "addons/base_mod/models/partner.py"
+        },
+        {
+          "name": "ResPartner",
+          "kind": "class",
+          "filePath": "addons/base_mod/models/partner.py"
+        }
+      ],
+      "children": [],
+      "incomingRefs": [
+        {
+          "node": {
+            "name": "action_reward",
+            "kind": "method",
+            "filePath": "addons/base_mod/models/partner.py"
+          },
+          "edge": {
+            "source": "method:4d305bba42e05b660add62b4fa8a260a",
+            "target": "method:5923e2b6d9cea2a89e8e16b34a8f8ed5",
+            "kind": "calls"
+          }
+        },
+        {
+          "node": {
+            "name": "test_loyalty",
+            "kind": "method",
+            "filePath": "addons/base_mod/tests/test_partner.py"
+          },
+          "edge": {
+            "source": "method:4b89c40326f1525779f27887fe3f76b1",
+            "target": "method:5923e2b6d9cea2a89e8e16b34a8f8ed5",
+            "kind": "calls"
+          }
+        }
+      ],
+      "outgoingRefs": [
+        {
+          "node": {
+            "name": "_bonus",
+            "kind": "method",
+            "filePath": "addons/base_mod/models/partner.py"
+          },
+          "edge": {
+            "source": "method:5923e2b6d9cea2a89e8e16b34a8f8ed5",
+            "target": "method:faaaef832704372790b8c3e7ff15e4d4",
+            "kind": "calls"
+          }
+        }
+      ],
+      "types": [],
+      "imports": []
+    },
+    "callers": [
+      {
+        "name": "action_reward",
+        "kind": "method",
+        "filePath": "addons/base_mod/models/partner.py"
+      },
+      {
+        "name": "test_loyalty",
+        "kind": "method",
+        "filePath": "addons/base_mod/tests/test_partner.py"
+      }
+    ],
+    "callees": [
+      {
+        "name": "compute_loyalty",
+        "kind": "method",
+        "filePath": "addons/base_mod/models/partner.py"
+      }
+    ],
+    "impact": [
+      {
+        "name": "action_reward",
+        "kind": "method",
+        "filePath": "addons/base_mod/models/partner.py"
+      },
+      {
+        "name": "compute_loyalty",
+        "kind": "method",
+        "filePath": "addons/base_mod/models/partner.py"
+      },
+      {
+        "name": "test_loyalty",
+        "kind": "method",
+        "filePath": "addons/base_mod/tests/test_partner.py"
+      }
+    ],
+    "relevantContext": {
+      "nodes": [
+        {
+          "name": "_bonus",
+          "kind": "method",
+          "filePath": "addons/base_mod/models/partner.py"
+        },
+        {
+          "name": "_compute_loyalty",
+          "kind": "method",
+          "filePath": "addons/base_mod/models/partner.py"
+        },
+        {
+          "name": "action_reward",
+          "kind": "method",
+          "filePath": "addons/base_mod/models/partner.py"
+        },
+        {
+          "name": "compute_loyalty",
+          "kind": "method",
+          "filePath": "addons/base_mod/models/partner.py"
+        },
+        {
+          "name": "compute_loyalty",
+          "kind": "method",
+          "filePath": "addons/dep_mod/models/partner_ext.py"
+        },
+        {
+          "name": "ResPartner",
+          "kind": "class",
+          "filePath": "addons/base_mod/models/partner.py"
+        },
+        {
+          "name": "ResPartnerExt",
+          "kind": "class",
+          "filePath": "addons/dep_mod/models/partner_ext.py"
+        }
+      ],
+      "edges": [
+        {
+          "source": "class:0e055e46b43352c7a4bb806d94f3ff61",
+          "target": "method:cd9c736b6f35351c71bfbd739f4682a7",
+          "kind": "contains"
+        },
+        {
+          "source": "class:8b698c7b5d62302cbce21796f207731d",
+          "target": "method:5923e2b6d9cea2a89e8e16b34a8f8ed5",
+          "kind": "contains"
+        },
+        {
+          "source": "class:8b698c7b5d62302cbce21796f207731d",
+          "target": "method:b99c4b1a9a08e22fe8c5b869e4507aa7",
+          "kind": "contains"
+        },
+        {
+          "source": "class:8b698c7b5d62302cbce21796f207731d",
+          "target": "method:faaaef832704372790b8c3e7ff15e4d4",
+          "kind": "contains"
+        },
+        {
+          "source": "method:4d305bba42e05b660add62b4fa8a260a",
+          "target": "method:5923e2b6d9cea2a89e8e16b34a8f8ed5",
+          "kind": "calls"
+        },
+        {
+          "source": "method:5923e2b6d9cea2a89e8e16b34a8f8ed5",
+          "target": "method:faaaef832704372790b8c3e7ff15e4d4",
+          "kind": "calls"
+        }
+      ]
+    },
+    "affectedTests": {
+      "changedFiles": [
+        "addons/base_mod/models/partner.py"
+      ],
+      "affectedTests": [
+        "addons/base_mod/tests/test_partner.py"
+      ],
+      "totalDependentsTraversed": 3
+    },
+    "status": {
+      "indexState": "complete",
+      "backend": "node-sqlite",
+      "journalMode": "wal"
+    }
+  }
+}

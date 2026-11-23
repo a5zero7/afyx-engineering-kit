@@ -1,0 +1,77 @@
+{
+  "schema_version": 3,
+  "frozen_at": "2026-10-13T00:00:00+07:00",
+  "purpose": "AFYX-283 Expert v0.1.0 development-pilot fingerprint",
+  "repository": {
+    "benchmark_subject_commit": "7fab789af6e0e1c122a2744210ca0f13cbfbac01",
+    "branch": "afyx/native-phase5f-parser-grammar"
+  },
+  "skills": {
+    "efficient-coding": {
+      "version": "1.2.0",
+      "source": "repository",
+      "content_sha256": "deab6d987eb8af8ad2ab312f7ed9facb3be1cbda20622eeeaedc80a1db0829a4"
+    },
+    "odoo-engineering": {
+      "version": "1.2.0",
+      "source": "repository",
+      "content_sha256": "be093393fc779289402ed4816b6e0f4780f7504f43a93222ba8af4daa70d7ea1"
+    },
+    "afyx-engineering-expert": {
+      "version": "0.1.0",
+      "source": "repository",
+      "content_sha256": "69f85c93dbab28fb11460b0a9a2bbc38dbcf9c04f02747af7199ba84077334db"
+    },
+    "prompt-master": {
+      "version": "1.8.0",
+      "git_sha": "2bd92518e26bf659e21e3d9ab90573fcf3ddeccb",
+      "git_origin": "https://github.com/nidhinjs/prompt-master.git",
+      "clean": true,
+      "source": "verified user checkout"
+    }
+  },
+  "runtime": {
+    "os": "Windows 11",
+    "codex_cli": "0.156.1",
+    "model": "gpt-5.6-sol",
+    "reasoning_effort": "medium",
+    "provider": "openai",
+    "service_tier": null,
+    "git": "2.55.0.windows.3",
+    "python": "3.10.11",
+    "node": "26.7.0",
+    "runtime_flags": [
+      "exec",
+      "--ephemeral",
+      "--ignore-user-config",
+      "--skip-git-repo-check",
+      "--sandbox workspace-write",
+      "approval_policy=never",
+      "--json",
+      "-C <external-disposable-workspace>",
+      "-m gpt-5.6-sol",
+      "model_provider=openai",
+      "model_reasoning_effort=medium",
+      "skills.config=<all-installed-Afyx-disabled>"
+    ]
+  },
+  "execution": {
+    "sandbox": "workspace-write",
+    "approval": "never (evaluation sessions fail rather than request broader access)",
+    "network_requested": false,
+    "writable_scope": "external disposable evaluated workspace",
+    "available_tools_observable": ["command_execution", "file_change"],
+    "tool_inventory_limit": "Codex JSONL exposes used tool events, not a complete pre-run tool catalog"
+  },
+  "optional": {
+    "afyx_graph": {
+      "available_to_evaluator": false,
+      "evaluated": false
+    },
+    "headroom": {
+      "available_to_evaluator": false,
+      "evaluated": false
+    }
+  },
+  "secrets_recorded": false
+}

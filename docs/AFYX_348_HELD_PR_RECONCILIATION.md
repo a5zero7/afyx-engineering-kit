@@ -1,0 +1,22 @@
+# AFYX-348 — Rekonsiliasi PR historis
+
+Baseline yang diaudit adalah `bc4debba494358d099da4cce4c123f653388f20e`, dengan PR #19 terintegrasi melalui `73dee7e` dan PR #20 melalui `bc4debb`. Klasifikasi berlaku untuk delta PR terhadap merge base masing-masing. File yang dikelompokkan mempunyai disposisi yang sama.
+
+| PR dan commit asal | File dan disposisi | Bukti pengganti atau perubahan |
+|---|---|---|
+| #16 · `918e94e`, `cae625d` | `docs/evidence/afyx-320/MB6_SOURCE_TREE_2026-11-10.csv` dan `MB6_G9_STATUS_2026-11-10.md` · STILL_REQUIRED sebagai bukti historis | Salin blob sumber PR. Inventaris berlaku untuk `c4e4d8e` dan mencatat batas tinjauan hak sumber serta artefak. |
+| #8 · `81d9ef2`, `d66979c`, `90bd516` | `install.ps1`, `scripts/lib/AfyxTerminal.psm1`, `uninstall.ps1`, `verify.ps1` · CONFLICT/SUPERSEDED | UX v2 dan lifecycle yang lebih baru tersedia di `d257914`, `bed1c41`, `be3da7d`, `ec1eec0`, `c914bfa`, dan `ef96e0f`. Pertahankan TUI, konfirmasi apply, dan resi kegagalan pada sumber saat ini. |
+| #8 · `81d9ef2` | `scripts/afyx-host-bridge-lifecycle.mjs` dan `scripts/afyx-mcp-integration.mjs` · ALREADY_PRESENT | Pemeriksaan idempotensi runtime, path canonical dan uninstall tanpa entry masih ada pada `4e5997b` dan `7374122`. |
+| #8 · `12861ed` | `scripts/audit-legacy-identity.py` dan `scripts/tests/test_legacy_identity_audit.py` · SUPERSEDED | `7035224` memelihara pengecualian historis yang tepat serta audit identitas aktif. |
+| #8 · `41cf1f0` | `scripts/install-afyx-graph.ps1` · ALREADY_PRESENT/SUPERSEDED | Resolusi archive masih menghasilkan objek terstruktur. `c38780f` memperluas pemeriksaan arsitektur dan Full ZIP. |
+| #8 · `81d9ef2`, `90bd516`, `41cf1f0` | `scripts/tests/test_graph_archive_resolution.py`, `test_host_bridge_productization.mjs`, `test_terminal_tui.py` · ALREADY_PRESENT | Ketiga blob pengujian cocok dengan head historis. |
+| #6 · `689be32` | `scripts/afyx-provider-integration.mjs` dan `scripts/tests/test_provider_integration.py` · ALREADY_PRESENT | `32075e9` dan `7374122` mempertahankan explicit OFF, identitas literal, dan ownership. Tes provider cocok dengan head historis. |
+| #6 · `3281b99`, `9dd9ae7` | `.githooks/pre-push` dan `scripts/tests/test_pre_push_environment_isolation.py` · STILL_REQUIRED sebagian | `9b10d08` membawa penyelesaian Git common directory. Port sanitasi sebelum seluruh validator, termasuk verifier Windows dan variabel konfigurasi injeksi, beserta regresi positif dan negatif. Kirim ulang perubahan tanpa mengubah kebijakan ketersediaan verifier eksternal. |
+| #5 · `481cef9` | `afyx-forge/LICENSE`, `afyx-forge/test/package-license.test.js`, `scripts/afyx-forge-artifact.mjs` · ALREADY_PRESENT | Blob cocok. `83efbe0` mengintegrasikan pemeriksaan lisensi paket. |
+| #5 · `481cef9` | `scripts/components.json`, `scripts/install-afyx-forge.ps1`, `scripts/install-afyx-forge.sh`, `scripts/tests/test_components.py` · ALREADY_PRESENT/SUPERSEDED | Kedua verifier memeriksa keberadaan LICENSE. Jalur staging memeriksa metadata, hash lisensi, dan isi. Pertahankan kontrak komponen terbaru. |
+| #3 · `d86b19e` | `README.md`, `afyx-context/README.md`, `afyx-forge/README.md`, `afyx-graph/README.md`, `afyx-graph/engine/README.md`, `afyx-graph/engine/ui/README.md`, `docs/COMPONENTS.md` · CONFLICT/SUPERSEDED | Dokumen dev yang lebih baru membawa katalog, lifecycle, batas lisensi Forge, dan dukungan platform. Gunakan baseline integrasi ini dan roadmap kanonis untuk referensi status. |
+| #3 · `d86b19e` | `docs/DEVELOPMENT_STATUS.md`, `evals/README.md`, `skills/{afyx-engineering-expert,efficient-coding,odoo-engineering}/README.md`, `tools/{codex-usage,windows-setup}/README.md` · SUPERSEDED sebagai snapshot status 5 November | Catatan diverifikasi pada commit historisnya. Panduan entry point dan perkembangan produk mengikuti README aktif, panduan komponen, dan roadmap. |
+
+Batas publikasi, penerimaan provider eksternal, metrik agent nyata, dan hak distribusi tetap mengikuti gate masing-masing. Commit inventaris historis tidak menjadi sertifikasi sumber saat ini.
+
+Batch berikut yang memenuhi syarat adalah melanjutkan T12 pada penerimaan provider terisolasi. Catat identitas kandidat, discovery, pemanggilan MCP, konsumsi hasil, dan preservasi konfigurasi untuk satu permukaan yang belum diterima. Gunakan bukti Codex dan Antigravity yang sudah diterima pada SHA aslinya. Kebutuhan release, legal dan pilot fisik mempunyai persetujuan masing-masing.

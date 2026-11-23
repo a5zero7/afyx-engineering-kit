@@ -1,0 +1,1181 @@
+{
+  "mcp impact linearA depth=default": {
+    "digest": "72:4b31388b4b49abf7",
+    "isError": false
+  },
+  "mcp impact linearA depth=1": {
+    "digest": "72:4b31388b4b49abf7",
+    "isError": false
+  },
+  "mcp impact linearA depth=2": {
+    "digest": "72:4b31388b4b49abf7",
+    "isError": false
+  },
+  "mcp impact linearA depth=3": {
+    "digest": "72:4b31388b4b49abf7",
+    "isError": false
+  },
+  "mcp impact linearA depth=10": {
+    "digest": "72:4b31388b4b49abf7",
+    "isError": false
+  },
+  "mcp impact linearA depth=500": {
+    "digest": "72:4b31388b4b49abf7",
+    "isError": false
+  },
+  "mcp impact linearB depth=default": {
+    "digest": "112:b978506dfdfcf418",
+    "isError": false
+  },
+  "mcp impact linearB depth=1": {
+    "digest": "112:b978506dfdfcf418",
+    "isError": false
+  },
+  "mcp impact linearB depth=2": {
+    "digest": "112:b978506dfdfcf418",
+    "isError": false
+  },
+  "mcp impact linearB depth=3": {
+    "digest": "112:b978506dfdfcf418",
+    "isError": false
+  },
+  "mcp impact linearB depth=10": {
+    "digest": "112:b978506dfdfcf418",
+    "isError": false
+  },
+  "mcp impact linearB depth=500": {
+    "digest": "112:b978506dfdfcf418",
+    "isError": false
+  },
+  "mcp impact linearC depth=default": {
+    "digest": "152:1db1ec4771f835a7",
+    "isError": false
+  },
+  "mcp impact linearC depth=1": {
+    "digest": "112:8356814b6a6bd6ce",
+    "isError": false
+  },
+  "mcp impact linearC depth=2": {
+    "digest": "152:1db1ec4771f835a7",
+    "isError": false
+  },
+  "mcp impact linearC depth=3": {
+    "digest": "152:1db1ec4771f835a7",
+    "isError": false
+  },
+  "mcp impact linearC depth=10": {
+    "digest": "152:1db1ec4771f835a7",
+    "isError": false
+  },
+  "mcp impact linearC depth=500": {
+    "digest": "152:1db1ec4771f835a7",
+    "isError": false
+  },
+  "mcp impact linearD depth=default": {
+    "digest": "152:5f6c99c48549df6b",
+    "isError": false
+  },
+  "mcp impact linearD depth=1": {
+    "digest": "112:a141f3327dd7e204",
+    "isError": false
+  },
+  "mcp impact linearD depth=2": {
+    "digest": "152:5f6c99c48549df6b",
+    "isError": false
+  },
+  "mcp impact linearD depth=3": {
+    "digest": "192:c9f3f37cae795498",
+    "isError": false
+  },
+  "mcp impact linearD depth=10": {
+    "digest": "192:c9f3f37cae795498",
+    "isError": false
+  },
+  "mcp impact linearD depth=500": {
+    "digest": "192:c9f3f37cae795498",
+    "isError": false
+  },
+  "mcp impact diamondA depth=default": {
+    "digest": "75:a271aad17dd5c86e",
+    "isError": false
+  },
+  "mcp impact diamondA depth=1": {
+    "digest": "75:a271aad17dd5c86e",
+    "isError": false
+  },
+  "mcp impact diamondA depth=2": {
+    "digest": "75:a271aad17dd5c86e",
+    "isError": false
+  },
+  "mcp impact diamondA depth=3": {
+    "digest": "75:a271aad17dd5c86e",
+    "isError": false
+  },
+  "mcp impact diamondA depth=10": {
+    "digest": "75:a271aad17dd5c86e",
+    "isError": false
+  },
+  "mcp impact diamondA depth=500": {
+    "digest": "75:a271aad17dd5c86e",
+    "isError": false
+  },
+  "mcp impact diamondB depth=default": {
+    "digest": "117:29236bf10e2d4571",
+    "isError": false
+  },
+  "mcp impact diamondB depth=1": {
+    "digest": "117:29236bf10e2d4571",
+    "isError": false
+  },
+  "mcp impact diamondB depth=2": {
+    "digest": "117:29236bf10e2d4571",
+    "isError": false
+  },
+  "mcp impact diamondB depth=3": {
+    "digest": "117:29236bf10e2d4571",
+    "isError": false
+  },
+  "mcp impact diamondB depth=10": {
+    "digest": "117:29236bf10e2d4571",
+    "isError": false
+  },
+  "mcp impact diamondB depth=500": {
+    "digest": "117:29236bf10e2d4571",
+    "isError": false
+  },
+  "mcp impact diamondC depth=default": {
+    "digest": "117:5860a84226429276",
+    "isError": false
+  },
+  "mcp impact diamondC depth=1": {
+    "digest": "117:5860a84226429276",
+    "isError": false
+  },
+  "mcp impact diamondC depth=2": {
+    "digest": "117:5860a84226429276",
+    "isError": false
+  },
+  "mcp impact diamondC depth=3": {
+    "digest": "117:5860a84226429276",
+    "isError": false
+  },
+  "mcp impact diamondC depth=10": {
+    "digest": "117:5860a84226429276",
+    "isError": false
+  },
+  "mcp impact diamondC depth=500": {
+    "digest": "117:5860a84226429276",
+    "isError": false
+  },
+  "mcp impact diamondD depth=default": {
+    "digest": "201:7fde9615678503c0",
+    "isError": false
+  },
+  "mcp impact diamondD depth=1": {
+    "digest": "159:6e1b9f555e5413a6",
+    "isError": false
+  },
+  "mcp impact diamondD depth=2": {
+    "digest": "201:7fde9615678503c0",
+    "isError": false
+  },
+  "mcp impact diamondD depth=3": {
+    "digest": "201:7fde9615678503c0",
+    "isError": false
+  },
+  "mcp impact diamondD depth=10": {
+    "digest": "201:7fde9615678503c0",
+    "isError": false
+  },
+  "mcp impact diamondD depth=500": {
+    "digest": "201:7fde9615678503c0",
+    "isError": false
+  },
+  "mcp impact cycleA depth=default": {
+    "digest": "145:9d7aa0f471e7824f",
+    "isError": false
+  },
+  "mcp impact cycleA depth=1": {
+    "digest": "107:c9369e6e62729424",
+    "isError": false
+  },
+  "mcp impact cycleA depth=2": {
+    "digest": "145:9d7aa0f471e7824f",
+    "isError": false
+  },
+  "mcp impact cycleA depth=3": {
+    "digest": "153:2ad7272351bb2e6f",
+    "isError": false
+  },
+  "mcp impact cycleA depth=10": {
+    "digest": "153:2ad7272351bb2e6f",
+    "isError": false
+  },
+  "mcp impact cycleA depth=500": {
+    "digest": "153:2ad7272351bb2e6f",
+    "isError": false
+  },
+  "mcp impact cycleB depth=default": {
+    "digest": "145:cdd71e53788dcdbe",
+    "isError": false
+  },
+  "mcp impact cycleB depth=1": {
+    "digest": "107:3fe852c3a49f3007",
+    "isError": false
+  },
+  "mcp impact cycleB depth=2": {
+    "digest": "145:cdd71e53788dcdbe",
+    "isError": false
+  },
+  "mcp impact cycleB depth=3": {
+    "digest": "153:47dc8789a1704969",
+    "isError": false
+  },
+  "mcp impact cycleB depth=10": {
+    "digest": "153:47dc8789a1704969",
+    "isError": false
+  },
+  "mcp impact cycleB depth=500": {
+    "digest": "153:47dc8789a1704969",
+    "isError": false
+  },
+  "mcp impact cycleC depth=default": {
+    "digest": "145:9d737b5caaa9de87",
+    "isError": false
+  },
+  "mcp impact cycleC depth=1": {
+    "digest": "107:7d50fc54dd585665",
+    "isError": false
+  },
+  "mcp impact cycleC depth=2": {
+    "digest": "145:9d737b5caaa9de87",
+    "isError": false
+  },
+  "mcp impact cycleC depth=3": {
+    "digest": "153:8eb6821e25e39614",
+    "isError": false
+  },
+  "mcp impact cycleC depth=10": {
+    "digest": "153:8eb6821e25e39614",
+    "isError": false
+  },
+  "mcp impact cycleC depth=500": {
+    "digest": "153:8eb6821e25e39614",
+    "isError": false
+  },
+  "mcp impact discX depth=default": {
+    "digest": "66:b0cdd4707ae20089",
+    "isError": false
+  },
+  "mcp impact discX depth=1": {
+    "digest": "66:b0cdd4707ae20089",
+    "isError": false
+  },
+  "mcp impact discX depth=2": {
+    "digest": "66:b0cdd4707ae20089",
+    "isError": false
+  },
+  "mcp impact discX depth=3": {
+    "digest": "66:b0cdd4707ae20089",
+    "isError": false
+  },
+  "mcp impact discX depth=10": {
+    "digest": "66:b0cdd4707ae20089",
+    "isError": false
+  },
+  "mcp impact discX depth=500": {
+    "digest": "66:b0cdd4707ae20089",
+    "isError": false
+  },
+  "mcp impact discY depth=default": {
+    "digest": "102:c48d7878bf8dbb85",
+    "isError": false
+  },
+  "mcp impact discY depth=1": {
+    "digest": "102:c48d7878bf8dbb85",
+    "isError": false
+  },
+  "mcp impact discY depth=2": {
+    "digest": "102:c48d7878bf8dbb85",
+    "isError": false
+  },
+  "mcp impact discY depth=3": {
+    "digest": "102:c48d7878bf8dbb85",
+    "isError": false
+  },
+  "mcp impact discY depth=10": {
+    "digest": "102:c48d7878bf8dbb85",
+    "isError": false
+  },
+  "mcp impact discY depth=500": {
+    "digest": "102:c48d7878bf8dbb85",
+    "isError": false
+  },
+  "mcp impact discP depth=default": {
+    "digest": "66:76fce440a6d09092",
+    "isError": false
+  },
+  "mcp impact discP depth=1": {
+    "digest": "66:76fce440a6d09092",
+    "isError": false
+  },
+  "mcp impact discP depth=2": {
+    "digest": "66:76fce440a6d09092",
+    "isError": false
+  },
+  "mcp impact discP depth=3": {
+    "digest": "66:76fce440a6d09092",
+    "isError": false
+  },
+  "mcp impact discP depth=10": {
+    "digest": "66:76fce440a6d09092",
+    "isError": false
+  },
+  "mcp impact discP depth=500": {
+    "digest": "66:76fce440a6d09092",
+    "isError": false
+  },
+  "mcp impact discQ depth=default": {
+    "digest": "102:f6363431a8f392be",
+    "isError": false
+  },
+  "mcp impact discQ depth=1": {
+    "digest": "102:f6363431a8f392be",
+    "isError": false
+  },
+  "mcp impact discQ depth=2": {
+    "digest": "102:f6363431a8f392be",
+    "isError": false
+  },
+  "mcp impact discQ depth=3": {
+    "digest": "102:f6363431a8f392be",
+    "isError": false
+  },
+  "mcp impact discQ depth=10": {
+    "digest": "102:f6363431a8f392be",
+    "isError": false
+  },
+  "mcp impact discQ depth=500": {
+    "digest": "102:f6363431a8f392be",
+    "isError": false
+  },
+  "mcp impact hubCentral depth=default": {
+    "digest": "338:1dee10865ec33ada",
+    "isError": false
+  },
+  "mcp impact hubCentral depth=1": {
+    "digest": "338:1dee10865ec33ada",
+    "isError": false
+  },
+  "mcp impact hubCentral depth=2": {
+    "digest": "338:1dee10865ec33ada",
+    "isError": false
+  },
+  "mcp impact hubCentral depth=3": {
+    "digest": "338:1dee10865ec33ada",
+    "isError": false
+  },
+  "mcp impact hubCentral depth=10": {
+    "digest": "338:1dee10865ec33ada",
+    "isError": false
+  },
+  "mcp impact hubCentral depth=500": {
+    "digest": "338:1dee10865ec33ada",
+    "isError": false
+  },
+  "mcp impact hubCaller1 depth=default": {
+    "digest": "81:e43111069f5f56f8",
+    "isError": false
+  },
+  "mcp impact hubCaller1 depth=1": {
+    "digest": "81:e43111069f5f56f8",
+    "isError": false
+  },
+  "mcp impact hubCaller1 depth=2": {
+    "digest": "81:e43111069f5f56f8",
+    "isError": false
+  },
+  "mcp impact hubCaller1 depth=3": {
+    "digest": "81:e43111069f5f56f8",
+    "isError": false
+  },
+  "mcp impact hubCaller1 depth=10": {
+    "digest": "81:e43111069f5f56f8",
+    "isError": false
+  },
+  "mcp impact hubCaller1 depth=500": {
+    "digest": "81:e43111069f5f56f8",
+    "isError": false
+  },
+  "mcp impact hubCallee1 depth=default": {
+    "digest": "386:b0fc41bdf0f8c38d",
+    "isError": false
+  },
+  "mcp impact hubCallee1 depth=1": {
+    "digest": "125:380e5afe94fe5a26",
+    "isError": false
+  },
+  "mcp impact hubCallee1 depth=2": {
+    "digest": "386:b0fc41bdf0f8c38d",
+    "isError": false
+  },
+  "mcp impact hubCallee1 depth=3": {
+    "digest": "386:b0fc41bdf0f8c38d",
+    "isError": false
+  },
+  "mcp impact hubCallee1 depth=10": {
+    "digest": "386:b0fc41bdf0f8c38d",
+    "isError": false
+  },
+  "mcp impact hubCallee1 depth=500": {
+    "digest": "386:b0fc41bdf0f8c38d",
+    "isError": false
+  },
+  "mcp impact MultiRelBase depth=default": {
+    "digest": "166:3479b04801266564",
+    "isError": false
+  },
+  "mcp impact MultiRelBase depth=1": {
+    "digest": "166:3479b04801266564",
+    "isError": false
+  },
+  "mcp impact MultiRelBase depth=2": {
+    "digest": "166:3479b04801266564",
+    "isError": false
+  },
+  "mcp impact MultiRelBase depth=3": {
+    "digest": "166:3479b04801266564",
+    "isError": false
+  },
+  "mcp impact MultiRelBase depth=10": {
+    "digest": "166:3479b04801266564",
+    "isError": false
+  },
+  "mcp impact MultiRelBase depth=500": {
+    "digest": "166:3479b04801266564",
+    "isError": false
+  },
+  "mcp impact MultiRelDerived depth=default": {
+    "digest": "103:f3258d3f07d5b2ed",
+    "isError": false
+  },
+  "mcp impact MultiRelDerived depth=1": {
+    "digest": "103:f3258d3f07d5b2ed",
+    "isError": false
+  },
+  "mcp impact MultiRelDerived depth=2": {
+    "digest": "103:f3258d3f07d5b2ed",
+    "isError": false
+  },
+  "mcp impact MultiRelDerived depth=3": {
+    "digest": "103:f3258d3f07d5b2ed",
+    "isError": false
+  },
+  "mcp impact MultiRelDerived depth=10": {
+    "digest": "103:f3258d3f07d5b2ed",
+    "isError": false
+  },
+  "mcp impact MultiRelDerived depth=500": {
+    "digest": "103:f3258d3f07d5b2ed",
+    "isError": false
+  },
+  "mcp impact faninTarget depth=default": {
+    "digest": "335:b9108ff0ab188773",
+    "isError": false
+  },
+  "mcp impact faninTarget depth=1": {
+    "digest": "335:b9108ff0ab188773",
+    "isError": false
+  },
+  "mcp impact faninTarget depth=2": {
+    "digest": "335:b9108ff0ab188773",
+    "isError": false
+  },
+  "mcp impact faninTarget depth=3": {
+    "digest": "335:b9108ff0ab188773",
+    "isError": false
+  },
+  "mcp impact faninTarget depth=10": {
+    "digest": "335:b9108ff0ab188773",
+    "isError": false
+  },
+  "mcp impact faninTarget depth=500": {
+    "digest": "335:b9108ff0ab188773",
+    "isError": false
+  },
+  "mcp impact faninUser1 depth=default": {
+    "digest": "81:b2d028fffde707ce",
+    "isError": false
+  },
+  "mcp impact faninUser1 depth=1": {
+    "digest": "81:b2d028fffde707ce",
+    "isError": false
+  },
+  "mcp impact faninUser1 depth=2": {
+    "digest": "81:b2d028fffde707ce",
+    "isError": false
+  },
+  "mcp impact faninUser1 depth=3": {
+    "digest": "81:b2d028fffde707ce",
+    "isError": false
+  },
+  "mcp impact faninUser1 depth=10": {
+    "digest": "81:b2d028fffde707ce",
+    "isError": false
+  },
+  "mcp impact faninUser1 depth=500": {
+    "digest": "81:b2d028fffde707ce",
+    "isError": false
+  },
+  "mcp impact fanoutRoot depth=default": {
+    "digest": "84:7aa6da6c277e7bff",
+    "isError": false
+  },
+  "mcp impact fanoutRoot depth=1": {
+    "digest": "84:7aa6da6c277e7bff",
+    "isError": false
+  },
+  "mcp impact fanoutRoot depth=2": {
+    "digest": "84:7aa6da6c277e7bff",
+    "isError": false
+  },
+  "mcp impact fanoutRoot depth=3": {
+    "digest": "84:7aa6da6c277e7bff",
+    "isError": false
+  },
+  "mcp impact fanoutRoot depth=10": {
+    "digest": "84:7aa6da6c277e7bff",
+    "isError": false
+  },
+  "mcp impact fanoutRoot depth=500": {
+    "digest": "84:7aa6da6c277e7bff",
+    "isError": false
+  },
+  "mcp impact fanoutDep1 depth=default": {
+    "digest": "136:505668bb04feba37",
+    "isError": false
+  },
+  "mcp impact fanoutDep1 depth=1": {
+    "digest": "136:505668bb04feba37",
+    "isError": false
+  },
+  "mcp impact fanoutDep1 depth=2": {
+    "digest": "136:505668bb04feba37",
+    "isError": false
+  },
+  "mcp impact fanoutDep1 depth=3": {
+    "digest": "136:505668bb04feba37",
+    "isError": false
+  },
+  "mcp impact fanoutDep1 depth=10": {
+    "digest": "136:505668bb04feba37",
+    "isError": false
+  },
+  "mcp impact fanoutDep1 depth=500": {
+    "digest": "136:505668bb04feba37",
+    "isError": false
+  },
+  "mcp impact testmapHelper depth=default": {
+    "digest": "197:60c80fc569864868",
+    "isError": false
+  },
+  "mcp impact testmapHelper depth=1": {
+    "digest": "197:60c80fc569864868",
+    "isError": false
+  },
+  "mcp impact testmapHelper depth=2": {
+    "digest": "197:60c80fc569864868",
+    "isError": false
+  },
+  "mcp impact testmapHelper depth=3": {
+    "digest": "197:60c80fc569864868",
+    "isError": false
+  },
+  "mcp impact testmapHelper depth=10": {
+    "digest": "197:60c80fc569864868",
+    "isError": false
+  },
+  "mcp impact testmapHelper depth=500": {
+    "digest": "197:60c80fc569864868",
+    "isError": false
+  },
+  "mcp impact testmapSource depth=default": {
+    "digest": "90:c0eaf3fd28239a1c",
+    "isError": false
+  },
+  "mcp impact testmapSource depth=1": {
+    "digest": "90:c0eaf3fd28239a1c",
+    "isError": false
+  },
+  "mcp impact testmapSource depth=2": {
+    "digest": "90:c0eaf3fd28239a1c",
+    "isError": false
+  },
+  "mcp impact testmapSource depth=3": {
+    "digest": "90:c0eaf3fd28239a1c",
+    "isError": false
+  },
+  "mcp impact testmapSource depth=10": {
+    "digest": "90:c0eaf3fd28239a1c",
+    "isError": false
+  },
+  "mcp impact testmapSource depth=500": {
+    "digest": "90:c0eaf3fd28239a1c",
+    "isError": false
+  },
+  "mcp impact multitestHelper depth=default": {
+    "digest": "241:b92d1325066b2b8e",
+    "isError": false
+  },
+  "mcp impact multitestHelper depth=1": {
+    "digest": "241:b92d1325066b2b8e",
+    "isError": false
+  },
+  "mcp impact multitestHelper depth=2": {
+    "digest": "241:b92d1325066b2b8e",
+    "isError": false
+  },
+  "mcp impact multitestHelper depth=3": {
+    "digest": "241:b92d1325066b2b8e",
+    "isError": false
+  },
+  "mcp impact multitestHelper depth=10": {
+    "digest": "241:b92d1325066b2b8e",
+    "isError": false
+  },
+  "mcp impact multitestHelper depth=500": {
+    "digest": "241:b92d1325066b2b8e",
+    "isError": false
+  },
+  "mcp impact nestedDeep3 depth=default": {
+    "digest": "235:9c5ee87216d2745d",
+    "isError": false
+  },
+  "mcp impact nestedDeep3 depth=1": {
+    "digest": "183:5df66e6db06964d0",
+    "isError": false
+  },
+  "mcp impact nestedDeep3 depth=2": {
+    "digest": "235:9c5ee87216d2745d",
+    "isError": false
+  },
+  "mcp impact nestedDeep3 depth=3": {
+    "digest": "282:5d26a7ec7398e7ba",
+    "isError": false
+  },
+  "mcp impact nestedDeep3 depth=10": {
+    "digest": "282:5d26a7ec7398e7ba",
+    "isError": false
+  },
+  "mcp impact nestedDeep3 depth=500": {
+    "digest": "282:5d26a7ec7398e7ba",
+    "isError": false
+  },
+  "mcp impact nestedDeep2 depth=default": {
+    "digest": "183:7eca1674a9ef69fe",
+    "isError": false
+  },
+  "mcp impact nestedDeep2 depth=1": {
+    "digest": "136:d86af0e937afdbc7",
+    "isError": false
+  },
+  "mcp impact nestedDeep2 depth=2": {
+    "digest": "183:7eca1674a9ef69fe",
+    "isError": false
+  },
+  "mcp impact nestedDeep2 depth=3": {
+    "digest": "183:7eca1674a9ef69fe",
+    "isError": false
+  },
+  "mcp impact nestedDeep2 depth=10": {
+    "digest": "183:7eca1674a9ef69fe",
+    "isError": false
+  },
+  "mcp impact nestedDeep2 depth=500": {
+    "digest": "183:7eca1674a9ef69fe",
+    "isError": false
+  },
+  "mcp impact nestedDeep1 depth=default": {
+    "digest": "131:4439ca75cd5aea78",
+    "isError": false
+  },
+  "mcp impact nestedDeep1 depth=1": {
+    "digest": "131:4439ca75cd5aea78",
+    "isError": false
+  },
+  "mcp impact nestedDeep1 depth=2": {
+    "digest": "131:4439ca75cd5aea78",
+    "isError": false
+  },
+  "mcp impact nestedDeep1 depth=3": {
+    "digest": "131:4439ca75cd5aea78",
+    "isError": false
+  },
+  "mcp impact nestedDeep1 depth=10": {
+    "digest": "131:4439ca75cd5aea78",
+    "isError": false
+  },
+  "mcp impact nestedDeep1 depth=500": {
+    "digest": "131:4439ca75cd5aea78",
+    "isError": false
+  },
+  "mcp impact notestLeaf depth=default": {
+    "digest": "173:a985de940f7ec415",
+    "isError": false
+  },
+  "mcp impact notestLeaf depth=1": {
+    "digest": "127:cbf4a18ebb02ddf5",
+    "isError": false
+  },
+  "mcp impact notestLeaf depth=2": {
+    "digest": "173:a985de940f7ec415",
+    "isError": false
+  },
+  "mcp impact notestLeaf depth=3": {
+    "digest": "173:a985de940f7ec415",
+    "isError": false
+  },
+  "mcp impact notestLeaf depth=10": {
+    "digest": "173:a985de940f7ec415",
+    "isError": false
+  },
+  "mcp impact notestLeaf depth=500": {
+    "digest": "173:a985de940f7ec415",
+    "isError": false
+  },
+  "mcp impact notestMid depth=default": {
+    "digest": "124:e48c8d260d947a1a",
+    "isError": false
+  },
+  "mcp impact notestMid depth=1": {
+    "digest": "124:e48c8d260d947a1a",
+    "isError": false
+  },
+  "mcp impact notestMid depth=2": {
+    "digest": "124:e48c8d260d947a1a",
+    "isError": false
+  },
+  "mcp impact notestMid depth=3": {
+    "digest": "124:e48c8d260d947a1a",
+    "isError": false
+  },
+  "mcp impact notestMid depth=10": {
+    "digest": "124:e48c8d260d947a1a",
+    "isError": false
+  },
+  "mcp impact notestMid depth=500": {
+    "digest": "124:e48c8d260d947a1a",
+    "isError": false
+  },
+  "mcp impact notestTop depth=default": {
+    "digest": "78:9759d7ad4543a5eb",
+    "isError": false
+  },
+  "mcp impact notestTop depth=1": {
+    "digest": "78:9759d7ad4543a5eb",
+    "isError": false
+  },
+  "mcp impact notestTop depth=2": {
+    "digest": "78:9759d7ad4543a5eb",
+    "isError": false
+  },
+  "mcp impact notestTop depth=3": {
+    "digest": "78:9759d7ad4543a5eb",
+    "isError": false
+  },
+  "mcp impact notestTop depth=10": {
+    "digest": "78:9759d7ad4543a5eb",
+    "isError": false
+  },
+  "mcp impact notestTop depth=500": {
+    "digest": "78:9759d7ad4543a5eb",
+    "isError": false
+  },
+  "mcp impact ambiguousShared depth=default": {
+    "digest": "487:08eb56c9bef5418a",
+    "isError": false
+  },
+  "mcp impact ambiguousShared depth=1": {
+    "digest": "487:08eb56c9bef5418a",
+    "isError": false
+  },
+  "mcp impact ambiguousShared depth=2": {
+    "digest": "487:08eb56c9bef5418a",
+    "isError": false
+  },
+  "mcp impact ambiguousShared depth=3": {
+    "digest": "487:08eb56c9bef5418a",
+    "isError": false
+  },
+  "mcp impact ambiguousShared depth=10": {
+    "digest": "487:08eb56c9bef5418a",
+    "isError": false
+  },
+  "mcp impact ambiguousShared depth=500": {
+    "digest": "487:08eb56c9bef5418a",
+    "isError": false
+  },
+  "mcp impact nonexistentSymbolXyzAbc depth=default": {
+    "digest": "58:f5c3cb869808ac6e",
+    "isError": false
+  },
+  "mcp impact nonexistentSymbolXyzAbc depth=1": {
+    "digest": "58:f5c3cb869808ac6e",
+    "isError": false
+  },
+  "mcp impact nonexistentSymbolXyzAbc depth=2": {
+    "digest": "58:f5c3cb869808ac6e",
+    "isError": false
+  },
+  "mcp impact nonexistentSymbolXyzAbc depth=3": {
+    "digest": "58:f5c3cb869808ac6e",
+    "isError": false
+  },
+  "mcp impact nonexistentSymbolXyzAbc depth=10": {
+    "digest": "58:f5c3cb869808ac6e",
+    "isError": false
+  },
+  "mcp impact nonexistentSymbolXyzAbc depth=500": {
+    "digest": "58:f5c3cb869808ac6e",
+    "isError": false
+  },
+  "mcp impact deepchainN0 depth=default": {
+    "digest": "182:2d67af8d65939190",
+    "isError": false
+  },
+  "mcp impact deepchainN0 depth=1": {
+    "digest": "133:bcc04ba0a6a85458",
+    "isError": false
+  },
+  "mcp impact deepchainN0 depth=2": {
+    "digest": "182:2d67af8d65939190",
+    "isError": false
+  },
+  "mcp impact deepchainN0 depth=3": {
+    "digest": "231:1598528e5ff367ba",
+    "isError": false
+  },
+  "mcp impact deepchainN0 depth=10": {
+    "digest": "578:07ddd0571f81e934",
+    "isError": false
+  },
+  "mcp impact deepchainN0 depth=500": {
+    "digest": "578:07ddd0571f81e934",
+    "isError": false
+  },
+  "mcp impact deepchainN5 depth=default": {
+    "digest": "182:5e15a1e9f4d2dd47",
+    "isError": false
+  },
+  "mcp impact deepchainN5 depth=1": {
+    "digest": "133:c1413bb90394fbb2",
+    "isError": false
+  },
+  "mcp impact deepchainN5 depth=2": {
+    "digest": "182:5e15a1e9f4d2dd47",
+    "isError": false
+  },
+  "mcp impact deepchainN5 depth=3": {
+    "digest": "231:0b727735000b2d8b",
+    "isError": false
+  },
+  "mcp impact deepchainN5 depth=10": {
+    "digest": "593:3a3ef62576487652",
+    "isError": false
+  },
+  "mcp impact deepchainN5 depth=500": {
+    "digest": "593:3a3ef62576487652",
+    "isError": false
+  },
+  "mcp impact dupcallTarget depth=default": {
+    "digest": "147:2482fc18bb8f745f",
+    "isError": false
+  },
+  "mcp impact dupcallTarget depth=1": {
+    "digest": "147:2482fc18bb8f745f",
+    "isError": false
+  },
+  "mcp impact dupcallTarget depth=2": {
+    "digest": "147:2482fc18bb8f745f",
+    "isError": false
+  },
+  "mcp impact dupcallTarget depth=3": {
+    "digest": "147:2482fc18bb8f745f",
+    "isError": false
+  },
+  "mcp impact dupcallTarget depth=10": {
+    "digest": "147:2482fc18bb8f745f",
+    "isError": false
+  },
+  "mcp impact dupcallTarget depth=500": {
+    "digest": "147:2482fc18bb8f745f",
+    "isError": false
+  },
+  "mcp impact ambiguousShared file=one.ts": {
+    "digest": "163:e058b14c1040effc",
+    "isError": false
+  },
+  "mcp impact ambiguousShared file=two.ts": {
+    "digest": "163:f20646d25baaefa2",
+    "isError": false
+  },
+  "mcp impact ambiguousShared file=nomatch.ts": {
+    "digest": "596:75718d1233267d48",
+    "isError": false
+  },
+  "cli impact linearA json d2": {
+    "exit": 0,
+    "stdout": "1247:8e30e191400a0569",
+    "stderr": "0:e3b0c44298fc1c14"
+  },
+  "cli impact linearA json d1": {
+    "exit": 0,
+    "stdout": "1247:d0c2d863a8e47526",
+    "stderr": "0:e3b0c44298fc1c14"
+  },
+  "cli impact linearA text default": {
+    "exit": 0,
+    "stdout": "144:0c28ead3eabe8728",
+    "stderr": "0:e3b0c44298fc1c14"
+  },
+  "cli impact diamondA json d3": {
+    "exit": 0,
+    "stdout": "1258:f05672d091165577",
+    "stderr": "0:e3b0c44298fc1c14"
+  },
+  "cli impact diamondA text default": {
+    "exit": 0,
+    "stdout": "149:04557f6ce12127c0",
+    "stderr": "0:e3b0c44298fc1c14"
+  },
+  "cli impact cycleA json d10": {
+    "exit": 0,
+    "stdout": "5031:e7e722c0f8c34cf6",
+    "stderr": "0:e3b0c44298fc1c14"
+  },
+  "cli impact hubCentral json d1": {
+    "exit": 0,
+    "stdout": "8389:cec6ea4765a3915d",
+    "stderr": "0:e3b0c44298fc1c14"
+  },
+  "cli impact hubCallee1 json d2": {
+    "exit": 0,
+    "stdout": "9796:e27861646a584844",
+    "stderr": "0:e3b0c44298fc1c14"
+  },
+  "cli impact MultiRelBase json d2": {
+    "exit": 0,
+    "stdout": "3999:86926302a1bff030",
+    "stderr": "0:e3b0c44298fc1c14"
+  },
+  "cli impact ambiguousShared json default": {
+    "exit": 0,
+    "stdout": "5431:bfac0faeca14e8e9",
+    "stderr": "0:e3b0c44298fc1c14"
+  },
+  "cli impact ambiguousShared text default": {
+    "exit": 0,
+    "stdout": "583:3367b5afb1dbd69b",
+    "stderr": "0:e3b0c44298fc1c14"
+  },
+  "cli impact ambiguousShared json file=one": {
+    "exit": 0,
+    "stdout": "2864:7ca4039df679a71f",
+    "stderr": "0:e3b0c44298fc1c14"
+  },
+  "cli impact ambiguousShared json file=nomatch": {
+    "exit": 0,
+    "stdout": "5567:177a8ced48f317c0",
+    "stderr": "0:e3b0c44298fc1c14"
+  },
+  "cli impact nonexistent json": {
+    "exit": 0,
+    "stdout": "45:8fb0b5a0cf71399a",
+    "stderr": "0:e3b0c44298fc1c14"
+  },
+  "cli impact depth clamp above10": {
+    "exit": 0,
+    "stdout": "15542:cf59e35855529b90",
+    "stderr": "0:e3b0c44298fc1c14"
+  },
+  "cli impact depth clamp below1": {
+    "exit": 0,
+    "stdout": "2720:9bd4a86cde18532a",
+    "stderr": "0:e3b0c44298fc1c14"
+  },
+  "cli impact deepchain json d10": {
+    "exit": 0,
+    "stdout": "15542:cf59e35855529b90",
+    "stderr": "0:e3b0c44298fc1c14"
+  },
+  "cli impact deepchain json d15": {
+    "exit": 0,
+    "stdout": "15542:cf59e35855529b90",
+    "stderr": "0:e3b0c44298fc1c14"
+  },
+  "cli impact deepchain json d500": {
+    "exit": 0,
+    "stdout": "15542:cf59e35855529b90",
+    "stderr": "0:e3b0c44298fc1c14"
+  },
+  "cli affected testmap source": {
+    "exit": 0,
+    "stdout": "112:02f007b61adab5e5",
+    "stderr": "0:e3b0c44298fc1c14"
+  },
+  "cli affected testmap helper": {
+    "exit": 0,
+    "stdout": "148:077dfdcebbf1d7b4",
+    "stderr": "0:e3b0c44298fc1c14"
+  },
+  "cli affected multitest helper": {
+    "exit": 0,
+    "stdout": "178:679801f15a3fe031",
+    "stderr": "0:e3b0c44298fc1c14"
+  },
+  "cli affected multitest source": {
+    "exit": 0,
+    "stdout": "114:a6488c994faf744f",
+    "stderr": "0:e3b0c44298fc1c14"
+  },
+  "cli affected nested deep3": {
+    "exit": 0,
+    "stdout": "176:e052f496b5ae5fff",
+    "stderr": "0:e3b0c44298fc1c14"
+  },
+  "cli affected nested deep2": {
+    "exit": 0,
+    "stdout": "144:5dced31a5fd2b643",
+    "stderr": "0:e3b0c44298fc1c14"
+  },
+  "cli affected nested deep1": {
+    "exit": 0,
+    "stdout": "144:d296c4eb8b699886",
+    "stderr": "0:e3b0c44298fc1c14"
+  },
+  "cli affected notest leaf": {
+    "exit": 0,
+    "stdout": "109:cc50fabff9c7e118",
+    "stderr": "0:e3b0c44298fc1c14"
+  },
+  "cli affected notest top": {
+    "exit": 0,
+    "stdout": "108:2b4fbb7dc0563929",
+    "stderr": "0:e3b0c44298fc1c14"
+  },
+  "cli affected fanin target": {
+    "exit": 0,
+    "stdout": "110:000d0b375aba6144",
+    "stderr": "0:e3b0c44298fc1c14"
+  },
+  "cli affected fanout dep1": {
+    "exit": 0,
+    "stdout": "109:a8a6412f98b835a1",
+    "stderr": "0:e3b0c44298fc1c14"
+  },
+  "cli affected filediamond root default": {
+    "exit": 0,
+    "stdout": "162:d63ea6f932fb84e8",
+    "stderr": "0:e3b0c44298fc1c14"
+  },
+  "cli affected filediamond root depth3": {
+    "exit": 0,
+    "stdout": "162:d63ea6f932fb84e8",
+    "stderr": "0:e3b0c44298fc1c14"
+  },
+  "cli affected filediamond root depth2": {
+    "exit": 0,
+    "stdout": "114:5f07c06575c07060",
+    "stderr": "0:e3b0c44298fc1c14"
+  },
+  "cli affected testchain base": {
+    "exit": 0,
+    "stdout": "148:972d0bc8ec14b747",
+    "stderr": "0:e3b0c44298fc1c14"
+  },
+  "cli affected changed is test": {
+    "exit": 0,
+    "stdout": "153:075336a4fe7766c0",
+    "stderr": "0:e3b0c44298fc1c14"
+  },
+  "cli affected changed is test multitest a": {
+    "exit": 0,
+    "stdout": "147:5fcbb3c18a151b3f",
+    "stderr": "0:e3b0c44298fc1c14"
+  },
+  "cli affected nested deep1 depth1": {
+    "exit": 0,
+    "stdout": "144:d296c4eb8b699886",
+    "stderr": "0:e3b0c44298fc1c14"
+  },
+  "cli affected nested deep1 depth2": {
+    "exit": 0,
+    "stdout": "144:d296c4eb8b699886",
+    "stderr": "0:e3b0c44298fc1c14"
+  },
+  "cli affected nested deep1 depth3": {
+    "exit": 0,
+    "stdout": "144:d296c4eb8b699886",
+    "stderr": "0:e3b0c44298fc1c14"
+  },
+  "cli affected nested deep1 depth4": {
+    "exit": 0,
+    "stdout": "144:d296c4eb8b699886",
+    "stderr": "0:e3b0c44298fc1c14"
+  },
+  "cli affected nested deep1 depth0": {
+    "exit": 0,
+    "stdout": "110:2915eb1a174d8f2a",
+    "stderr": "0:e3b0c44298fc1c14"
+  },
+  "cli affected multi input testmap+multitest": {
+    "exit": 0,
+    "stdout": "241:73a89389b78cbe87",
+    "stderr": "0:e3b0c44298fc1c14"
+  },
+  "cli affected multi input nested+notest": {
+    "exit": 0,
+    "stdout": "202:548f63e66c4d91eb",
+    "stderr": "0:e3b0c44298fc1c14"
+  },
+  "cli affected filter override matches nothing": {
+    "exit": 0,
+    "stdout": "112:02f007b61adab5e5",
+    "stderr": "0:e3b0c44298fc1c14"
+  },
+  "cli affected filter override custom match": {
+    "exit": 0,
+    "stdout": "112:02f007b61adab5e5",
+    "stderr": "0:e3b0c44298fc1c14"
+  },
+  "cli affected nonexistent file": {
+    "exit": 0,
+    "stdout": "112:b206248e57a09cde",
+    "stderr": "0:e3b0c44298fc1c14"
+  },
+  "cli affected no files quiet": {
+    "exit": 0,
+    "stdout": "0:e3b0c44298fc1c14",
+    "stderr": "0:e3b0c44298fc1c14"
+  },
+  "cli affected no files verbose": {
+    "exit": 0,
+    "stdout": "52:8c8f0073eb74d0b5",
+    "stderr": "0:e3b0c44298fc1c14"
+  },
+  "cli affected stdin two files": {
+    "exit": 0,
+    "stdout": "241:73a89389b78cbe87",
+    "stderr": "0:e3b0c44298fc1c14"
+  },
+  "cli affected human readable with results": {
+    "exit": 0,
+    "stdout": "57:39e67be4f2549974",
+    "stderr": "0:e3b0c44298fc1c14"
+  },
+  "cli affected human readable no results": {
+    "exit": 0,
+    "stdout": "47:de19a143bc8e0269",
+    "stderr": "0:e3b0c44298fc1c14"
+  }
+}

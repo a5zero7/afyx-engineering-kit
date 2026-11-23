@@ -1,0 +1,35 @@
+# Dependencies and build output
+node_modules/
+dist/
+release/
+*.tsbuildinfo
+
+# Afyx Graph state directories (in indexed test projects)
+.afyx-graph/
+
+# Test coverage
+/coverage/
+.nyc_output/
+
+# Environment and logs
+.env
+.env.local
+.env.*.local
+*.log
+npm-debug.log*
+
+# SQLite WAL mode files
+*.db-wal
+*.db-shm
+
+# Local scratch tests (never commit)
+__tests__/zz-scratch*
+
+# Editors and OS
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db

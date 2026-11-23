@@ -1,0 +1,55 @@
+name: Phase 8 offline ledger contract
+
+on:
+  pull_request:
+    paths:
+      - 'scripts/phase8_event_ledger.py'
+      - 'scripts/tests/test_phase8_event_ledger.py'
+      - 'scripts/phase8_evidence_discovery.py'
+      - 'scripts/tests/test_phase8_evidence_discovery.py'
+      - 'scripts/phase8-session-recorder.mjs'
+      - 'scripts/phase8-paired-evidence.mjs'
+      - 'scripts/tests/test_phase8_session_recorder.mjs'
+      - 'scripts/tests/test_phase8_paired_evidence.mjs'
+      - '.github/workflows/phase8-ledger.yml'
+  push:
+    branches: [dev]
+    paths:
+      - 'scripts/phase8_event_ledger.py'
+      - 'scripts/tests/test_phase8_event_ledger.py'
+      - 'scripts/phase8_evidence_discovery.py'
+      - 'scripts/tests/test_phase8_evidence_discovery.py'
+      - 'scripts/phase8-session-recorder.mjs'
+      - 'scripts/phase8-paired-evidence.mjs'
+      - 'scripts/tests/test_phase8_session_recorder.mjs'
+      - 'scripts/tests/test_phase8_paired_evidence.mjs'
+      - '.github/workflows/phase8-ledger.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  ledger:
+    name: ledger-${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: '3.12'
+      - name: Verify offline ledger parser contract
+        run: python -m unittest scripts.tests.test_phase8_event_ledger scripts.tests.test_phase8_evidence_discovery -v
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '24'
+      - name: Verify typed capture and OFF/ON evidence intake
+        run: node --test scripts/tests/test_phase8_session_recorder.mjs scripts/tests/test_phase8_paired_evidence.mjs

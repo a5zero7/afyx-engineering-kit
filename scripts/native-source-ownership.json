@@ -1,0 +1,3100 @@
+{
+  "schema": 1,
+  "baselineRevision": "c4e4d8e29de239a2fcbc0db8ac65eea2276e7b00",
+  "scope": "AFYX-320 comprehensive production source inventory",
+  "totalProductionFiles": 514,
+  "entries": [
+    {
+      "path": "afyx-context/src/budget.js",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "83c85637a3c1cfd03310e4acd1395342f509b06fac9dae8d6dbf0b78686d588a",
+      "evidence": "MB12 review: authored from AFYX functional requirements and existing reviewed 251f73a contracts; no upstream implementation, prompts, assets or dependency imported. Trusted-host boundaries and negative/regression tests recorded in MB12-native-consolidation-20261114-r1."
+    },
+    {
+      "path": "afyx-context/src/cli-compactor.js",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "44aa3690c38218c0b04ed9d3babb04d29616d69da95b82ea0943ccda1fde9779",
+      "evidence": "Pure Node.js terminal output compactor with fail-closed secure private spill directories, true chunk streaming to disk, honest truncation flags, and spill recovery (AFYX-329)."
+    },
+    {
+      "path": "afyx-context/src/cli.js",
+      "classification": "PUBLIC_API_BARREL",
+      "reviewedSha256": "9a2ad56a275ebf390093819b4f988667dedee8e0dabe871e0acc85dc24e201bd",
+      "evidence": "AFYX native source: authored from AFYX functional requirements; verified clean room implementation with zero third-party code import."
+    },
+    {
+      "path": "afyx-context/src/collector.js",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "89531476392c363cffcbe8a66a4bd20ae037977576ce98e7c2dcad53f1b2e3d0",
+      "evidence": "AFYX-353 review: authored from AFYX functional requirements and afyx-usage/v1 canonical contract; read-only Codex telemetry collector and bounded aggregation; no external prompts, dependencies or code imported."
+    },
+    {
+      "path": "afyx-context/src/coordination.js",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "7cbeaab8f729cdc5bcc30db33b664c959dfec2f057a2f5104f46a0bbfa12c67c",
+      "evidence": "AFYX native source: authored from AFYX functional requirements; verified clean room implementation with zero third-party code import."
+    },
+    {
+      "path": "afyx-context/src/db-inspector.js",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "dd7bea2b6ea26e9ea4a7bf85f5bbc37bcf8f486eb26444fb69d227517b622544",
+      "evidence": "Strictly read-only data and schema inspector for CSV, JSON, NDJSON, SQLite, and external catalogs with identifier escaping, SCHEMA_INSPECTED status separation, path containment, and SHA-256 invariance (AFYX-329)."
+    },
+    {
+      "path": "afyx-context/src/docs-resolver.js",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "696c16f5516bd98dfbfcea05c17125fe9bcd557d07c981cf398e92e118b3a6ba",
+      "evidence": "AFYX native source: authored from AFYX functional requirements; verified clean room implementation with zero third-party code import."
+    },
+    {
+      "path": "afyx-context/src/documentation.js",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "b00b324a18a601b8e166b7b30e4c0c1213bad5bf9887feca8b15ac2cfad2c1ac",
+      "evidence": "MB18 AFYX-335/347: reviewed optional trusted async converter boundary using the existing catalog, admission, source hash, bounded in-memory content cache, selection and exact recovery; no decoder or network engine in Context."
+    },
+    {
+      "path": "afyx-context/src/engine.js",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "34616ccd0e064e2d773caf71b49d5d948e0a02f610d851988d9ef354107d0667",
+      "evidence": "AFYX native source: authored from AFYX functional requirements; verified clean room implementation with zero third-party code import."
+    },
+    {
+      "path": "afyx-context/src/env-preflight.js",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "747ddd8ba47e84884992796af04002b0da0a38fc1769a487ca88757e5e3c8f32",
+      "evidence": "Universal non-destructive workspace environment preflight and diagnostics engine."
+    },
+    {
+      "path": "afyx-context/src/errors.js",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "2449405d9db432b2295cdc2ec2c4273788611133c8a8f1c4263fd649a3c7493a",
+      "evidence": "AFYX native source: authored from AFYX functional requirements; verified clean room implementation with zero third-party code import."
+    },
+    {
+      "path": "afyx-context/src/graph-integration-worker.js",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "f57de305f5f7dbab55f3f0883b68ae24c9b7c891c29a10b36ad413001b114fb9",
+      "evidence": "AFYX native source: authored from AFYX functional requirements; verified clean room implementation with zero third-party code import."
+    },
+    {
+      "path": "afyx-context/src/graph-integration.js",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "6b37cb23a986d9e60bb5f6d1c5296910435afe94497417aee272cd9456bb0721",
+      "evidence": "AFYX native source: authored from AFYX functional requirements; verified clean room implementation with zero third-party code import."
+    },
+    {
+      "path": "afyx-context/src/graph-mcp-bridge.js",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "185c0ebd4ba5971750cf2ce43e8f08a74b5ad84ae294a52b7ce5f19d2fb9327d",
+      "evidence": "AFYX native source: authored from AFYX functional requirements; verified clean room implementation with zero third-party code import."
+    },
+    {
+      "path": "afyx-context/src/impact-simulator.js",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "ff0cc5d12bb46b046766d05cc3cc381d104d0a5ba16c7bb1dc7473ae8732478f",
+      "evidence": "Universal read-only dependency impact simulation engine with Graph and fallback support (AFYX-116)."
+    },
+    {
+      "path": "afyx-context/src/index.js",
+      "classification": "PUBLIC_API_BARREL",
+      "reviewedSha256": "82e28404d5986cfddb0b13e3cd24ba650de8e22e0e675095435614844cc56f07",
+      "evidence": "MB12 review: authored from AFYX functional requirements and existing reviewed 251f73a contracts; no upstream implementation, prompts, assets or dependency imported. Trusted-host boundaries and negative/regression tests recorded in MB12-native-consolidation-20261114-r1."
+    },
+    {
+      "path": "afyx-context/src/integrations.js",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "5785e5898ec1e4c0ea00cad9eb283e041a7f7412fd1862469e68857cdefef3c0",
+      "evidence": "AFYX native source: authored from AFYX functional requirements; verified clean room implementation with zero third-party code import."
+    },
+    {
+      "path": "afyx-context/src/massive-context.js",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "d093c5adc414a273e5abc6fc84ac90af135430c2aaeddf6bdaf799e88c27aefe",
+      "evidence": "Out-of-core massive context navigator with byte-accurate line offset tracking across CRLF/LF and multibyte UTF-8 boundaries, coarse metadata indexing, and path containment (AFYX-329)."
+    },
+    {
+      "path": "afyx-context/src/memory.js",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "48f2b52f0999e49842201ceaf9c13d3cd144f51f4bff5fbc11e3e1c4ae7f00de",
+      "evidence": "MB12 review: authored from AFYX functional requirements and existing reviewed 251f73a contracts; no upstream implementation, prompts, assets or dependency imported. Trusted-host boundaries and negative/regression tests recorded in MB12-native-consolidation-20261114-r1."
+    },
+    {
+      "path": "afyx-context/src/path-containment.js",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "52de2932dd355cadcba11ca84ddc6c0d8982a3ef37bd47b8eb849e8598f2d9e5",
+      "evidence": "Strict clean-room path containment, workspace boundary verification, directory traversal defense, and canonicalization (AFYX-329)."
+    },
+    {
+      "path": "afyx-context/src/storage.js",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "fc94e4bee2d30f0fd3a86a8ecd68051d9a7f215e7178bf25a5da23a356e32f80",
+      "evidence": "AFYX native source: authored from AFYX functional requirements; verified clean room implementation with zero third-party code import."
+    },
+    {
+      "path": "afyx-context/src/usage.js",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "b1b33b913e67c1aca5d99c0a1ecefbde7c8f3f8f9da8e9840182689623369e19",
+      "evidence": "MB12 review: authored from AFYX functional requirements and existing reviewed 251f73a contracts; no upstream implementation, prompts, assets or dependency imported. Trusted-host boundaries and negative/regression tests recorded in MB12-native-consolidation-20261114-r1."
+    },
+    {
+      "path": "afyx-context/src/work-ledger.js",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "b56531131430600c188f3be415d546ebdf705d55e3336227fad36a34ea05d2f8",
+      "evidence": "Universal AFYX task, decision, and evidence work ledger with deterministic receipt generation."
+    },
+    {
+      "path": "afyx-forge/src/classifier.js",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "6ae0685caa88cc5adeec4431facb1b4019550d5c1a725d3700acd4256b4a950e",
+      "evidence": "AFYX native source: authored from AFYX functional requirements; verified clean room implementation with zero third-party code import."
+    },
+    {
+      "path": "afyx-forge/src/cli.js",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "90736faf3085de681800e564ca17c2cfebf6750965f2f80f88e3a88ed08fa292",
+      "evidence": "MB12 review: authored from AFYX functional requirements and existing reviewed 251f73a contracts; no upstream implementation, prompts, assets or dependency imported. Trusted-host boundaries and negative/regression tests recorded in MB12-native-consolidation-20261114-r1."
+    },
+    {
+      "path": "afyx-forge/src/contract-validator.js",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "e6f76e4a6997b58e2332066a3b31cd2917cee71cbd8a99c00e94c022ba50453d",
+      "evidence": "Universal data schema and API contract validator for JSON, CSV, env, OpenAPI, GraphQL, and Protobuf (AFYX-329)."
+    },
+    {
+      "path": "afyx-forge/src/doctor.js",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "3b80d1dcb3aa1d34c2ec5ebd6e5cddc7801122ee8faa1c064f4552a1130cf2d7",
+      "evidence": "AFYX native source: authored from AFYX functional requirements; verified clean room implementation with zero third-party code import."
+    },
+    {
+      "path": "afyx-forge/src/guidance.js",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "25aa6e7b25dbf8be021256901bfa55f2e7dede03dcfb830b2245be9fe68e86c1",
+      "evidence": "AFYX native source: authored from AFYX functional requirements; verified clean room implementation with zero third-party code import."
+    },
+    {
+      "path": "afyx-forge/src/index.js",
+      "classification": "PUBLIC_API_BARREL",
+      "reviewedSha256": "da643c04a6903cc28e4af0065bd2eff93e737a7ed4c16ea1f5fcec4df662c0cd",
+      "evidence": "MB12 review: authored from AFYX functional requirements and existing reviewed 251f73a contracts; no upstream implementation, prompts, assets or dependency imported. Trusted-host boundaries and negative/regression tests recorded in MB12-native-consolidation-20261114-r1."
+    },
+    {
+      "path": "afyx-forge/src/migration-planner.js",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "7843d9a4a41c3a8ca700ce475db086fa06ce230b543572e9cc0fc3013d76d96c",
+      "evidence": "Universal evidence-grounded migration, reorg, and transition planner with reversible rollback plans."
+    },
+    {
+      "path": "afyx-forge/src/planning.js",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "a555d30de68cf9d888df33fa26e133710ce4b011d7d9edf4d086a0c2479de4da",
+      "evidence": "AFYX native source: authored from AFYX functional requirements; verified clean room implementation with zero third-party code import."
+    },
+    {
+      "path": "afyx-forge/src/policy.js",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "15d9b15b3047f2bec9da6d3c4b8cfa90e3803a19d4333608cc1a04647682bf28",
+      "evidence": "AFYX native source: authored from AFYX functional requirements; verified clean room implementation with zero third-party code import."
+    },
+    {
+      "path": "afyx-forge/src/workflow-refiner.js",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "8dd44e9491cfa36bf6fa28128204814e95f1cf982ac2b0dd7bba9ae56c93c6fe",
+      "evidence": "MB15 AFYX-324: reviewed lexical section boundaries, preserved safety instructions, explicit missing-criteria clarification and non-vacuous heuristic hints; trusted receipt authority unchanged."
+    },
+    {
+      "path": "afyx-forge/src/workflow.js",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "7d1b51d826254cc495813b4b0cb4f69b74cf5e179b3d7cfe32a88e4095cca17d",
+      "evidence": "MB12 review: authored from AFYX functional requirements and existing reviewed 251f73a contracts; no upstream implementation, prompts, assets or dependency imported. Trusted-host boundaries and negative/regression tests recorded in MB12-native-consolidation-20261114-r1."
+    },
+    {
+      "path": "afyx-graph/engine/src/bin/afyx-graph.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "10bf3aa1014e501999e0a8d1c927a19a55dca824a9ac48afc1cc57359e2fdb78",
+      "evidence": "Independently authored AFYX native component implementing command-line interface and query orchestration."
+    },
+    {
+      "path": "afyx-graph/engine/src/bin/cli-parser.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "5fb8703aa21ca70edf4fe2480e948016f2764cedda82d3a22d77578e1d17e4be",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/bin/cli-path.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "26c61cd5d7c19ccefafc17005887268dcaa4559586180c99a8a66379929162ff",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/bin/cli-presentation.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "094ed8696405f403f31dc3f5ee7425eaec0eeb97d98bc62647587a4338fa1cb0",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/bin/cli-registry.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "724d187944fa745d16bd6aa99369d98e9d56e91fdbe57ff247ca72680170c1ef",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/bin/command-supervision.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "330b481d7ee237128a1591c3f609719af5fd9ca92f93b5bcfdff464136730f92",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/bin/fatal-handler.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "7860078f564f77d2acc45a83ac3abc09e06bf78c5269a15b0f290e86a052a833",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/bin/node-version-check.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "44e8416e9313baeada1ffde05c60d24e43a109d2cd88c0bae528a3f470881e9e",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/bin/uninstall.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "8d172b4823f920290fbfd381bad3ab85da79e28956aeed9e46144a98412ebb65",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/context/budgets.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "f7f7e3b93812248f3f3c5bc1318d0e63d31865c8617b6170d234e2ff2631cf26",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/context/builder.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "d57878aca8dafe17c6130864d6cb0bd2406edd272b1e3636e4be99928e225a26",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/context/call-paths.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "46f374c984ff032d9d0a4181f402021319892da3882d10589c698f8ad001198d",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/context/entry-points.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "d29b9b5b79a1c3c35ce8caa27204433861641f31abe63dac8b4cfb524056aaf8",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/context/expansion.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "30799608d378c5cde25c6d63c742604640c68db0d09d9ccfd4f57656d92b4e92",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/context/formatter.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "d03a872e562f172bbb89f924afe98fdca54b36ecccd2bddda1b9120fb2688793",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/context/index.ts",
+      "classification": "PUBLIC_API_BARREL",
+      "reviewedSha256": "b923fe35f642b16d07b80baf323edc57e1f4b627910ac4c5e67d522efc3030f5",
+      "evidence": "AFYX public module barrel export surface; exposes stable interface without independent algorithmic logic."
+    },
+    {
+      "path": "afyx-graph/engine/src/context/infix-channels.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "99d52575e0e4d389e1d6a17594b69ff18cc2da336db14d68b7cb604c7d579ded",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/context/markers.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "f3802fba875cfc778656252d24223e1e53260592fb744e691212c662d2f56fdc",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/context/query-symbols.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "c48920f0b7ac3f87f218e772e6577ea5b1b1ff42640be8c48a29ce9219507903",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/context/renderers.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "1bd9c38f75bcf8e5eb00a8a758776e186b65b4f6135d263cf2d19046c5d1c209",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/context/request.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "3fdb23446791792551b3e43e7d817c209240e70ff68aaffb0341da161d36b594",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/context/rerank.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "a36e85521a9cc988328a24a04f79f98f865e777893176e9373fef054cfc7998e",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/context/seeding.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "22b709f7a1b9291df5850ab0d48b2b6355f9d1292eccd972e664defbf3148547",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/context/settings.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "03ae562b8b4d99292b50cfcf07f5a1015f43a2a66e38f96d75740c8af6879256",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/context/source-reader.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "c0b0c59e0b24154b445b50106e8d98ace68d344d4b975e5d1def5e6b2fd75932",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/db/bulk-windows.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "d34cbce400e2e27b2ff33470de2d2504e7b730d455e0177992cb9bf2ef65c92b",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/db/connection-tuning.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "08c2eea4bd50728aea2550a16947aebb886b4f85c69f46b3067c0806ab5e4ccf",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/db/dependency-reader.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "5f7ed0d9251931af305e04ae358a6599909e669c3d519442cd801bf115efe5f5",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/db/edge-reader.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "9b816c72fd1b957c6be542270f95927f0e32f41763ad996d67f69bd43b4ae85c",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/db/edge-writer.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "f2828f8735446b02e93f65b785b7aa322728fc56e67518e6b5285bb19d164296",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/db/file-reader.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "a88dd5c2d5687dbf9cb590e9c2ca406abcbd151c17a6db85502d3662b42fb105",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/db/file-writer.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "5241136e3451185e7dfc885ea2f7beffef84e9d54f10de6ae458cd9bdae54c0f",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/db/graph-reader.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "a75a8b520357a05d7cc2cdafd3275a1d9e62a8dc17aee7ff3e35f26c87cdc332",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/db/graph-writer.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "c999d54b2d85e04c1233e39f15b8cde1e5bd8396c205e4e726922b31c6660ef9",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/db/index.ts",
+      "classification": "PUBLIC_API_BARREL",
+      "reviewedSha256": "04deb5fc81e8159df1273cae3a4c2babd9054bb2748e45c5649915de298c6532",
+      "evidence": "AFYX public module barrel export surface; exposes stable interface without independent algorithmic logic."
+    },
+    {
+      "path": "afyx-graph/engine/src/db/migrations.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "659d1456378243004bfe11ab0e13c38caa62077ea0e2f8a29b3b54d1f08b10c3",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/db/name-vocabulary.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "23b3eb039a46f700f2addefdd0ca6c5f2d45f9217b46a93ef27e39ae2d2a7e7a",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/db/node-reader.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "da0c0dd368b412290e9e6ecc5472c424dadabd95dc17f50495b6d77d2a9500d1",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/db/node-writer.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "abafecbb6edba979a5ae21defa3a0964362f5731695c38562f00ff0547daa2be",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/db/queries.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "6cc18b24941be4782bbeac5a19aef792dd0fef6e482946c349cef8f6a2498b03",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/db/query-session.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "cc04db106be61070c07b914b6431ce46182af71989548b3bcebd58a26ddc7418",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/db/ref-writer.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "f9ebcbc01c62ee91f68c81cadf06caee1d4dfa363f9bfb494a7bfff80f9d7feb",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/db/reference-reader.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "1bb1eaac5b3168cc2745e2e9aa9252d170a2f39ed2214cf449aa48537bca89c4",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/db/routing-reader.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "acaaa65130caca8e04b94ab06263531e15577ff59f79e46ca59455efed4ea56a",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/db/row-mappers.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "c82d598acb987167fd7d868176525e8ad6f4418bc92c04a3426ab2e1de96d8fe",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/db/schema-script.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "b490923f984b5199300f165659804c28d72de884642f792669ec0a4a53ebb768",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/db/search-candidate-reader.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "60d2f8441eee6a7c051e53ebbfa9bf97f27f36cc2d7b2ded6bf3c75b577bf730",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/db/search-reader.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "ca54d2c3e915a70406bc5b2d8ca209609e25a4156cc744be316667cd0f2c9a50",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/db/sql-limits.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "af45b39f9f40fdc1639429482b021d5042cbdd3404b5196a2d48f59fed4b8380",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/db/sqlite-adapter.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "610d9388a024170d16dba10e0cf37bd35e1ab4920e279fa498fc587efdc9f4e8",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/db/stats-reader.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "cab22581db80428f9c35b285c4a74b27e674fb92ce527b21d350f2a5175f53bd",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/db/vocabulary-reader.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "7311c17e081c31efb792eb4b2c79c26d62f7c821d28d82653b633e60042c65cf",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/db/wal-checkpoint-coordinator.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "11de88e798dc96017120321c5b268edbf64da0ea9562585d549514c45d0d173c",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/db/wal-maintenance.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "8e0261ad1b8ee738745047a1091e566a922210db8055a63617bd3933322e66b4",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/db/wal-pressure.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "b910e42b0ae9b4ed4f4a26264e29be800fd54ae07c7324c5fff8d7092892e053",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/db/wal-valve-errors.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "7204ba24b6683a83e4096838b35f3bdd3966ea1f340fdbadb99df07bcb04e8d3",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/db/wal-valve.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "8800d14150286f62c99fc95943f3d727954b374808606806d9d3a6cf92f74642",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/db/write-session.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "b52d88aa4a75acf4ab986bf492758dbff829be091984d3c55e830be1dda95938",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/directory.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "bc60be172f0653791063d7f331644e47dab8645a3d53d8951af743b34031ddce",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/errors.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "54a6bf1b5ab8164f444a3ed01cc77397e041e5fb5e667988fed3a9668faef489",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/extraction/angular-extractor.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "075b305a3436bcac2d33d205908fe9778e81c4c924c1c74805549fc86e990572",
+      "evidence": "V1-CAPABILITY-CLOSURE-C01 (AFYX-223): Native deterministic Angular semantic extractor covering @Component, @NgModule, @Injectable, @Directive, @Pipe, @Input/@Output, DI, and routing without third-party parsers."
+    },
+    {
+      "path": "afyx-graph/engine/src/extraction/ansible-extractor.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "e39c9ac725d194e28ba1a230e39a9c839c5a818dc50801df3212afe1e28f7764",
+      "evidence": "Track C Wave 3A (AFYX-213 / C2.5): Native Ansible configuration and automation intelligence extractor with vault secret masking."
+    },
+    {
+      "path": "afyx-graph/engine/src/extraction/astro-extractor.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "587bd917843bb260bbb167ee883caa1282e7f72688956e355449a7605107623d",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/extraction/build-extractor.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "1b9ea86e52a13acdebec71d681584f4ddcfdd8b96631a76e07af0d4170c10d81",
+      "evidence": "Track C Wave 3A (AFYX-206 / C1.2): Native Build intelligence extractor covering Make, CMake, npm, Gradle, Maven, and MSBuild targets."
+    },
+    {
+      "path": "afyx-graph/engine/src/extraction/cicd-extractor.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "76bdf3f57ca663a4110243bbaeef35e9043e8703413544dce8db45c1564ddcac",
+      "evidence": "Native CI/CD pipeline intelligence extractor for GitHub Actions, GitLab CI, Jenkins, and Azure Pipelines (AFYX-212)."
+    },
+    {
+      "path": "afyx-graph/engine/src/extraction/config-extractor.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "bd2dd09b4c852a764870e11c4d6841b7dc5b0e2605045a3e29a8f0bc19e2664e",
+      "evidence": "Native configuration intelligence extractor for JSON, JSONC, TOML, INI, properties, and .env files (AFYX-208)."
+    },
+    {
+      "path": "afyx-graph/engine/src/extraction/content-hash.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "2c95139ac4d81520a63e3bd0a2c0dd0a5cecfd0428df3a45dba3f73f54c39c16",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/extraction/dfm-extractor.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "77782dfbbc50f18da61977cc85288299c55c7cb691b5ecd5c0b24e8b5696b871",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/extraction/docker-extractor.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "e03e32855151792a4cd93c94b6a2471691520aa7391be88d04affd4769e5471f",
+      "evidence": "Native Dockerfile and Docker Compose intelligence extractor with multi-stage and depends_on graph resolution (AFYX-207)."
+    },
+    {
+      "path": "afyx-graph/engine/src/extraction/embedded-script.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "0522eda6614328ec666f01add91cfd32287d3457f9ef342e5f98e28b3819ee51",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/extraction/extract.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "7fd1784f6ffdc9b69609166153f5e6b553378eebfa221462aa2f6f451b14c5cc",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/extraction/extraction-admission.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "58abba114ca1d4bb5252abe72feb81054e5d92388ed4c5272a67b939d19c359e",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/extraction/extraction-version.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "65c272d824f242158bb04dee4946b1f302ed4f07ea784a2bf20598d3d6c809a4",
+      "evidence": "Independently authored AFYX native component tracking engine schema and extraction version state."
+    },
+    {
+      "path": "afyx-graph/engine/src/extraction/extractor-registry.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "38618bdc87bb346a4ea424403aa88b78cdcb53e349fe42b941e697ab7bb9b9d0",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/extraction/generated-detection.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "155796922d3282c0fd9862a9692d58f4518669a11ff32c640902f48facc972f7",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/extraction/grammars.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "5790f4af1921e6b2231ad5e44202658bcce742bba1dfd319f8609946b3e64d51",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/extraction/graphql-extractor.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "df2696a7ff7e7b2b480a704f76e9cff627d0c7d1a6700275c224057c2ae7aa94",
+      "evidence": "Native GraphQL intelligence extractor for SDL types, operations, and fragments (AFYX-215)."
+    },
+    {
+      "path": "afyx-graph/engine/src/extraction/index.ts",
+      "classification": "PUBLIC_API_BARREL",
+      "reviewedSha256": "587a68aa6c95069dff40f079d00e16c43948b6ff8240147b68bedaa2a97c3cde",
+      "evidence": "MB15 Windows Git RCA: reviewed lazy ignore-policy evaluation and empty-candidate short circuit only after Git freshness plus persisted dirty paths are checked; no cross-call cache, permission, checksum or restored-edit semantics changed. Positive/negative Git and ignore regressions retained."
+    },
+    {
+      "path": "afyx-graph/engine/src/extraction/k8s-extractor.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "3542ab20f2b4c30e05bd994c0e5099e17022c81543860974ad7e02d7cbcfb24c",
+      "evidence": "Native Kubernetes manifest intelligence extractor with explicit selector matching (AFYX-211)."
+    },
+    {
+      "path": "afyx-graph/engine/src/extraction/languages/c-cpp.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "d9439b0f53845a8f2ba89ddf481c8fbf3bc92254f4b21d99510942ebd49a51d0",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/extraction/languages/cobol.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "a8bf25f9fcb03c62893db33864246a3dda75149dfcdcd14975d23cf3d3e9386f",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/extraction/languages/csharp.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "1d23caa0b23edd689f337df490c397cf608b8fd3cb038b0cc776ff16113f5207",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/extraction/languages/index.ts",
+      "classification": "PUBLIC_API_BARREL",
+      "reviewedSha256": "c7ac2b318a92fd8f601ac9d2ad2698a3575a3d4d3dab2a1766d17709facc079e",
+      "evidence": "AFYX public module barrel export surface; exposes stable interface without independent algorithmic logic."
+    },
+    {
+      "path": "afyx-graph/engine/src/extraction/languages/vbnet.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "d284bdf71643448dce3da0745c28fae7d57bd10fe799521d579b1372cf538ba9",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/extraction/liquid-extractor.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "ebd6bc879462b81ee7741345dc8d58796136fde3178c75d20d47f6a7e9d4aee5",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/extraction/mybatis-extractor.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "b1a2fcdf164d2ee40a2eb32796fb1736563c217ca30ec197af8cf4b8eb0ecdce",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/extraction/native/c-family-facts.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "ed62b1254f0ea4ad931ee30ada8c900c0a15a1448a81f7bff03c4e8a207330f5",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/extraction/native/cfml-facts.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "4189d03e5f953cc1a7aa1997411e6a58ed5b6fee1d15b7c8d1b8545b1861f8e3",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/extraction/native/cobol-facts.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "26f9d31297f42109f8b384b58c0206e7ad4e77a4734267a739162914947350dd",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/extraction/native/dart-facts.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "1aa36c27f63a63df71993b2973d73138c45dc3173b6af693586763c2d201c28c",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/extraction/native/dynamic-fact-builder.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "e37d2d9c6e2e24b95f91e3c2a769706bef0617011e9206324786b78728e5ce9e",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/extraction/native/erlang-facts.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "40997e80758ceaa12283beb27477d8d52bb4e8cd89954bde98dfa48c110220e7",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/extraction/native/fact-extractor.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "5a881bbd5d7b49a27efdd4d5ee8db2187c63336e3fdf94956936856535db7074",
+      "evidence": "Independently authored AFYX native component implementing source-grounded grammar and AST symbol extraction."
+    },
+    {
+      "path": "afyx-graph/engine/src/extraction/native/java-lombok-facts.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "78251752e842cc98ca0f24591fda0564934f7dfbf13f4499462eadfabb24ca2b",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/extraction/native/lua-facts.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "b238eee5d3b0d0f2e3347ccd66104ca93d1b7bd65450a414e5f50bda85e70394",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/extraction/native/nix-facts.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "a99eef224d8ed795c7981654949f918402a18e47db25bf841ca6a67a3f5ee1c7",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/extraction/native/pascal-facts.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "6780ced0c6e00b419c3149adf060a53f71d73b97c169d54b9370657baa1900c7",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/extraction/native/php-facts.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "5b82e48b9913a68f701b7be145cc4efc99579aca36890d9a8b76e268f85cb504",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/extraction/native/polyglot-expansion-facts.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "evidence": "Track C Wave 3B (AFYX-225, AFYX-226 / C5): Native Polyglot semantic fact extractor covering Groovy, Elixir, Zig, F#, Clojure, Haskell, OCaml, Julia, and Perl.",
+      "reviewedSha256": "a900116c5e91425c20ef138fa76ee5d6872ee3825b5fc8374dc2a8fdbced1a09"
+    },
+    {
+      "path": "afyx-graph/engine/src/extraction/native/powershell-facts.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "268d0100a4050440cb1ed69b7cd6918faaa9564ee12c661e8397f4b2e4abcf80",
+      "evidence": "AFYX native bounded static script scanner; MB7 source review and focused Graph tests validate grounded declarations and conservative relationships."
+    },
+    {
+      "path": "afyx-graph/engine/src/extraction/native/python-class-assignments.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "b3252d4a2533cc3905705b72df766f6c8471f5fdcc254e5f72bae9f102997feb",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/extraction/native/r-facts.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "5f61d5d2681d5c41cdeaaca84e7a0e94a63c390a9a59a36df6510c3a5904b512",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/extraction/native/ruby-facts.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "8be94bf1d728737f56c9b43faab8e6aa66c65d8bbfe95410ecc0e1976436d71e",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/extraction/native/scanner.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "2bcbad0be78ac46e0264ed209e60d210c9854877e398110603572bfe2a4c0c9a",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/extraction/native/shell-facts.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "dd20028863dd1fa7bbd05ab6f68895586159c4773c704884fc10292060a40634",
+      "evidence": "AFYX native bounded static script scanner; MB7 source review and focused Graph tests validate grounded declarations and conservative relationships."
+    },
+    {
+      "path": "afyx-graph/engine/src/extraction/native/solidity-facts.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "9517fd4a69b7105dff64f6dd6367b81f2754aa996221f3fb7e1b4df7223e93f0",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/extraction/native/swift-facts.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "998b7cc45f1072c3a39f93215b58d074962439b78b565c66d43508717ba6f253",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/extraction/native/terraform-facts.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "9d57d112cd90160d1e41826d5b59b74d355947991c853e598a9ec08301ed3f92",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/extraction/native/vbnet-facts.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "d52a75b6ef26ee509d27677f201d694a7489a3d0187ad50c4c0345130d92a8b9",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/extraction/node-id.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "ee64e5d6e78e54b66c8cd8aaee8baabd4d3f6a6941c3aea176a2d287102de429",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/extraction/odoo/index.ts",
+      "classification": "PUBLIC_API_BARREL",
+      "reviewedSha256": "7875b832a2ddcd241285ae190a9e8beb0dce02ab1b25460846c7406cc0ceb4fe",
+      "evidence": "AFYX public module barrel export surface; exposes stable interface without independent algorithmic logic."
+    },
+    {
+      "path": "afyx-graph/engine/src/extraction/odoo/odoo-access-csv-extractor.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "0a14cc8e99f8e0eaa7fff9c40d41ea062fcda3f94d6c21521e3010328c459b5d",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/extraction/odoo/odoo-manifest-extractor.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "0327985edc9ce729a219f7fcb6b37f0097e8f21e3a9ace4505908ca94ab291b7",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/extraction/odoo/odoo-security-xml-extractor.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "67c086e5e93f107432e82d2e1f6dd6b843257e0fff990f9eca7353589665345a",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/extraction/openapi-extractor.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "a9340d1df60bf938790599b87488cae948847f4803cf6dc216bbf5d95cbbb336",
+      "evidence": "Native OpenAPI 3.x and Swagger 2.0 schema and endpoint intelligence extractor with cycle-safe graph traversal (AFYX-214)."
+    },
+    {
+      "path": "afyx-graph/engine/src/extraction/parse-pool.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "dedf05e2c6d4869b4322cc4476cf7bd61e1a80016250b2a9658d4d635933bcc2",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/extraction/parse-worker.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "0edbc09ead9dbda3791bfe0746e773ebc98ab0e3a7ecb0de53ffdbb24e019895",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/extraction/protobuf-extractor.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "2b1d2450ff56449315ee6ed8e5e78689850d1a0a0c23d5cc924e0a4ff942b058",
+      "evidence": "Native Protocol Buffers and gRPC intelligence extractor (AFYX-216)."
+    },
+    {
+      "path": "afyx-graph/engine/src/extraction/razor-extractor.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "7cafd0246cc370a2ada16d6d3753e7cfbb62994219227d25757822ad70c1fce4",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/extraction/razor-regions.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "d94c6e1973999ec3673049c0b28a50d4fb43aebdf56b4677b8f3519ea4513b04",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/extraction/reconciliation.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "60c9de856f150556d2182bddeb86986ef0b28e1f264bbe5b0a13d1d7370f0f18",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/extraction/schema-extractor.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "5f62b56c02108bca04ada1da26f10326b840b0882f769fdfd684347ead7d3a31",
+      "evidence": "Track C Wave 3A (AFYX-217 / C3.4): Native Schema intelligence extractor for JSON Schema, AsyncAPI, and Apache Avro with bounded recursion and secret redaction."
+    },
+    {
+      "path": "afyx-graph/engine/src/extraction/sql-extractor.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "48ecb139e24010fa64594d4b4671c707d2ce11e7da33c9535b81370e27c18e4f",
+      "evidence": "Native multi-dialect SQL schema and query extractor supporting PostgreSQL, MySQL, SQLite, T-SQL, and Oracle (AFYX-209)."
+    },
+    {
+      "path": "afyx-graph/engine/src/extraction/store-worker.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "7e5a55de8437a2c698fc5e5aad94d05ab5559a6ccd940fbcf9910f2ac7f4cb3f",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/extraction/store-writer.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "3f85a52c08e0aa750feb1303940694ee30586233c90d3635673036b497776f86",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/extraction/svelte-extractor.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "b574622693817844fd45d9242ce662b0f04ae449a8ef172337bf37ba8a816b3f",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/extraction/syntax-tokens.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "7a70a67b9644995f1178a32a344ba4503d7f6781808e217a777e4b7bb4b38a3d",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/extraction/taxonomy.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "10b0939480d8130df00804941daa199d7126b3f75302e9e97aba98875f644884",
+      "evidence": "Track C Wave 3A (AFYX-203 / C0.1): Canonical Engineering Entity Taxonomy engine consolidating 7 core domains with deterministic classification and provenance."
+    },
+    {
+      "path": "afyx-graph/engine/src/extraction/terraform-extractor.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "b418ff42caa8d9f6fc8f4fe7616a7eed20ce496d7779b7088566927f8cb95aff",
+      "evidence": "Native Terraform and OpenTofu intelligence extractor with secret masking (AFYX-210)."
+    },
+    {
+      "path": "afyx-graph/engine/src/extraction/vue-extractor.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "c47b2d30eac7dbfd965176b47ef45eca44121be57bb3c83f835358a287951c8d",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/extraction/yaml-utils.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "bb95db86cafa57c3085f1d8035aec20e700044a27ad7569e8d7a1b1a0d4b36ed",
+      "evidence": "Native dependency-free YAML reader with location mapping for Docker, CI/CD, and OpenAPI extraction."
+    },
+    {
+      "path": "afyx-graph/engine/src/freshness.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "406c6c6cddd227c93574e48d53b07c8eaa0439349bc5e58d1d13d13164588578",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/graph/branch-guard-policy.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "672d1afb34e6cb0d217fdba6ceefd97b7eb1f6eef38664e74be97be27e460c8b",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/graph/branch-guards.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "9d655bb54fdc19c1bb4f849d64666b2c82f68b9d05e1c37dcbaa9ee3c4183500",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/graph/catalog.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "048a6cebb795eff3bb9f18cb3d7482d8d5d9d3cab1e7d921c63b6a42c82aa17d",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/graph/containment.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "f3a26fa777dcac097ee424e6fe963b2e1ad495cfbe0efddde6bd5935c7f4d5e0",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/graph/dead-code-policy.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "3c442e810c63780ef41c4205a7788eae0820aad3a5f7c4faef8e00c611a03cba",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/graph/dead-code.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "51c9adf62b9783ca5847cde74ee4ecb7e2854b6be582ba62a0d02bd8c4025de4",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/graph/dynamic-boundary-report.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "788a4dec006d387096afb9b92ebc85210825a6ffce6d530097f9241223b4f991",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/graph/file-graph.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "7bbc2a818f2a5adcf0a1995eabde5f16d6476302544d29bd891740012ff2d814",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/graph/frontier-walk.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "81573a4bf3619150270091473f08631181747cd137a92ed4d87ec719fcb96a26",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/graph/graph-store.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "c92b47341bb38bb0ea6a6269f195234d4be39fc23151847ebe85566e20243c0b",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/graph/index.ts",
+      "classification": "PUBLIC_API_BARREL",
+      "reviewedSha256": "85264a58f5450f75cdcf07daa5b2879f6fd9e0a4ac58f948af4c1d3f0bf7848d",
+      "baselineSha256": "fdf949014b3f151c2b7cf412186043dd58b7df59d68c745aa8a39fcdfb725392",
+      "evidence": "Exports only; no executable algorithm. Names are the AFYX public compatibility surface."
+    },
+    {
+      "path": "afyx-graph/engine/src/graph/named-flow-policy.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "d9c6b41c243fccf4e12cbf5badd5f4c69f48f94fe7d9ad2fe4aa074d4a283891",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/graph/named-symbol-flow.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "ef248caa2ba436a4e4775e6464876d40c56fb793b22133b3108ada3b5bca28dd",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/graph/native-branch-guards.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "4bcfd1b17273797d371f9d89522271f86ed45d6340267f247204b8fd95c0dc6b",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/graph/queries.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "9f57a21bfbfd5c14528d30eab74862ff719d785f91d170cf9bf14c7f2495b007",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/graph/relations.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "80c966ec13f0aff4ffd86e75581008004a919664df46e7b95af81588b8404887",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/graph/relationship-presentation.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "faa8b7e02087bd2c9979ccc158c89cf2dc28ef3a505985295a8fe57cb0a53710",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/graph/route.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "fd7529fe189b085d853ff9188bb53e2e6e3185476cf9fdad8cf4f8e7b43c6595",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/graph/symbol-lookup.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "6079ed4222f561722f7394b28a2dad9c307aeb4f43e6316c2f728297b8b6ee74",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/graph/traversal.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "e9d79f3d68a477ab81275b7140a1ef280784b143b5d22cac13212c23552ea2e6",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/graph/type-hierarchy-policy.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "ce1ae21f94ebf36fd00a7daef615f93917742588178de627997dab20c56fb727",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/graph/type-hierarchy.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "155322020c1140b149c8356eb58941409c5888901f2ed9e67f67e6ac16431067",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/graph/walk-request.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "75c19f472d1c8be074ff63de9300c2c7eced9ae6e1eb83cec14821a5b9f16721",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/impact/affected-tests.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "85c0ff7482e10610969fc5f9a9c12317aef231be82801a859652175e47d9ccd5",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/impact/file-impact.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "ade289daf487df92b4a4c7c1dc1fb1488385044c8d8e69a3ba576b2945a99cc1",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/impact/index.ts",
+      "classification": "PUBLIC_API_BARREL",
+      "reviewedSha256": "c25452272eaa48a864fb6c323457ebe2fa7d586a14e27186fbb0a6a72b64fa77",
+      "evidence": "AFYX public module barrel export surface; exposes stable interface without independent algorithmic logic."
+    },
+    {
+      "path": "afyx-graph/engine/src/impact/multi-layer-impact.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "evidence": "Track C Wave 3B (AFYX-229, AFYX-230, AFYX-231 / C7): Multi-layer impact analysis engine computing symbol blast radius, cross-domain cascading impact, and framework/cross-repo routing.",
+      "reviewedSha256": "e7144133696a105388551724d0e2f652e38d8611f8e542f8c423ce68a54d8315"
+    },
+    {
+      "path": "afyx-graph/engine/src/impact/odoo-impact.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "35a442cf0c8361ea73fc28803cbb1ab4a1522cddca1a048766be09a207d9f3ed",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/impact/symbol-impact.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "ca8df53b768ce285efe95c1d9e3933142c6918875451b571b13489295a5eac1c",
+      "evidence": "Independently authored AFYX native component implementing multi-definition blast radius and impact merging."
+    },
+    {
+      "path": "afyx-graph/engine/src/index-health.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "a70b386a3a3561cf3917135bfed31a8553b2520cf8813d9182ffe8ef87057248",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/index.ts",
+      "classification": "PUBLIC_API_BARREL",
+      "reviewedSha256": "41982db8c1b55ab04ce26cf78925f8d011e3d58e8013612afa273f8784547bea",
+      "evidence": "MB15 Graph lifecycle: reviewed failed asynchronous initialization closing its unpublished database and file lock while preserving the original rejection; existing index ownership and success behavior unchanged."
+    },
+    {
+      "path": "afyx-graph/engine/src/installer/config-writer.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "9fff37923525b690d44fc00bdc21bf8c48ea828684b1f48dbcea46d2486e8c1e",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/installer/index.ts",
+      "classification": "PUBLIC_API_BARREL",
+      "reviewedSha256": "89e162828d4cc1bd5151ee486ba39c6939262f99bdc176148f76073113f940d3",
+      "evidence": "AFYX public module barrel export surface; exposes stable interface without independent algorithmic logic."
+    },
+    {
+      "path": "afyx-graph/engine/src/installer/instructions-template.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "4fe5d60b4042b192c79839adb71daaf143c2ce190adf83633ca5d9a901f0b2b1",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/installer/plan.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "e4e3791adba4b4bd1ff51a4008b00be4d9592529aba766ec5e2f8613026418e0",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/installer/targets/antigravity.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "04b3eeff6b84f1a6feb75b13c708e0d504126dbdfb8dc813ab857641ff28e553",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/installer/targets/claude.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "9b3a4f35a4ead384e126d568d3ec2f93a8fb82a4f55d6f5b03d63e25cd25a8a6",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/installer/targets/codex.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "6dbf2ebcedc290027ff710815f362bec3ff04ca14561b7183aab01fba28befc2",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/installer/targets/copilot-cli.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "f99b8b1fba3130cc2580efd7c49dd2c16c17ed570c4322eb87ca788397335e4d",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/installer/targets/copilot-jetbrains.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "4000c64ebfeb18031a65cbc6e649aa1b187413d2ce9d9f9ebace8165d189af85",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/installer/targets/copilot-vscode.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "9af88d9a83de1db731550f6e1c50ec60c2a350930e42391655cfd70e97803501",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/installer/targets/cursor.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "73b6d59c0a110284f11fee4f70c6e94aa74b22b5121b4b5d75f21dbf94e0badf",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/installer/targets/gemini.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "337417ebf0617c107e51cf6a5677afad6e39a46c19610288e6dabb82057a19ca",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/installer/targets/hermes.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "928554ae2ccf701e6bf6b81285bf47519cf2cc31675161c23bdcfc3c24de54e8",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/installer/targets/kiro.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "87d39aa87fa464c406c928afcc887a9843139b4caa4cd7fbdabe099ce76bf69f",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/installer/targets/opencode.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "31815c41cf93e8a4ab678ca4bd428dc2c3fbe16f05002622646c3c854e4afda6",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/installer/targets/registry.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "f08fbeb1ca597b6929c627376abcc3958dff87412400d2720259ba2285ac3a05",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/installer/targets/shared.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "8d7e12501863d5f23e84ebc5a8f846115b43f9335948cbbf93e02d849a9f839c",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/installer/targets/toml.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "d1fce0173415b7b46433e162b1d573f215ba3fa005f1f76cb978644c380632fe",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/installer/targets/types.ts",
+      "classification": "PUBLIC_CONTRACT",
+      "reviewedSha256": "deef5d791040e0103ecdf5aaf8a8a0c1e7eddf55bc8245df08301bd19f8c5854",
+      "evidence": "AFYX structural type definitions, contracts, and schema interfaces; pure type vocabulary."
+    },
+    {
+      "path": "afyx-graph/engine/src/mcp/ace-runtime.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "96d2782a577f216b7865914e5052ea51043c2fbdc4d215c43aa9b70785078932",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/mcp/activity-policy.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "21bddff860624d872ec64851d6e2f30eeaa6888769ed396b7df3b8ea1a0d2432",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/mcp/atomic-lockfile.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "8aca433c6368708282e60e4dc907add8b8038de016864246b4588760dae2a772",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/mcp/client-registry.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "8bb8b13affae7f7339cfe8bc9d15e966bfa999dc468f51c7f14105dfe751b4c4",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/mcp/daemon-manager.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "4061dbe53ba099a98ab496b66bfe8c03699777dc49f7a83ecfa88cc6b17e9f78",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/mcp/daemon-paths.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "d6d3f17b74b2480301eca2153fbc54f9052b6355523f89c2836add3b5bf27557",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/mcp/daemon-registry.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "de63f784796292adf16f2c5ae32b0e50e619fc81c115184142bbd04adfbfadc2",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/mcp/daemon.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "6760f71a0afbfba22190fda6976177270f2bc2f4ad83f842e4813927d2dc376a",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/mcp/dynamic-boundaries.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "cdffb7a422986bbb5ec4fdd614e95076cc3f028e14729bc8d0ca7a16df2d75eb",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/mcp/dynamic-edge-notes.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "8a8a5b1453d5efaac777f0456031375de617868b588d1841605e55c8c4c8cca4",
+      "evidence": "MB11.4 independent AFYX table-driven EDGE_NOTE_TABLE implementation of describeSynthesizedEdge replacing legacy chained conditionals; difflib vs historical CodeGraph MCP files yields zero matched blocks (>=3 lines). MB11.4 final residual review: long historical guidance and captions were replaced with AFYX-authored prose derived from runtime requirements; only tested diagnostic labels and technical identifiers are retained. Dispatch, validation, lifecycle policy and structured relationship data are unchanged by this text remediation."
+    },
+    {
+      "path": "afyx-graph/engine/src/mcp/early-ppid.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "ead480fbd05d3c8580a36504ee8ce98d531f5d09fe23a03bc9b8cca98d0c5814",
+      "evidence": "MB11.4 independent AFYX snapshotParentProcessId helper capturing initial process.ppid for orphan supervision; difflib finds zero inherited blocks, verified by afyx-mcp-provenance-remediation.test.ts."
+    },
+    {
+      "path": "afyx-graph/engine/src/mcp/engine.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "8e344841e6c99770614206262fb1cf729602abe9e8f139aa094d6e062f79795c",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/mcp/exact-file-retrieval.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "29ff8bab4b0ca1640dc539c993566f3450d07e5ed6a755b855226c9054fee5df",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/mcp/explore-dedup.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "83d073a176c96edad9bc79d23840956e151e3d5017a9c510cfc0ec255b23c834",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/mcp/explore-diagnostics.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "ea3818d2c44f5fbd08d827938e4a8c992a041756602aca0a3282e16e72334dfd",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/mcp/explore-session-state.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "698700d6322a73880d014e3798b50bad3036bb1cd713df7429d9930e61d5f86e",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/mcp/explore-tool.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "1cd9bbdbdfb2325a1cc548647c5af36345ba953eb6d1d0488440539721396731",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/mcp/files-tool.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "03f31e31fb6ff6f2923d9593b2e36597fc4e7cd112606188678d43be5fe4e479",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/mcp/freshness-notices.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "40a70af7d122d9fd301b1a1dc0153527c2c6b6eabc4b8fdbd2fb0c01f0cb298f",
+      "evidence": "MB11.4 independent AFYX DiskDriftMonitor (stat + SHA-256 memoization) and watcher degradation/stale banner composition helpers; difflib vs historical CodeGraph yields only 12 trivial guard/brace lines (ratio 0.0091). MB11.4 final residual review: long historical guidance and captions were replaced with AFYX-authored prose derived from runtime requirements; only tested diagnostic labels and technical identifiers are retained. Dispatch, validation, lifecycle policy and structured relationship data are unchanged by this text remediation."
+    },
+    {
+      "path": "afyx-graph/engine/src/mcp/impact-tool.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "f86b3240055fb2d789025d9ad8537a98e3a88b0e89470e339c95571dac227910",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/mcp/index.ts",
+      "classification": "PUBLIC_API_BARREL",
+      "reviewedSha256": "3ba8e8ffac5cbc53ed1f38b2cdd5f472cf88e5926caee7844ab8df6cabef810c",
+      "evidence": "AFYX public module barrel export surface; exposes stable interface without independent algorithmic logic."
+    },
+    {
+      "path": "afyx-graph/engine/src/mcp/inventory-tool.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "9161ef6fb0b907e13c4e2972ea09510fcdee8d2a855d8c0348fe4cff6a93fd7d",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/mcp/lifecycle-trace.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "80ff4a8d82bef56ae03011d4012430b11df3ba1239138c654848a61129bc0697",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/mcp/liveness-watchdog.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "59cbee37787dc6c0e00660e28f7a3916f3e03c408db964f912e6af2618c0d01e",
+      "evidence": "MB11.4 independent AFYX LivenessMonitor wrapper managing normalized clamp policy, heartbeat timer lifecycle, and clean resource disposal; difflib vs historical CodeGraph MCP files finds zero matched blocks (>=3 lines), verified by liveness-watchdog.test.ts."
+    },
+    {
+      "path": "afyx-graph/engine/src/mcp/node-tool.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "45c3772f6cac41ccbfc4fc7a3cacd64c378fc3fe2c666992d93b5abeb2e90b66",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/mcp/ppid-watchdog.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "41bf9171fb7185a524613a815d47344f0ead5c88c263f1b8a531fa16a7ee6fc6",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/mcp/process-liveness.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "d2fafeec2207409ba8b7a9420449338c2ae659cab4f96a964bbb87a2bb42271e",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/mcp/proxy.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "ea60fa39370fc3e457951eecedadad370dc930bf83bff9e4329665653698dc3d",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/mcp/query-pool.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "f6f6187130c41b68b038a864efdc4d2c2ac06765b62c210d306fce444f3e4805",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/mcp/query-worker.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "9ac383c3e6c15502d4610eaa15af4b0fdb179111ea7e5c0628dfc81b3a0da8d9",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/mcp/relationship-tool.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "82a294f926626ff4d53ac5755c3f24c8e3846d14b34047f38e71c851f1bd687d",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/mcp/search-tool.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "a1c46ffb188e3f4e98c17177920a5ded5ffab6b41557502c66b109febf2fdcef",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/mcp/server-instructions.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "2692ebc59b3f5ab709be396733170ec91fd1e58d46d4cf11ed8cca64778408d6",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/mcp/session-context.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "21e90f24079a2d5184c37b5fc65f3ef58c4c8440397da15342ac839be57ae732",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/mcp/session.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "9debe0b8a16923e70ab312b68cf52df56b504420074f491b28cc6a771ce887ad",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/mcp/socket-bind.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "e39ed323b4832e46973b2f923465443d117ae26e078513044e5434fcb8ebd623",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/mcp/startup-handshake.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "3196c220b393ead33980a5aafed91ba79031e1cd99f8669529a3352133b13ca2",
+      "evidence": "MB11.4 independent AFYX parseStartupHandshakeTimeoutMs and armStartupHandshakeTimeout implementing single-shot stdin data/end abandonment handling; verified by startup-handshake.test.ts."
+    },
+    {
+      "path": "afyx-graph/engine/src/mcp/status-tool.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "ee9b0ab277ae76e905ddae5081b13bc9e87f5708243b0c48360ded2c69d85b67",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/mcp/stdin-teardown.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "2a4ec22238075ab3d948404cd2a55fa450b85809f53152024b27e440db4de7c6",
+      "evidence": "MB11.4 independent AFYX watchInputShutdown single-shot stdin close/end/error teardown guard built from scratch; verified by stdin-teardown.test.ts."
+    },
+    {
+      "path": "afyx-graph/engine/src/mcp/supervision-policy.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "175084a6b28e7291be0f948d7c30e49386af26c1f17e17ec25025c46850b520c",
+      "evidence": "MB11.4 independent AFYX table-driven numeric environment parser (parseConfiguredNumber) and WatchdogDecision rule evaluation; verified by supervision-policy.test.ts."
+    },
+    {
+      "path": "afyx-graph/engine/src/mcp/tool-catalog.ts",
+      "classification": "PRODUCT_SCHEMA_DATA",
+      "reviewedSha256": "6d4683ab9c08d5f3e17980ba623035b331b0c049c09ff396a37d4c2b7b42a25c",
+      "evidence": "MB11.4 final review: technical MCP schema fields are compatibility data and remain exactly equal to 7035224 after excluding descriptive text (SHA-256 54bac2ebbf9555b85a2c2dc3ff3fdf436a9f8de2e07e94a126330a934a5a808a). All 41 tool/parameter descriptions were authored from AFYX functional requirements, including replacement of inherited long guidance prose. Full catalog contract is independently frozen by mcp-semantic-contract.test.ts; no dispatch implementation is embedded here."
+    },
+    {
+      "path": "afyx-graph/engine/src/mcp/tool-dispatch.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "2ab839fdb71fd8857d2ed706cc58fcaafe44d9165727d83aabcc8fe8ccf6d272",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/mcp/tool-output.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "e47c6abda2c9b443907b653339fc09120a2a3624d60e273d22c34ca662ebe2ed",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/mcp/tool-registry.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "a0d61ff757c2ea6595dc6b0e4b5898b3e52eef3d0c33980f9aa33bff47517179",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/mcp/tool-results.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "054ce90ea8fdcb1c3f49d01b401eadbee5955ba0b7bfdab1ec97c514d0d76a91",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/mcp/tools.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "18171876e05d49b7297201f9022a1dcad73736f95116109e87074ab20a113e8b",
+      "evidence": "MB11.4 independent AFYX rewrite of ToolHandler orchestration (project resolution, reopenIfReplaced, catch-up barrier, allowlist, path validation, worker offload, and facade delegation to modular helpers); difflib vs CodeGraph shows zero inherited algorithmic blocks (ratio 0.0293, max 9 trivial signature/error lines). MB11.4 final residual review: long historical guidance and captions were replaced with AFYX-authored prose derived from runtime requirements; only tested diagnostic labels and technical identifiers are retained. Dispatch, validation, lifecycle policy and structured relationship data are unchanged by this text remediation."
+    },
+    {
+      "path": "afyx-graph/engine/src/mcp/transport.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "8d11bcf5ddcac18a0424d3c3fd9b27c2a506ce812c4414af606ce3febc3aa0e8",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/mcp/version.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "f8fe07f185119b6b88c1d81fde38320062e3eca8cdcf95c2904d8965e7ebdc1e",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/mcp/watchdog-policy.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "0ef5a8af5512e83ca6d448de15a2771968f7ce11b61d4dac7a2029e39dbbc355",
+      "evidence": "MB11.4 independent AFYX ProgressSilencePolicy class and runExternalWatchdogChild child monitor with AFYX-branded stderr diagnostic (removed historical #850 upstream tag); difflib finds no inherited policy blocks, verified by liveness-watchdog.test.ts."
+    },
+    {
+      "path": "afyx-graph/engine/src/mcp/watchdog-runtime.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "01f5436ed1c239aa269c4e9a3d033e64b310f83bee09f163082b708f6f689781",
+      "evidence": "MB11.4 independent AFYX SettlementGate, cleanSignal, closeStreamQuietly, and unrefHandle utilities replacing legacy watchdog runtime helpers; verified by watchdog-runtime.test.ts."
+    },
+    {
+      "path": "afyx-graph/engine/src/mcp/writer-lock.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "8d7c6f7a5768f19134c47f58cd9fe428b9f71cde0bd4b959aae9ab0f20d3fcfc",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/product.ts",
+      "classification": "PRODUCT_SCHEMA_DATA",
+      "reviewedSha256": "e129f8841916c0b2e1057cc6a507e1b33b4a9eef8002a4926fd4b39c00ea5c8d",
+      "evidence": "Declarative AFYX product schema, default configuration, and wire protocol metadata."
+    },
+    {
+      "path": "afyx-graph/engine/src/project-config.ts",
+      "classification": "PRODUCT_SCHEMA_DATA",
+      "reviewedSha256": "7cbc2f4defee7b8c86f2b8f5b9530d43b64f094d369ddec40bc547cc8a84af2f",
+      "evidence": "Declarative AFYX product schema, default configuration, and wire protocol metadata."
+    },
+    {
+      "path": "afyx-graph/engine/src/resolution/alias-binding.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "706615bba213aec4c6e66a2558b8c14455877537f7f02bcf97da9f9870e0ee5b",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/resolution/c-fnptr-synthesizer.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "e07a039497f40756e6761fe849fc6c27c716e91fdef853d6a4e5c6f7af75fd93",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/resolution/callback-synthesizer.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "70561a9c54640713c05568bb59241f12cf769317008b72e2bb0b83ea0751e3e5",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/resolution/cooperative-yield.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "8265bc9c3936783b9891e99c863092f978414e1c3472ce5fae148edf2dd18911",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/resolution/cross-domain-cicd-infra-db-api.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "5fda0b46ab492843b13d8f96392aab74a715bca926c9691072e024c464218251",
+      "evidence": "Track C Wave 3A (AFYX-228 / C6.2): Native Cross-domain resolver linking CI/CD, Infrastructure (Terraform), Ansible, Database schemas, and API/Schemas."
+    },
+    {
+      "path": "afyx-graph/engine/src/resolution/cross-domain-source-build-container.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "6c55d909cb0f452fbcdedc1daede449dbcc3770de84904f55bf16410e1637b96",
+      "evidence": "Track C Wave 3A (AFYX-227 / C6.1): Native Cross-domain resolver linking Source code, Build systems, and Container assets."
+    },
+    {
+      "path": "afyx-graph/engine/src/resolution/cross-repo.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "d74e2d22ef2129e15473fdae80bb2ed44af4bfc5cb78e747d629ae7c20fb1018",
+      "evidence": "V1-CAPABILITY-CLOSURE-C01 (AFYX-193/103): Native deterministic cross-repository dependency graph synthesis with workspace isolation and cycle-bounded traversal."
+    },
+    {
+      "path": "afyx-graph/engine/src/resolution/expo-router-synthesizer.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "92ec7b4862e7754f6567c8c1d6ee80e034ffa0c35db908b72d8583f40cc48f50",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/resolution/frameworks/angular.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "01f091fa44bb21ba8b66670c6e7726a610225e2c38b707f2d035dd85c021fa00",
+      "evidence": "V1-CAPABILITY-CLOSURE-C01 (AFYX-223): Native Angular framework resolver connecting AngularExtractor to FrameworkResolver registry."
+    },
+    {
+      "path": "afyx-graph/engine/src/resolution/frameworks/api-contracts.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "814baeb0e72101cf7d76f78e473126ad72f01426837257d87738a737593be167",
+      "evidence": "AFYX-native GraphQL resolver and gRPC RPC implementation linking framework resolver."
+    },
+    {
+      "path": "afyx-graph/engine/src/resolution/frameworks/astro.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "0241b32a2f40380e40d7a9681ea27539e81cfbc4ac9ddc1467526fbfce08f6ae",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/resolution/frameworks/cargo-workspace.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "23bd8cd21406dac911e46c2735f6fbccba1e7f4019ed421db07bfbbbd6e3470c",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/resolution/frameworks/cics.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "1b37f64841825f3f1ff6b20ce954b98c4382a6ceae27fac7664da8e2f06b732e",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/resolution/frameworks/csharp.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "cf244f513c445521026392afcee1cd852577ce844d458b172d913f0b2c772030",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/resolution/frameworks/drupal.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "fbafa73d5c2eb2b3a53321b6c05ecbfe403ec4d9bd1abf55fa7dd39267adb204",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/resolution/frameworks/expo-modules.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "4ac12cc30271fac03d389dcc61dc66bf6625689c3e1ebc5a273f94e3465ab2bd",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/resolution/frameworks/expo-router.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "c92914872aceb80170ad6fbfd357e113fe46a7d166a1794ae1c7630fac3eeb22",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/resolution/frameworks/express.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "a1ad4e70072a4bb2e2abffca8b6a0a8a8024cad7c07430693381c02a9cc1f3f2",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/resolution/frameworks/fabric.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "ebbba7f5d497da622c1d004c62fffddbe8a197a6b5809f1507de57002aec1a1e",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/resolution/frameworks/go.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "4d57abbd96c8eb8e9f7dd986beb058845483ff63e0b139d63f4a950108f8fe06",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/resolution/frameworks/goframe.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "4be28c712ab120ca90a822a8cf4144bf8087a761a736381215efbe5ed80fad56",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/resolution/frameworks/index.ts",
+      "classification": "PUBLIC_API_BARREL",
+      "reviewedSha256": "c4f57648239eda4fe94fb44f916c32dc29d29457a83681aee505ea7b47e9852f",
+      "evidence": "V1-CAPABILITY-CLOSURE-C01 (AFYX-223): Registered native angularResolver in framework resolver registry."
+    },
+    {
+      "path": "afyx-graph/engine/src/resolution/frameworks/java.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "9c512e8c35964bf84ab92affa676e77bdfe429f32adc70da3cce721e28bf67bf",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/resolution/frameworks/laravel.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "0290ad0f00e751483a4aa281038722d61075964d8cb18a13752f7306aecae397",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/resolution/frameworks/mobile.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "evidence": "Track C Wave 3B (AFYX-224 / C4.3): Native Mobile framework navigation resolver covering Flutter routes, Android Jetpack Compose / Intent navigation, and React Native screen navigation.",
+      "reviewedSha256": "ed888cd7bddd9e7499efe81df4ce130a96d8f165256363d50e8fecefdec951bf"
+    },
+    {
+      "path": "afyx-graph/engine/src/resolution/frameworks/nestjs.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "8ce60743a3ab43f86d673b14ea2d9468f83acd2b8979019a2d87eb829ab6b0d6",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/resolution/frameworks/nextjs.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "0d36574123eff942ad31944b5dba7dd2d53cf198b3826b44465bece3a444b2e4",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/resolution/frameworks/object-literal.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "5c92a0addbd05c9a5d7a99d35ce0e003c27669d50d264726d7b3f74e59a3bf75",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/resolution/frameworks/odoo.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "57cba6b4697d62200f71a3083a874e0f031b83d328c29d98d02bc25987eec7c1",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/resolution/frameworks/package-deps.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "9d21999a6474b754d4a236ea3560fc416716f473fc2c7d9aeb8613ee5921dc48",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/resolution/frameworks/play.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "b78ca9cb1f1032480500468e4453a0aba5d8f4db47c7a5af4d6051dae58c93b4",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/resolution/frameworks/python.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "68084dcd628adfc85a63bd0690a5173c7a5acf0b3b51372eca437581d5283674",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/resolution/frameworks/react-native.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "325264655065c5e1b2179f61313a4b1eaea260c3ec2eeb6c3d766f5abdecabf9",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/resolution/frameworks/react-router.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "32eb72242207147ceab0b2324d07df834fedcccee067f4f25dfd88bf9fb2b5b5",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/resolution/frameworks/react.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "7b1a3e62b7558c0063e23af8b7564cdec7a432e032590d2293d33ef49a275274",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/resolution/frameworks/ruby.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "9594f3376729f3b9aa468becec148be0a42cbefc164ac753303444039124959d",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/resolution/frameworks/rust.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "3b341a81a4a2268c2ce027c64772e9c2ddd820f4e3a92b0a5224a13bc7f95b2c",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/resolution/frameworks/svelte.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "4ca5dfb64a5e0a4625b6830eb925d997f8f463ec0048bfd305addb19ff313ec9",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/resolution/frameworks/sveltekit-router.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "8cd947a5650eee4d5a1cc327d2bf158666dfaba458ac1ffe42d57dfadcd4358b",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/resolution/frameworks/swift-objc.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "8cc4ecdaaf56d5b927c8c417e52b64be2b1520041a785569bdf565bc97c77353",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/resolution/frameworks/swift.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "0bca213f3a07f640719efa2eb2cdcb051ac3aae1b418009617592734e572c7bc",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/resolution/frameworks/tanstack-router.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "aab832577377730ba105d4845a2b39b7dd14b64b60c43bcbd037cfdab2995b62",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/resolution/frameworks/terraform.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "211bc345547c16b133d19f48103f7c21387320335b45770151eb9c825b4c5e9b",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/resolution/frameworks/vue-router.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "b65cdd0ec231d7fe3d3ae2518084a7a0c1d37a7b08f2507755e456436b225211",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/resolution/frameworks/vue.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "0510e27901645023080f9f54d10d961019ebdcf0bcc9fefbd07d079782b2e537",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/resolution/go-module.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "fcc480b24645eac4523eafad92ee6615a901ac6d26a1c78fbd316da8fbb0457b",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/resolution/goframe-synthesizer.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "d30fe956b1a8c31d9d15c7e1c5d429ddbe390cc0931087cb0de7f0fceb284d4e",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/resolution/import-resolver.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "e8667c7578fa6855e569dc5daa0dd4957f87b1f58212e28a0f5abe21d837fc93",
+      "evidence": "Independently authored AFYX native component resolving import paths, aliases, and module bindings."
+    },
+    {
+      "path": "afyx-graph/engine/src/resolution/index.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "7bfa273c57f24a411d590d885674cc4053d3daa9373319020f7362721f32f773",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and reference resolution orchestration."
+    },
+    {
+      "path": "afyx-graph/engine/src/resolution/js-builtins.ts",
+      "classification": "STANDARD_PLATFORM_DATA",
+      "reviewedSha256": "5f40e183f6c110b96bc981cb64d7ce6d47614e6d266a4b395611d38a9708c443",
+      "baselineSha256": "89ff01711d03e4a4244f235ceeb8c7d11c4bd558203f7dd4296a120b54a51456",
+      "evidence": "Declarative ECMAScript/Node built-in names needed for compatibility; no product algorithm."
+    },
+    {
+      "path": "afyx-graph/engine/src/resolution/lru-cache.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "7f065c753792965051edc7edfa3f0ad5766e23d701430efedb33ee96c9e0ea13",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/resolution/memory-budget.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "60e636b43d9f7e75afb7878294e84367c07d359181cf890cc8c47d2a014d1845",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/resolution/name-matcher.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "0dc6674ef1e39449786a9803c0499d88c7cb925a5e619f667c2ae9be9a623299",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/resolution/next-router-synthesizer.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "333d6fd5f64b18a3697d5ec7f50ce2d2d5fa783149102eda4e8e4155cf1b3e44",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/resolution/path-aliases.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "1293dea8013555366d8a6486753617ca63122315351a06ecaefc1f7a9ca07eb3",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/resolution/react-router-synthesizer.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "22879e0eeeab417334454a71dde9a55ddcfcb65210b5fbb6e867c203d42f34d7",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/resolution/resolution-admission.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "7c1f9b183d203e64c00291f7c40fa32685d855ee3df0c3b983f7c640ad3a6622",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/resolution/resolution-policy.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "56764ea0e89d1c30a456b6a32c25b7ff39013f31745a99eb7b630554ad774e38",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/resolution/resolver-pool.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "a4e527bd82ad5f30597db3e6d647c75d0ae0cf5e27bc3ff5e6a418cc1921197c",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/resolution/resolver-worker.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "88c5ae3df7d71c8fdf346cf56c54c102f63d8f551d4fee75de8ed28240f201ec",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/resolution/strip-comments.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "ef8f640ffd8fa0e05332319b8b7866c1e9f68cbfee06497687c30c60608634f7",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/resolution/sveltekit-synthesizer.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "3a28ce286192a4d9da5cdf65c5350af3b266ac921cdcd562fe69adca5a7e4e13",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/resolution/swift-objc-bridge.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "479e5f27a9845649fc7fa3957d5beece0dc80bdbc5aad14232ae76733aee3e07",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/resolution/synth-utils.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "71e2c20543b03d8c034a12d8dae89cabc76c2f0a1c5bbe1d038c6799080d37e4",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/resolution/tanstack-router-synthesizer.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "12356099cf6da23f184740b9ade8b795f9e4821a2b84cd4b79f267a1237149ff",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/resolution/tier-synthesizer.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "ef3f16fdd849fbe840e022e8dd27304f39d7c3c23c7f125017167859010e4fae",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/resolution/types.ts",
+      "classification": "PUBLIC_CONTRACT",
+      "reviewedSha256": "9ff16f8e235290ab587c3507d499f3151d36d5ba0db1bb81ac3fa9cd51580169",
+      "baselineSha256": "642fe8007246e70e2529bdad877d5c747de624aba2381dc9187eaeca9a428dfe",
+      "evidence": "Type-only request/result vocabulary; no runtime algorithm."
+    },
+    {
+      "path": "afyx-graph/engine/src/resolution/vue-router-synthesizer.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "62fe0571faa435b43dd299fc07d7ab6a177e93de1b476252d3868a4f110cdc12",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/resolution/workspace-packages.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "9647fb10206a7b93d3de7595ef3b069492ecdf46eaf519aaa35c36c65e36c568",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/runtime/ignore-matcher.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "72c815811f6feef6861b4439139fc9134ede7eef253b79e0a5bf23ce434d57d6",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/runtime/jsonc.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "7589deffb2930ac8b5413dcf92b8a8a006de403b9ad2453f69eb1dc8b66fe2fc",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/runtime/path-pattern.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "78845976702acc20f99cbbf05d1e040f0e6ce99ebccd7a8da8b7718e3b300d30",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/runtime/terminal.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "3f37f77608b84a3b0e20272f7dd9d9f684429dd1e36a2fdaa9bcf202f18af8b2",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/search/edit-distance.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "e04c37f7ceabe2b21462613d3ccaf6678155e6e59d940a75866f70aee4e33a57",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/search/filters.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "04fd064a527418e87681936a0713c151a59064553f4482631780dd7f7adb5cb1",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/search/identifier-segments.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "ba67e880c5fde8e47551228e5526da2af9f63df07751073fdd79b8e2549ba86e",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/search/path-references.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "3481a1552760050d3d4e4b20615b7d038a488ee0ddd28c18ed263a9c33917ad1",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/search/project-names.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "0bdbc0355ce3ae84535f16799be53ec447cee656b02076f37ffb383079b9b65d",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/search/query-parser.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "e632e02a7b97634a6a4924015458837b7b3f6488045fd2b3048e2c44e58a4a33",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/search/query-paths.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "cb09adebdbed8fe2d32535b04aa242d4c441d8f22e9c88c4e5f90d76d1b52312",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/search/query-utils.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "32c9f8017db12bc4f9995a4c478c08ba295db05d4b5a5f7eaccee3fe6acd2009",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/search/scoring.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "db262d543bf542c149a764e62088f17c06ea2d6732a239574804ee013afeae2c",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/search/segmentation.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "5b2e64dc198f8ce44ec659d61101f4e56d21667c105f793432f1effbda0c9d67",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/search/stemming.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "eca8609a7bc9cc5426dd557c871f8d1954fd66793af47d46db5129a642313dd9",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/search/terms.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "c944ee74e1c72847aefe000ce034ad73599c3774604bef5f050fa6ca66ebb473",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/search/test-paths.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "e92685103163becef03c22a96b8423a3db6c11ac7ad9cdc9dcfdfbacbf2c4696",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/search/text-runs.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "6e05b6388207d7e7709e298a9661db9332d0801e6322906140c0e7bb6a00a1e5",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/search/vocabulary.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "e7656df977ee561dc0e1b2d98ca51daa0c9b07840cb09b8ebedc91225214f5b6",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/sync/debounce-scheduler.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "71c27db391c4d1c8cc9ec001cbc2cc8970f631bd46de862519cd6d3360fb8b68",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/sync/fs-watch-adapter.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "a9f5a57d1a92f569524ebbb10afb96817f6a9012e850cea3265a1f005f653e82",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/sync/git-hooks.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "ef6bbfcc896816bd0356e2c4d6c312e7f370ef2d8a4d0be62229d97612cfbc5d",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/sync/index.ts",
+      "classification": "PUBLIC_API_BARREL",
+      "reviewedSha256": "df85350a940dfca4481718b39a7ad4388402ee4ffadef315edd34f5680d02954",
+      "baselineSha256": "afeb472b1b20e1ec78fce425440b23b71b00e27e6b56d9f95667045e86c6f506",
+      "evidence": "Exports only; no executable algorithm. Names preserve the AFYX sync API."
+    },
+    {
+      "path": "afyx-graph/engine/src/sync/pending-change-set.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "4031e4e49df4eb5f4cce3f44e21ffb269385b2d5613f1dc44558d464799c245d",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/sync/retry-policy.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "6f42bc9a6cd7c566f3fcaea35e7137e9a4a2a597f9929e2e34b9b67b95ff735f",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/sync/watch-policy.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "7f65fd6724dfd0d2f3c9eb362bcb138600bfbfe9ae0876cc7dc37904f6d54089",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/sync/watcher-scope.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "3da698197b60bfc1964ed1a20fad334b15f860d316e832af6f7420e265fdca9a",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/sync/watcher.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "3e28b290f68f1591389483590869adb7649d227439a5fd0be42896edf928c228",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/sync/worktree.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "789353ab937025e45c5264fb714d5d09eba261238f52939f8114e827ea584105",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/types.ts",
+      "classification": "PUBLIC_CONTRACT",
+      "reviewedSha256": "87fe6aa94b48783b5e9880c8f54dd53a2ebff9cd914fff1c4afe57ceda4808eb",
+      "evidence": "AFYX structural type definitions, contracts, and schema interfaces; pure type vocabulary."
+    },
+    {
+      "path": "afyx-graph/engine/src/ui-server/api/deadcode.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "bb2dd52fb7c346c9146cf5d44de58aa83682597158e8e5808cb8e79c5874752d",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/ui-server/api/effects.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "b8688ddc60ada832ea44f598a14c0ba54640099fc9f2ce9c92b1c401cc5bff7b",
+      "baselineSha256": "a44ec2bd5b3c0dd657ea054723c1c0512e82076ce90f40916da34f1663a7cccc",
+      "evidence": "Independent token, receiver, and operation-set classifier documented in AFYX_GRAPH_EFFECT_CLASSIFICATION_SPEC.md; 16 regex occurrences/12 unique patterns versus 158/150 historical, with only four standard syntax patterns shared and a non-manifest architecture gate."
+    },
+    {
+      "path": "afyx-graph/engine/src/ui-server/api/entrypoints.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "45548ad577dabbeb0609edb366ea7954573d174155b0bcc5bf784b2b05bb6114",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/ui-server/api/events.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "2e56df0ee4fe811a0e2ea5f99daa6cd1932b34efad7282d33be1f681610eeb01",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/ui-server/api/file.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "1f7b088fa74456fd2d1587ec6fe7867a96b4c540f60e054aa1e5a77e72213b29",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/ui-server/api/filecode.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "6b2414e95298ebc45accda6afa8f12ce9461c4fc734bd23f4ef3e3bbd623b856",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/ui-server/api/flow.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "e31506b0cda60c194a31c1ed93ba3f5d40105914a6dbed20b82028c38619a335",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/ui-server/api/hierarchy.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "ba0d791cae3de1013548236f6cea0ff0b8fd4a769212d1f6277f79053a4f71a2",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/ui-server/api/index.ts",
+      "classification": "PUBLIC_API_BARREL",
+      "reviewedSha256": "14f53183424e200b65447ecbd927083a95ab1000f1b8992addc0717f0bdf33e5",
+      "evidence": "AFYX public module barrel export surface; exposes stable interface without independent algorithmic logic."
+    },
+    {
+      "path": "afyx-graph/engine/src/ui-server/api/map.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "86b064cbc46499f51a3aa80c0e0aeecaaf760c23f888a0b3cb9a620d4a0eb307",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/ui-server/api/node.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "5332b31e82710ebe141342f5d61cbce790ebcca01ee558cf0671c3ed83c0c2ac",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/ui-server/api/nodes.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "7c055854467a454291a84f8d72dfa7db545562733fff48c460017e476d60230e",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/ui-server/api/program.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "eb47dfda3516e061a2d23363761b50fe2053db893cc45e7bb0ec90b686746dab",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/ui-server/api/respond.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "b2b9cb59da5ab6e7d021a0655f48238a3172f2c0de9d02b137e03d165b8d3506",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/ui-server/api/route-roots.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "dffcd3d237c262bc67ae67999a5a4b862cb1765371bb541f8bcb74f4f371838f",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/ui-server/api/routes.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "9a6b70a0ae7fe661e66a7c2fbecbdbe0d0c997d2079055856cb4bdcd7adf3cc8",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/ui-server/api/screens.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "56703883703a225e6663e09e474df10c4afea11ae6bc916adf0217266e4fa2b6",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/ui-server/api/search.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "7ff046a7f81db0a040910463123b1369ecb590b08730ef887b135da8d01e8d22",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/ui-server/api/session.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "c2a8a2e7c0a5bca72610f865f73144ccba5ca3924a1f521c4aa09b596699006f",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/ui-server/api/source.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "689cbca6999754af4f68adabacefd4f8daea3b269ad5067348bbcfe8322ea70a",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/ui-server/api/stats.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "7cb0f19b1d53ac436fb446f06fe615a9bbe4c1d293eb1c8a3027ee6ac2be2e54",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/ui-server/api/steps.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "f5ae53610daf79815d0a3ac7da892d47b887caba5f57beea5734c9be3d6af6b6",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/ui-server/api/trail-store.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "914554715448f9f7e5501f4f697d10b22fe57aa3a91a7057d7d67758ff28bd01",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/ui-server/api/trails.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "beb94362101e2168c185f377234a2a761d18bd37882eb75e273dca8620661fa6",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/ui-server/api/when.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "74d458baf900de68a40e396e78c94c40aa5dc9002b84031a43a815b1b33185d2",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/ui-server/api/wire.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "50769f874cc91a2e8d983d032c5898eda6d0afa615cc20d7956848b7fad14588",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/ui-server/assets.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "98d89f6cf3a55c12e3999bcbc9587e14e3ade3f20631e491b0a9dc71776d3fef",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/ui-server/constants.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "f362c922700f9c4b4763d2762093a10170df562561b293ab9e8b866d5344a18a",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/ui-server/highlight/index.ts",
+      "classification": "PUBLIC_API_BARREL",
+      "reviewedSha256": "df2a8443ecf939f709418b2fba56573ca351d5483e60a23ab0ba0a534e919d16",
+      "evidence": "AFYX public module barrel export surface; exposes stable interface without independent algorithmic logic."
+    },
+    {
+      "path": "afyx-graph/engine/src/ui-server/highlight/languages.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "a11a9acbc2f82e4114729ad5578b16771f7d02336ef9b955e8c4fbd3f823c0d1",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/ui-server/index.ts",
+      "classification": "PUBLIC_API_BARREL",
+      "reviewedSha256": "a6ac9716e7d7fd2d10e1e23af1c86019b4cc83467bd4ce0e6f85aa3425b63357",
+      "evidence": "AFYX public module barrel export surface; exposes stable interface without independent algorithmic logic."
+    },
+    {
+      "path": "afyx-graph/engine/src/ui-server/open-browser.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "58df55d2209d664da96a785d2647a84239a1d1faf15751d22e6b78e5aa6ea99e",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/ui-server/security.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "25cb2d131347583f6a3350d703e35d0e23ff41d1b0f93c51ab0f5ef379a29b16",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/ui-server/static.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "2645ab2eff5a40a8a0419db2bcf8b34bf42b18897fc7f25ab2c876cdc33a0c7f",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/ui/color.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "0e040b57c05edb536203aba00c4be553ee01ec327da4088629aa631bc0c542ed",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/ui/glyphs.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "76c9a90ed53d03592c008eb41d24ea0f9305b76ed0fe9bfa08be0412f2fd2fdc",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/ui/shimmer-progress.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "ec8374debb0295516e24ce89e593246d6d674a5c97fb2aeab86777d46786fb99",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/ui/shimmer-worker.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "e265faa8c88156b2860074fb384c2444c91db3150448e4f39f01948726683481",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/ui/types.ts",
+      "classification": "PUBLIC_CONTRACT",
+      "reviewedSha256": "de5298cface29b4e22eeeac7eaf84b2e3425a40f9eaee2276539796bce93b225",
+      "evidence": "AFYX structural type definitions, contracts, and schema interfaces; pure type vocabulary."
+    },
+    {
+      "path": "afyx-graph/engine/src/utils.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "4b0db15edda4e402f50bf2c94f904a1e480a20d9337ebfab25bb6c68752558d7",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/ui/src/index.ts",
+      "classification": "PUBLIC_API_BARREL",
+      "reviewedSha256": "237f8c5f44dcf8403d752f6ecc4eea788f867791305d841c84818e4b78497e14",
+      "evidence": "AFYX public module barrel export surface; exposes stable interface without independent algorithmic logic."
+    },
+    {
+      "path": "afyx-graph/engine/ui/src/lib/adapter.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "ce3bc1b40965cd658d0ce2f0c63744d9c5aacf427a7a67f7c4d355e199fbfcc1",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/ui/src/lib/api.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "58c68cbb681f483ea769e3e3b106dc10105dacd2b400eb9274947d1a24a203bd",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/ui/src/lib/conditions.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "b6b5058c1dd5127be18fefe1383282efa1dbf5e98b0cc868a4feb9ea6c348e6d",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/ui/src/lib/deadcode-model.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "33e818227454bf518576abcf9e73debc6613e2781e645c13c83632c414cb28f1",
+      "baselineSha256": "9ecb2ae600728307f6e265d83a62c7b6bce7089521e8af2f3a929ec2ab1ddbdd",
+      "evidence": "Immutable AFYX summary model separates arithmetic from UI wording; focused tests preserve public text."
+    },
+    {
+      "path": "afyx-graph/engine/ui/src/lib/entry-model.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "4431b1d8d5ec6297c2be7b2a776f9616196cef7b50eb6b2b3cafa4aad356e8b6",
+      "evidence": "MB17 Wave 2 (AFYX-5, AFYX-157, AFYX-166, AFYX-320): independently authored entry-points presentation model; deterministic first-seen group ordering preserving server rankings, clean route handler metadata resolution, safe callable symbol flow-pair validation, and bounded command-palette candidate search."
+    },
+    {
+      "path": "afyx-graph/engine/ui/src/lib/export-image.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "3e2b2bcad884ff04fc13d3024e9bbf56f816384545bacfff0a8e05bf29f90450",
+      "baselineSha256": "a336e3a4058daba1a7ad2e22e33bd4fbf50ceec5257b4c22c5f1d4089be86178",
+      "evidence": "Injectable AFYX raster adapter, DOM-based size parsing, and cleanup-safe download boundary."
+    },
+    {
+      "path": "afyx-graph/engine/ui/src/lib/export-svg.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "a9691cdef17cb15bc8c2dab5e1d3468062ab18c408a921c5afd8f6b6d714c2ca",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/ui/src/lib/file-model.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "f59de2a1e002694f0bd9da3e44a44be8c871c9e3e71fddbbac3fc42e97271417",
+      "evidence": "MB17 Wave 2 (AFYX-5, AFYX-157, AFYX-166, AFYX-320): independently authored file view presentation model; deterministic dependency rail partitioning (production vs test), symbol enrichment without false file nodes, isolated external import aggregation, and clamped hierarchical outline projection."
+    },
+    {
+      "path": "afyx-graph/engine/ui/src/lib/filecode-model.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "b8f5982cd9f3688dc4e3acd3f849ec75718337b47a7b00398887a6fed1ebd936",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/ui/src/lib/flow-model.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "7ea897d41aabdd4d379b71a8d4415947deddbce2084fbf55a93dfabb2c976f1f",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/ui/src/lib/hierarchy-model.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "f4a39cffe6cfa344ca82436ce94ce125f946c08ba588221b59bce48f8611cffa",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/ui/src/lib/highlight.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "8957b28f343772beb74aec0a156000463db328e1788e431633bce6554849a1b5",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/ui/src/lib/kinds.ts",
+      "classification": "PRODUCT_SCHEMA_DATA",
+      "reviewedSha256": "dee40d436339fc72f1c15278ff92f6a1329f5be06563c16d9fa4071de516b9b0",
+      "baselineSha256": "523579cb403bd0a7ca9586d8b35d16f924b9e569e3f00b4a174387ec55ac828f",
+      "evidence": "AFYX wire-kind display vocabulary; declarative product data, not an inherited algorithm."
+    },
+    {
+      "path": "afyx-graph/engine/ui/src/lib/map-model.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "91e2a7627b5af0da1f087cb9b2bac2dc01c95bf99717b1d07ba0667293425bf1",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/ui/src/lib/native-state.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "87019beff46dcdc9279b36605f6500f276deb7de6635cdb24d45047316aabc1e",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/ui/src/lib/navigation.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "51a788785ca9d2434ff7ef55886b133236fc87c5c11a1474281ac279101a7379",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/ui/src/lib/program-model.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "507bfe821a113af7cace478ee9767c30ac4da7771f768f025187cf0bec40f933",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/ui/src/lib/router.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "781e1bfe94c0577fea7969596f460fe9e9eca21e3b2e193fdfab273690137cd1",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/ui/src/lib/screens-model.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "8862e19817cd915ae2cabd43e6ca87c5b5db4355958ef05de9a015a8bf66a07a",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/ui/src/lib/search-model.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "2228b0f2f55439a3ea388e015cac38dd2f6beef5f85ef0e5b6146f8e6864a79a",
+      "evidence": "MB17 Wave 3 (AFYX-5, AFYX-157, AFYX-166, AFYX-320): independently authored search palette presentation model; natural-language and symbolic flow query intent parsing, arrival-ordered semantic kind grouping, alternating priority result interleaving, entry-point candidate deduplication, and circular keyboard selection navigation."
+    },
+    {
+      "path": "afyx-graph/engine/ui/src/lib/steps-model.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "ea3741d4b8ffb769b1ce2c1250d6934d3a75c834a0cd1eae1da59ed768846cf2",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/ui/src/lib/symbol-model.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "fdd2e609c0dd9a2b3970176d61046b819ec9adf4021a7273566ad39bd2d32ee9",
+      "evidence": "MB17 Wave 3 (AFYX-5, AFYX-157, AFYX-166, AFYX-320): independently authored focal symbol presentation model; deterministic call-site context windowing (full body threshold, head window, context padding, gap coalescing), verified token reference binding, outbound callee rail synthesis (confirmed vs uncertain separation), inbound caller file grouping, and member outline hierarchy."
+    },
+    {
+      "path": "afyx-graph/engine/ui/src/lib/trail-codec.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "f3110ec6cd2327dec9cbd580bb484d4f17ec69b00e24eb6088c6bf8c34b7af30",
+      "evidence": "MB17 Wave 1 (AFYX-5, AFYX-157, AFYX-320): independently authored exploration trail wire codec; deterministic direction prefixes, safe URL encoding, resilient raw-token fallback for malformed parameters, and zero third-party dependencies."
+    },
+    {
+      "path": "afyx-graph/engine/ui/src/lib/trails-model.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "312ec3149fde55e1d5d4e9fe6c9fc76c1f8a20a57fdab82d9c3f9be503c7587d",
+      "evidence": "MB17 Wave 1 (AFYX-5, AFYX-157, AFYX-320): independently authored exploration trail presentation model; deterministic codebase drift decay analysis (missing/ambiguous/moved), partial open range calculation, and portable JSON trail export."
+    },
+    {
+      "path": "afyx-graph/engine/ui/src/lib/walk.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "c30c41a39aee197af339019b56a32d34dc627ef3282aefd8888408f9d9f42008",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/ui/src/lib/wire.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "e33fa62119808699007386c1a46a0c5f0b353e94acf6c7b14aa6d703fb38f0f8",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/ui/src/main.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "6b58cf71f9891665ff31de6dc5413490db08b81911666c3708c0b360b4651049",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/ui/src/native/app.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "85e6e706c41634932b2124a58abaf87d69b440626b36a1ea7d07bf5bd9ef3bc5",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/ui/src/native/components.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "f57db5a3230c65541d523d405f2d9b43d485468ae2e66c3182898c4f547c4104",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/ui/src/native/dom.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "d1ed6e14bcc756339e0ccf35d8e29328b7dcf4a8b576ad84abaaad5b30029c46",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/ui/src/native/graph.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "9dc7a48839c5c314e0f5c1c64d6d996c93b94100e7874b694c2609c5184869e3",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/ui/src/native/search.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "e2e2d671ac47a229d7e3f2a8eaf227544eccc58d0bcdad386f7fb0a97b75be1d",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/ui/src/native/viewport.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "92efc7271cdbaadd84eed5f3e53a90001042bb45b041c318b2f9fcfdb7832c5d",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/ui/src/native/views.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "d190b28d0ad43efa89d5a19e14b2e96e8927b0adfeffe4277748b19788666f83",
+      "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "bin/afyx-engineering-kit.mjs",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "2b74493617464e7e685f4f1c58cd2dc2bd17db09d735bf42cc3cad62257f99ca",
+      "evidence": "Installer UX v2: reviewed AFYX executable lifecycle wiring for shared interactive wizard, backend event forwarding and actual verification. Uses existing AFYX modules and runtime APIs only."
+    },
+    {
+      "path": "scripts/afyx-browser-devtools.mjs",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "9fc6422962a6213fd326067fd9e4017b4519dc5f149e28f485ddf340fc679395",
+      "evidence": "MB18.3 AFYX-190/AFYX-105: reviewed budget diagnostics tracking (startedAt, deadline, closureReason, interruptionSource), structured timeout error classification, and bounded session receipt."
+    },
+    {
+      "path": "scripts/afyx-capability-orchestrator.mjs",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "ece1d3ad7711ee1efa5e57e4874267a00e4cc064d14bacd00d3a98af3525f03e",
+      "evidence": "Universal capability orchestrator supporting all 8 modular tools with lazy activation, SCHEMA_INSPECTED / HEADER_ONLY_FALLBACK interop, and strict single primary domain budget (AFYX-329)."
+    },
+    {
+      "path": "scripts/afyx-claude-integration.mjs",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "06f66463d8de425d676312c346f6fba5d089db0a00799983f224a63ea846dc7c",
+      "evidence": "AFYX native source: authored from AFYX functional requirements; verified clean room implementation with zero third-party code import. AFYX-77: bounded installer maintenance authored against existing AFYX contracts."
+    },
+    {
+      "path": "scripts/afyx-context-artifact.mjs",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "5da4dcc60d0a895054d20186f1744f78ad71e2fc84d204a2185d2879c358eca9",
+      "evidence": "AFYX native source: authored from AFYX functional requirements; verified clean room implementation with zero third-party code import."
+    },
+    {
+      "path": "scripts/afyx-credential-broker.mjs",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "03f0c7ee9a52f585e77dc213d93c230e6abf72257a1188116b792e6ee35d5ee6",
+      "evidence": "AFYX native source: authored from AFYX functional requirements; verified clean room implementation with zero third-party code import."
+    },
+    {
+      "path": "scripts/afyx-document-archive.mjs",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "3be2fc099fb6fc5b52b96c71b985c1a3a2efbedf5c237d0d95d799cc5e5a3c7a",
+      "evidence": "MB18 AFYX-347: original bounded ZIP admission validates central/local identity, sizes, CRC, paths, collisions and unsafe members; built-in Node zlib is a runtime prerequisite, no archive dependency/source vendored."
+    },
+    {
+      "path": "scripts/afyx-document-formats.mjs",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "bb119f31419bf39487f5851a019e6b9ca59f5818738ef8e3e5a599e01137fb91",
+      "evidence": "MB18 AFYX-347: original deterministic text, HTML, CSV, JSON, XML and Office subset mapping from format contracts; explicitly rejects unsupported complex formats, invalid OOXML roots and external execution."
+    },
+    {
+      "path": "scripts/afyx-document-intelligence.mjs",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "0519982e577a0e40de2eb23689c8c2f957741eac0e92860bf72177d6c0443b3b",
+      "evidence": "MB18 AFYX-347: original file/bytes/stream admission and worker API with workspace, provenance and bounded conversion; read-only MarkItDown MIT reference ed178952 informed functional contracts, not imported source."
+    },
+    {
+      "path": "scripts/afyx-document-worker.mjs",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "512fc2130cc7d835199b36b95fd9e78877985144b0b4cf2c88988a8fd24841ad",
+      "evidence": "MB18 AFYX-347: original isolated conversion worker with wall-clock, V8 heap and output bounds; no subprocess parser, plugins, network or upstream engine. Uses Node runtime primitives with their existing licenses."
+    },
+    {
+      "path": "scripts/afyx-document-xml.mjs",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "7e824a5e257d68491dd37a9e5f73a511e01e861e27b7684849f687e76061286b",
+      "evidence": "MB18 AFYX-347: original bounded XML tokenizer/tree traversal for document structure; rejects DTD and unsupported entity expansion, malformed nesting and excessive depth rather than executing external resolvers."
+    },
+    {
+      "path": "scripts/afyx-evidence-envelope.mjs",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "cb0474e62dcee2df95c1be023524d84a30e8f9f4f1394a3079ab1837dead2a3c",
+      "evidence": "AFYX native source: authored from AFYX functional requirements; verified clean room implementation with zero third-party code import."
+    },
+    {
+      "path": "scripts/afyx-expert-guidance.mjs",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "9e2b2cf6b813e3ae2efe6684a883410d5f5f1dd31b054e8c6857681e7d16faf8",
+      "evidence": "MB16 AFYX-283: independently reviewed bounded Expert guidance helper; lexical reference selection, trusted host budget ceilings, and telemetry disclosure."
+    },
+    {
+      "path": "scripts/afyx-forge-artifact.mjs",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "dc70aa4deabcd5f8265db743c767efe256e8e51dee6f1e6994c3689cc426f73b",
+      "evidence": "AFYX native source: authored from AFYX functional requirements; verified clean room implementation with zero third-party code import."
+    },
+    {
+      "path": "scripts/afyx-global-routing.mjs",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "9f0c820a13d0b0d4a315735ea592b8cb0bc0e97271ca94f10229b1732b315f2e",
+      "evidence": "AFYX native source: authored from AFYX functional requirements; verified clean room implementation with zero third-party code import."
+    },
+    {
+      "path": "scripts/afyx-graph-artifact.mjs",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "141d236f98191a5f38eba4e92f19c8fb312a87b38b5a55d655768472dd20f29c",
+      "evidence": "MB12 review: authored from AFYX functional requirements and existing reviewed 251f73a contracts; no upstream implementation, prompts, assets or dependency imported. Trusted-host boundaries and negative/regression tests recorded in MB12-native-consolidation-20261114-r1."
+    },
+    {
+      "path": "scripts/afyx-graph-targets.mjs",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "e733c59ac4535c4f2b8bba8b65e86dfc5be9fff20e9bbdb96378f9abf4b4dc1a",
+      "evidence": "MB12 review: authored from AFYX functional requirements and existing reviewed 251f73a contracts; no upstream implementation, prompts, assets or dependency imported. Trusted-host boundaries and negative/regression tests recorded in MB12-native-consolidation-20261114-r1."
+    },
+    {
+      "path": "scripts/afyx-host-adapters.mjs",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "1683d4ad2c08fe946c1209639f84750b2c2da61c3bdc9a3eb3d79fe87e5f48e4",
+      "evidence": "MB16 AFYX-283: reviewed bounded Engineering Expert selection, lexical domain hints, and host ceiling consumption; no external logic imported."
+    },
+    {
+      "path": "scripts/afyx-host-bridge-lifecycle.mjs",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "3ee88297869a899aa5b40c6fa65e48801faf27d949f16fc842126533a64e4536",
+      "evidence": "MB18 AFYX-105/347: reviewed complete installed flat bundle includes browser manager, optional host boundary and five native document modules; verified installed conversion and selective uninstall in disposable fixtures."
+    },
+    {
+      "path": "scripts/afyx-host-bridge.mjs",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "c3c3ea3ef21f404453edc453a40cdce4f41b5f48a20508004350458bfd27a3f2",
+      "evidence": "MB18.3 AFYX-190/AFYX-105: reviewed single-tool capability discovery metadata, informative JSON-RPC -32601 tool-name hints without path disclosure, and bounded --browser-session-timeout-ms CLI validation."
+    },
+    {
+      "path": "scripts/afyx-install-backend.mjs",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "9205e8b777bb730b8dccdb81abc36c84eace53738cf3f94414f5fbfc396f22c7",
+      "evidence": "Installer UX v2: reviewed existing AFYX adapter plus native asynchronous subprocess inspection, cancellation, bounded capture and existing plan/verification contracts. Uses Node child_process and AFYX modules only."
+    },
+    {
+      "path": "scripts/afyx-install-contract.mjs",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "03e65d1b6b3bdddb85272553eaeb19db2dd7608c318932aed85e6250b233ef59",
+      "evidence": "Reviewed AFYX installer plan snapshot and fingerprint contract using Node built-ins. The CI correction canonicalizes existing directory parents for legitimate macOS filesystem aliases while preserving rejection of component-root links, escaping links, cycles, and the existing resource bounds. Positive and negative regression evidence is recorded in ci-correction-windows.log and ci-correction-wsl.log; no third-party source added."
+    },
+    {
+      "path": "scripts/afyx-install-progress.mjs",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "3af5344ced3974db1e95eb17845353a7f1a585c95112da07824efda5da6a6b16",
+      "evidence": "Installer UX v2: independently implemented AFYX progress event validation and bounded monotonic state model, using only the Node performance clock. Percentages reflect measured units; backend verification remains authoritative."
+    },
+    {
+      "path": "scripts/afyx-installer-environment.mjs",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "86e29eb8bee23dd1972ec91ea55915c385ac0d0b2f70d497d9c3a64e25e9cc94",
+      "evidence": "Independently authored AFYX read-only installer environment adapter using Node built-ins and native OS observations; separates invoking shell, terminal, backend and source identity. No third-party implementation or asset is embedded."
+    },
+    {
+      "path": "scripts/afyx-integration-contracts.mjs",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "d5d63427fd170eaf3497b75b6433c08f90634eea888b3caad924353ab804bc5a",
+      "evidence": "AFYX native source: authored from AFYX functional requirements; verified clean room implementation with zero third-party code import."
+    },
+    {
+      "path": "scripts/afyx-local-link-ownership.mjs",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "aa5bb42752cbb8dc1d50416b7427d3e596117e03ae610a2780c9152cc62ebac4",
+      "evidence": "MB12 review: authored from AFYX functional requirements and existing reviewed 251f73a contracts; no upstream implementation, prompts, assets or dependency imported. Trusted-host boundaries and negative/regression tests recorded in MB12-native-consolidation-20261114-r1."
+    },
+    {
+      "path": "scripts/afyx-mcp-integration.mjs",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "d92227a73ea3aaf909b1a2f1dd5e48ee0e041313e825173f190e1823ba7c64f7",
+      "evidence": "AFYX native source: authored from AFYX functional requirements; verified clean room implementation with zero third-party code import. AFYX-77: bounded installer maintenance authored against existing AFYX contracts."
+    },
+    {
+      "path": "scripts/afyx-midnight-circuit.mjs",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "72b49729222a6539fd7258ba411996360b6a8b40b5486c92b7b6d2badb692694",
+      "evidence": "MB12 native-source review retained. MB14 AFYX-328 technical delta review: six existing pre-planning callbacks now forward keyboard focus and provider scroll offsets to the existing renderer; no new UI architecture, dependency, or upstream implementation. Regression confirms focus, visible row movement, safe cancellation and zero planning; 33 focused UI/inventory tests pass. Evidence AFYX-MB14-20261116; legal clearance remains separate."
+    },
+    {
+      "path": "scripts/afyx-modular-integration.mjs",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "90bb52a3166821aa19012d63b98939616058ecd3200ddd715133328b09f904aa",
+      "evidence": "MB18 AFYX-105/190/347: reviewed versioned browser/document inventory entries, SOURCE_READY maturity and ON_DEMAND activation without changing installed presets or triggering unrelated capabilities."
+    },
+    {
+      "path": "scripts/afyx-modular-runtime.mjs",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "58577affb5ff94f69ceef235038bf0718ffb8947864153a37098a6d92689b03e",
+      "evidence": "Universal modular runtime with complete authority matrix for 8 universal native tools across codex, antigravity, and claude (AFYX-329)."
+    },
+    {
+      "path": "scripts/afyx-native-execution.mjs",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "288e83bc7256087b84f7135e7197f5d20a1bc8c98413572a4aff6491c5717c36",
+      "evidence": "MB12 review: authored from AFYX functional requirements and existing reviewed 251f73a contracts; no upstream implementation, prompts, assets or dependency imported. Trusted-host boundaries and negative/regression tests recorded in MB12-native-consolidation-20261114-r1."
+    },
+    {
+      "path": "scripts/afyx-native-github.mjs",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "8f78ac073602445f864dd7d56bc8e4e364f8820e6da9e0de5a0b1867bbbc7348",
+      "evidence": "MB12 review: authored from AFYX functional requirements and existing reviewed 251f73a contracts; no upstream implementation, prompts, assets or dependency imported. Trusted-host boundaries and negative/regression tests recorded in MB12-native-consolidation-20261114-r1."
+    },
+    {
+      "path": "scripts/afyx-native-skill-host.mjs",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "1a20974b76dbaad41c390030031fe2afb81abf8bdf1a875c0cf79accfa795c5f",
+      "evidence": "AFYX native source: authored from AFYX functional requirements; verified clean room implementation with zero third-party code import."
+    },
+    {
+      "path": "scripts/afyx-npm-installer.mjs",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "2a7f2d8df66d75061f7b11f1fec2da01d0707baa12d8b16eebe95763d512282f",
+      "evidence": "Installer UX v2 with synchronized universal capability summaries, help text, and version 0.1.0-alpha.12 (AFYX-77)."
+    },
+    {
+      "path": "scripts/afyx-optional-capabilities.mjs",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "c7b69dc7bb99ba05f9913375602cad83d0afef0ad32efc038004fe92c77820c5",
+      "evidence": "MB18.3 AFYX-190/AFYX-105: reviewed rich discovery metadata with required/supported action signatures, safe example calls, single-tool guidance, and explicit required argument validation per action."
+    },
+    {
+      "path": "scripts/afyx-provenance.mjs",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "05a209a029f8791eb9c78282c56bc231da02f4fac82ff4b33910afebbf83866a",
+      "evidence": "AFYX native source: authored from AFYX functional requirements; verified clean room implementation with zero third-party code import."
+    },
+    {
+      "path": "scripts/afyx-provider-backup.mjs",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "ac76e503bfce98ff66468f79d744d88101f14357de6f0ef7062c44d9e8324fe7",
+      "evidence": "AFYX native source: authored from AFYX functional requirements; verified clean room implementation with zero third-party code import. AFYX-77: bounded installer maintenance authored against existing AFYX contracts."
+    },
+    {
+      "path": "scripts/afyx-provider-integration.mjs",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "0cdf6b8355f84d818669994131592da2297ce9208a58ed9f7d833facd14f74b6",
+      "evidence": "AFYX native source: authored from AFYX functional requirements; verified clean room implementation with zero third-party code import. AFYX-77: bounded installer maintenance authored against existing AFYX contracts. POSTV1-CI-AND-TRACKD-CERTIFICATION: koreksi AFYX berdasarkan log CI dan kontrak lifecycle native."
+    },
+    {
+      "path": "scripts/afyx-provider-inventory.mjs",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "0991b191c3ea22b602568ca5fed28125071b89b4196dc1ef638fb570d3e48f2b",
+      "evidence": "MB12 native-source review retained. MB14 AFYX-328 technical delta review: existing filesystem inventory adds the official Antigravity extension identity and executable-presence fallback under the provider home, without launching it or claiming MCP readiness. Positive and preservation regressions pass; evidence AFYX-MB14-20261116. No upstream implementation or dependency imported; legal clearance remains separate."
+    },
+    {
+      "path": "scripts/afyx-security-auditor.mjs",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "1952fe4e9b64aedb785d50a989a2f2733cbb6a9d56f8ec67dcab260c4884aefc",
+      "evidence": "MB12 review: authored from AFYX functional requirements and existing reviewed 251f73a contracts; no upstream implementation, prompts, assets or dependency imported. Trusted-host boundaries and negative/regression tests recorded in MB12-native-consolidation-20261114-r1."
+    },
+    {
+      "path": "scripts/afyx-skill-catalog.mjs",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "a0a5604fa00b64020343c1eb2c0813cb83eba779505a694710447e9579ee8860",
+      "evidence": "MB12 review: authored from AFYX functional requirements and existing reviewed 251f73a contracts; no upstream implementation, prompts, assets or dependency imported. Trusted-host boundaries and negative/regression tests recorded in MB12-native-consolidation-20261114-r1."
+    },
+    {
+      "path": "scripts/afyx-skill-engineering.mjs",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "6604fcf2ce7e4faadb6f3cca3f7f5271494666b34cf09188abb642eddc9a7f76",
+      "evidence": "MB15 AFYX-313: independently reviewed authored UTF-8 resource validation, portable package paths and aggregate decoded-size bounds; no external implementation imported."
+    },
+    {
+      "path": "scripts/afyx-tool-family-routing.mjs",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "7e74abd8e951c1f4b65589279c81d9f975ebb2c14dd7d063561eba562d18c4ee",
+      "evidence": "Tool family routing with exported universal capability constants and adaptive routing policies (AFYX-329)."
+    },
+    {
+      "path": "scripts/afyx-universal-runtime.mjs",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "4d740458e4372e7b3193d8d2553fd45621b523d47759937ebcf21a8841b98a00",
+      "evidence": "MB12 review: authored from AFYX functional requirements and existing reviewed 251f73a contracts; no upstream implementation, prompts, assets or dependency imported. Trusted-host boundaries and negative/regression tests recorded in MB12-native-consolidation-20261114-r1."
+    },
+    {
+      "path": "scripts/benchmark_capability_orchestrator.mjs",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "8ebdd3e1ce0e7219a5e278d1a0654e84a2a4a9c18b9d53a0959b3c1ce255ec0d",
+      "evidence": "AFYX native source: authored from AFYX functional requirements; verified clean room implementation with zero third-party code import."
+    },
+    {
+      "path": "scripts/benchmark-trackd.mjs",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "244182001b78b85a26bb0ff6524059c30fd500fecd15f1b43f83f3ddde40037f",
+      "evidence": "Track D native performance benchmark harness: executes reproducible persistence, traversal, and lifecycle workloads. POSTV1-CI-AND-TRACKD-CERTIFICATION: koreksi AFYX berdasarkan log CI dan kontrak lifecycle native."
+    },
+    {
+      "path": "scripts/benchmark-graph-memory.mjs",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "d20a3744fbcb105ba8990b432f225b9dff58b25e66bcce46d92e4b5dd885a312",
+      "evidence": "AFYX native source: authored from AFYX functional requirements; verified clean room implementation with zero third-party code import."
+    },
+    {
+      "path": "scripts/dogfood_engineering_comparison.mjs",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "aa3eedf9fb83723f4097c5a789298b6a8f4d238c6c526742c199e1f7b9778a81",
+      "evidence": "AFYX native source: authored from AFYX functional requirements; verified clean room implementation with zero third-party code import."
+    },
+    {
+      "path": "scripts/phase8-paired-evidence.mjs",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "eadae06ac8c9b826f56d8463ffa58ca3e6226b937edf635301c648f39d331f05",
+      "evidence": "AFYX native source: authored from AFYX functional requirements; verified clean room implementation with zero third-party code import."
+    },
+    {
+      "path": "scripts/phase8-representative-workload.mjs",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "c421603b6d56e469d7525c0d0e176e1c2b8bfe002bbae1318b224ac42c154e93",
+      "evidence": "AFYX native source: authored from AFYX functional requirements; verified clean room implementation with zero third-party code import."
+    },
+    {
+      "path": "scripts/phase8-session-recorder.mjs",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "6c7b8dad76078261a4115d42f65a094304b28ed5ff7f636a68d45c8d5c61608d",
+      "evidence": "AFYX native source: authored from AFYX functional requirements; verified clean room implementation with zero third-party code import."
+    },
+    {
+      "path": "scripts/prepare-g6-package.mjs",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "39cf4c5cd5b0fc53f03c03810d902bf04aeb5d06e22bc900dcaed5639cdcb3ad",
+      "evidence": "MB12 native-source review retained. MB14 AFYX-331 technical delta review: existing AFYX checksum validation extracted into a shared read-only verifier; no upstream source or dependency imported. Six negative checksum regressions and unchanged-marker assertions pass; evidence AFYX-MB14-20261116. Hash integrity is not legal clearance; AFYX-320/167 remain separate gates."
+    },
+    {
+      "path": "scripts/resolve-git-release-artifacts.mjs",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "fde1df2756ebe53d6f4c00a21d89b04291a2893d2563eb49fffeeb8c137a8955",
+      "evidence": "MB12 review: authored from AFYX functional requirements and existing reviewed 251f73a contracts; no upstream implementation, prompts, assets or dependency imported. Trusted-host boundaries and negative/regression tests recorded in MB12-native-consolidation-20261114-r1."
+    },
+    {
+      "path": "scripts/stage-npm-release.mjs",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "e617c2990701f91fc9b1f80981486d5ee26bab4eb8bf295c796eb7e833587a67",
+      "evidence": "MB12 review: authored from AFYX functional requirements and existing reviewed 251f73a contracts; no upstream implementation, prompts, assets or dependency imported. Trusted-host boundaries and negative/regression tests recorded in MB12-native-consolidation-20261114-r1."
+    },
+    {
+      "path": "scripts/validate-release-zip-graph.mjs",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "1a317d7a18f1d886fb4084336d84a24279d8f5a700a7cdf7cce96a32dbcb5cb2",
+      "evidence": "MB12 review: authored from AFYX functional requirements and existing reviewed 251f73a contracts; no upstream implementation, prompts, assets or dependency imported. Trusted-host boundaries and negative/regression tests recorded in MB12-native-consolidation-20261114-r1."
+    },
+    {
+      "path": "scripts/verify-graph-archive.mjs",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "cfc144643dad78c8e1f9788d8d24bc997fa7583fb51068b5a46cbcfc6342facc",
+      "evidence": "AFYX native source: authored from AFYX functional requirements; verified clean room implementation with zero third-party code import."
+    },
+    {
+      "path": "scripts/verify-native-source-ownership.mjs",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "9e6fdb3fcfa3792b2c12eb95d84646e285ed45c72eaf35def13fdd3c63c09255",
+      "evidence": "AFYX native source: authored from AFYX functional requirements; verified clean room implementation with zero third-party code import."
+    },
+    {
+      "path": "tools/afyx-usage-intelligence/AfyxUsageIntelligence.psm1",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "20d346251634c6d40499076b2e105992746553ebaad7ca02c6a2d9e4bd972955",
+      "evidence": "AFYX native source: authored from AFYX functional requirements; verified clean room implementation with zero third-party code import."
+    },
+    {
+      "path": "tools/afyx-usage-intelligence/CodexUsage.psm1",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "c1f40a9b195b6fe4fea5fec3cd657c6c7796a33d621796c40433fcbcf9ec238f",
+      "evidence": "AFYX native source: authored from AFYX functional requirements; verified clean room implementation with zero third-party code import."
+    },
+    {
+      "path": "scripts/prepare-interactive-dogfood-session.mjs",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "555708d2045a9932f3fad62512f23f7a1ea5590458971904ab1b9c369ac7a000",
+      "evidence": "POSTV1-CERT-RECONCILE-AND-RELEASE-PREP: fixture dan preflight AFYX untuk AFYX-346/AFYX-8, tanpa kode pihak ketiga."
+    },
+    {
+      "path": "afyx-graph/engine/scripts/build-bundle.sh",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "116dc4f8c158878541cbdc36381f30ea5d801d5850a8123aa020553c76f8125c",
+      "evidence": "AFYX post-v1 audit remediation: AFYX-owned installer and lifecycle implementation maintained in this repository."
+    },
+    {
+      "path": "scripts/install-afyx-graph.ps1",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "40de8a587265a628ea123fb4c223c5ccd24642d96f141066e45a68d8d67148c7",
+      "evidence": "AFYX post-v1 audit remediation: AFYX-owned installer and lifecycle implementation maintained in this repository."
+    },
+    {
+      "path": "scripts/install-afyx-graph.sh",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "183464b693c28d9d6fa2164a174710e0cba788501fd0a319c4e96528983d1a2d",
+      "evidence": "AFYX post-v1 audit remediation: AFYX-owned installer and lifecycle implementation maintained in this repository."
+    },
+    {
+      "path": "scripts/lib/AfyxSkillLifecycle.psm1",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "2e168adb1f4c829e79f9801814c2dbd8fb5950a0e903f0cbcac0e5db336cd117",
+      "evidence": "AFYX post-v1 audit remediation: AFYX-owned installer and lifecycle implementation maintained in this repository."
+    },
+    {
+      "path": "scripts/lib/afyx-skill-lifecycle.sh",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "10d8d007f7f7098ad4e66bda7a8c34504f99296059d0838dd92c48a532b9037e",
+      "evidence": "AFYX post-v1 audit remediation: AFYX-owned installer and lifecycle implementation maintained in this repository."
+    },
+    {
+      "path": "uninstall.sh",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "f86b68699fd7d8de89b0a206c9598d800298cdf4d85e5c32c4ebe30ddb91bb62",
+      "evidence": "AFYX post-v1 audit remediation: AFYX-owned installer and lifecycle implementation maintained in this repository."
+    },
+    {
+      "path": "verify.sh",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "481c2adeaeee31ee4c1825946e581fd0d644d8b32eae813ba1a810b9f3d11035",
+      "evidence": "AFYX post-v1 audit remediation: AFYX-owned installer and lifecycle implementation maintained in this repository."
+    },
+    {
+      "path": "scripts/lib/afyx-cli-options.sh",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "ba338dad6885368ba03163c46e1c02e59bc1af6818b50b8a8c23bb05f834343a",
+      "evidence": "AFYX post-v1 audit remediation: AFYX-owned installer and lifecycle implementation maintained in this repository."
+    },
+    {
+      "path": "install.sh",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "83d482f109f9cecbe279456340c8a60e61906fecb2493c4c77c3b1cb0c4a5770",
+      "evidence": "AFYX POSIX kit installer with explicit platform, component, and provider skill-root lifecycle boundaries (AFYX-361, AFYX-362)."
+    },
+    {
+      "path": "uninstall.ps1",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "1fb3053c90d1936a29dc168bf64839a9fdc87f54dd2633175cb1a57ee0c396ac",
+      "evidence": "AFYX native Kit lifecycle entrypoint maintained in this repository."
+    },
+    {
+      "path": "update.sh",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "e017044de19e9e7528cf11d305760466f609974dcaa26523e0d4b1bb9ee9363f",
+      "evidence": "AFYX native Kit lifecycle entrypoint maintained in this repository."
+    }
+  ]
+}

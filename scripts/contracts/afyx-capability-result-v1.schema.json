@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "AfyxCapabilityResult/v1",
+  "type": "object",
+  "required": ["contract", "taskId", "capability", "componentId", "status", "executionStatus", "evidence", "provenance", "durationMs", "contextBytes"],
+  "properties": {
+    "contract": { "const": "AfyxCapabilityResult/v1" },
+    "taskId": { "type": "string", "minLength": 1 },
+    "capability": { "type": "string", "minLength": 1 },
+    "componentId": { "type": "string", "minLength": 1 },
+    "status": { "enum": ["EXECUTED", "FAILED", "DEGRADED", "BLOCKED", "SUPPRESSED"] },
+    "executionStatus": { "enum": ["EXECUTED", "FAILED", "NOT_RUN"] },
+    "reason": { "type": "string" },
+    "output": {},
+    "evidence": { "type": "array" },
+    "provenance": {
+      "type": "object",
+      "required": ["workspaceIdentity", "sourceRevision", "componentSourceIdentity", "observationSource"],
+      "properties": {
+        "workspaceIdentity": { "type": ["string", "null"] },
+        "sourceRevision": { "type": ["string", "null"] },
+        "componentSourceIdentity": { "type": ["string", "null"] },
+        "observationSource": { "enum": ["ADAPTER_EXECUTION", "ORCHESTRATOR_DECISION"] }
+      },
+      "additionalProperties": false
+    },
+    "durationMs": { "type": "number", "minimum": 0 },
+    "contextBytes": { "type": "integer", "minimum": 0 },
+    "followUpRequests": { "type": "array" }
+  },
+  "additionalProperties": false
+}

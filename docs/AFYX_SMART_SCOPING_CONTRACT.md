@@ -1,0 +1,17 @@
+# AFYX smart scoping
+
+Orchestrator tetap `scripts/afyx-capability-orchestrator.mjs`. Registrasi capability tidak dihapus untuk mengurangi context. Discovery memakai metadata kecil dan mencatat availability, explicit OFF, authorization, identity dan health secara terpisah.
+
+Urutan keputusan: metadata terdaftar → discovery → seleksi domain → pemeriksaan izin/availability → detailed schema bila host mendukung → eksekusi adapter. Explicit manual selection memperluas seleksi, tetapi tidak memberikan izin. Task JSON, payload, dan teks model tidak dapat memasok callback loader atau host authorization.
+
+Odoo memilih Odoo authority; GitHub memilih capability GitHub native; dokumentasi memilih Context; workflow multi-agent memilih Forge assistive; CLI eksplisit memilih native execution. Domain eksplisit mengatasi framework hint yang tidak relevan. Framework pada project/file dari host dapat membantu seleksi. Framework saja tidak membenarkan tool tambahan untuk edit exact-source. Domain yang tidak dikenal atau prompt lintas domain ambigu tidak otomatis memilih tool. User dapat memperjelas atau memilih capability secara eksplisit.
+
+Follow-up tetap mendukung interoperability, Graph → Context dan workflow engineering. Pada domain sempit, capability lintas domain memerlukan seleksi eksplisit; shared Graph/Context memerlukan kebutuhan yang relevan dan alasan adapter yang tersedia. Output tidak memberikan authorization baru. Ownership domain yang tumpang tindih ditolak; custom provider restrictions dan schema cache bersifat per request. Forge autonomous A8, provider permission, explicit OFF, limit hops/calls, elapsed dan context tetap berlaku.
+
+Host in-process dapat memberikan `loadCapabilityDetails(request, {signal})`. Loader hanya berjalan setelah capability dipilih dan diizinkan, dengan deadline dan byte budget yang sama. Snapshot detail diberikan ke adapter melalui control.capabilityDetails. Kegagalan, timeout, atau schema terlalu besar menghentikan eksekusi capability tersebut. Loader yang terlambat tidak boleh memulai adapter setelah deadline.
+
+Metrics mencatat registeredTools, discoveredTools, selectedTools, loadedTools, invokedTools, schemaBytes, schemaLatencyMs, planningMs, contextBytes, elapsedMs, serta unnecessaryInvocationCount dan blockedOutOfScopeRequests. Byte metrics mengukur JSON detail yang benar-benar dimuat dan output adapter, bukan perkiraan token. Tanpa dukungan loader host, detailLoading adalah HOST_NOT_SUPPORTED. registrationTokenSavings selalu NOT_CLAIMED: dukungan deferred descriptions tidak membuktikan IDE melakukan deferred registration.
+
+Workflow installed tidak menjalankan Graph status untuk tugas yang tidak memilih Graph. Freshness diperiksa hanya pada pemilihan Graph atau handoff relevan yang masih memiliki budget, tanpa reindex otomatis. Probe dibatasi sekali per capability/request dan tetap menghormati OFF serta izin. runtimeDiscoveryToolCalls/runtimeDiscoveryInvocations mencatat probe readiness terpisah dari query adapter; elapsed discovery ikut budget request. API discovery eksplisit tanpa task tetap dapat mengobservasi readiness sebagaimana kontrak sebelumnya.
+
+Benchmark membandingkan kandidat dengan orchestrator baseline yang sama-sama memakai fixture, izin, dataset dan adapter identik. Ukuran schema eager/deferred, bila dibandingkan, adalah pengukuran fixture host terkontrol; bukan pengukuran overhead registrasi Codex atau Antigravity.

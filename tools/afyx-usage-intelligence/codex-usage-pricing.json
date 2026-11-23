@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "currency": "USD",
+  "unit_tokens": 1000000,
+  "service_tier": "standard",
+  "verified_at": "2026-09-24",
+  "source_url": "https://developers.openai.com/api/docs/pricing",
+  "models": {
+    "gpt-5.6-sol": {
+      "long_context_threshold_tokens": 272000,
+      "short": {
+        "input": 4.0,
+        "cached": 0.4,
+        "cache_write": 5.0,
+        "output": 20.0
+      },
+      "long": {
+        "input": 8.0,
+        "cached": 0.8,
+        "cache_write": 10.0,
+        "output": 30.0
+      }
+    }
+  }
+}

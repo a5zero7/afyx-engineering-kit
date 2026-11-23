@@ -1,0 +1,126 @@
+{
+  "contract": "afyx-p08.representative-dogfood/v1",
+  "date": "2026-10-31",
+  "gitBaseline": "65576c82000fabe6760a6113546c3540fd3eaa63",
+  "labIsolation": {
+    "lab": "<TEMP>/afyx-p08-dogfood-lab",
+    "fixtureRoot": "<TEMP>/afyx-p08-dogfood-lab/representative-repo",
+    "graphStateDir": "<TEMP>/afyx-p08-dogfood-lab/graph-state",
+    "aceStateDir": "<TEMP>/afyx-p08-dogfood-lab/ace-state",
+    "separateRoots": true,
+    "sourceTreeIdentity": "sha256:d10af6b6bea7ff3f5973b7dbc071cd25dbe397fa5b4bbbfae8c4f0a0049deb33",
+    "zeroSourceMutationVerified": true
+  },
+  "graphIndexing": {
+    "status": "PASS",
+    "coldIndexingDurationMs": 720.256,
+    "indexedFiles": 20
+  },
+  "scenarios": {
+    "scenario1_known_lookup": {
+      "title": "Known File or Symbol Lookup",
+      "control_direct": {
+        "coldMs": 5.326,
+        "warmMs": 0.904,
+        "calls": 1,
+        "tokens": 107,
+        "correctness": "CORRECT"
+      },
+      "treatment_graph": {
+        "coldMs": 138.433,
+        "warmMs": 1.153,
+        "calls": 1,
+        "tokens": 98,
+        "correctness": "CORRECT"
+      },
+      "verdict": "DIRECT_SOURCE_PREFERRED (lowest overhead, identical correctness)"
+    },
+    "scenario2_cross_module": {
+      "title": "Cross-Module Dependency Analysis",
+      "control_direct": {
+        "coldMs": 13.476,
+        "warmMs": 11.34,
+        "calls": 2,
+        "tokens": 58,
+        "correctness": "HEURISTIC"
+      },
+      "treatment_graph": {
+        "coldMs": 58.223,
+        "warmMs": 21.626,
+        "calls": 2,
+        "tokens": 891,
+        "correctness": "STRUCTURALLY_EXACT"
+      },
+      "verdict": "GRAPH_PREFERRED (exact structural callers, eliminates false positives)"
+    },
+    "scenario3_odoo_inheritance": {
+      "title": "Odoo-like Inheritance and Relationship Analysis",
+      "control_direct": {
+        "coldMs": 11.896,
+        "warmMs": 10.834,
+        "calls": 2,
+        "tokens": 34,
+        "correctness": "PARTIAL_REGEX"
+      },
+      "treatment_graph": {
+        "coldMs": 2.517,
+        "warmMs": 1.159,
+        "calls": 2,
+        "tokens": 292,
+        "correctness": "COMPLETE_DECLARATION"
+      },
+      "verdict": "GRAPH_PREFERRED (authoritative inventory guarantee for _inherit)"
+    },
+    "scenario4_impact_tests": {
+      "title": "Impact Analysis and Affected-Test Selection",
+      "control_direct": {
+        "coldMs": 4.474,
+        "warmMs": 3.488,
+        "calls": 1,
+        "tokens": 19,
+        "correctness": "MANUAL_TRACE"
+      },
+      "treatment_graph": {
+        "coldMs": 16.037,
+        "warmMs": 15.799,
+        "calls": 2,
+        "tokens": 667,
+        "correctness": "TRANSITIVE_IMPACT"
+      },
+      "verdict": "GRAPH_PREFERRED (targeted test selection without guessing)"
+    },
+    "scenario5_stale_unsupported": {
+      "title": "Stale, Incomplete, and Unsupported Index Coverage",
+      "evidence": {
+        "graphInitialStatus": true,
+        "unindexedFoundByDirectSource": true,
+        "graphRefrainedFromHallucinating": true,
+        "graphHandlesUnsupportedFilesCleanly": true
+      },
+      "verdict": "FAIL_CLOSED_CORRECT (direct source authoritative on stale; Graph does not hallucinate)"
+    }
+  },
+  "contextEngineEvaluation": {
+    "defaultOffPolicy": "PASS",
+    "explicitOptIn": "PASS",
+    "byteExactRecovery": "PASS",
+    "safeFallbackOnTimeout": "PASS",
+    "protectedToolBypass": "PASS",
+    "overallVerdict": "PASS"
+  },
+  "acceptanceMatrix": {
+    "P08-1_KNOWN_SYMBOL_ROUTING": "PASS",
+    "P08-2_CROSS_MODULE_ANALYSIS": "PASS",
+    "P08-3_ODOO_INHERITANCE_INVENTORY": "PASS",
+    "P08-4_IMPACT_TEST_SELECTION": "PASS",
+    "P08-5_STALE_COVERAGE_TRUTHFULNESS": "PASS",
+    "P08-6_ACE_DEFAULT_OFF": "PASS",
+    "P08-7_ACE_EXPLICIT_OPTIN": "PASS",
+    "P08-8_ACE_BYTE_EXACT_RECOVERY": "PASS",
+    "P08-9_ACE_SAFE_FALLBACK": "PASS",
+    "P08-10_ENGINEERING_CORRECTNESS_FIRST": "PASS",
+    "P08-11_OBSERVED_COST_INTEGRITY": "PASS",
+    "P08-12_CROSS_PLATFORM_CI": "NOT_RUN (Pending Owner Push Authorization)",
+    "P08-13_FORGE_PRODUCTION_BENCHMARK": "BLOCKED (By Governance/A8 Gate)"
+  }
+}

@@ -1,0 +1,28 @@
+{
+  "schema_version": 1,
+  "contract_id": "afyx-engineering-assurance-v1",
+  "validator_authority": "record-schema-only",
+  "acceptance_authority": "independent-verification-required",
+  "lifecycle": ["PLANNED", "ANALYZED", "IMPLEMENTED", "VALIDATED", "DOCUMENTED", "MERGE_READY"],
+  "statuses": ["PASS", "FAIL", "NOT_RUN", "BLOCKED"],
+  "skip_dispositions": ["UNSUPPORTED", "DEFERRED", "ENVIRONMENT"],
+  "validation_levels": {
+    "1": {
+      "description": "Low-risk, bounded change",
+      "required_test_kinds": ["static", "focused"]
+    },
+    "2": {
+      "description": "Behavior or lifecycle change",
+      "required_test_kinds": ["static", "focused", "negative", "regression"]
+    },
+    "3": {
+      "description": "Security, migration, release or broad compatibility change",
+      "required_test_kinds": ["static", "focused", "negative", "regression", "security", "rollback"]
+    }
+  },
+  "proof_kinds": ["mutation", "differential", "performance"],
+  "ground_truth_classes": ["AFFIRMATIVE", "NEGATIVE_OBSERVATION"],
+  "merge_required_gates": ["baseline", "scope", "ground_truth", "tests", "ci", "documentation"],
+  "evidence_reuse_policy": "Relevant source digest, acceptance revision and scope fingerprint must match; reused evidence must be PASS and have no new relevant failure.",
+  "priority": ["correctness", "security", "performance", "efficiency"]
+}

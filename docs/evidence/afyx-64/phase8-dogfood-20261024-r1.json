@@ -1,0 +1,43 @@
+{
+  "contract": "afyx-64.phase8-dogfood/v1",
+  "date": "2026-10-24",
+  "baseline": "9e7a9bee9b7c678c5b01d6691902cb88720d2adc",
+  "product": {
+    "behavior": "protected Graph source and diagnostic results bypass ACE after identity and path validation",
+    "aceDefault": "OFF",
+    "graphStandalone": true,
+    "exactFallbackPreserved": true,
+    "focusedTests": { "passed": 21, "failed": 0 },
+    "fullAceTests": { "passed": 53, "failed": 0 },
+    "graphIntegrationE2E": "PASS",
+    "integratedDogfoodE2E": "PASS",
+    "cleanBuild": "PASS",
+    "packageDryRun": "PASS"
+  },
+  "cases": [
+    {
+      "id": "public-afyx-protected-output",
+      "order": "TREATMENT_THEN_CONTROL",
+      "control": { "graph": false, "targetedSearches": 2, "sourceRangeReads": 1, "discoveryMilliseconds": 222.884, "outcome": "PASS" },
+      "treatment": { "graph": "Afyx Graph MCP", "exploreCalls": 1, "symbolsReturned": 60, "filesReturned": 6, "observedWallMilliseconds": 1900, "outcome": "PASS" },
+      "finding": "same implementation boundary; Graph provided explicit caller/test relationships with higher latency and context volume"
+    },
+    {
+      "id": "owner-private-sqlite-build-lock",
+      "order": "CONTROL_THEN_TREATMENT",
+      "privacy": "raw repository identity and patch retained locally only",
+      "control": { "graph": false, "targetedSearches": 3, "sourceRangeReads": 1, "validationMilliseconds": 21008.357, "lint": "PASS", "build": "PASS" },
+      "treatment": { "graph": "Afyx Graph 1.0.0 task-local index", "indexedFiles": 34, "nodes": 443, "edges": 857, "exploreCalls": 2, "affectedCalls": 1, "dependents": 12, "affectedTests": 0, "irrelevantFiles": 1, "validationMilliseconds": 21232.803, "lint": "PASS", "build": "PASS" },
+      "resultParity": "identical one-file patch and passing nine-worker production build",
+      "localEvidenceSha256": "33C59769E5500D6E17E0C6D2CE68D8C079FFC264E4DA42236C141D016F90CE6C"
+    }
+  ],
+  "measurementBoundaries": {
+    "providerBillingTokens": "NOT_AVAILABLE",
+    "externalHistoricalGraphComparison": "NOT_RUN",
+    "humanIntervention": 0,
+    "modelRunEquivalence": "NOT_CLAIMED",
+    "physicalMac": "NOT_RUN",
+    "phase8Complete": false
+  }
+}

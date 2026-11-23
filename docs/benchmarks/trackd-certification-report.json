@@ -1,0 +1,226 @@
+{
+  "contract": "AfyxTrackDCertification/v1",
+  "executionId": "POSTV1-CI-AND-TRACKD-CERTIFICATION",
+  "baselineRevision": "0900dac967b993df4e7531a34c307e6772c76abb",
+  "optimizedRevision": "717a14ac2a0cf63f26f55f7270a47aaae949071d",
+  "fixtureSha256": "ceede7fb16fdb7535fb9ce0dc651eeca4a2fe4fdf7cd25e14fe6567b889b58ec",
+  "environment": {
+    "node": "v26.12.1",
+    "os": "Windows_NT",
+    "release": "10.0.26300",
+    "arch": "x64",
+    "cpu": "AMD Ryzen 5 8645HS w/ Radeon 760M Graphics",
+    "logicalCpus": 12,
+    "memoryBytes": 33615630336
+  },
+  "methodology": {
+    "seed": 23,
+    "files": 216,
+    "languages": [
+      "TypeScript",
+      "Python",
+      "Go",
+      "SQL",
+      "YAML",
+      "JSON"
+    ],
+    "warmups": 1,
+    "iterationsPerWorkload": 15,
+    "command": "node scripts/benchmark-trackd.mjs --certification-baseline --files 216 --rounds 15 --seed 23",
+    "coldDefinition": "Indeks baru per sampel; cache OS dipertahankan",
+    "rss": "process.resourceUsage().maxRSS pada proses CLI Graph",
+    "heap": "heapUsed pada saat proses CLI keluar",
+    "mcpOnlyCommand": "node scripts/benchmark-trackd.mjs --certification-baseline --mcp-only --files 216 --rounds 15 --seed 23",
+    "preTrackDEngineRevision": "dce04d442309c620697d5960913c7e475e4a10c8",
+    "observationAttribution": "Optimasi engine sudah berada di baseline 0900dac. Diff 0900dac hingga 717a14a pada afyx-graph/engine/src kosong. Perbandingan kampanye berurutan dapat dipengaruhi kondisi cache OS dan SQLite. Besar kontribusi cache tidak diisolasi.",
+    "optimizedRevisionMeaning": "SHA verifikasi integrasi. Ringkasan metrik AFTER sudah masuk di 9ac1bc0. SHA eksekusi sampel AFTER tidak dicatat secara eksplisit dalam laporan historis."
+  },
+  "metrics": {
+    "before": {
+      "coldIndex": {
+        "count": 15,
+        "p50Ms": 2445.107500000002,
+        "p95Ms": 3089.8073000000004,
+        "iqrMs": 761.3079000000034,
+        "maxChildPeakRssKiB": 266532,
+        "maxChildHeapUsedAtExitBytes": 22260224
+      },
+      "noopSync": {
+        "count": 15,
+        "p50Ms": 1223.3953000000038,
+        "p95Ms": 1668.0694000000003,
+        "iqrMs": 166.22359999999753,
+        "maxChildPeakRssKiB": 107384,
+        "maxChildHeapUsedAtExitBytes": 18782384
+      },
+      "query": {
+        "count": 15,
+        "p50Ms": 714.5483000000095,
+        "p95Ms": 1034.1563000000024,
+        "iqrMs": 95.13499999999476,
+        "maxChildPeakRssKiB": 93156,
+        "maxChildHeapUsedAtExitBytes": 17578288
+      },
+      "mcpConcurrency": {
+        "surface": "MCP stdio langsung, daemon OFF",
+        "startupMs": 307.6143000000002,
+        "concurrentRequests": 8,
+        "waves": 15,
+        "responses": 120,
+        "p50Ms": 2.676300000000083,
+        "p95Ms": 3.8849999999997635,
+        "iqrMs": 0.6531999999997424,
+        "responsesPerSecond": 2762.176595156928,
+        "sqliteBytes": {
+          "db": 385024,
+          "wal": 0,
+          "shm": 32768
+        },
+        "repeatabilityDigest": "7e2dc5b084566d87ea2a61cc4763ea268b5445146f09169ab8146dfe430700bd"
+      },
+      "sqliteWal": {
+        "db": 385024,
+        "wal": 0,
+        "shm": 32768
+      },
+      "runtimeBundleBytes": 3019976,
+      "runtimeBundleSha256": "04e1b064dc407dc0c0eb0053829883864ab13d517b86eac3077f85f7e57119e5"
+    },
+    "after": {
+      "coldIndex": {
+        "count": 15,
+        "p50Ms": 1384.7124,
+        "p95Ms": 1515.8223,
+        "iqrMs": 50.5713,
+        "maxChildPeakRssKiB": 268324,
+        "maxChildHeapUsedAtExitBytes": 22260984
+      },
+      "noopSync": {
+        "count": 15,
+        "p50Ms": 736.2799,
+        "p95Ms": 772.2813,
+        "iqrMs": 17.0037,
+        "maxChildPeakRssKiB": 108500,
+        "maxChildHeapUsedAtExitBytes": 18419992
+      },
+      "query": {
+        "count": 15,
+        "p50Ms": 391.1244,
+        "p95Ms": 413.1191,
+        "iqrMs": 11.5923,
+        "maxChildPeakRssKiB": 91912,
+        "maxChildHeapUsedAtExitBytes": 17587496
+      },
+      "mcpConcurrency": {
+        "surface": "MCP stdio langsung, daemon OFF",
+        "startupMs": 282.5626,
+        "concurrentRequests": 8,
+        "waves": 15,
+        "responses": 120,
+        "p50Ms": 2.7751,
+        "p95Ms": 3.6331,
+        "iqrMs": 0.8616,
+        "responsesPerSecond": 2717.7852,
+        "sqliteBytes": {
+          "db": 385024,
+          "wal": 0,
+          "shm": 32768
+        },
+        "repeatabilityDigest": "7e2dc5b084566d87ea2a61cc4763ea268b5445146f09169ab8146dfe430700bd"
+      },
+      "sqliteWal": {
+        "db": 385024,
+        "wal": 0,
+        "shm": 32768
+      },
+      "runtimeBundleBytes": 2994156,
+      "runtimeBundleSha256": "0c41ce114c61bf717619f54371968d43d53ffc4d016a96a5ad14c30e74c8cbe2"
+    },
+    "delta": {
+      "mcpStartupMsDelta": -25.05,
+      "runtimeBundleBytesDelta": -25820,
+      "coldIndexP50Pct": -43.37,
+      "coldIndexP95Pct": -50.94,
+      "noopSyncP50Pct": -39.82,
+      "noopSyncP95Pct": -53.7,
+      "queryP50Pct": -45.26,
+      "queryP95Pct": -60.05,
+      "mcpStdioP50Pct": 3.69,
+      "mcpStdioP95Pct": -6.48,
+      "mcpStdioThroughputPct": -1.61,
+      "coldIndexChildPeakRssPct": 0.67,
+      "runtimeBundleBytesPct": -0.85,
+      "sqliteDbBytes": 0
+    }
+  },
+  "semanticQuality": {
+    "precision": 1,
+    "recall": 1,
+    "outputDigest": "670aeedbb64d4eb4f46dd900c7c1d76982ba575933b324b1a4b1c423817c9667",
+    "status": "PASS"
+  },
+  "security": {
+    "concurrencyAndWalTestsPassed": 48,
+    "gate": "PASS",
+    "notes": "48/48 pengujian konkurensi, antrean daemon, isolasi transport, kontensi writer, pemulihan stale PID/lockfile, dan backstop inaktivitas tervalidasi PASS."
+  },
+  "ci": {
+    "baseline": {
+      "ci": 44920599955,
+      "windowsInstaller": 44920599902,
+      "installerUx": 44920599854,
+      "graphBuild": 44920599871
+    },
+    "final": {
+      "ci": {
+        "id": 44941336395,
+        "headSha": "717a14ac2a0cf63f26f55f7270a47aaae949071d",
+        "conclusion": "success",
+        "url": "https://github.com/a5zero7/afyx-engineering-kit/actions/runs/44941336395"
+      },
+      "windowsInstaller": {
+        "id": 44941336484,
+        "headSha": "717a14ac2a0cf63f26f55f7270a47aaae949071d",
+        "conclusion": "success",
+        "url": "https://github.com/a5zero7/afyx-engineering-kit/actions/runs/44941336484"
+      },
+      "installerUx": {
+        "id": 44941336546,
+        "headSha": "717a14ac2a0cf63f26f55f7270a47aaae949071d",
+        "conclusion": "success",
+        "url": "https://github.com/a5zero7/afyx-engineering-kit/actions/runs/44941336546"
+      },
+      "mb12Native": {
+        "id": 44941336498,
+        "headSha": "717a14ac2a0cf63f26f55f7270a47aaae949071d",
+        "conclusion": "success",
+        "url": "https://github.com/a5zero7/afyx-engineering-kit/actions/runs/44941336498"
+      },
+      "graphBuild": {
+        "id": 44938914513,
+        "headSha": "21c1e10a15f973da68e125f691336b99cc4340c7",
+        "conclusion": "success",
+        "url": "https://github.com/a5zero7/afyx-engineering-kit/actions/runs/44938914513"
+      }
+    },
+    "local": {
+      "powershellBindings": "2/2",
+      "windowsExeSmoke": "5/5",
+      "wslBashMinimal": "PASS",
+      "rootNpm": "35/35",
+      "focusedNode": "48/48",
+      "workspaceHygiene": "PASS",
+      "nativeSourceOwnership": "502/502",
+      "graphBuild": "PASS",
+      "remote": "SUCCESS pada SHA bukti tiap workflow; Graph Build diwarisi dari 21c1e10."
+    }
+  },
+  "limitations": [
+    "Latency CLI dan MCP stdio diukur melalui kampanye terpisah pada proses lokal Node.js v26.12.1 Windows x64.",
+    "Repeatability digest membuktikan idempotensi deterministik hasil konkurensi paralel.",
+    "Oracle semantik beku (semantic-baseline.meta.json) diverifikasi 100% identik terhadap implementasi pra-independensi tanpa degradasi ekstraksi.",
+    "Perubahan p50 MCP, throughput dan RSS cold-index dicatat bersama penurunan latency. Ukuran SQLite tetap. Hasil observasional ini tidak membuktikan percepatan yang disebabkan perubahan engine antar kedua SHA.",
+    "Nilai mutu semantik dan 48 regresi keamanan adalah bukti historis yang dipakai kembali. Batch rekonsiliasi tidak mengeksekusi ulang kampanye."
+  ],
+  "candidateRevision": "b89cdf6b23fcb05000a96bba7556fa02e6c1b59f"
+}

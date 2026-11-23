@@ -1,0 +1,58 @@
+{
+  "task_id": "AFYX-91852",
+  "phase": "Phase 5F",
+  "captured_on": "2026-10-04",
+  "baseline_sha": "48b6078ed37349e405213258819fa5225bcdb3fb",
+  "target": "win32-x64",
+  "node_version": "v24.16.0",
+  "archive": {
+    "name": "afyx-graph-win32-x64.zip",
+    "sha256": "f90524e7df219ea3d60786d70a329cd5a0c2426ba9207ef30cf7379195db5bbe",
+    "compressed_bytes": 49828770,
+    "file_count": 1628,
+    "uncompressed_bytes": 229341184
+  },
+  "artifact_manifest": {
+    "scratch_path": "%TEMP%\\afyx-phase5f-before-20261004\\artifact-manifest.json",
+    "sha256": "108fabf29713286d579e9d97ff9e119ceae06beaa85725e080bf666748b0a3c0",
+    "bytes": 336352
+  },
+  "contents": {
+    "bundled_node": { "files": 1, "bytes": 92279112 },
+    "node_modules": { "files": 194, "bytes": 58527055 },
+    "wasm": { "files": 68, "bytes": 122348375 },
+    "viewer": { "files": 46, "bytes": 1077326 },
+    "native_kernel_files": 0,
+    "historical_legal_files": 2
+  },
+  "tracked_source": {
+    "grammar_wasm": { "files": 29, "bytes": 68192092 },
+    "kernel": { "files": 52, "bytes": 66249394 },
+    "kernel_vendored_grammars": { "files": 23, "bytes": 65228661 }
+  },
+  "direct_runtime_packages": {
+    "@clack/prompts": "1.3.0",
+    "commander": "14.0.3",
+    "fast-string-width": "3.0.2",
+    "fast-wrap-ansi": "0.2.0",
+    "ignore": "7.0.5",
+    "jsonc-parser": "3.3.1",
+    "picomatch": "4.0.7",
+    "sisteransi": "1.0.5",
+    "tree-sitter-wasms": "0.1.13",
+    "web-tree-sitter": "0.25.10"
+  },
+  "browser_runtime": {
+    "svelte": "5.56.10",
+    "@xyflow/svelte": "1.6.5",
+    "font_files": 43
+  },
+  "distribution_verifier": {
+    "result": "PASS",
+    "assets": 2,
+    "grammar_count": 29,
+    "engine_source_maps": 338,
+    "legal_files": 2
+  },
+  "published": false
+}

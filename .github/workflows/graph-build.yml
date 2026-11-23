@@ -1,0 +1,220 @@
+name: Afyx Graph Build
+
+# Normal Afyx Graph CI: host build, unit tests, semantic baseline, CLI smoke and
+# MCP smoke on Linux, Windows and macOS (Node 24). Zero-model. The six platform
+# bundles are built only by
+# graph-release.yml, not on every pull request.
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main, dev, alpha]
+    paths:
+      - 'afyx-graph/**'
+      - 'scripts/install-afyx-graph.*'
+      - 'scripts/validate-afyx-graph.py'
+      - 'scripts/audit-legacy-identity.py'
+      - 'scripts/verify-native-source-ownership.mjs'
+      - 'scripts/native-source-ownership.json'
+      - '.github/workflows/graph-build.yml'
+  pull_request:
+    branches: [main, dev, alpha]
+    paths:
+      - 'afyx-graph/**'
+      - 'scripts/install-afyx-graph.*'
+      - 'scripts/validate-afyx-graph.py'
+      - 'scripts/audit-legacy-identity.py'
+      - 'scripts/verify-native-source-ownership.mjs'
+      - 'scripts/native-source-ownership.json'
+      - '.github/workflows/graph-build.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  linux:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: afyx-graph/engine/package-lock.json
+      - name: Validate identity, metadata and attribution
+        run: python scripts/validate-afyx-graph.py
+      - name: Operational independence audit
+        run: python scripts/audit-legacy-identity.py
+      - name: Install locked dependencies
+        working-directory: afyx-graph/engine
+        run: npm ci
+      - name: Audit locked development and production dependencies
+        working-directory: afyx-graph/engine
+        run: |
+          npm audit --audit-level=high
+          npm audit --omit=dev --audit-level=high
+      - name: Verify reviewed native source ownership
+        run: node scripts/verify-native-source-ownership.mjs
+      - name: Clean build (no stale dist artifacts)
+        working-directory: afyx-graph/engine
+        run: npm run build:clean
+      - name: Verify release composition before packaging
+        working-directory: afyx-graph/engine
+        run: |
+          node scripts/verify-release-ready.mjs
+          npm pack --dry-run --json >/dev/null
+      - name: Unit tests
+        working-directory: afyx-graph/engine
+        run: npm test
+      - name: Focused Graph-ACE MCP runtime regression
+        working-directory: afyx-graph/engine
+        run: npx vitest run __tests__/ace-runtime.test.ts
+      - name: Semantic baseline
+        working-directory: afyx-graph/engine
+        run: npm run test:semantic
+      - name: CLI and MCP smoke
+        working-directory: afyx-graph/engine
+        run: npm run test:smoke
+      - name: Installer fallback, update and executable verification
+        run: |
+          export AFYX_GRAPH_RUNTIME_ROOT="$RUNNER_TEMP/afyx-graph-runtime"
+          export AFYX_GRAPH_BIN_DIR="$RUNNER_TEMP/afyx-graph-bin"
+          ./scripts/install-afyx-graph.sh --offline
+          ./scripts/install-afyx-graph.sh --update --archive afyx-graph/engine/release/afyx-graph-linux-x64.tar.gz
+          ./scripts/install-afyx-graph.sh --validate-only
+          "$AFYX_GRAPH_RUNTIME_ROOT/current/bin/afyx-graph" --version
+          "$AFYX_GRAPH_RUNTIME_ROOT/current/bin/afyx-graph" help
+      - name: Host bundle smoke
+        working-directory: afyx-graph/engine
+        run: |
+          bash scripts/build-bundle.sh linux-x64
+          (cd release && sha256sum afyx-graph-* > SHA256SUMS)
+          mkdir -p /tmp/afyx-graph-smoke
+          tar -xzf release/afyx-graph-linux-x64.tar.gz -C /tmp/afyx-graph-smoke
+          /tmp/afyx-graph-smoke/afyx-graph-linux-x64/bin/afyx-graph --version
+          /tmp/afyx-graph-smoke/afyx-graph-linux-x64/bin/afyx-graph help
+
+  windows:
+    runs-on: windows-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: afyx-graph/engine/package-lock.json
+      - name: Validate identity, metadata and attribution
+        run: python scripts/validate-afyx-graph.py
+      - name: Operational independence audit
+        run: python scripts/audit-legacy-identity.py
+      - name: Install locked dependencies
+        working-directory: afyx-graph/engine
+        run: npm ci
+      - name: Verify reviewed native source ownership
+        run: node scripts/verify-native-source-ownership.mjs
+      - name: Clean build (no stale dist artifacts)
+        working-directory: afyx-graph/engine
+        run: npm run build:clean
+      - name: Verify release composition before packaging
+        working-directory: afyx-graph/engine
+        shell: pwsh
+        run: |
+          node scripts/verify-release-ready.mjs
+          npm pack --dry-run --json | Out-Null
+      - name: Unit tests
+        working-directory: afyx-graph/engine
+        run: npm test
+      - name: Focused Graph-ACE MCP runtime regression
+        working-directory: afyx-graph/engine
+        run: npx vitest run __tests__/ace-runtime.test.ts
+      - name: Semantic baseline
+        working-directory: afyx-graph/engine
+        run: npm run test:semantic
+      - name: CLI and MCP smoke
+        working-directory: afyx-graph/engine
+        run: npm run test:smoke
+      - name: Native PowerShell installer fallback, update and executable verification
+        shell: pwsh
+        run: |
+          $runtime = Join-Path $env:RUNNER_TEMP 'afyx-graph-runtime'
+          ./scripts/install-afyx-graph.ps1 -RuntimeRoot $runtime -SkipPathUpdate -Offline -Confirm:$false
+          ./scripts/install-afyx-graph.ps1 -RuntimeRoot $runtime -SkipPathUpdate -Update -ArchivePath ./afyx-graph/engine/release/afyx-graph-win32-x64.zip -Confirm:$false
+          ./scripts/install-afyx-graph.ps1 -RuntimeRoot $runtime -ValidateOnly
+          & (Join-Path $runtime 'current/bin/afyx-graph.cmd') --version
+          & (Join-Path $runtime 'current/bin/afyx-graph.cmd') help
+
+  macos:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-15, macos-15-intel]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: afyx-graph/engine/package-lock.json
+      - name: Validate identity, metadata and attribution
+        run: python3 scripts/validate-afyx-graph.py
+      - name: Operational independence audit
+        run: python3 scripts/audit-legacy-identity.py
+      - name: Install locked dependencies
+        working-directory: afyx-graph/engine
+        run: npm ci
+      - name: Verify reviewed native source ownership
+        run: node scripts/verify-native-source-ownership.mjs
+      - name: Clean build (no stale dist artifacts)
+        working-directory: afyx-graph/engine
+        run: npm run build:clean
+      - name: Verify release composition before packaging
+        working-directory: afyx-graph/engine
+        run: |
+          node scripts/verify-release-ready.mjs
+          npm pack --dry-run --json >/dev/null
+      - name: Unit tests
+        working-directory: afyx-graph/engine
+        run: npm test
+      - name: Focused Graph-ACE MCP runtime regression
+        working-directory: afyx-graph/engine
+        run: npx vitest run __tests__/ace-runtime.test.ts
+      - name: Semantic baseline
+        working-directory: afyx-graph/engine
+        run: npm run test:semantic
+      - name: CLI and MCP smoke
+        working-directory: afyx-graph/engine
+        run: npm run test:smoke
+      - name: Native macOS Full install, verify, MCP and uninstall (Bash 3.2)
+        shell: bash
+        run: |
+          node --input-type=module -e 'import {buildGraphReleaseArtifacts} from "./scripts/prepare-g6-package.mjs"; buildGraphReleaseArtifacts(process.cwd(),process.env.GITHUB_SHA)'
+          export HOME="$RUNNER_TEMP/afyx-macos-profile"
+          export AFYX_INSTALL_ROOT="$HOME/.afyx"
+          export AFYX_GRAPH_RUNTIME_ROOT="$HOME/.afyx/graph"
+          export AFYX_GRAPH_BIN_DIR="$HOME/.local/bin"
+          export AFYX_CONTEXT_RUNTIME_ROOT="$HOME/.afyx/context"
+          export AFYX_FORGE_RUNTIME_ROOT="$HOME/.afyx/forge"
+          export AFYX_HOST_BRIDGE_RUNTIME_ROOT="$HOME/.afyx/host-bridge"
+          export AFYX_BACKUP_ROOT="$HOME/backups"
+          export CODEX_HOME="$HOME/.codex"
+          export AFYX_GEMINI_HOME="$HOME/.gemini"
+          export CLAUDE_CONFIG_DIR="$HOME/.claude"
+          export AFYX_CONTEXT_OPT_IN=0
+          mkdir -p "$HOME"
+          /bin/bash ./install.sh --preset full --skip-provider-configuration --offline --no-build-fallback
+          /bin/bash ./verify.sh --preset full --skip-provider-configuration
+          node afyx-graph/engine/scripts/smoke-cli-mcp.mjs --bin "$AFYX_GRAPH_RUNTIME_ROOT/current/lib/dist/bin/afyx-graph.js"
+          node "$AFYX_CONTEXT_RUNTIME_ROOT/current/dist/cli.js" --help
+          node "$AFYX_FORGE_RUNTIME_ROOT/current/bin/afyx-forge.js" --help
+          /bin/bash ./scripts/install-afyx-graph.sh --update --offline --no-build-fallback
+          /bin/bash ./scripts/install-afyx-graph.sh --validate-only
+          /bin/bash ./scripts/install-afyx-graph.sh --uninstall
+          test ! -e "$AFYX_GRAPH_RUNTIME_ROOT"

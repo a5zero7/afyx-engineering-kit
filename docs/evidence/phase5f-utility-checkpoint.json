@@ -1,0 +1,88 @@
+{
+  "task_id": "AFYX-91852",
+  "phase": "Phase 5F",
+  "boundary": "Utility / Product Runtime Dependencies",
+  "captured_on": "2026-10-04",
+  "start_checkpoint": "bef1643f21d76182776a9528e4f3ab262785a737",
+  "status": "PHASE_5F_PARTIAL_UTILITY_RUNTIME_COMPLETE",
+  "dependencies": {
+    "direct_production_before": 10,
+    "direct_production_after": [
+      "tree-sitter-wasms",
+      "web-tree-sitter"
+    ],
+    "non_dev_lock_entries_before": 51,
+    "non_dev_lock_entries_after": 41,
+    "removed": [
+      "commander",
+      "@clack/prompts",
+      "@clack/core",
+      "fast-string-width",
+      "fast-string-truncated-width",
+      "fast-wrap-ansi",
+      "sisteransi",
+      "ignore",
+      "picomatch",
+      "jsonc-parser"
+    ]
+  },
+  "scope_parity": {
+    "root": "afyx-graph/engine",
+    "old_count": 981,
+    "new_count": 981,
+    "old_sha256": "1f1e836b3a28e4e0ced2d710412a886b5ecf26a429903f4c16ea8f32143ea8c1",
+    "new_sha256": "1f1e836b3a28e4e0ced2d710412a886b5ecf26a429903f4c16ea8f32143ea8c1",
+    "equal": true
+  },
+  "validation": {
+    "clean_npm_install": "PASS",
+    "focused": {
+      "passed": 517,
+      "skipped": 4,
+      "failed": 0
+    },
+    "full_windows": {
+      "passed": 5503,
+      "skipped": 213,
+      "failed": 35,
+      "failed_files": 13,
+      "classification": "isolated timeouts passed; remaining EPERM failures occur only during temporary-directory cleanup; extraction-old-git separator assertion fails identically at OLD checkpoint"
+    },
+    "typecheck": "PASS",
+    "clean_build": "PASS",
+    "semantic_fixtures": 6,
+    "smoke_checks": 21,
+    "repository_validator": "PASS"
+  },
+  "artifact": {
+    "target": "win32-x64",
+    "node_version": "v24.16.0",
+    "archive": "afyx-graph-win32-x64.zip",
+    "archive_sha256": "db56aa351284ecd56645724fe2635bde3d6e3ce1c0a9c2da8cf33083be503efb",
+    "archive_bytes": 49566958,
+    "file_count": 1560,
+    "uncompressed_bytes": 228429183,
+    "node_modules_files": 106,
+    "node_modules_bytes": 57543696,
+    "staged_runtime_packages": [
+      "tree-sitter-wasms",
+      "web-tree-sitter"
+    ],
+    "removed_packages_present": [],
+    "distribution_verifier": {
+      "result": "PASS",
+      "assets": 2,
+      "grammar_count": 29,
+      "engine_source_maps": 343,
+      "legal_files": 2
+    },
+    "published": false
+  },
+  "pending": [
+    "UI runtime replacement",
+    "parser/grammar replacement",
+    "native kernel closure",
+    "bundled Node/node_modules final removal",
+    "final Phase 5F artifact audit"
+  ]
+}
