@@ -56,13 +56,13 @@ export function getPackageVersion() {
     const pkgJsonPath = join(PACKAGE_ROOT, 'package.json');
     if (existsSync(pkgJsonPath)) {
       const data = JSON.parse(readFileSync(pkgJsonPath, 'utf8'));
-      cachedVersion = data.version || '0.1.0-alpha.1';
+      cachedVersion = data.version || '1.0.1';
       return cachedVersion;
     }
   } catch {
     // fallback
   }
-  return '0.1.0-alpha.1';
+  return '1.0.1';
 }
 
 export const SUPPORTED_COMMANDS = ['install', 'verify', 'doctor', 'update', 'uninstall'];
@@ -96,6 +96,7 @@ export const COMMAND_ALLOWED_OPTIONS = {
     'graphRuntimeRoot', 'contextRuntimeRoot', 'forgeRuntimeRoot',
     'componentActions',
     'removeProviderConfiguration', 'removeAfyxGraph', 'removeAfyxContext', 'removeAfyxForge',
+    'all', 'purgeBackups',
     'dryRun', 'nonInteractive'
   ])
 };
@@ -143,6 +144,8 @@ Options:
   --remove-afyx-graph             Explicitly remove Afyx Graph runtime during uninstall
   --remove-afyx-context           Explicitly remove Afyx Context runtime during uninstall
   --remove-afyx-forge             Explicitly remove Afyx Forge runtime during uninstall
+  --all                           Remove all AFYX runtimes (Graph, Context, Forge) during uninstall
+  --purge-backups                 Purge AFYX-owned backup directories under ~/.afyx/backups
   --dry-run, --what-if, -n        Preview planned changes without modifying system
   --validate-only                 Check prerequisites and component status without mutating
   --force                         Force adoption or replacement where supported
@@ -278,6 +281,10 @@ export function parseCliArgs(rawArgs) {
       if (recordOption('removeAfyxContext', arg)) result.options.removeAfyxContext = true;
     } else if (arg === '--remove-afyx-forge') {
       if (recordOption('removeAfyxForge', arg)) result.options.removeAfyxForge = true;
+    } else if (arg === '--all') {
+      if (recordOption('all', arg)) result.options.all = true;
+    } else if (arg === '--purge-backups') {
+      if (recordOption('purgeBackups', arg)) result.options.purgeBackups = true;
     } else if (arg === '--non-interactive' || arg === '-y' || arg === '--yes') {
       if (recordOption('nonInteractive', arg)) result.options.nonInteractive = true;
     } else if (arg === '--ui' || arg.startsWith('--ui=')) {
@@ -442,6 +449,8 @@ export function buildSubprocessCall(command, options = {}, platform = process.pl
     if (effectiveOptions.removeAfyxGraph && command === 'uninstall') psArgs.push('-RemoveAfyxGraph');
     if (effectiveOptions.removeAfyxContext && command === 'uninstall') psArgs.push('-RemoveAfyxContext');
     if (effectiveOptions.removeAfyxForge && command === 'uninstall') psArgs.push('-RemoveAfyxForge');
+    if (effectiveOptions.all && command === 'uninstall') psArgs.push('-All');
+    if (effectiveOptions.purgeBackups && command === 'uninstall') psArgs.push('-PurgeBackups');
 
     // Prefer PowerShell 7+ (pwsh), fall back to Windows PowerShell (powershell.exe)
     const executable = 'pwsh';
@@ -511,6 +520,9 @@ export function buildSubprocessCall(command, options = {}, platform = process.pl
   if (effectiveOptions.removeAfyxGraph && command === 'uninstall') shArgs.push('--remove-afyx-graph');
   if (effectiveOptions.removeAfyxContext && command === 'uninstall') shArgs.push('--remove-afyx-context');
   if (effectiveOptions.removeAfyxForge && command === 'uninstall') shArgs.push('--remove-afyx-forge');
+  if (effectiveOptions.all && command === 'uninstall') shArgs.push('--all');
+  if (effectiveOptions.purgeBackups && command === 'uninstall') shArgs.push('--purge-backups');
+  if (effectiveOptions.nonInteractive && command === 'uninstall') shArgs.push('--non-interactive');
 
   return {
     executable: 'bash',

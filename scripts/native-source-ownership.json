@@ -2835,7 +2835,7 @@
     {
       "path": "scripts/afyx-midnight-circuit.mjs",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "72b49729222a6539fd7258ba411996360b6a8b40b5486c92b7b6d2badb692694",
+      "reviewedSha256": "0cece5be662bf54c17e1da0cb03984abd1f2c9574dcd67a81eabe37b7568e1f2",
       "evidence": "MB12 native-source review retained. MB14 AFYX-328 technical delta review: six existing pre-planning callbacks now forward keyboard focus and provider scroll offsets to the existing renderer; no new UI architecture, dependency, or upstream implementation. Regression confirms focus, visible row movement, safe cancellation and zero planning; 33 focused UI/inventory tests pass. Evidence AFYX-MB14-20261116; legal clearance remains separate."
     },
     {
@@ -2871,7 +2871,7 @@
     {
       "path": "scripts/afyx-npm-installer.mjs",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "2a7f2d8df66d75061f7b11f1fec2da01d0707baa12d8b16eebe95763d512282f",
+      "reviewedSha256": "e52546f8cc61727ee9af3dba4fef66b86e7b26de6105acdfc86208dbe9d82ced",
       "evidence": "Installer UX v2 with synchronized universal capability summaries, help text, and version 0.1.0-alpha.12 (AFYX-77)."
     },
     {
@@ -3063,13 +3063,13 @@
     {
       "path": "uninstall.sh",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "f86b68699fd7d8de89b0a206c9598d800298cdf4d85e5c32c4ebe30ddb91bb62",
+      "reviewedSha256": "f9554bf3f1ccedf4806afbc9670f1e034b67f9a4cbc81a31cb7ec4c4e728386b",
       "evidence": "AFYX post-v1 audit remediation: AFYX-owned installer and lifecycle implementation maintained in this repository."
     },
     {
       "path": "verify.sh",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "481c2adeaeee31ee4c1825946e581fd0d644d8b32eae813ba1a810b9f3d11035",
+      "reviewedSha256": "357a004cd915573b6bbcb3a184728555572fba17b6ea05b987adf11d45c940c0",
       "evidence": "AFYX post-v1 audit remediation: AFYX-owned installer and lifecycle implementation maintained in this repository."
     },
     {
@@ -3081,13 +3081,13 @@
     {
       "path": "install.sh",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "83d482f109f9cecbe279456340c8a60e61906fecb2493c4c77c3b1cb0c4a5770",
+      "reviewedSha256": "adeae00bc9304c8aa6fc0bdd07a6a1330c5872a7c53023d66672b4db5b558eb9",
       "evidence": "AFYX POSIX kit installer with explicit platform, component, and provider skill-root lifecycle boundaries (AFYX-361, AFYX-362)."
     },
     {
       "path": "uninstall.ps1",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "1fb3053c90d1936a29dc168bf64839a9fdc87f54dd2633175cb1a57ee0c396ac",
+      "reviewedSha256": "03109a15c2961af411375ebf49a9b0aed489cfeabbb69d41684bf0d63800205d",
       "evidence": "AFYX native Kit lifecycle entrypoint maintained in this repository."
     },
     {

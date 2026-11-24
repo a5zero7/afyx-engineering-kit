@@ -30,14 +30,13 @@ $SelectedComponent = @($SelectedComponent | ForEach-Object { $_ -split ',' } | F
 $Provider = @($Provider | ForEach-Object { $_ -split ',' } | ForEach-Object { $_.Trim() } | Where-Object { $_ })
 $codexHome = if ($env:CODEX_HOME) { $env:CODEX_HOME } else { Join-Path $env:USERPROFILE '.codex' }
 
-Write-Host 'Afyx Engineering Kit — Windows uninstaller (PowerShell)'
+Write-Host 'Afyx Engineering Kit v1.0.1 — Windows uninstaller (PowerShell)'
 if ($All) {
     $RemoveUsageTracker = $true
     $RemoveAfyxGraph = $true
     $RemoveAfyxContext = $true
     $RemoveAfyxForge = $true
     $RemoveHostBridge = $true
-    $RemoveProviderConfiguration = $true
 }
 $providerSkillRoots = @()
 if ('codex' -in $Provider) {
@@ -215,5 +214,11 @@ if ($PurgeBackups) {
     foreach ($entry in $targets) {
         Remove-AfyxRetainedBackups -Component $entry.Component -Confirm:$false -WhatIf:$WhatIfPreference
     }
+}
+$backupRootDir = if ($env:AFYX_BACKUP_ROOT) { [IO.Path]::GetFullPath($env:AFYX_BACKUP_ROOT) } else { Join-Path $HOME '.afyx\backups' }
+$preservedDirs = @(@($graphRoot, $ContextRuntimeRoot, $ForgeRuntimeRoot, $backupRootDir) | Where-Object { Test-Path -LiteralPath $_ })
+if ($preservedDirs.Count -gt 0) {
+    Write-Host "Preserved directories: $($preservedDirs -join ', ')"
+    Write-Host 'For a complete wipe, run: npx afyx-engineering-kit uninstall --all --purge-backups'
 }
 Write-Host 'ACE user state, project indexes, external software, and unrelated Codex configuration were not changed.'

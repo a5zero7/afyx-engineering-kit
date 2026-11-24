@@ -64,6 +64,12 @@ host_path() {
 
 CANONICAL_SOURCE="$(normalize_path "$SOURCE_ROOT")"
 CANONICAL_RUNTIME="$(normalize_path "$runtime_root")"
+CANONICAL_HOME="$(normalize_path "$HOME")"
+
+if [[ "$CANONICAL_RUNTIME" == "$CANONICAL_HOME" || "$CANONICAL_HOME" == "$CANONICAL_RUNTIME"/* ]]; then
+  printf '%s\n' 'Afyx Forge runtime root must not be HOME or an ancestor directory.' >&2
+  exit 1
+fi
 
 if [[ "$CANONICAL_RUNTIME" == "$CANONICAL_SOURCE" || "$CANONICAL_RUNTIME" == "$CANONICAL_SOURCE"/* ]]; then
   printf '%s\n' 'Afyx Forge runtime root must not overlap bundled source.' >&2

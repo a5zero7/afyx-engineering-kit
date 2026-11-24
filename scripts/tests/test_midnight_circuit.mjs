@@ -75,7 +75,7 @@ test('provider inventory focus and overflow scroll work before installation plan
   let plans = 0;
   const result = await runMidnightCircuit({ ...terminal,
     hosts: [{ id: 'codex', name: 'Codex', supported: true,
-      products: Array.from({ length: 30 }, (_, index) => ({ type: 'VS Code Extension', version: `1.0.${index}` })) }],
+      products: Array.from({ length: 30 }, (_, index) => ({ type: 'CLI', version: `1.0.${index}` })) }],
     backend: { plan: async () => { plans++; throw new Error('Planning must remain idle'); } },
   });
   assert.equal(result, null);
@@ -85,7 +85,7 @@ test('provider inventory focus and overflow scroll work before installation plan
     .map((match) => ({ row: Number(match[1]), text: stripVTControlCharacters(match[2]) }));
   const initialProviderRow = patches.find((patch) => patch.text.includes('Codex: detected'));
   assert.ok(initialProviderRow);
-  assert.ok(patches.some((patch) => patch.row === initialProviderRow.row && patch.text.includes('VS Code Extension 1.0.1')),
+  assert.ok(patches.some((patch) => patch.row === initialProviderRow.row && patch.text.includes('CLI 1.0.1')),
     'Two downward scrolls must move the first visible provider row without changing the selected option');
   assert.doesNotMatch(terminal.output.text, /REVIEW \/ APPLY \[/);
   assert.equal(terminal.input.rawMode, false);
@@ -205,7 +205,8 @@ test('provider selection distinguishes supported hosts from extension-only Antig
   assert.equal(providerSelectable({ id: 'antigravity', products: [{ type: 'VS Code Extension' }] }, 'linux'), false);
   assert.equal(providerSelectable({ id: 'antigravity', products: [{ type: 'CLI' }] }, 'linux'), true);
   assert.equal(providerSelectable({ id: 'antigravity', products: [{ type: 'IDE/Desktop' }] }, 'win32'), true);
-  assert.equal(providerSelectable({ id: 'codex', products: [{ type: 'VS Code Extension' }] }, 'win32'), true);
+  assert.equal(providerSelectable({ id: 'codex', products: [{ type: 'VS Code Extension' }] }, 'win32'), false);
+  assert.equal(providerSelectable({ id: 'codex', products: [{ type: 'CLI' }] }, 'win32'), true);
   assert.equal(providerSelectable({ id: 'opencode', products: [{ type: 'CLI' }] }, 'linux'), false);
 });
 

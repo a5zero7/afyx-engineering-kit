@@ -1,4 +1,4 @@
-﻿[CmdletBinding(SupportsShouldProcess)]
+[CmdletBinding(SupportsShouldProcess)]
 param(
     [string]$SkillsRoot = (Join-Path $env:USERPROFILE '.agents\skills'),
     [switch]$Force,
@@ -155,7 +155,7 @@ if ($wizardMode) {
     Enable-AfyxDashboard -Terminal $terminal -Providers $providerSnapshot
 }
 if (-not (Test-AfyxDashboard -Terminal $terminal)) {
-    Show-AfyxBanner -Terminal $terminal -Subtitle 'Interactive Installer v0.1.0-alpha.12 | Midnight Circuit'
+    Show-AfyxBanner -Terminal $terminal -Subtitle 'Interactive Installer v1.0.1 | Midnight Circuit'
 }
 
 try {
@@ -667,17 +667,21 @@ $npmVersion = try { (& npm --version 2>$null) -join ' ' } catch { '' }
 Write-AfyxStatus -Status HEALTHY -Name 'OS/architecture [REQUIRED]' -Detail (Get-AfyxPlatformDescription) -Terminal $terminal
 Write-AfyxStatus -Status HEALTHY -Name 'Platform shell [REQUIRED]' -Detail "PowerShell $($PSVersionTable.PSVersion)" -Terminal $terminal
 Write-AfyxStatus -Status $(if ($gitVersion) { 'HEALTHY' } else { 'BLOCKED' }) -Name 'Git [REQUIRED]' -Detail $(if ($gitVersion) { $gitVersion } else { 'missing; install Git for Windows from https://git-scm.com/' }) -Terminal $terminal
-$codexRequired = 'codex' -in $Provider -or -not $Provider.Count
+$codexRequired = -not $SkipProviderConfiguration -and ('codex' -in $Provider)
 $codexStatus = if ($codexCliDetected) { 'HEALTHY' } elseif ($codexRequired) { 'BLOCKED' } elseif ($vscodeExtensionDetected) { 'HEALTHY' } else { 'SKIPPED' }
-$codexLabel = if ($codexRequired) { 'Codex host [REQUIRED]' } else { 'Codex host' }
+$codexLabel = if ($codexRequired) { 'Codex host [REQUIRED]' } else { 'Codex host [OPTIONAL / NOT_SELECTED]' }
 $codexDetail = if ($codexCliDetected) { "native CLI detected ($($codexHost.Command))" } elseif ($codexRequired) { "$($codexHost.Detail) A VS Code extension does not provide native MCP configuration." } elseif ($vscodeExtensionDetected) { 'VS Code extension detected; native CLI not selected' } else { 'not detected; required only when selected' }
 Write-AfyxStatus -Status $codexStatus -Name $codexLabel -Detail $codexDetail -Terminal $terminal
-Write-AfyxStatus -Status $(if ($antigravityCommandDetected) { 'HEALTHY' } else { 'SKIPPED' }) -Name 'Antigravity host' -Detail $(if ($antigravityCommandDetected) { 'compatible CLI detected' } elseif ($antigravityIdeDetected) { 'IDE detected; compatible CLI required for automatic MCP registration' } else { 'not detected; required only when selected' }) -Terminal $terminal
+$antigravityRequired = -not $SkipProviderConfiguration -and ('antigravity' -in $Provider)
+$antigravityLabel = if ($antigravityRequired) { 'Antigravity host [REQUIRED]' } else { 'Antigravity host [OPTIONAL / NOT_SELECTED]' }
+Write-AfyxStatus -Status $(if ($antigravityCommandDetected) { 'HEALTHY' } elseif ($antigravityRequired) { 'BLOCKED' } else { 'SKIPPED' }) -Name $antigravityLabel -Detail $(if ($antigravityCommandDetected) { 'compatible CLI detected' } elseif ($antigravityIdeDetected) { 'IDE detected; compatible CLI required for automatic MCP registration' } else { 'not detected; required only when selected' }) -Terminal $terminal
+$claudeRequired = -not $SkipProviderConfiguration -and ('claude' -in $Provider)
+$claudeLabel = if ($claudeRequired) { 'Claude Code host [REQUIRED]' } else { 'Claude Code host [OPTIONAL / NOT_SELECTED]' }
 $claudePrereqStatus = switch ($claudeAvailabilityState) {
     'CLI_AND_EXTENSION' { 'HEALTHY' }
     'CLI_AVAILABLE' { 'HEALTHY' }
     'EXTENSION_ONLY' { 'HEALTHY' }
-    default { if ('claude' -in $Provider) { 'BLOCKED' } else { 'SKIPPED' } }
+    default { if ($claudeRequired) { 'BLOCKED' } else { 'SKIPPED' } }
 }
 $claudePrereqDetail = switch ($claudeAvailabilityState) {
     'CLI_AND_EXTENSION' { "native CLI and VS Code extension detected ($($claudeCommandDetected.Source))" }
@@ -685,7 +689,7 @@ $claudePrereqDetail = switch ($claudeAvailabilityState) {
     'EXTENSION_ONLY' { 'VS Code extension detected — standalone CLI unavailable' }
     default { 'not detected; required only when selected' }
 }
-Write-AfyxStatus -Status $claudePrereqStatus -Name 'Claude Code host' -Detail $claudePrereqDetail -Terminal $terminal
+Write-AfyxStatus -Status $claudePrereqStatus -Name $claudeLabel -Detail $claudePrereqDetail -Terminal $terminal
 Write-AfyxStatus -Status $(if ($nodeVersion) { 'HEALTHY' } else { 'BLOCKED' }) -Name 'Node.js >=22.5.0 [COMPONENT_REQUIRED:Graph/Context]' -Detail $(if ($nodeVersion) { $nodeVersion } else { 'missing; install from https://nodejs.org/ before selecting Graph or Context' }) -Terminal $terminal
 Write-AfyxStatus -Status $(if ($npmVersion) { 'HEALTHY' } else { 'SKIPPED' }) -Name 'npm [BUILD_ONLY:Afyx Graph]' -Detail $(if ($npmVersion) { $npmVersion } else { 'missing; needed only for automatic local fallback' }) -Terminal $terminal
 Write-AfyxStatus -Status HEALTHY -Name 'Archive/checksum [COMPONENT_REQUIRED:Afyx Graph]' -Detail 'Expand-Archive + Get-FileHash available' -Terminal $terminal
@@ -1240,7 +1244,7 @@ foreach ($entry in $summary.GetEnumerator()) {
         Detail = "outcome=$($entry.Value)"
     }
 }
-# Expose 8 Universal Native Capability Summaries (v0.1.0-alpha.12)
+# Expose 8 Universal Native Capability Summaries (v1.0.1)
 if ($states['Afyx Context Engine'] -eq 'HEALTHY' -or ($contextAction -and $contextAction -ne 'skip')) {
     $receipt += [pscustomobject]@{ Status = 'HEALTHY'; Name = 'Capability: afyx-work-ledger'; Detail = 'Cryptographic task ledger and verified execution receipts' }
     $receipt += [pscustomobject]@{ Status = 'HEALTHY'; Name = 'Capability: afyx-impact-simulator'; Detail = 'Deterministic change blast radius and ripple simulation' }

@@ -11,6 +11,7 @@ remove_afyx_forge=false
 context_root="${AFYX_CONTEXT_RUNTIME_ROOT:-$HOME/.afyx/context}"
 forge_root="${AFYX_FORGE_RUNTIME_ROOT:-$HOME/.afyx/forge}"
 dry_run=false
+non_interactive=false
 purge_backups=false
 selected_components=()
 selected_component_count=0
@@ -23,10 +24,10 @@ gemini_home="${AFYX_GEMINI_HOME:-$HOME/.gemini}"
 claude_home="${CLAUDE_CONFIG_DIR:-${CLAUDE_HOME:-$HOME/.claude}}"
 claude_config_dir="${CLAUDE_CONFIG_DIR:-}"
 
-printf 'Afyx Engineering Kit — Linux/macOS uninstaller (Bash)\n'
+printf 'Afyx Engineering Kit v1.0.1 — Linux/macOS uninstaller (Bash)\n'
 
 usage() {
-  printf '%s\n' 'Usage: ./uninstall.sh [--skills-root PATH] [--context-runtime-root PATH] [--forge-runtime-root PATH] [--component AFYX-SKILL-ID] [--remove-provider-configuration] [--provider codex|antigravity|claude[,..]] [--provider-scope global|workspace] [--workspace-root PATH] [--gemini-home PATH] [--claude-home PATH] [--claude-config-dir PATH] [--remove-afyx-graph] [--remove-afyx-context] [--remove-afyx-forge] [--purge-backups] [--dry-run]'
+  printf '%s\n' 'Usage: ./uninstall.sh [--skills-root PATH] [--context-runtime-root PATH] [--forge-runtime-root PATH] [--component AFYX-SKILL-ID] [--remove-provider-configuration] [--provider codex|antigravity|claude[,..]] [--provider-scope global|workspace] [--workspace-root PATH] [--gemini-home PATH] [--claude-home PATH] [--claude-config-dir PATH] [--remove-afyx-graph] [--remove-afyx-context] [--remove-afyx-forge] [--all] [--purge-backups] [--non-interactive] [--dry-run]'
 }
 
 source "$root/scripts/lib/afyx-cli-options.sh"
@@ -46,6 +47,7 @@ while (($#)); do
     --remove-afyx-graph) remove_afyx_graph=true; shift ;;
     --remove-afyx-context) remove_afyx_context=true; shift ;;
     --remove-afyx-forge) remove_afyx_forge=true; shift ;;
+    --all) remove_afyx_graph=true; remove_afyx_context=true; remove_afyx_forge=true; shift ;;
     --remove-provider-configuration) remove_provider_configuration=true; shift ;;
     --provider) afyx_require_option_value "$@" || exit 2; provider_list="$2"; shift 2 ;;
     --provider-scope) afyx_require_option_value "$@" || exit 2; provider_scope="$2"; shift 2 ;;
@@ -54,6 +56,7 @@ while (($#)); do
     --claude-home) afyx_require_option_value "$@" || exit 2; claude_home="$2"; shift 2 ;;
     --claude-config-dir) afyx_require_option_value "$@" || exit 2; claude_config_dir="$2"; shift 2 ;;
     --dry-run) dry_run=true; shift ;;
+    --non-interactive|-y|--yes) non_interactive=true; shift ;;
     --purge-backups) purge_backups=true; shift ;;
     -h|--help) usage; exit 0 ;;
     *) printf 'Unknown option: %s\n' "$1" >&2; usage >&2; exit 2 ;;
@@ -161,7 +164,7 @@ if "$remove_provider_configuration"; then
   else provider_json="$(node ${provider_args[@]+"${provider_args[@]}"} --apply)" || { printf 'Provider removal failed: %s\n' "$provider_json" >&2; exit 1; }; fi
 fi
 if [[ -e "$graph_root" ]]; then
-  if ! "$remove_afyx_graph" && [[ -t 0 && -z "${CI:-}" ]] && ! "$dry_run"; then
+  if ! "$remove_afyx_graph" && ! "$non_interactive" && [[ -t 0 && -z "${CI:-}" ]] && ! "$dry_run"; then
     read -r -p 'Afyx Graph detected. Remove Afyx Graph? [Y/N] [N]: ' answer || answer=
     case "$answer" in [yY]|[yY][eE][sS]) remove_afyx_graph=true ;; esac
   fi
@@ -211,6 +214,16 @@ if "$purge_backups"; then
     component_selected "$component_id" || continue
     afyx_purge_skill_backups "$component_id" "$dry_run"
   done
+fi
+
+preserved_dirs=()
+[[ -e "$graph_root" ]] && preserved_dirs+=("$graph_root")
+[[ -e "$context_root" ]] && preserved_dirs+=("$context_root")
+[[ -e "$forge_root" ]] && preserved_dirs+=("$forge_root")
+[[ -e "$afyx_backup_root" ]] && preserved_dirs+=("$afyx_backup_root")
+if ((${#preserved_dirs[@]} > 0)); then
+  printf 'Preserved directories: %s\n' "${preserved_dirs[*]}"
+  printf 'For a complete wipe, run: npx afyx-engineering-kit uninstall --all --purge-backups\n'
 fi
 
 printf 'ACE user state, project indexes, external software, and Codex configuration were not changed.\n'

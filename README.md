@@ -1,10 +1,10 @@
 # AFYX Engineering Kit
 
-**Versi Kit 1.0.0.** Publikasi diverifikasi melalui tag Git dan metadata
+**Versi Kit 1.0.1.** Publikasi diverifikasi melalui tag Git dan metadata
 registry npm. Installer Windows tidak bertanda tangan berdasarkan
 `OWNER_SIGNING_WAIVER_V1`; Windows dapat menampilkan peringatan SmartScreen.
 Cocokkan checksum dan revisi sumber sebelum menjalankan installer.
-[Catatan dan verifikasi rilis](docs/RELEASE_READINESS.md)
+[Catatan dan verifikasi rilis](https://github.com/a5zero7/afyx-engineering-kit/blob/main/docs/RELEASE_READINESS.md)
 
 
 **Local-first engineering intelligence, adaptive guidance, and evidence-driven validation for AI coding agents.**
@@ -31,7 +31,7 @@ recognized standalone products**, not merely auxiliary documentation.
 
 Distribusi AFYX-native berlisensi MIT AFYX (`LICENSE`) tanpa notice atribusi
 pihak ketiga historis (`0` berkas `THIRD_PARTY_NOTICES.md`). Lihat
-[status audit AFYX-359](docs/AFYX_INDEPENDENCE_PLAN.md#status-teknis-afyx-359).
+[status audit AFYX-359](https://github.com/a5zero7/afyx-engineering-kit/blob/main/docs/AFYX_INDEPENDENCE_PLAN.md#status-teknis-afyx-359).
 
 ## Why Afyx
 
@@ -66,8 +66,8 @@ capability is selected only when relevant, healthy, and authorized.
 |---|---|---|
 | [**Afyx Graph**](afyx-graph/engine/README.md) | Local indexing, structural code intelligence, symbol/dependency navigation, impact and affected-test analysis, CLI and optional MCP. | **Standalone Node.js runtime · Technical Alpha**; static evidence requires runtime/test verification. |
 | [**Afyx Forge**](afyx-forge/README.md) | Deterministic task classification, engineering policies, bounded plans, and diagnostics through Forge Core; distinct evaluation infrastructure. | **Standalone Node.js CLI/API v0.1.0 · Technical Alpha**; bounded local assistive planning approved, not autonomous code changes; historical 36-cell evaluation remains `NOT_RUN`. |
-| [**Afyx Efficient Coding**](docs/tool-guides/AFYX_EFFICIENT_CODING.md) | Evidence-led coding, debugging, refactoring, focused validation, and engineering reporting. | **Standalone agent skill v1.2.2 · Implemented**; guidance, not an execution engine. |
-| [**Afyx Odoo Engineering**](docs/tool-guides/AFYX_ODOO_ENGINEERING.md) | Odoo-specific ORM, views, security, module development, migration, and troubleshooting. | **Standalone agent skill v1.2.0 · Implemented**; reference coverage Odoo 10–20, with target-version verification required. |
+| [**Afyx Efficient Coding**](https://github.com/a5zero7/afyx-engineering-kit/blob/main/docs/tool-guides/AFYX_EFFICIENT_CODING.md) | Evidence-led coding, debugging, refactoring, focused validation, and engineering reporting. | **Standalone agent skill v1.2.2 · Implemented**; guidance, not an execution engine. |
+| [**Afyx Odoo Engineering**](https://github.com/a5zero7/afyx-engineering-kit/blob/main/docs/tool-guides/AFYX_ODOO_ENGINEERING.md) | Odoo-specific ORM, views, security, module development, migration, and troubleshooting. | **Standalone agent skill v1.2.0 · Implemented**; reference coverage Odoo 10–20, with target-version verification required. |
 | [**Afyx Context Engine (ACE)**](afyx-context/README.md) | Conservative context reduction, local storage, integrity checks, and exact-original recovery. | **Standalone Node.js runtime v0.1.0 · Technical Alpha**; explicit Kit selection, no universal savings guarantee. |
 | [**Afyx Engineering Expert**](skills/afyx-engineering-expert/README.md) | Adaptive engineering guidance across 13 disciplines and six optional workflows. | **Standalone agent skill v0.1.1 · Implemented**; final D.6 substantive acceptance remains pending. |
 
@@ -75,12 +75,12 @@ capability is selected only when relevant, healthy, and authorized.
 
 The cross-platform **installer, updater, verifier, doctor, and capability router**
 are shared Kit infrastructure, **not separate products**. Optional Windows
-[Afyx Codex Usage Tracking](docs/CODEX_USAGE_TRACKER.md) is a seventh registered
+[Afyx Codex Usage Tracking](https://github.com/a5zero7/afyx-engineering-kit/blob/main/docs/CODEX_USAGE_TRACKER.md) is a seventh registered
 observability utility, not one of the six primary engineering products.
 
 The [component registry](scripts/components.json) is authoritative for
 installable IDs, presets, supported platforms, and ownership. Consult the
-[Component Guide](docs/COMPONENTS.md) for detailed functionality and limitations.
+[Component Guide](https://github.com/a5zero7/afyx-engineering-kit/blob/main/docs/COMPONENTS.md) for detailed functionality and limitations.
 
 ## Kit and component versions
 
@@ -94,8 +94,8 @@ while the Kit evolves. Verifikasi status distribusi pada catatan rilis.
 | [Graph](afyx-graph/engine/README.md) | `1.0.0` |
 | [Context](afyx-context/README.md) | `0.1.0` |
 | [Forge](afyx-forge/README.md) | `0.1.0` |
-| [Efficient Coding](docs/tool-guides/AFYX_EFFICIENT_CODING.md) | `1.2.2` |
-| [Odoo Engineering](docs/tool-guides/AFYX_ODOO_ENGINEERING.md) | `1.2.0` |
+| [Efficient Coding](https://github.com/a5zero7/afyx-engineering-kit/blob/main/docs/tool-guides/AFYX_EFFICIENT_CODING.md) | `1.2.2` |
+| [Odoo Engineering](https://github.com/a5zero7/afyx-engineering-kit/blob/main/docs/tool-guides/AFYX_ODOO_ENGINEERING.md) | `1.2.0` |
 | [Engineering Expert](skills/afyx-engineering-expert/README.md) | `0.1.1` |
 | [Usage Intelligence](tools/afyx-usage-intelligence/README.md) | `1.0.0` |
 
@@ -123,8 +123,8 @@ source and configuration files, including comments and bounded generated
 content. Findings report rule and location with source text redacted. It
 refuses symlink traversal and reports partial coverage separately. Use
 `node scripts/afyx-security-auditor.mjs --help` for file-count and scope options.
-Its heuristics require review. See [component lifecycle](docs/COMPONENTS.md)
-for installation and recovery, and [the provenance review](docs/AFYX_INDEPENDENCE_PLAN.md)
+Its heuristics require review. See [component lifecycle](https://github.com/a5zero7/afyx-engineering-kit/blob/main/docs/COMPONENTS.md)
+for installation and recovery, and [the provenance review](https://github.com/a5zero7/afyx-engineering-kit/blob/main/docs/AFYX_INDEPENDENCE_PLAN.md)
 for the pending Owner/legal decision.
 
 ## How the products fit together
@@ -159,7 +159,7 @@ Registry-based routing and interaction contracts have source-level
 implementations. Full installed-host interoperability is not claimed as
 accepted. Graph-to-ACE automatic MCP interception remains default **OFF**;
 Forge Core offers assistive plans and has no autonomous execution authority.
-The [interoperability contract](docs/AFYX_UNIVERSAL_COMPONENT_INTEROPERABILITY.md)
+The [interoperability contract](https://github.com/a5zero7/afyx-engineering-kit/blob/main/docs/AFYX_UNIVERSAL_COMPONENT_INTEROPERABILITY.md)
 distinguishes approved target behavior from proven current behavior.
 
 ## Current product status
@@ -185,8 +185,8 @@ unverified unless an artifact has an independently verified attestation.
   still outside the accepted claims.
 
 
-See [Product Vision](docs/PRODUCT_VISION.md) for the maintained product contract
-and [Component Guide](docs/COMPONENTS.md) for capability and limitation details.
+See [Product Vision](https://github.com/a5zero7/afyx-engineering-kit/blob/main/docs/PRODUCT_VISION.md) for the maintained product contract
+and [Component Guide](https://github.com/a5zero7/afyx-engineering-kit/blob/main/docs/COMPONENTS.md) for capability and limitation details.
 
 ## Install AFYX Engineering Kit — Windows & WSL2
 
@@ -254,8 +254,10 @@ provider explicitly when you are ready to register its MCP integration. Verify
 the installation with the same `npm exec --package=... --` prefix followed by
 `afyx-engineering-kit verify --preset full`. Run `afyx-engineering-kit update`
 with that prefix for an ownership-aware update, or `afyx-engineering-kit uninstall`
-with an explicit component to remove it. See the [installation guide](docs/INSTALLATION.md)
+with an explicit component to remove it. See the [installation guide](https://github.com/a5zero7/afyx-engineering-kit/blob/main/docs/INSTALLATION.md)
 for provider selection, recovery, and platform limits.
+
+> **Troubleshooting versi global lama:** Jika instalasi global versi alpha lama menutupi `npx afyx-engineering-kit@latest`, jalankan `npm uninstall -g afyx-engineering-kit` terlebih dahulu sebelum menjalankan ulang `npx afyx-engineering-kit@latest`.
 
 ## Quick start
 
@@ -328,7 +330,7 @@ registers integrations without changing credentials, models, or host routing:
 ```
 
 Antigravity-only plans exclude the Codex Usage Tracking component. See the
-[Installation Guide](docs/INSTALLATION.md#provider-aware-onboarding) for global
+[Installation Guide](https://github.com/a5zero7/afyx-engineering-kit/blob/main/docs/INSTALLATION.md#provider-aware-onboarding) for global
 IDE/CLI skill paths, dry-run, verification, and ownership-safe rollback.
 
 ```bash
@@ -432,12 +434,12 @@ ownership is not silently adopted. Update/repair uses staging, validation,
 backup, atomic promotion, and rollback. Project Graph indexes, credentials,
 providers, models, unrelated MCP entries, and external tools are preserved.
 
-- Safe installation, update, uninstall, and recovery: [Installation Guide](docs/INSTALLATION.md)
-- Component capabilities and troubleshooting: [Component Guide](docs/COMPONENTS.md)
-- Read-only diagnostics: [Diagnostics](docs/DIAGNOSTICS.md)
-- Product principles and maturity: [Product Vision](docs/PRODUCT_VISION.md)
-- Canonical development plan: [Afyx v1 Master Roadmap](docs/AFYX_V1_MASTER_ROADMAP.md)
-- Benchmark scope and interpretation: [Benchmarks](docs/BENCHMARKS.md)
+- Safe installation, update, uninstall, and recovery: [Installation Guide](https://github.com/a5zero7/afyx-engineering-kit/blob/main/docs/INSTALLATION.md)
+- Component capabilities and troubleshooting: [Component Guide](https://github.com/a5zero7/afyx-engineering-kit/blob/main/docs/COMPONENTS.md)
+- Read-only diagnostics: [Diagnostics](https://github.com/a5zero7/afyx-engineering-kit/blob/main/docs/DIAGNOSTICS.md)
+- Product principles and maturity: [Product Vision](https://github.com/a5zero7/afyx-engineering-kit/blob/main/docs/PRODUCT_VISION.md)
+- Canonical development plan: [Afyx v1 Master Roadmap](https://github.com/a5zero7/afyx-engineering-kit/blob/main/docs/AFYX_V1_MASTER_ROADMAP.md)
+- Benchmark scope and interpretation: [Benchmarks](https://github.com/a5zero7/afyx-engineering-kit/blob/main/docs/BENCHMARKS.md)
 
 ## License and third-party boundaries
 

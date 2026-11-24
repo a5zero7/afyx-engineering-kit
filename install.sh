@@ -155,7 +155,7 @@ elif [[ "$provider_scope" == workspace && ",$skill_providers," == *,claude,* ]];
   [[ "$skills_root" == "$claude_skills" ]] || additional_skill_roots+=("$claude_skills")
 fi
 
-printf 'Afyx Engineering Kit v0.1.0-alpha.12 — Linux/macOS installer (Bash)\n'
+printf 'Afyx Engineering Kit v1.0.1 — Linux/macOS installer (Bash)\n'
 
 valid_manifest() { [[ -s "$1/SKILL.md" ]] && [[ "$(head -n 1 "$1/SKILL.md")" == '---' ]]; }
 # One component truth: scripts/components.json, read through the shared library.
@@ -477,9 +477,17 @@ printf '\nPrerequisite Inventory\n'
 printf '[REQUIRED] OS/architecture: %s / %s\n' "$(uname -s)" "$(uname -m)"
 printf '[REQUIRED] Platform shell: Bash %s\n' "$BASH_VERSION"
 if command -v git >/dev/null 2>&1; then printf '[REQUIRED] Git: %s\n' "$(git --version)"; else printf '[REQUIRED] Git: MISSING — install Git with the documented OS package manager\n'; fi
-if "$codex_cli_detected" || "$vscode_extension_detected"; then printf '[REQUIRED] Codex host: detected\n'; else printf '[REQUIRED] Codex host: MISSING — install Codex CLI or the supported VS Code extension\n'; fi
-if "$antigravity_detected"; then printf '[REQUIRED] Antigravity host: detected\n'; else printf '[REQUIRED] Antigravity host: not detected\n'; fi
-if "$claude_cli_detected"; then printf '[REQUIRED] Claude Code host: detected (CLI)\n'; elif "$claude_vscode_detected"; then printf '[REQUIRED] Claude Code host: detected (VS Code extension)\n'; else printf '[REQUIRED] Claude Code host: not detected\n'; fi
+codex_label='Codex host [OPTIONAL / NOT_SELECTED]'
+antigravity_label='Antigravity host [OPTIONAL / NOT_SELECTED]'
+claude_label='Claude Code host [OPTIONAL / NOT_SELECTED]'
+if ! "$skip_provider_configuration"; then
+  [[ ",$provider_list," == *,codex,* ]] && codex_label='Codex host [REQUIRED]'
+  [[ ",$provider_list," == *,antigravity,* ]] && antigravity_label='Antigravity host [REQUIRED]'
+  [[ ",$provider_list," == *,claude,* ]] && claude_label='Claude Code host [REQUIRED]'
+fi
+if "$codex_cli_detected" || "$vscode_extension_detected"; then printf '%s: detected\n' "$codex_label"; else printf '%s: not detected\n' "$codex_label"; fi
+if "$antigravity_detected"; then printf '%s: detected\n' "$antigravity_label"; else printf '%s: not detected\n' "$antigravity_label"; fi
+if "$claude_cli_detected"; then printf '%s: detected (CLI)\n' "$claude_label"; elif "$claude_vscode_detected"; then printf '%s: detected (VS Code extension)\n' "$claude_label"; else printf '%s: not detected\n' "$claude_label"; fi
 if command -v node >/dev/null 2>&1; then printf '[COMPONENT_REQUIRED:Afyx Graph] Node.js >=22.5.0: %s\n' "$(node --version)"; else printf '[COMPONENT_REQUIRED:Afyx Graph] Node.js >=22.5.0: MISSING — install from https://nodejs.org/\n'; fi
 if command -v npm >/dev/null 2>&1; then printf '[BUILD_ONLY:Afyx Graph] npm: %s\n' "$(npm --version)"; else printf '[BUILD_ONLY:Afyx Graph] npm: MISSING — needed only for automatic local fallback\n'; fi
 printf '[COMPONENT_REQUIRED:Afyx Graph] Archive/checksum: tar + SHA-256 tool required\n'
@@ -742,7 +750,7 @@ if "$forge_companion_desired" && { [[ "$forge_action" != skip ]] || [[ "$afyx_fo
   done
 fi
 
-printf '\nInstallation Summary (v0.1.0-alpha.12)\n[%s] Afyx Efficient Coding\n[%s] Afyx Odoo Engineering\n[%s] Afyx Engineering Expert\n[%s] Afyx Graph\n[%s] Afyx Context Engine\n[%s] Afyx Forge Core\n[SKIPPED] Afyx Usage Intelligence (Windows-only)\n' "$efficient_result" "$odoo_result" "$expert_result" "$graph_result" "$context_result" "$forge_result"
+printf '\nInstallation Summary (v1.0.1)\n[%s] Afyx Efficient Coding\n[%s] Afyx Odoo Engineering\n[%s] Afyx Engineering Expert\n[%s] Afyx Graph\n[%s] Afyx Context Engine\n[%s] Afyx Forge Core\n[SKIPPED] Afyx Usage Intelligence (Windows-only)\n' "$efficient_result" "$odoo_result" "$expert_result" "$graph_result" "$context_result" "$forge_result"
 if [[ "$context_result" != skipped && "$context_result" != NOT_INSTALLED ]]; then
   printf '[HEALTHY] Capability: afyx-work-ledger (cryptographic task ledger and execution receipts)\n'
   printf '[HEALTHY] Capability: afyx-impact-simulator (deterministic change blast radius simulation)\n'

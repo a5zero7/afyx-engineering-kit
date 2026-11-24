@@ -32,10 +32,15 @@ export function discoverHosts(pkgRoot = PACKAGE_ROOT, signal) {
   });
 }
 
+export function providerExtensionOnly(entry) {
+  const types = new Set((entry.products || []).map((product) => product.type));
+  return (entry.id === 'codex' || entry.id === 'claude') && !types.has('CLI') && types.has('VS Code Extension');
+}
+
 export function providerSelectable(entry, platform = process.platform) {
   const types = new Set((entry.products || []).map((product) => product.type));
   if (entry.id === 'antigravity') return types.has('CLI') || (platform === 'win32' && types.has('IDE/Desktop'));
-  if (entry.id === 'codex' || entry.id === 'claude') return types.has('CLI') || types.has('VS Code Extension');
+  if (entry.id === 'codex' || entry.id === 'claude') return types.has('CLI');
   return false;
 }
 
@@ -155,7 +160,12 @@ export function renderFrame({ stage = 0, providers = [], providerSummary, select
   const ordered = [...providers].sort((a, b) => a.name.localeCompare(b.name));
   const inventoryLines = (entries) => entries.flatMap((entry) => {
     const products = (entry.products || []).map((product) => `${product.type}${product.version ? ` ${product.version}` : ''}`);
-    return [`${entry.name}: ${entry.supported === false ? 'COMING SOON' : products.length ? 'detected' : 'not detected'}`, ...products.map((product) => `  ${product}`)];
+    const statusText = entry.supported === false
+      ? 'COMING SOON'
+      : providerExtensionOnly(entry)
+        ? 'VS Code extension only — standalone CLI required for MCP registration'
+        : products.length ? 'detected' : 'not detected';
+    return [`${entry.name}: ${statusText}`, ...products.map((product) => `  ${product}`)];
   });
   const supportedLines = inventoryLines(ordered.filter((entry) => entry.supported !== false));
   const otherLines = inventoryLines(ordered.filter((entry) => entry.supported === false));

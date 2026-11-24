@@ -98,7 +98,7 @@ foreach ($id in $CustomComponent) {
 }
 $controlPlan = if ($Preset) { Get-AfyxControlPlan -Preset $Preset -CustomComponent $CustomComponent -Provider $Provider -Context $componentContext -StateById $componentStates } else { $null }
 
-Show-AfyxBanner -Terminal $terminal -Subtitle 'Readiness Verification v0.1.0-alpha.12 | Midnight Circuit'
+Show-AfyxBanner -Terminal $terminal -Subtitle 'Readiness Verification v1.0.1 | Midnight Circuit'
 $gitSource = Get-Command git -ErrorAction SilentlyContinue
 if ($gitSource -and (Test-Path -LiteralPath (Join-Path $PSScriptRoot '.git'))) {
     $sourceCommit = (& git -C $PSScriptRoot rev-parse HEAD 2>$null) -join ''
@@ -198,9 +198,10 @@ if ($node) { Write-Result 'OK' 'Node.js [COMPONENT_REQUIRED:Afyx Context]' ((& n
 else { Write-Result 'INFO' 'Node.js [COMPONENT_REQUIRED:Afyx Context]' 'missing; required only when Afyx Context is selected' }
 if ($npm) { Write-Result 'OK' 'npm [BUILD_ONLY:Afyx Graph]' ((& npm --version 2>$null) -join ' ') } else { Write-Result 'INFO' 'npm [BUILD_ONLY:Afyx Graph]' 'missing; required only for local artifact fallback' }
 Write-Result 'OK' 'Archive/checksum [COMPONENT_REQUIRED:Afyx Graph]' 'Expand-Archive and Get-FileHash available'
-$codexRequired = -not $SkipProviderConfiguration -and ('codex' -in $Provider -or -not $Provider.Count)
-$antigravityRequired = -not $SkipProviderConfiguration -and 'antigravity' -in $Provider
-$claudeRequired = -not $SkipProviderConfiguration -and 'claude' -in $Provider
+$providerExplicit = $PSBoundParameters.ContainsKey('Provider')
+$codexRequired = -not $SkipProviderConfiguration -and $providerExplicit -and ('codex' -in $Provider)
+$antigravityRequired = -not $SkipProviderConfiguration -and $providerExplicit -and ('antigravity' -in $Provider)
+$claudeRequired = -not $SkipProviderConfiguration -and $providerExplicit -and ('claude' -in $Provider)
 
 $codexHost = Get-AfyxCodexHost
 $codex = if ($codexHost.State -eq 'CLI_READY') { [pscustomobject]@{ Source = $codexHost.Path } } else { $null }
