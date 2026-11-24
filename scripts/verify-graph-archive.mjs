@@ -11,6 +11,9 @@ function safeName(name) {
       normalized.split('/').some((part) => part === '' || part === '.' || part === '..')) {
     throw new Error(`Unsafe Graph archive path: ${name}`);
   }
+  if (/(?:^|\/)(?:THIRD_PARTY_NOTICES|NOTICE)(?:\.[^/]+)?$/i.test(normalized)) {
+    throw new Error(`Graph archive identity: forbidden third-party notice: ${name}`);
+  }
 }
 
 export function graphArchiveIdentity(manifest, artifact) {

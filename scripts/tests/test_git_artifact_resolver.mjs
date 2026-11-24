@@ -174,8 +174,8 @@ test('archive inspection rejects traversal, truncation, and symlink-style entrie
 
 for (const [name, override, invalidManifest] of [
   ['identitas internal konsisten', {}, {}],
-  ['arsip historis tanpa notice', {}, {}],
-  ['notice diubah', {}, {}],
+  ['arsip bersih tanpa notice', {}, {}],
+  ['notice pihak ketiga ditolak', {}, {}],
   ['revisi internal berbeda', { source_revision: '0'.repeat(40) }, {}],
   ['target internal berbeda', { artifact_target: 'linux-x64' }, {}],
   ['versi internal berbeda', { product_version: '9.1.0' }, {}],
@@ -204,13 +204,12 @@ for (const [name, override, invalidManifest] of [
           ...plan.legalFiles.map(({ bundlePath }) => bundlePath)];
         for (const file of entries) {
           if (index === 0 && name === 'CLI arsip hilang' && file === plan.launcherPath) continue;
-          const notice = plan.legalFiles.find((legal) => legal.sha256 && legal.bundlePath === file);
-          if (notice && name === 'arsip historis tanpa notice') continue;
           const path = join(bundle, file);
           mkdirSync(dirname(path), { recursive: true });
-          writeFileSync(path, notice && name !== 'notice diubah'
-            ? readFileSync(new URL(`../../afyx-graph/engine/${notice.source}`, import.meta.url))
-            : 'Fixture');
+          writeFileSync(path, file === 'LICENSE' ? 'MIT License\n\nCopyright (c) 2026 Afyx\n' : 'Fixture');
+        }
+        if (name === 'notice pihak ketiga ditolak') {
+          writeFileSync(join(bundle, 'THIRD_PARTY_NOTICES.md'), 'Third-party notice');
         }
         const metadata = {
           product_name: 'Afyx Graph', product_version: '1.0.0', package: '@a5zero7/afyx-graph',
@@ -231,7 +230,7 @@ for (const [name, override, invalidManifest] of [
       const sums = artifacts.map(({ sha256, file }) => sha256 + '  ' + file).join('\n');
       writeFileSync(join(release, 'RELEASE-MANIFEST.json'), JSON.stringify(manifest));
       writeFileSync(join(release, 'SHA256SUMS'), sums);
-      const good = name === 'identitas internal konsisten' || name === 'arsip historis tanpa notice';
+      const good = name === 'identitas internal konsisten' || name === 'arsip bersih tanpa notice';
       const destination = join(root, 'download');
       const remote = resolveAndStageGitReleaseArtifacts(destination, revision, {
         fetchBuffer: fixture({ archives, manifest, sums }).fetchBuffer,
@@ -242,7 +241,7 @@ for (const [name, override, invalidManifest] of [
         assert.throws(() => readFileSync(join(destination, 'afyx-graph/engine/release', winName)), /ENOENT/);
       }
       assert.equal(checkGraphReleaseValid(root, revision), good);
-      assert.equal(checkGraphReleaseValid(root, revision, { requireNotices: true }), name === 'identitas internal konsisten');
+      assert.equal(checkGraphReleaseValid(root, revision, { requireNotices: true }), good);
     } finally { rmSync(root, { recursive: true, force: true }); }
   });
 }
