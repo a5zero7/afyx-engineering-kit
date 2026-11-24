@@ -11,7 +11,7 @@
  *
  *   - **Unified** (post-migration, current): `~/.gemini/config/mcp_config.json`
  *     — signalled by the `~/.gemini/config/.migrated` marker file.
- *   - **Legacy** (pre-migration): `~/.gemini/antigravity/mcp_config.json`
+ *   - **Legacy** (pre-migration): `<GEMINI_HOME>/antigravity/mcp_config.json`
  *     — what the github-mcp-server install guide still documents.
  *
  * We detect the marker at install time and write to the right path. On
@@ -95,7 +95,7 @@ function migratedMarkerPath(): string {
  * has signalled it's migrated (`.migrated` marker present, OR the
  * unified file already exists — Antigravity creates it on first
  * launch post-migration). Falls back to the legacy
- * `~/.gemini/antigravity/mcp_config.json` for users on a pre-migration
+ * `<GEMINI_HOME>/antigravity/mcp_config.json` for users on a pre-migration
  * Antigravity build.
  */
 function preferredMcpConfigPath(): string {
@@ -253,7 +253,7 @@ function writeMcpEntry(): WriteResult['files'][number] {
 }
 
 /**
- * Strip the afyx-graph entry from the legacy `~/.gemini/antigravity/mcp_config.json`
+ * Strip the afyx-graph entry from the legacy `<GEMINI_HOME>/antigravity/mcp_config.json`
  * if it's present AND we're writing to the unified path. Used by install
  * to migrate users who had afyx-graph configured on the legacy path
  * before Antigravity migrated their config. Returns the file action for

@@ -17,7 +17,7 @@ development source.
 ## Canonical layout
 
 ```text
-D:\Project\workspace\afyx-engineering-kit\
+<WORKSPACE_ROOT>\
 ├── .afyx-graph\                  # workspace-level native Afyx Graph state
 ├── afyx-graph.json               # root-anchored Afyx Graph exclusion contract
 ├── afyx-engineering-kit\         # canonical clean repository; dev owner (.git)
@@ -58,7 +58,7 @@ empty hierarchy speculatively.
   is indexed without duplicating symbols.
 - `afyx-daily-source` is an independent Git checkout. Its commit must be recorded;
   its location does not prove the version installed into any provider.
-- `afyx-alpha` is immutable acceptance/RC evidence by default (`D:\Project\afyx-alpha`,
+- `afyx-alpha` is immutable acceptance/RC evidence by default (`<ALPHA_ACCEPTANCE_ROOT>`,
   referenced via `afyx-alpha\EXTERNAL_LOCATION.txt`). When historical path identity
   matters, preserve it externally and store an explicit locator; never silently
   rewrite historical manifests.
@@ -73,29 +73,29 @@ empty hierarchy speculatively.
 ## Mandatory workspace hygiene & artifact placement policies
 
 1. **Development worktrees**: Every new development worktree must be created via
-   `git -C D:\Project\workspace\afyx-engineering-kit\afyx-engineering-kit worktree add`
-   inside `D:\Project\workspace\afyx-engineering-kit\progres\<worktree-name>`.
+   `git -C <REPO_ROOT> worktree add`
+   inside `<WORKSPACE_ROOT>\progres\<worktree-name>`.
 2. **Smoke test outputs**: All retained smoke test fixtures, logs, and outputs must
-   be placed under `D:\Project\workspace\afyx-engineering-kit\testing\smoke\`.
+   be placed under `<WORKSPACE_ROOT>\testing\smoke\`.
 3. **Regression test outputs**: All retained regression test fixtures and outputs must
-   be placed under `D:\Project\workspace\afyx-engineering-kit\testing\regression\`.
+   be placed under `<WORKSPACE_ROOT>\testing\regression\`.
 4. **Integration test outputs**: All retained integration and RC acceptance runs must
-   be placed under `D:\Project\workspace\afyx-engineering-kit\testing\integration\`.
+   be placed under `<WORKSPACE_ROOT>\testing\integration\`.
 5. **Benchmark artifacts**:
-   - Datasets must go under `D:\Project\workspace\afyx-engineering-kit\benchmark\datasets\`.
-   - Raw execution runs must go under `D:\Project\workspace\afyx-engineering-kit\benchmark\runs\`.
-   - Sanitized reports and results must go under `D:\Project\workspace\afyx-engineering-kit\benchmark\results\`.
+   - Datasets must go under `<WORKSPACE_ROOT>\benchmark\datasets\`.
+   - Raw execution runs must go under `<WORKSPACE_ROOT>\benchmark\runs\`.
+   - Sanitized reports and results must go under `<WORKSPACE_ROOT>\benchmark\results\`.
 6. **Temporary files**: Ephemeral build, test, or scratch files must use the OS
    temporary directory (`$env:TEMP` / `[System.IO.Path]::GetTempPath()`) and clean
-   up in a `finally` block rather than writing to `D:\Project`, `D:\Project\workspace`,
+   up in a `finally` block rather than writing to `<DEVELOPMENT_ROOT>`, `<WORKSPACE_PARENT>`,
    or the canonical workspace root.
 7. **Project-independent repositories**: Separate products and unrelated repositories
    (such as `afyx-codepilot`, `afyx-wa-plus`, `kasir-barber`, `rancangin`) must remain
-   outside `D:\Project\workspace\afyx-engineering-kit`.
+   outside `<WORKSPACE_ROOT>`.
 8. **No unregistered worktrees or uncontrolled directories**: Do not create
-   unregistered Git clones, ad-hoc backup folders, or loose files at `D:\Project`
-   or `D:\Project\workspace`. Only the 22 allowlisted historical `PRESERVE_IN_PLACE`
-   worktrees and independent non-kit projects may reside at `D:\Project\workspace`.
+   unregistered Git clones, ad-hoc backup folders, or loose files at `<DEVELOPMENT_ROOT>`
+   or `<WORKSPACE_PARENT>`. Only the 22 allowlisted historical `PRESERVE_IN_PLACE`
+   worktrees and independent non-kit projects may reside at `<WORKSPACE_PARENT>`.
 9. **Artifact lifecycle, ownership, and retention**:
    - Every generated artifact directory under `testing\`, `benchmark\`, or
      `_afyx-admin\backups\` must have a clear owner/task identifier, timestamp,
@@ -150,5 +150,5 @@ Run the zero-dependency workspace hygiene and path validator before and after
 workspace maintenance:
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File "D:\Project\workspace\afyx-engineering-kit\_afyx-admin\Test-AfyxWorkspaceHygiene.ps1" -RunSelfTests
+powershell -NoProfile -ExecutionPolicy Bypass -File "<WORKSPACE_ROOT>\_afyx-admin\Test-AfyxWorkspaceHygiene.ps1" -RunSelfTests
 ```

@@ -6,12 +6,12 @@ AFYX Engineering Kit is an open-source, local-first engineering toolkit designed
 
 ## Supported Versions
 
-Only the latest `1.0.x` release (`v1.0.1`) and the active `dev` / `main` branches receive security patches and vulnerability evaluations.
+Only the latest published `1.0.x` release and the active `dev` / `main` branches receive security patches and vulnerability evaluations.
 
 | Version | Status | Supported |
 |---|---|---|
-| `1.0.x` (`v1.0.1`) | Stable | Yes |
-| `0.1.0-alpha.*` | Superseded Technical Alpha | No (upgrade to `1.0.1` required) |
+| Latest published `1.0.x` | Stable | Yes |
+| `0.1.0-alpha.*` | Superseded Technical Alpha | No (upgrade to a supported Stable version) |
 | `< 0.1.0` | Prototype / Pre-Alpha | No |
 
 ---

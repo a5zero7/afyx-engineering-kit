@@ -46,5 +46,28 @@ class LegacyIdentityAuditTests(unittest.TestCase):
             self.assertIn("src/runtime.ts", blocked.stdout)
 
 
+    def test_machine_specific_paths_are_rejected_without_echoing_values(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="afyx-path-guard-") as temporary:
+            root = Path(temporary)
+            subprocess.run(["git", "init", "-q", str(root)], check=True, capture_output=True)
+            marker = "private-fixture-marker"
+            item = root / "usage.md"
+            item.write_text("\n".join([
+                "/".join(("D:", "Project", marker)),
+                "\\".join(("D:", "Project", marker)),
+                "file:" + "/" * 3 + marker,
+                "/".join(("~", ".gemini", "antigravity", marker)),
+            ]), encoding="utf-8")
+            subprocess.run(["git", "-C", str(root), "add", "usage.md"], check=True, capture_output=True)
+            cmd = [sys.executable, str(AUDIT), "--root", str(root)]
+            blocked = subprocess.run(cmd, capture_output=True, text=True)
+            self.assertEqual(blocked.returncode, 1, blocked.stdout + blocked.stderr)
+            self.assertEqual(blocked.stdout.count(": machine-specific path"), 4)
+            self.assertNotIn(marker, blocked.stdout)
+            item.write_text("See [examples](examples/usage.md).\n", encoding="utf-8")
+            allowed = subprocess.run(cmd, capture_output=True, text=True)
+            self.assertEqual(allowed.returncode, 0, allowed.stdout + allowed.stderr)
+
+
 if __name__ == "__main__":
     unittest.main()

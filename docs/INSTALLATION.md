@@ -194,7 +194,7 @@ The installer and lifecycle support Codex, Antigravity, and Claude Code (support
 standalone CLI and VS Code extension-only configurations). Antigravity workspace
 scope uses `.agents/skills/` and `.agents/mcp_config.json`. Global Antigravity
 scope uses `~/.gemini/config/skills/`,
-`~/.gemini/antigravity-cli/skills/`, and the shared
+`<GEMINI_HOME>/antigravity-cli/skills/`, and the shared
 `~/.gemini/config/mcp_config.json`. Claude Code configuration uses `~/.claude.json` or
 workspace `.mcp.json`. The installer preserves unrelated JSON and
 refuses foreign `afyx_graph`, malformed, reparse-point, or ambiguous legacy

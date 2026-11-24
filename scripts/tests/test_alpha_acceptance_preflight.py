@@ -125,7 +125,7 @@ class AlphaAcceptanceTests(unittest.TestCase):
         data["baseline"]["candidate_source_sha"] = "c" * 40
         data["gates"][0]["status"] = "PASS"
         evidence = self.evidence("owner")
-        evidence["reference"] = "file:///C:/private/secret.txt"
+        evidence["reference"] = "file:/C:/private/secret.txt"
         data["gates"][0]["evidence"] = [evidence]
         self.assert_blocked(data, "INVALID_EVIDENCE_REFERENCE")
 

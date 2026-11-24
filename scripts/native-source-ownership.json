@@ -2,7 +2,7 @@
   "schema": 1,
   "baselineRevision": "c4e4d8e29de239a2fcbc0db8ac65eea2276e7b00",
   "scope": "AFYX-320 comprehensive production source inventory",
-  "totalProductionFiles": 514,
+  "totalProductionFiles": 515,
   "entries": [
     {
       "path": "afyx-context/src/budget.js",
@@ -209,6 +209,12 @@
       "evidence": "MB12 review: authored from AFYX functional requirements and existing reviewed 251f73a contracts; no upstream implementation, prompts, assets or dependency imported. Trusted-host boundaries and negative/regression tests recorded in MB12-native-consolidation-20261114-r1."
     },
     {
+      "path": "afyx-graph/engine/scripts/build-bundle.sh",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "116dc4f8c158878541cbdc36381f30ea5d801d5850a8123aa020553c76f8125c",
+      "evidence": "AFYX post-v1 audit remediation: AFYX-owned installer and lifecycle implementation maintained in this repository."
+    },
+    {
       "path": "afyx-graph/engine/src/bin/afyx-graph.ts",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
       "reviewedSha256": "10bf3aa1014e501999e0a8d1c927a19a55dca824a9ac48afc1cc57359e2fdb78",
@@ -247,7 +253,7 @@
     {
       "path": "afyx-graph/engine/src/bin/fatal-handler.ts",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "7860078f564f77d2acc45a83ac3abc09e06bf78c5269a15b0f290e86a052a833",
+      "reviewedSha256": "94319806332d1539166c7673a253dd99fd3e2c6f450fdcd2642ef937b721fd3e",
       "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
     },
     {
@@ -1184,7 +1190,7 @@
     {
       "path": "afyx-graph/engine/src/index.ts",
       "classification": "PUBLIC_API_BARREL",
-      "reviewedSha256": "41982db8c1b55ab04ce26cf78925f8d011e3d58e8013612afa273f8784547bea",
+      "reviewedSha256": "57be2af2c7bd97ab405c8a14cddb9c5e5bdff9c22779595290a2aaa1ab88fe70",
       "evidence": "MB15 Graph lifecycle: reviewed failed asynchronous initialization closing its unpublished database and file lock while preserving the original rejection; existing index ownership and success behavior unchanged."
     },
     {
@@ -1214,7 +1220,7 @@
     {
       "path": "afyx-graph/engine/src/installer/targets/antigravity.ts",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "04b3eeff6b84f1a6feb75b13c708e0d504126dbdfb8dc813ab857641ff28e553",
+      "reviewedSha256": "a94058f7225a8e491430fedb27c19a6e475cb5bf6c6a6f3e9d142d513d12cc86",
       "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
     },
     {
@@ -1256,7 +1262,7 @@
     {
       "path": "afyx-graph/engine/src/installer/targets/gemini.ts",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "337417ebf0617c107e51cf6a5677afad6e39a46c19610288e6dabb82057a19ca",
+      "reviewedSha256": "679b047ed32eef284f74c446610b26a8df0b982776f53edd434584cc5686ad22",
       "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
     },
     {
@@ -1898,7 +1904,7 @@
     {
       "path": "afyx-graph/engine/src/resolution/goframe-synthesizer.ts",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "d30fe956b1a8c31d9d15c7e1c5d429ddbe390cc0931087cb0de7f0fceb284d4e",
+      "reviewedSha256": "e725df0cfd7cb6661f25edfa808f1e930b0fd45170d8765864b4a8c1c64b2edb",
       "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
     },
     {
@@ -2286,7 +2292,7 @@
     {
       "path": "afyx-graph/engine/src/ui-server/api/nodes.ts",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "7c055854467a454291a84f8d72dfa7db545562733fff48c460017e476d60230e",
+      "reviewedSha256": "b81307561b271f8e732c9b73fdaff8bb05c652238193ff58d2c0108e8a74c421",
       "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
     },
     {
@@ -2298,13 +2304,13 @@
     {
       "path": "afyx-graph/engine/src/ui-server/api/respond.ts",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "b2b9cb59da5ab6e7d021a0655f48238a3172f2c0de9d02b137e03d165b8d3506",
+      "reviewedSha256": "faa3ac2cdfeac0d3f7baedb124254a03c7a8d94a072d29af29f3e0eb0cbb813d",
       "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
     },
     {
       "path": "afyx-graph/engine/src/ui-server/api/route-roots.ts",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "dffcd3d237c262bc67ae67999a5a4b862cb1765371bb541f8bcb74f4f371838f",
+      "reviewedSha256": "4b0c48e1c6dbb0b7b704d6fb28f9b84723724bc42c867421253826bcec99811d",
       "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
     },
     {
@@ -2340,7 +2346,7 @@
     {
       "path": "afyx-graph/engine/src/ui-server/api/stats.ts",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "7cb0f19b1d53ac436fb446f06fe615a9bbe4c1d293eb1c8a3027ee6ac2be2e54",
+      "reviewedSha256": "f0fd17b0e2c72c42b02d43e902d61ae98ab17b0a2bf321d289846be3dcc709b3",
       "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
     },
     {
@@ -2376,7 +2382,7 @@
     {
       "path": "afyx-graph/engine/src/ui-server/assets.ts",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "98d89f6cf3a55c12e3999bcbc9587e14e3ade3f20631e491b0a9dc71776d3fef",
+      "reviewedSha256": "4c9a9c7fda398a336a4f3b520ca95d3ef60c925c7b419e7b49801d07a5687563",
       "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
     },
     {
@@ -2406,19 +2412,19 @@
     {
       "path": "afyx-graph/engine/src/ui-server/open-browser.ts",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "58df55d2209d664da96a785d2647a84239a1d1faf15751d22e6b78e5aa6ea99e",
+      "reviewedSha256": "95efcefa7c9b65e741ea7a0c811295ff0af4ce6015e9c736861b35c56daa87d8",
       "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
     },
     {
       "path": "afyx-graph/engine/src/ui-server/security.ts",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "25cb2d131347583f6a3350d703e35d0e23ff41d1b0f93c51ab0f5ef379a29b16",
+      "reviewedSha256": "f10867185b6799ccc51fd1c7a06c4179dd625adaf4e8c16a87f1a73c7a8092c5",
       "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
     },
     {
       "path": "afyx-graph/engine/src/ui-server/static.ts",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "2645ab2eff5a40a8a0419db2bcf8b34bf42b18897fc7f25ab2c876cdc33a0c7f",
+      "reviewedSha256": "1fd9edca7d73b338c925b49c6059d570afebd050f4a8265008375df6c619478b",
       "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
     },
     {
@@ -2677,6 +2683,12 @@
       "evidence": "Installer UX v2: reviewed AFYX executable lifecycle wiring for shared interactive wizard, backend event forwarding and actual verification. Uses existing AFYX modules and runtime APIs only."
     },
     {
+      "path": "install.sh",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "1b9d9b0c496a18d22e2bc59269c07c883555eec8f03ae69a96607a9780039491",
+      "evidence": "AFYX POSIX kit installer with explicit platform, component, and provider skill-root lifecycle boundaries (AFYX-361, AFYX-362)."
+    },
+    {
       "path": "scripts/afyx-browser-devtools.mjs",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
       "reviewedSha256": "9fc6422962a6213fd326067fd9e4017b4519dc5f149e28f485ddf340fc679395",
@@ -2871,7 +2883,7 @@
     {
       "path": "scripts/afyx-npm-installer.mjs",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "e52546f8cc61727ee9af3dba4fef66b86e7b26de6105acdfc86208dbe9d82ced",
+      "reviewedSha256": "f10a6eb586345a43e43e3943ab1b098b3d6e087fbf17c2ff5f88f9b8ace19b1f",
       "evidence": "Installer UX v2 with synchronized universal capability summaries, help text, and version 0.1.0-alpha.12 (AFYX-77)."
     },
     {
@@ -2907,7 +2919,7 @@
     {
       "path": "scripts/afyx-security-auditor.mjs",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "1952fe4e9b64aedb785d50a989a2f2733cbb6a9d56f8ec67dcab260c4884aefc",
+      "reviewedSha256": "d12f8f0eaa5e0607bd5e513ed9e7f3afef6fb22610016a8a16c7922030c26ebc",
       "evidence": "MB12 review: authored from AFYX functional requirements and existing reviewed 251f73a contracts; no upstream implementation, prompts, assets or dependency imported. Trusted-host boundaries and negative/regression tests recorded in MB12-native-consolidation-20261114-r1."
     },
     {
@@ -2941,22 +2953,52 @@
       "evidence": "AFYX native source: authored from AFYX functional requirements; verified clean room implementation with zero third-party code import."
     },
     {
-      "path": "scripts/benchmark-trackd.mjs",
-      "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "244182001b78b85a26bb0ff6524059c30fd500fecd15f1b43f83f3ddde40037f",
-      "evidence": "Track D native performance benchmark harness: executes reproducible persistence, traversal, and lifecycle workloads. POSTV1-CI-AND-TRACKD-CERTIFICATION: koreksi AFYX berdasarkan log CI dan kontrak lifecycle native."
-    },
-    {
       "path": "scripts/benchmark-graph-memory.mjs",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
       "reviewedSha256": "d20a3744fbcb105ba8990b432f225b9dff58b25e66bcce46d92e4b5dd885a312",
       "evidence": "AFYX native source: authored from AFYX functional requirements; verified clean room implementation with zero third-party code import."
     },
     {
+      "path": "scripts/benchmark-trackd.mjs",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "244182001b78b85a26bb0ff6524059c30fd500fecd15f1b43f83f3ddde40037f",
+      "evidence": "Track D native performance benchmark harness: executes reproducible persistence, traversal, and lifecycle workloads. POSTV1-CI-AND-TRACKD-CERTIFICATION: koreksi AFYX berdasarkan log CI dan kontrak lifecycle native."
+    },
+    {
       "path": "scripts/dogfood_engineering_comparison.mjs",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
       "reviewedSha256": "aa3eedf9fb83723f4097c5a789298b6a8f4d238c6c526742c199e1f7b9778a81",
       "evidence": "AFYX native source: authored from AFYX functional requirements; verified clean room implementation with zero third-party code import."
+    },
+    {
+      "path": "scripts/install-afyx-graph.ps1",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "40de8a587265a628ea123fb4c223c5ccd24642d96f141066e45a68d8d67148c7",
+      "evidence": "AFYX post-v1 audit remediation: AFYX-owned installer and lifecycle implementation maintained in this repository."
+    },
+    {
+      "path": "scripts/install-afyx-graph.sh",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "183464b693c28d9d6fa2164a174710e0cba788501fd0a319c4e96528983d1a2d",
+      "evidence": "AFYX post-v1 audit remediation: AFYX-owned installer and lifecycle implementation maintained in this repository."
+    },
+    {
+      "path": "scripts/lib/afyx-cli-options.sh",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "ba338dad6885368ba03163c46e1c02e59bc1af6818b50b8a8c23bb05f834343a",
+      "evidence": "AFYX post-v1 audit remediation: AFYX-owned installer and lifecycle implementation maintained in this repository."
+    },
+    {
+      "path": "scripts/lib/afyx-skill-lifecycle.sh",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "1a441cfe24d58f44e92f6afacac188e7ddecb2d59f62a4aed9da4e44ec62e9d0",
+      "evidence": "AFYX post-v1 audit remediation: AFYX-owned installer and lifecycle implementation maintained in this repository."
+    },
+    {
+      "path": "scripts/lib/AfyxSkillLifecycle.psm1",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "1b8f2130c5b5ffa6491452cfd4c6518f989d183f5392361bcf44a5dd059aa4f1",
+      "evidence": "AFYX post-v1 audit remediation: AFYX-owned installer and lifecycle implementation maintained in this repository."
     },
     {
       "path": "scripts/phase8-paired-evidence.mjs",
@@ -2983,6 +3025,12 @@
       "evidence": "MB12 native-source review retained. MB14 AFYX-331 technical delta review: existing AFYX checksum validation extracted into a shared read-only verifier; no upstream source or dependency imported. Six negative checksum regressions and unchanged-marker assertions pass; evidence AFYX-MB14-20261116. Hash integrity is not legal clearance; AFYX-320/167 remain separate gates."
     },
     {
+      "path": "scripts/prepare-interactive-dogfood-session.mjs",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "555708d2045a9932f3fad62512f23f7a1ea5590458971904ab1b9c369ac7a000",
+      "evidence": "POSTV1-CERT-RECONCILE-AND-RELEASE-PREP: fixture dan preflight AFYX untuk AFYX-346/AFYX-8, tanpa kode pihak ketiga."
+    },
+    {
       "path": "scripts/resolve-git-release-artifacts.mjs",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
       "reviewedSha256": "fde1df2756ebe53d6f4c00a21d89b04291a2893d2563eb49fffeeb8c137a8955",
@@ -2991,7 +3039,7 @@
     {
       "path": "scripts/stage-npm-release.mjs",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "e617c2990701f91fc9b1f80981486d5ee26bab4eb8bf295c796eb7e833587a67",
+      "reviewedSha256": "e5901f8ff9ab038b0f0c6d6ea49a86ec0f94792f0ec59ce1509b0c82425bfd97",
       "evidence": "MB12 review: authored from AFYX functional requirements and existing reviewed 251f73a contracts; no upstream implementation, prompts, assets or dependency imported. Trusted-host boundaries and negative/regression tests recorded in MB12-native-consolidation-20261114-r1."
     },
     {
@@ -3003,14 +3051,20 @@
     {
       "path": "scripts/verify-graph-archive.mjs",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "4671b6a0698ba7744174ccda3a574a6ffce5ce2d2ee647cea307637a38f7da4c",
+      "reviewedSha256": "818606d18bf3e60eb69c5782261d9ea919a0a7e9d23fe6289ea745ca735e5bb7",
       "evidence": "AFYX native source: authored from AFYX functional requirements; verified clean room implementation with zero third-party code import."
     },
     {
       "path": "scripts/verify-native-source-ownership.mjs",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "9e6fdb3fcfa3792b2c12eb95d84646e285ed45c72eaf35def13fdd3c63c09255",
+      "reviewedSha256": "6c88a25ae6eb627f83384d61371c22189ca0caeb38ae6c1edbef4a4a507c23cf",
       "evidence": "AFYX native source: authored from AFYX functional requirements; verified clean room implementation with zero third-party code import."
+    },
+    {
+      "path": "scripts/verify-upstream-provenance.mjs",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "346852a126bda1ad50944d2b01b5c07287cd05fec099565d017b70a2d209f923",
+      "evidence": "AFYX pure-native provenance validator enforcing zero third-party notices, zero DERIVED_MIT_UPSTREAM classifications, and Copyright (c) 2026 Afyx exclusivity."
     },
     {
       "path": "tools/afyx-usage-intelligence/AfyxUsageIntelligence.psm1",
@@ -3025,76 +3079,28 @@
       "evidence": "AFYX native source: authored from AFYX functional requirements; verified clean room implementation with zero third-party code import."
     },
     {
-      "path": "scripts/prepare-interactive-dogfood-session.mjs",
+      "path": "uninstall.ps1",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "555708d2045a9932f3fad62512f23f7a1ea5590458971904ab1b9c369ac7a000",
-      "evidence": "POSTV1-CERT-RECONCILE-AND-RELEASE-PREP: fixture dan preflight AFYX untuk AFYX-346/AFYX-8, tanpa kode pihak ketiga."
-    },
-    {
-      "path": "afyx-graph/engine/scripts/build-bundle.sh",
-      "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "116dc4f8c158878541cbdc36381f30ea5d801d5850a8123aa020553c76f8125c",
-      "evidence": "AFYX post-v1 audit remediation: AFYX-owned installer and lifecycle implementation maintained in this repository."
-    },
-    {
-      "path": "scripts/install-afyx-graph.ps1",
-      "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "40de8a587265a628ea123fb4c223c5ccd24642d96f141066e45a68d8d67148c7",
-      "evidence": "AFYX post-v1 audit remediation: AFYX-owned installer and lifecycle implementation maintained in this repository."
-    },
-    {
-      "path": "scripts/install-afyx-graph.sh",
-      "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "183464b693c28d9d6fa2164a174710e0cba788501fd0a319c4e96528983d1a2d",
-      "evidence": "AFYX post-v1 audit remediation: AFYX-owned installer and lifecycle implementation maintained in this repository."
-    },
-    {
-      "path": "scripts/lib/AfyxSkillLifecycle.psm1",
-      "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "2e168adb1f4c829e79f9801814c2dbd8fb5950a0e903f0cbcac0e5db336cd117",
-      "evidence": "AFYX post-v1 audit remediation: AFYX-owned installer and lifecycle implementation maintained in this repository."
-    },
-    {
-      "path": "scripts/lib/afyx-skill-lifecycle.sh",
-      "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "10d8d007f7f7098ad4e66bda7a8c34504f99296059d0838dd92c48a532b9037e",
-      "evidence": "AFYX post-v1 audit remediation: AFYX-owned installer and lifecycle implementation maintained in this repository."
+      "reviewedSha256": "2cf220f17f0b9664bb6082dbe39f3f73b6ad4dcb4547c55ba2242e5c2a4f1db2",
+      "evidence": "AFYX native Kit lifecycle entrypoint maintained in this repository."
     },
     {
       "path": "uninstall.sh",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "f9554bf3f1ccedf4806afbc9670f1e034b67f9a4cbc81a31cb7ec4c4e728386b",
+      "reviewedSha256": "c1d87d07befe3fbcebf4bb8cd8eb7224846b2f0da9a86ade8178c67a308584e6",
       "evidence": "AFYX post-v1 audit remediation: AFYX-owned installer and lifecycle implementation maintained in this repository."
-    },
-    {
-      "path": "verify.sh",
-      "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "357a004cd915573b6bbcb3a184728555572fba17b6ea05b987adf11d45c940c0",
-      "evidence": "AFYX post-v1 audit remediation: AFYX-owned installer and lifecycle implementation maintained in this repository."
-    },
-    {
-      "path": "scripts/lib/afyx-cli-options.sh",
-      "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "ba338dad6885368ba03163c46e1c02e59bc1af6818b50b8a8c23bb05f834343a",
-      "evidence": "AFYX post-v1 audit remediation: AFYX-owned installer and lifecycle implementation maintained in this repository."
-    },
-    {
-      "path": "install.sh",
-      "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "adeae00bc9304c8aa6fc0bdd07a6a1330c5872a7c53023d66672b4db5b558eb9",
-      "evidence": "AFYX POSIX kit installer with explicit platform, component, and provider skill-root lifecycle boundaries (AFYX-361, AFYX-362)."
-    },
-    {
-      "path": "uninstall.ps1",
-      "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "03109a15c2961af411375ebf49a9b0aed489cfeabbb69d41684bf0d63800205d",
-      "evidence": "AFYX native Kit lifecycle entrypoint maintained in this repository."
     },
     {
       "path": "update.sh",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "e017044de19e9e7528cf11d305760466f609974dcaa26523e0d4b1bb9ee9363f",
+      "reviewedSha256": "9302753db0ca7da3a5ba576fe648385538d1858b4c7f1a6417cabc28e0851e7c",
       "evidence": "AFYX native Kit lifecycle entrypoint maintained in this repository."
+    },
+    {
+      "path": "verify.sh",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "c920a95d86c0cf80d8b6191c5e67b55568c6b4bd3c44d13613910dec274180eb",
+      "evidence": "AFYX post-v1 audit remediation: AFYX-owned installer and lifecycle implementation maintained in this repository."
     }
   ]
 }

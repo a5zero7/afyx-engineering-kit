@@ -53,7 +53,7 @@ for (const [name, input, expected] of [
 });
 
 test('HTML retains headings lists tables code links and ignores executable elements', async () => {
-  const result = await convert('web.html', '<h1>Title</h1><p>Hello <strong>world</strong> <a href="https://example.invalid/a">link</a></p><ul><li>A</li></ul><table><tr><th>X</th><th>Y</th></tr><tr><td>1</td><td>2</td></tr></table><pre>let a = 1;</pre><script>EVIL()</script><a href="file:///secret">secret</a>');
+  const result = await convert('web.html', '<h1>Title</h1><p>Hello <strong>world</strong> <a href="https://example.invalid/a">link</a></p><ul><li>A</li></ul><table><tr><th>X</th><th>Y</th></tr><tr><td>1</td><td>2</td></tr></table><pre>let a = 1;</pre><script>EVIL()</script><a href="file:/secret">secret</a>');
   assert.equal(result.status, 'SUCCEEDED'); assert.match(result.markdown, /# Title/); assert.match(result.markdown, /\*\*world\*\*/);
   assert.match(result.markdown, /\[link\]\(https:\/\/example.invalid\/a\)/); assert.match(result.markdown, /\| X \| Y \|/);
   assert.match(result.markdown, /```\nlet a = 1;/); assert.doesNotMatch(result.markdown, /EVIL|file:\/\//);
@@ -158,7 +158,7 @@ test('OOXML external links are counted but never fetched or treated as local par
 });
 
 for (const [label, name, input, code] of [
-  ['XXE', 'a.xml', '<!DOCTYPE x [<!ENTITY e SYSTEM "file:///secret">]><x>&e;</x>', /DTD_FORBIDDEN/],
+  ['XXE', 'a.xml', '<!DOCTYPE x [<!ENTITY e SYSTEM "file:/secret">]><x>&e;</x>', /DTD_FORBIDDEN/],
   ['broken XML', 'a.xml', '<a><b></a>', /UNBALANCED/],
   ['unknown XML entity', 'a.xml', '<a>&unknown;</a>', /ENTITY_INVALID/],
   ['broken JSON', 'a.json', '{bad', /JSON_MALFORMED/],

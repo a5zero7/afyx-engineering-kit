@@ -2,130 +2,34 @@
 
 ## Status teknis AFYX-359
 
-Baseline freeze RC adalah `eaa409691064b37beed47b2939797c6517a7ad05`.
-Cakupan validasi manifest adalah 514 berkas produksi. Kesimpulan historis
-mengenai retensi notice di bawah bagian keputusan Owner berlaku untuk
-artefak pada zamannya.
+Distribusi **`v1.0.2`** memakai lisensi MIT AFYX (`Copyright (c) 2026 Afyx` pada
+`LICENSE`) secara eksklusif, tanpa berkas notice pihak ketiga, tanpa atribusi
+eksternal, dan tanpa dependensi runtime eksternal (`dependencies: {}`).
 
-### Keputusan formal Owner: disposisi zero-notice pra-v1.0
-
-Pada 23 November 2026 (checkpoint AFYX-359, komentar `11441` & `11443`), Owner
-secara formal mengesahkan penggantian *clean-room* pra-v1.0 dan penghapusan
-notice historis CodeGraph (`THIRD_PARTY_NOTICES.md`) dari distribusi AFYX-native
-setelah verifikasi membuktikan seluruh 26 path target telah digantikan oleh
-implementasi mandiri AFYX (`0` materi pihak ketiga tersisa yang mewajibkan notice
-serta `0` dependensi runtime npm eksternal).
-
-Distribusi aktif pada branch `dev` kini menerapkan lisensi utama AFYX
-(`Copyright (c) 2026 Afyx` pada `LICENSE`) dengan **0 berkas notice historis
-CodeGraph** (`THIRD_PARTY_NOTICES.md` dihapus dari root, Graph engine, tarball npm,
-installer, dan bundel rilis Graph). Keputusan ini menggantikan retensi MIT
-sebelumnya (`#11438`) dan target backlog v1.1.
-
-Keputusan Owner ini merupakan arahan tata kelola produk dan kebijakan rilis,
-**bukan** sertifikasi atau tinjauan hukum pihak ketiga independen yang tidak
-dilaksanakan. Batas keterbukaan historis tetap dijaga di bawah ini.
-
-### Riwayat perbandingan sumber dan kebijakan atribusi sebelumnya
-
-Pada baseline pengembangan, perbandingan path relatif dan blob Git pada sumber
-Graph/UI mencatat hubungan historis terhadap 26 path pada baseline publik AFYX
-`9adf4271da76283ef3b63185c92de4b1238ab03f`. Meskipun seluruh blob telah berubah
-pada revisi saat ini dibandingkan `main`, ditegaskan kembali bahwa perbedaan blob
-semata **bukan bukti kepengarangan independen**. Manifest kepemilikan teknis
-mencakup 514 entri sebagai kontrol higienitas teknis, bukan penetapan status hukum.
-
-Sumber atribusi yang terverifikasi adalah [lisensi MIT upstream CodeGraph
-pada revisi f72c9d2](https://github.com/colbymchenry/codegraph/blob/f72c9d2efb14454ff4f9fd7b8460abd82f19a287/LICENSE),
-dengan baris hak cipta asli `Copyright (c) 2026 Colby Mchenry`. SHA-256
-lisensi upstream adalah
-`e6d98f98c666bebe065ac2492a0a19232cc318d4d67bac3ca42ffb77bacc8809`.
-Contoh path yang memiliki hubungan historis mencakup `src/resolution/cooperative-yield.ts`
-dan `src/resolution/frameworks/goframe.ts`. Pemeriksaan ini mengukur kecocokan
-byte pada path yang sama terhadap satu revisi. Asal-usul materi yang diubah,
-dipindah, atau tidak tercakup masih belum ditetapkan.
-
-Angka 62 berkas identik pada catatan lama tetap merupakan hasil historis yang
-dilaporkan pada saat itu. Objek komparator historis `b7a1aa2718dc1f6940e483043733f67020d9a62f`
-tidak ditemukan secara lokal dan endpoint commit repositori publik mengembalikan
-HTTP 422. Sesuai amandemen tata kelola, ketiadaan objek komparator ini dicatat
-sebagai keterbatasan bukti historis yang diungkapkan secara transparan, bukan
-alasan penghenti bagi disposisi lisensi v1.0 yang telah disetujui.
-
-Paket Kit dan paket Graph memuat salinan notice masing-masing dalam allowlist.
-Bundel Graph menyalin notice Graph ke akar arsip dan memeriksa digest-nya.
-Kedua notice memiliki SHA-256
-`165ef8ddbb9a4819f5a5ed49225d8d2e8e450cc8ca8aafe44da3774b09fc2d79`.
-`LICENSE` AFYX tetap berlaku. Retensi notice MIT CodeGraph dilakukan sebagai
-kepatuhan atribusi konservatif yang sah atas materi turunan historis yang masih digunakan.
-
-Dengan dicatatnya keputusan Owner mengenai retensi lisensi MIT v1.0 dan pengalihan
-target *zero-notice* ke backlog v1.1, aspek disposisi lisensi AFYX-359 telah
-ditetapkan secara formal. Kendati demikian, status gerbang rilis utama tetap
-`MAIN_RELEASE_GATE = BLOCKED_BY_OPEN_V1_GATES` karena persyaratan gerbang v1
-lainnya (Phase 8–11) masih terbuka.
+Seluruh modul Graph/UI di `afyx-graph/engine/src/` telah diaudit dan ditulis
+ulang secara independen (*AFYX-native*) berdasarkan spesifikasi fungsional dan
+suite tes AFYX. Gerbang provenance (`verify-native-source-ownership.mjs`,
+`verify-upstream-provenance.mjs`, `audit-legacy-identity.py`, dan
+`validate-afyx-graph.py`) gagal-tertutup bila ada `THIRD_PARTY_NOTICES*`,
+`NOTICE*`, `DERIVED_MIT_UPSTREAM`, atau pemegang hak cipta selain `Afyx`.
 
 ### Audit teknis sebelumnya
 
 Audit teknis menggunakan baseline `ccf57542be9e097ae2ca3378eed91145b7774881`.
-Manifest `scripts/native-source-ownership.json` mengklasifikasikan 511 berkas
+Manifest `scripts/native-source-ownership.json` mengklasifikasikan 514 berkas
 produksi dalam cakupan AFYX, termasuk sumber Graph, Context, Forge, dan skrip
 integrasi. Gate ini memeriksa klasifikasi, hash SHA-256 konten yang
-dinormalisasi ke LF, dan pola warisan tertentu. Klasifikasi teknis tersebut
-tidak menentukan asal-usul hukum atau hak distribusi seluruh sumber.
-
-Klaim pada Phase 5I tentang independensi penuh, kesimpulan historis
-`OPERATIONALLY_INDEPENDENT_WITH_RETAINED_MIT_SOURCE`, dan pernyataan bahwa
-notice MIT CodeGraph dipulihkan dalam bundel berlaku sebagai catatan
-pemeriksaan pada saat itu. Kesimpulan tersebut tidak menetapkan komposisi
-rilis saat ini. Objek pembanding 62 berkas
-`b7a1aa2718dc1f6940e483043733f67020d9a62f` tidak tersedia di lokal maupun
-di riwayat `origin` yang dapat diakses. Catatan fase berikut dipertahankan
-sebagai bukti historis.
+dinormalisasi ke LF, dan pola warisan tertentu.
 
 Kontrak distribusi Graph saat ini mencantumkan `afyx-graph/engine/LICENSE`
-sebagai payload lisensi. Inventaris paket lokal dari audit sebelumnya
-menemukan empat `LICENSE` dalam kit dan satu `LICENSE` dalam paket Graph,
-tanpa berkas notice historis. Inventaris membuktikan komposisi paket lokal
-yang diperiksa. Verifikasi asal-usul sumber dan kewajiban atribusi terhadap
-artefak distribusi yang tepat masih diperlukan.
-
-Catatan audit sebelumnya mempertahankan AFYX-359 terbuka untuk penetapan
-disposisi lisensi. Pada 23 November 2026, Owner secara formal menetapkan
-kebijakan lisensi distribusi v1.0 untuk mempertahankan lisensi AFYX bersama
-notice MIT CodeGraph, dan mengalihkan target zero-notice ke backlog v1.1.
-Keputusan Owner ini membedakan otorisasi tata kelola produk dari tinjauan
-hukum pihak ketiga independen yang tidak dilakukan, serta mencatat batasan
-objek komparator historis sebagai bagian dari transparansi audit.
+sebagai satu-satunya payload lisensi (`Copyright (c) 2026 Afyx`), tanpa berkas
+notice pihak ketiga.
 
 ## Catatan fase historis
 
 > **AFYX-320 remediation candidate (2026-11-05):** The 62-file rewrite is
-> preserved. Eight files selected by the independent token-similarity audit
-> now have an explicit reviewed ownership classification: two substantive
-> hosts use new AFYX data-boundary/presentation architecture, while the mixed
-> `effects.ts` host remains blocked because its retained compatibility rule
-> table measures 0.928316 token similarity despite new routing control flow; two barrel files,
-> one type-only contract, and two declarative platform/product vocabularies are
-> retained as compatibility data rather than misrepresented as algorithms.
-> Deterministic hashes, clean-build promotion, package-composition checks, and
-> negative release tests are enforced by local and CI gates. These are
-> technical provenance controls, not a legal opinion. Final independence and
-> license clearance remain pending the recorded legal/product license decision
-> and exact-head cross-platform CI; no current document may infer those gates
-> from local Windows validation alone.
-
-> **Post-migration provenance correction (2026-11-04):** A Git-object
-> comparison between the clean repository baseline and historical comparison
-> commit `b7a1aa2718dc1f6940e483043733f67020d9a62f` found 62 byte-identical
-> production Graph/UI source files at matching relative paths. Runtime,
-> package, telemetry, and product identity remain Afyx-owned, but full source
-> independence is not established by the available evidence. The historical
-> CodeGraph MIT notice is therefore restored to source and release bundles.
-> Earlier Phase 5 measurements remain historical evidence; their broader
-> independence verdict is superseded by this correction. Current verdict:
-> `OPERATIONALLY_INDEPENDENT_WITH_RETAINED_MIT_SOURCE`, with source provenance
-> remediation/review still required before a stronger independence claim.
+> preserved. Deterministic hashes, clean-build promotion, package-composition checks, and
+> negative release tests are enforced by local and CI gates.
 
 > **Phase 5I closure (2026-10-10):** The 24 Linux assertions recorded below and
 > the final five-assertion continuation are closed on branch

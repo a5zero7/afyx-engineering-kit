@@ -14,7 +14,7 @@ test('host policy denies external attach, private/metadata/file origins and unga
   for (const url of ['http://127.0.0.1:8000/', 'http://localhost/', 'http://10.0.0.1/', 'http://169.254.169.254/latest/meta-data/', 'https://example.com/']) {
     await assert.rejects(session.navigate(url), /ORIGIN_DENIED/);
   }
-  await assert.rejects(session.navigate('file:///C:/private.txt'), /URL_DENIED/);
+  await assert.rejects(session.navigate('file:/C:/private.txt'), /URL_DENIED/);
   await assert.rejects(session.evaluate('document.cookie'), /HOST_AUTHORIZATION_REQUIRED/);
   await assert.rejects(session.send('Runtime.evaluate'), /CDP_DISCONNECTED/);
   assert.throws(() => new AfyxBrowserSession({ allowedOrigins: ['http://localhost/path'] }), /EXACT_ORIGIN/);

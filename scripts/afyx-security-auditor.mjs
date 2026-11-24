@@ -56,7 +56,7 @@ export const AUDIT_RULES = Object.freeze([
       /-----BEGIN (?:(?:RSA |DSA |EC |OPENSSH |ENCRYPTED )?PRIVATE KEY|PGP PRIVATE KEY BLOCK)-----/,
       /\b(?:AKIA[A-Z0-9]{16}|ghp_[A-Za-z0-9]{36}|github_pat_[A-Za-z0-9_]{75,}|sk-[A-Za-z0-9_-]{24,}|xox[baprs]-[A-Za-z0-9-]{12,})\b/,
       /\beyJ[a-zA-Z0-9_-]{10,}\.eyJ[a-zA-Z0-9_-]{10,}\.[a-zA-Z0-9_-]{10,}\b/,
-
+      /\b(?:postgres(?:ql)?|mysql|mongodb(?:\+srv)?|redis):\/\/[^\s"'@/:]*:[^\s"'@/]+@[^\s"'@/]+/i,
     ],
     remediation: 'Extract credentials to environment variables or local secure vault; never commit secrets in code.',
   },
@@ -70,9 +70,21 @@ export const AUDIT_RULES = Object.freeze([
       /\beval\s*\([^)]{3,}\)/,
       /\bnew\s+Function\s*\([^)]*\)/,
       /\bpickle\s*\.\s*loads?\s*\(/,
-      /\byaml\s*\.\s*load\s*\([^,)]*Loader\s*=\s*(?:yaml\.)?(?:UnsafeLoader|Loader)\s*\)/,
+      /\byaml\s*\.\s*load\s*\((?![^#)\r\n]*,\s*(?:Loader\s*=\s*)?(?:yaml\s*\.\s*)?(?:CSafeLoader|SafeLoader)\s*\))/,
     ],
     remediation: 'Use safe parsing (JSON.parse, ast.literal_eval, yaml.safe_load) rather than dynamic code execution.',
+  },
+  {
+    id: 'SEC-SQL-01',
+    category: 'DYNAMIC_SQL',
+    severity: RISK_LEVELS.HIGH,
+    title: 'Interpolated SQL Statement',
+    description: 'A SQL statement contains inline interpolation or concatenation.',
+    patterns: [
+      /(?:\bf['"]|`)[^'"`\r\n]*\b(?:SELECT|INSERT|UPDATE|DELETE)\s+[^'"`\r\n]*\{[^}\r\n]+\}/i,
+      /['"`]\s*(?:SELECT|INSERT|UPDATE|DELETE)\s+[^'"`\r\n]*['"`]\s*\+\s*\S/i,
+    ],
+    remediation: 'Use parameterized queries or trusted static query fragments.',
   },
   {
     id: 'SEC-PATH-01',
@@ -120,14 +132,16 @@ export function auditContent(content, filePath = 'unknown') {
   const interpolatedShell = new RegExp('(?:^|[^\\w$.])(?:' + [...shellNames].map(n => n.replaceAll('$', '\\$')).join('|') + ')\\s*\\(\\s*\\x60[^\\x60]*\\$\\{');
   const shellCommand = new RegExp('(?:^|[^\\w$.])(?:' + [...spawnNames].map(n => n.replaceAll('$', '\\$')).join('|') +
     ')\\s*\\(\\s*[\'" ](?:[\\w/.-]*/)?(?:sh|bash|zsh|cmd(?:\\.exe)?|powershell(?:\\.exe)?|pwsh)[\'"]\\s*,\\s*\\[\\s*[\'"](?:-c|/c|-command)[\'"]', 'i');
-  const assignment = /\b(password|client[_-]?secret|aws_secret_access_key|api[_-]?key|secret[_-]?token|auth[_-]?token)\b['"]?\s*[:=]\s*(?:"([^"\r\n]+)"|'([^'\r\n]+)'|([A-Za-z0-9_+/=-]{12,})(?=\s*(?:[#;,]|$)))/i;
+  const assignment = /\b(password|client[_-]?secret|aws_secret_access_key|api[_-]?key|secret[_-]?token|auth[_-]?token|token|secret)\b['"]?\s*[:=]\s*(?:"([^"\r\n]+)"|'([^'\r\n]+)'|([A-Za-z0-9_+/=-]{12,})(?=\s*(?:[#;,]|$)))/i;
+  const configSecret = ['.toml', '.tf'].includes(extname(filePath).toLowerCase());
   const placeholder = /^(?:example|sample|placeholder|dummy|redacted|changeme|your[-_]|insert[-_]|\$\{|<|\*+|xxx)/i;
   for (const [index, line] of lines.entries()) {
     const trimmed = line.trim();
     const assigned = assignment.exec(trimmed);
     const value = assigned?.slice(2).find(part => part !== undefined);
+    const generic = /^(?:token|secret)$/i.test(assigned?.[1] ?? '');
     const secret = secretRule.patterns.some(pattern => pattern.test(trimmed))
-      || (value?.length >= 12 && !placeholder.test(value));
+      || (value && (configSecret || (!generic && value.length >= 12)) && !placeholder.test(value));
     const comment = /^(?:\/\/|#|\*)/.test(trimmed);
     const processSignature = /^(?:exec|execSync)\s*\(\s*(?:[\w$]+\s*:\s*[^)]+\)|[\w$]*\s*\)\s*\{)/.test(trimmed);
     for (const rule of AUDIT_RULES) {

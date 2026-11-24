@@ -233,9 +233,10 @@ afyx_backup_skill() (
   done <"$eligible"
   printf '%s' "$destination"
 )
-# Explicit purge keeps the newest five completed, verified backups per component.
+# Remove verified backups while preserving the requested newest entries.
 afyx_purge_skill_backups() (
-  local component="$1" dry="$2" root="$afyx_backup_root/$1" file candidate receipt name digest count
+  local component="$1" dry="$2" keep="$3" root="$afyx_backup_root/$1" file candidate receipt name digest count
+  [[ "$keep" == 0 || "$keep" == 5 ]] || exit 2
   afyx_assert_backup_path "$root" || exit 1
   [[ -d "$root" ]] || exit 0
   if [[ "$dry" != true ]]; then
@@ -259,7 +260,7 @@ afyx_purge_skill_backups() (
   LC_ALL=C sort -o "$file" "$file" || exit 1
   count="$(wc -l <"$file" | tr -d ' ')"
   while IFS= read -r candidate; do
-    [[ "$count" -gt 5 ]] || break
+    [[ "$count" -gt "$keep" ]] || break
     printf '[BACKUP-PURGE] %s %q\n' "$([[ "$dry" == true ]] && printf 'would remove' || printf 'remove')" "$candidate"
     if [[ "$dry" != true ]]; then
       afyx_assert_backup_path "$candidate" || exit 1

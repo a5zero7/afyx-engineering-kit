@@ -1,0 +1,81 @@
+name: Stable npm provenance release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: npm-release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 55
+    env:
+      GIT_TERMINAL_PROMPT: '0'
+      AFYX_NONINTERACTIVE: '1'
+      NPM_CONFIG_FUND: 'false'
+      NPM_CONFIG_AUDIT: 'false'
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+      - name: Verify stable tag and promoted source
+        run: |
+          set -euo pipefail
+          version=$(node -p "require('./package.json').version")
+          [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          test "$GITHUB_REF" = "refs/tags/v$version"
+          test "$(git rev-parse HEAD)" = "$(git rev-parse "$GITHUB_REF^{commit}")"
+          test "$(git cat-file -t "$GITHUB_REF")" = tag
+          git merge-base --is-ancestor HEAD origin/main
+          git merge-base --is-ancestor HEAD origin/dev
+          test -z "$(git status --porcelain)"
+      - name: Validate packaging, ownership, and source contracts
+        run: |
+          npm ci --prefix afyx-graph/engine
+          npm test
+          node scripts/verify-native-source-ownership.mjs
+          python scripts/validate-afyx-graph.py
+          python scripts/validate-components.py
+      - name: Build and test Graph
+        working-directory: afyx-graph/engine
+        run: |
+          npm run build:clean
+          npm test
+          npm run test:semantic
+          npm run test:smoke
+          npm pack --dry-run --json > "$RUNNER_TEMP/graph-pack.json"
+          node -e 'const files = require(process.argv[1])[0].files; if (!files.some(file => file.path === "LICENSE")) process.exit(1); if (files.some(file => /(?:^|\/)(?:THIRD_PARTY_NOTICES|NOTICE)(?:\.[^/]+)?$/i.test(file.path))) process.exit(1)' "$RUNNER_TEMP/graph-pack.json"
+      - name: Stage and verify the exact npm tarball
+        env:
+          AFYX_BUILD_FROM_SOURCE: '1'
+        run: |
+          set -euo pipefail
+          node scripts/stage-npm-release.mjs --output-dir "$RUNNER_TEMP/afyx-npm-release" > "$RUNNER_TEMP/afyx-npm-release.json"
+          node -e 'const receipt = require(process.argv[1]); if (receipt.dryRun || receipt.revision !== process.env.GITHUB_SHA || !receipt.candidate || !/^[0-9a-f]{64}$/.test(receipt.sha256)) process.exit(1)' "$RUNNER_TEMP/afyx-npm-release.json"
+      - name: Publish the verified tarball with provenance
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [[ -z "$NODE_AUTH_TOKEN" ]]; then
+            echo "::notice::NPM_TOKEN is unavailable. The tarball was verified and publication was skipped."
+            exit 0
+          fi
+          receipt="$RUNNER_TEMP/afyx-npm-release.json"
+          package=$(node -p 'require(process.argv[1]).candidate' "$receipt")
+          digest=$(node -p 'require(process.argv[1]).sha256' "$receipt")
+          printf '%s  %s\n' "$digest" "$package" | sha256sum --check --strict
+          npm publish "$package" --provenance --access public

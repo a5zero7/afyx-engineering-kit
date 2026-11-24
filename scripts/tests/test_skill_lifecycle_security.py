@@ -98,7 +98,7 @@ class SkillLifecycleSecurityTests(unittest.TestCase):
         self.assertEqual(result.returncode, expected, result.stdout + result.stderr)
         return result
 
-    def test_explicit_purge_keeps_five_verified_backups_and_preserves_unowned_and_active(self) -> None:
+    def test_prune_then_purge_verified_backups_preserves_unowned_and_active(self) -> None:
         source = self.base / "backup-source"
         source.mkdir()
         (source / "SKILL.md").write_text("disposable recovery bytes\n", encoding="utf-8")
@@ -115,13 +115,13 @@ for ($i = 0; $i -lt 7; $i++) { Backup-AfyxSkill -Component afyx-efficient-coding
             seed_command = [self.shell, "-NoProfile", "-NonInteractive", "-File", str(seed_file), *args]
             uninstall = [self.shell, "-NoProfile", "-NonInteractive", "-File", str(ROOT / "uninstall.ps1"),
                          "-SelectedComponent", "afyx-efficient-coding", "-SkillsRoot", str(self.skills), "-Confirm:$false"]
-            purge, preview = "-PurgeBackups", "-WhatIf"
+            purge, prune, preview, authorize = "-PurgeBackups", "-PruneBackups", "-WhatIf", "-NonInteractive"
         else:
             seed = 'set -eu; . "$2/scripts/lib/afyx-skill-lifecycle.sh"; for i in 1 2 3 4 5 6 7; do afyx_backup_skill afyx-efficient-coding "$1"; done'
             seed_command = [self.shell, "-c", seed, "seed", *args]
             uninstall = [self.shell, str(ROOT / "uninstall.sh"), "--component", "afyx-efficient-coding",
                          "--skills-root", str(self.skills)]
-            purge, preview = "--purge-backups", "--dry-run"
+            purge, prune, preview, authorize = "--purge-backups", "--prune-backups", "--dry-run", "--non-interactive"
 
         def run(command):
             result = subprocess.run(command, cwd=ROOT, env=self.env, capture_output=True, text=True, timeout=60)
@@ -141,11 +141,17 @@ for ($i = 0; $i -lt 7; $i++) { Backup-AfyxSkill -Component afyx-efficient-coding
         self.assertEqual(len(list(root.glob("*.afyx-backup"))), 7)
         run([*uninstall, purge, preview])
         self.assertEqual(len(list(root.glob("*.afyx-backup"))), 7)
+        run([*uninstall, prune])
+        self.assertEqual(sorted(root.glob("*.afyx-backup")), [backups[0], *backups[2:]])
         for _ in range(2):
-            run([*uninstall, purge])
-            self.assertEqual(sorted(root.glob("*.afyx-backup")), [backups[0], *backups[2:]])
+            run([*uninstall, purge, authorize])
+            self.assertEqual(sorted(root.glob("*.afyx-backup")), [backups[0]])
             self.assertTrue(protected.is_file())
             self.assertEqual(foreign.read_bytes(), b"foreign rollback fixture")
+        protected.unlink()
+        run([*uninstall, purge, authorize])
+        self.assertEqual(list(root.glob("*.afyx-backup")), [])
+        self.assertEqual(foreign.read_bytes(), b"foreign rollback fixture")
 
     def test_fresh_install_idempotent_repair_backup_and_restore(self) -> None:
         self.run_install("install")

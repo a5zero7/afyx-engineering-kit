@@ -1,11 +1,10 @@
 # AFYX Engineering Kit
 
-**Versi Kit 1.0.1.** Publikasi diverifikasi melalui tag Git dan metadata
-registry npm. Installer Windows tidak bertanda tangan berdasarkan
-`OWNER_SIGNING_WAIVER_V1`; Windows dapat menampilkan peringatan SmartScreen.
-Cocokkan checksum dan revisi sumber sebelum menjalankan installer.
-[Catatan dan verifikasi rilis](https://github.com/a5zero7/afyx-engineering-kit/blob/main/docs/RELEASE_READINESS.md)
-
+**Kit version 1.0.2.** Stable v1 is the release line. Check the Git tag and
+npm registry for publication of this patch. The Windows installer is unsigned
+under `OWNER_SIGNING_WAIVER_V1` and may trigger SmartScreen. Verify its source
+revision and SHA-256 before running it.
+[Release notes](https://github.com/a5zero7/afyx-engineering-kit/blob/main/docs/RELEASE_READINESS.md)
 
 **Local-first engineering intelligence, adaptive guidance, and evidence-driven validation for AI coding agents.**
 
@@ -21,17 +20,18 @@ on its own or combine eligible capabilities through shared installation and
 routing contracts. The design prioritizes source evidence, permission boundaries,
 focused validation, and failure isolation over unqualified automation claims.
 
-**Distribusi Kit:** Windows x64, Linux x64, macOS ARM64, dan macOS Intel.
-Paket Graph per target diverifikasi melalui checksum dan manifest. Penerimaan
-integrasi provider mengikuti izin host dan cakupan pilot yang terdokumentasi.
+**Distribution targets:** Windows x64, Linux x64, macOS ARM64, and macOS Intel.
+Verify the checksum and manifest for your Graph bundle. The external macOS
+pilot remains pending. Provider integration depends on the host and its permissions.
 
 Graph, Forge, Context Engine, and Engineering Expert provide four foundational
 engineering pillars. Efficient Coding and Odoo Engineering are **equally
 recognized standalone products**, not merely auxiliary documentation.
 
-Distribusi AFYX-native berlisensi MIT AFYX (`LICENSE`) tanpa notice atribusi
-pihak ketiga historis (`0` berkas `THIRD_PARTY_NOTICES.md`). Lihat
-[status audit AFYX-359](https://github.com/a5zero7/afyx-engineering-kit/blob/main/docs/AFYX_INDEPENDENCE_PLAN.md#status-teknis-afyx-359).
+The AFYX v1.0.2 release uses the Afyx MIT [license](LICENSE) (`Copyright (c) 2026 Afyx`)
+with zero third-party attributions, zero third-party license notices, and zero
+external runtime dependencies.
+[Provenance review](https://github.com/a5zero7/afyx-engineering-kit/blob/main/docs/AFYX_INDEPENDENCE_PLAN.md#status-teknis-afyx-359)
 
 ## Why Afyx
 
@@ -84,14 +84,14 @@ installable IDs, presets, supported platforms, and ownership. Consult the
 
 ## Kit and component versions
 
-The Kit version is `1.0.0`. Independent component versions
+The Kit version is `1.0.2`. Independent component versions
 track their individual CLI and contract compatibility. The Kit version tracks
 distribution and installer releases, so a component can retain its version
-while the Kit evolves. Verifikasi status distribusi pada catatan rilis.
+while the Kit evolves. Check the release notes for distribution status.
 
 | Component | Version |
 |---|---|
-| [Graph](afyx-graph/engine/README.md) | `1.0.0` |
+| [Graph](afyx-graph/engine/README.md) | `1.0.2` |
 | [Context](afyx-context/README.md) | `0.1.0` |
 | [Forge](afyx-forge/README.md) | `0.1.0` |
 | [Efficient Coding](https://github.com/a5zero7/afyx-engineering-kit/blob/main/docs/tool-guides/AFYX_EFFICIENT_CODING.md) | `1.2.2` |
@@ -114,9 +114,11 @@ CLI must verify the exact archive before promotion. The installer advises a new 
 successful changes to reachable MCP configuration.
 
 To preview opt-in pruning of verified skill backups, run
-`./uninstall.sh --component afyx-engineering-expert --purge-backups --dry-run`
-or use `-PurgeBackups -WhatIf` on Windows. Five completed verified backups
-per selected skill remain, alongside active rollback and unowned backups.
+`./uninstall.sh --component afyx-engineering-expert --prune-backups --dry-run`
+or use `-PruneBackups -WhatIf` on Windows. Five completed verified backups
+per selected skill remain. Use `--purge-backups` or `-PurgeBackups` to remove
+all completed verified backups in scope after confirmation. Both operations
+retain active rollback and unowned backups.
 
 The read-only [auditor](scripts/afyx-security-auditor.mjs) scans supported
 source and configuration files, including comments and bounded generated
@@ -125,7 +127,7 @@ refuses symlink traversal and reports partial coverage separately. Use
 `node scripts/afyx-security-auditor.mjs --help` for file-count and scope options.
 Its heuristics require review. See [component lifecycle](https://github.com/a5zero7/afyx-engineering-kit/blob/main/docs/COMPONENTS.md)
 for installation and recovery, and [the provenance review](https://github.com/a5zero7/afyx-engineering-kit/blob/main/docs/AFYX_INDEPENDENCE_PLAN.md)
-for the pending Owner/legal decision.
+for the upstream attribution policy and comparator evidence.
 
 ## How the products fit together
 
@@ -164,9 +166,8 @@ distinguishes approved target behavior from proven current behavior.
 
 ## Current product status
 
-This repository is a **Technical Alpha prerelease**. It is not Stable v1, no
-formal public Alpha approval is implied, and publisher authenticity remains
-unverified unless an artifact has an independently verified attestation.
+The Kit follows the Stable v1 release line. Verify publisher authenticity
+against an attestation for the specific artifact you install.
 
 - Graph, the Kit lifecycle, ACE, Efficient Coding, Odoo Engineering, and
   Engineering Expert have implemented runtime or skill contracts with regression
@@ -190,22 +191,27 @@ and [Component Guide](https://github.com/a5zero7/afyx-engineering-kit/blob/main/
 
 ## Install AFYX Engineering Kit — Windows & WSL2
 
-### Instalasi npm v1.0.0
+### npm installation
 
-Gunakan Node.js 22.5 atau lebih baru. Setelah versi publik terverifikasi dengan
-`npm view afyx-engineering-kit@1.0.0 version`, gunakan:
+Use Node.js 22.5 or later and verify the published version with
+`npm view afyx-engineering-kit@latest version`.
 
 ```bash
-npx afyx-engineering-kit@1.0.0 install
+npx afyx-engineering-kit@latest install
 ```
 
-In a release containing Midnight Circuit, an interactive ANSI terminal shows
-Detect → Select → Configure → Review/Apply → Finish. Use `--ui plain` for text
-output; CI and terminals without ANSI support use the text flow automatically.
-Verifikasi dukungan target di manifest bundel. Gunakan `--preset recommended`
-untuk skill utama, atau `--preset full` untuk menyertakan Graph, Context, Forge,
-dan skill yang berlaku. Konfigurasi provider bersifat opsional dan mengikuti
-prasyarat host.
+An interactive ANSI terminal shows Detect → Select → Configure → Review/Apply →
+Finish. Use `--ui plain` for text output. CI and terminals without ANSI
+support use the text flow automatically. Check the bundle manifest for target
+support. Use `--preset recommended` for core skills or `--preset full` to
+include Graph, Context, Forge, and applicable skills.
+
+### Quickstart Bahasa Indonesia
+
+Pasang Node.js 22.5 atau lebih baru. Periksa versi yang tersedia dengan
+`npm view afyx-engineering-kit@latest version`, lalu jalankan
+`npx afyx-engineering-kit@latest install`. Tambahkan `--dry-run` untuk meninjau
+rencana instalasi. Konfigurasi MCP mengikuti izin dan prasyarat provider.
 
 ### Local Developer Setup (Bare NPX Resolution)
 
@@ -233,31 +239,14 @@ To remove the link:
 .\scripts\link-global-dev.ps1 -Uninstall
 ```
 
-### GitHub prerelease tarball fallback
+### Release archives
 
-The GitHub-generated `dev.zip` is a source snapshot. It does not include the
-revision-matched Graph runtime needed by the Full preset. A Windows x64 Full
-release ZIP is built separately from an immutable commit with a verified Graph
-archive and `.afyx-source-revision` marker. Its download link will be added
-after the public release and anonymous installation checks pass. Node.js 22.5+
-is required; Windows PowerShell 5.1 and PowerShell 7 are the intended hosts.
-
-Untuk reproduksi historis Alpha, gunakan tarball dari [prarilis GitHub v0.1.0-alpha.12](https://github.com/a5zero7/afyx-engineering-kit/releases/tag/v0.1.0-alpha.12):
-
-```bash
-npm exec --yes --package="https://github.com/a5zero7/afyx-engineering-kit/releases/download/v0.1.0-alpha.12/afyx-engineering-kit-0.1.0-alpha.12.tgz" -- afyx-engineering-kit install --preset full --no-build-fallback --non-interactive --skip-provider-configuration
-```
-
-`full` installs the prebuilt Graph runtime, Context, Forge, and applicable
-skills. Provider configuration is skipped by the example; select a supported
-provider explicitly when you are ready to register its MCP integration. Verify
-the installation with the same `npm exec --package=... --` prefix followed by
-`afyx-engineering-kit verify --preset full`. Run `afyx-engineering-kit update`
-with that prefix for an ownership-aware update, or `afyx-engineering-kit uninstall`
-with an explicit component to remove it. See the [installation guide](https://github.com/a5zero7/afyx-engineering-kit/blob/main/docs/INSTALLATION.md)
-for provider selection, recovery, and platform limits.
-
-> **Troubleshooting versi global lama:** Jika instalasi global versi alpha lama menutupi `npx afyx-engineering-kit@latest`, jalankan `npm uninstall -g afyx-engineering-kit` terlebih dahulu sebelum menjalankan ulang `npx afyx-engineering-kit@latest`.
+Use the [GitHub releases page](https://github.com/a5zero7/afyx-engineering-kit/releases)
+to locate a release archive and its verification metadata. Generated source
+snapshots do not carry prebuilt Graph bundles for the Full preset. Historical
+Alpha releases remain available for provenance review. If you previously
+linked a local development build globally, remove the link with
+`npm uninstall -g afyx-engineering-kit` before testing the registry package.
 
 ## Quick start
 
@@ -415,8 +404,7 @@ References are owner/session-bound, and retrieval verifies the stored digest.
 The canonical Full preset in `scripts/components.json` selects Efficient Coding,
 Odoo Engineering, Engineering Expert, Graph, Context, Forge, and Codex Usage
 Tracking (the last component remains platform/provider-specific). Kit package
-versions and individual component versions are independent; Graph 1.0.0 does not
-mean Kit 1.0.0.
+versions and individual component versions follow their respective release contracts.
 
 Source self-update uses only the updater's own Git checkout. Packaged/npm sources
 without their own `.git` continue with the installed source, even inside another
@@ -446,8 +434,6 @@ providers, models, unrelated MCP entries, and external tools are preserved.
 License scope must be checked **per package**. The Kit root, Graph and ACE are
 MIT-licensed in their respective license/metadata files; the standalone Forge
 Core package currently declares `Apache-2.0` in `afyx-forge/package.json`.
-Do not infer one blanket license from the umbrella README. The Phase 5/AFYX-320
-native Graph/UI replacement and provenance review are recorded as completed
-for their declared artifact boundary, not as a legal guarantee about every
-future dependency or distribution. External tools remain under their own terms;
-retain required notices and review provenance before release.
+Do not infer one blanket license from the umbrella README. The current provenance ledger records retained upstream-derived Graph/UI
+source. Package and bundle validators require the matching MIT notice.
+External tools remain under their own terms.

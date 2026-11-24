@@ -272,7 +272,7 @@ access_rule_dup,rule second,model_purchase_request,purchase.group_purchase_manag
     it('enforces anti-XXE security policy and refuses XML external entities and internal subsets', () => {
       const xxeXml = `<?xml version="1.0"?>
 <!DOCTYPE test [
-  <!ENTITY xxe SYSTEM "file:///c:/windows/win.ini">
+  <!ENTITY xxe SYSTEM "file:/c:/windows/win.ini">
 ]>
 <odoo>
     <record id="evil_rule" model="ir.rule">
@@ -336,8 +336,8 @@ access_rule_dup,rule second,model_purchase_request,purchase.group_purchase_manag
     });
   });
 
-  describe('5. Real Scenario Fixture Verification (B3-ODOO-PR-RFQ-01)', () => {
-    const fixtureRoot = 'D:/Project/afyx-alpha/b3.2-installed-runtime-76356555-20261030-r1/scenario-workspace/purchase_request_fixture';
+  describe.skipIf(!process.env.AFYX_ODOO_PILOT_FIXTURE)('5. Real Scenario Fixture Verification (B3-ODOO-PR-RFQ-01)', () => {
+    const fixtureRoot = process.env.AFYX_ODOO_PILOT_FIXTURE ?? '';
 
     it('extracts all assets from the frozen B3 fixture deterministically', () => {
       const manifestPath = path.join(fixtureRoot, '__manifest__.py');

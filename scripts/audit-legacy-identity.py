@@ -22,6 +22,15 @@ from pathlib import Path
 FORBIDDEN_TOKENS = ("code" + "graph", "colby" + "mchenry")
 PATTERN = re.compile("|".join(re.escape(token) for token in FORBIDDEN_TOKENS), re.IGNORECASE)
 REDACTION = "<legacy-identity>"
+MACHINE_PATH = re.compile(
+    r"d:[/\\]+project\b|file:" + "/" * 3 + r"|~/\.gemini/" + "antigravity",
+    re.IGNORECASE,
+)
+RULE_IMPLEMENTATION = "scripts/verify-native-source-ownership.mjs"
+RULE_LITERALS = {
+    r"pattern: /Copyright\s+\(c\)\s+\d{4}\s+" + FORBIDDEN_TOKENS[0].title().replace("graph", "Graph") + "/i,",
+    r"""pattern: /from\s+['"]@""" + FORBIDDEN_TOKENS[0] + r"""\//i,""",
+}
 SKIPPED_DIRECTORIES = {".git", ".rea_source", "node_modules", "testing", "progres"}
 PERMITTED_CONTENT_PATHS = {
     # Review metadata must name historical sources accurately. This file is
@@ -70,12 +79,34 @@ def redact(text: str) -> str:
     return PATTERN.sub(REDACTION, text)
 
 
+def tracked_path_findings(root: Path) -> list[str]:
+    tracked = subprocess.run(
+        ["git", "-C", str(root), "ls-files", "--cached", "-z"],
+        capture_output=True, encoding="utf-8", check=True,
+    ).stdout
+    findings = []
+    for rel in filter(None, tracked.split("\0")):
+        target = root / rel
+        if target.is_symlink():
+            text = os.readlink(target)
+        elif target.is_file():
+            text = target.read_text(encoding="utf-8", errors="replace")
+        else:
+            continue
+        if MACHINE_PATH.search(rel):
+            findings.append(f"{MACHINE_PATH.sub('<machine-path>', rel)}: machine-specific file name")
+        for number, line in enumerate(text.splitlines(), 1):
+            if MACHINE_PATH.search(line):
+                findings.append(f"{MACHINE_PATH.sub('<machine-path>', rel)}:{number}: machine-specific path")
+    return findings
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--root", default=str(Path(__file__).resolve().parents[1]))
     root = Path(parser.parse_args().root).resolve()
 
-    findings: list[str] = []
+    findings = tracked_path_findings(root)
     permitted = {"HISTORICAL_EVIDENCE": 0, "LEGAL_PROVENANCE": 0, "EXTERNAL_EXCEPTION": 0}
     files = [path for path in git_paths(root, "--cached", "--others") if (root / path).is_file()]
     for rel in files:
@@ -85,7 +116,8 @@ def main() -> int:
             text = (root / rel).read_text(encoding="utf-8", errors="ignore")
         except OSError:
             continue
-        hits = [(number, line.strip()) for number, line in enumerate(text.splitlines(), start=1) if PATTERN.search(line)]
+        hits = [(number, line.strip()) for number, line in enumerate(text.splitlines(), start=1) if PATTERN.search(line)
+                and not (rel == RULE_IMPLEMENTATION and line.strip() in RULE_LITERALS)]
         classification = PERMITTED_CONTENT_PATHS.get(Path(rel).as_posix())
         if classification:
             permitted[classification] += len(hits)
@@ -100,7 +132,7 @@ def main() -> int:
         findings.append(f"{redact(directory)}/: directory name carries the legacy identity")
 
     if findings:
-        print("Legacy identity found in the working tree:")
+        print("Legacy identity or machine paths found in the working tree:")
         for finding in findings:
             print(f"  {finding}")
         print(f"Legacy identity audit: FAIL ({len(findings)} finding line(s))")

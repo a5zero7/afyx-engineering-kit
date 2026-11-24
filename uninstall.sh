@@ -13,6 +13,7 @@ forge_root="${AFYX_FORGE_RUNTIME_ROOT:-$HOME/.afyx/forge}"
 dry_run=false
 non_interactive=false
 purge_backups=false
+prune_backups=false
 selected_components=()
 selected_component_count=0
 remove_provider_configuration=false
@@ -24,10 +25,10 @@ gemini_home="${AFYX_GEMINI_HOME:-$HOME/.gemini}"
 claude_home="${CLAUDE_CONFIG_DIR:-${CLAUDE_HOME:-$HOME/.claude}}"
 claude_config_dir="${CLAUDE_CONFIG_DIR:-}"
 
-printf 'Afyx Engineering Kit v1.0.1 — Linux/macOS uninstaller (Bash)\n'
+printf 'Afyx Engineering Kit v1.0.2 — Linux/macOS uninstaller (Bash)\n'
 
 usage() {
-  printf '%s\n' 'Usage: ./uninstall.sh [--skills-root PATH] [--context-runtime-root PATH] [--forge-runtime-root PATH] [--component AFYX-SKILL-ID] [--remove-provider-configuration] [--provider codex|antigravity|claude[,..]] [--provider-scope global|workspace] [--workspace-root PATH] [--gemini-home PATH] [--claude-home PATH] [--claude-config-dir PATH] [--remove-afyx-graph] [--remove-afyx-context] [--remove-afyx-forge] [--all] [--purge-backups] [--non-interactive] [--dry-run]'
+  printf '%s\n' 'Usage: ./uninstall.sh [--skills-root PATH] [--context-runtime-root PATH] [--forge-runtime-root PATH] [--component AFYX-SKILL-ID] [--remove-provider-configuration] [--provider codex|antigravity|claude[,..]] [--provider-scope global|workspace] [--workspace-root PATH] [--gemini-home PATH] [--claude-home PATH] [--claude-config-dir PATH] [--remove-afyx-graph] [--remove-afyx-context] [--remove-afyx-forge] [--all] [--purge-backups | --prune-backups] [--non-interactive] [--dry-run]'
 }
 
 source "$root/scripts/lib/afyx-cli-options.sh"
@@ -58,6 +59,7 @@ while (($#)); do
     --dry-run) dry_run=true; shift ;;
     --non-interactive|-y|--yes) non_interactive=true; shift ;;
     --purge-backups) purge_backups=true; shift ;;
+    --prune-backups) prune_backups=true; shift ;;
     -h|--help) usage; exit 0 ;;
     *) printf 'Unknown option: %s\n' "$1" >&2; usage >&2; exit 2 ;;
   esac
@@ -115,7 +117,20 @@ if ((selected_component_count > 0)); then
     }
   done
 fi
-if "$purge_backups"; then
+if "$purge_backups" && "$prune_backups"; then
+  printf 'Choose either --purge-backups or --prune-backups.\n' >&2
+  exit 2
+fi
+if "$purge_backups" && ! "$dry_run" && ! "$non_interactive" && [[ "${AFYX_NONINTERACTIVE:-}" != 1 ]]; then
+  if [[ ! -t 0 ]]; then
+    printf 'Use --non-interactive to authorize backup purge without a terminal.\n' >&2
+    exit 2
+  fi
+  printf 'Remove all completed, verified AFYX backups in scope? [y/N] '
+  read -r answer
+  [[ "$answer" == y || "$answer" == Y ]] || exit 2
+fi
+if "$purge_backups" || "$prune_backups"; then
   afyx_assert_backup_path "$afyx_backup_root" || exit 1
   if [[ -e "$afyx_backup_root" ]]; then
     backup_root_physical="$(cd -- "$afyx_backup_root" && pwd -P)" || exit 1
@@ -208,11 +223,13 @@ if "$remove_afyx_forge"; then
   if "$dry_run"; then bash "$root/scripts/install-afyx-forge.sh" --runtime-root "$forge_root" --validate-only
   else bash "$root/scripts/install-afyx-forge.sh" --runtime-root "$forge_root" --uninstall; fi
 elif [[ -e "$forge_root" ]]; then printf 'Afyx Forge Core: kept\n'; fi
-if "$purge_backups"; then
+if "$purge_backups" || "$prune_backups"; then
+  backup_keep=0
+  if "$prune_backups"; then backup_keep=5; fi
   for component_id in $(afyx_component_ids); do
     [[ "$(afyx_component_field "$component_id" type)" == skill && "$(afyx_component_field "$component_id" ownership)" == afyx ]] || continue
     component_selected "$component_id" || continue
-    afyx_purge_skill_backups "$component_id" "$dry_run"
+    afyx_purge_skill_backups "$component_id" "$dry_run" "$backup_keep"
   done
 fi
 

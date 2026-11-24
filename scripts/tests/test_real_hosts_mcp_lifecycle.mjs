@@ -506,9 +506,9 @@ describe('AFYX Native Provider MCP Lifecycle & Universal Interoperability Suite'
   // ==========================================
   // UNIVERSAL INTEROPERABILITY (AFYX-308/309)
   // ==========================================
-  test('AFYX-308/309: Real representative interoperability across installed components', async () => {
-    const PILOT_INSTALL_ROOT = 'D:/Project/afyx-alpha/afyx-305-exact-candidate/install-root';
-    const PILOT_PROJECT_ROOT = 'D:/Project/afyx-alpha/afyx-305-exact-candidate/test-data/sample-project';
+  test('AFYX-308/309: Real representative interoperability across installed components', { skip: !process.env.AFYX_INTEROP_PILOT_ROOT }, async () => {
+    const PILOT_INSTALL_ROOT = join(process.env.AFYX_INTEROP_PILOT_ROOT, 'install-root');
+    const PILOT_PROJECT_ROOT = join(process.env.AFYX_INTEROP_PILOT_ROOT, 'test-data/sample-project');
     const tempState = join(tempRoot, 'ctx-state');
     mkdirSync(tempState, { recursive: true });
 

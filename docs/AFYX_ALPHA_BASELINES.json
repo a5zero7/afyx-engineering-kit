@@ -3,8 +3,8 @@
   "observed_at": "2026-10-15T00:00:00+07:00",
   "purpose": "T01 identity ledger; observations are not promotion or installation claims",
   "workspace_boundary": {
-    "canonical_development_repository": "D:\\Project\\workspace\\afyx-codex-engineering-kit",
-    "alpha_acceptance_environment": "D:\\Project\\afyx-alpha",
+    "canonical_development_repository": "<LEGACY_REPO_ROOT>",
+    "alpha_acceptance_environment": "<ALPHA_ACCEPTANCE_ROOT>",
     "applies_to": "T01-T12",
     "alpha_allowed_uses": [
       "clean_installation",

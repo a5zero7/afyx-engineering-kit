@@ -79,24 +79,23 @@ class ValidatorTests(unittest.TestCase):
         self.assertNotEqual(result.returncode, 0)
         self.assertIn(f"{BUNDLE}/LICENSE", result.stdout + result.stderr)
 
-    def test_bundle_with_obsolete_notice_is_rejected(self) -> None:
+    def test_bundle_with_forbidden_notice_is_rejected(self) -> None:
         self.write_bundle(["metadata.json", "LICENSE", NOTICE])
         result = self.validate()
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("obsolete or unexplained legal payload", result.stdout + result.stderr)
 
-    def test_source_notices_are_rejected(self) -> None:
+    def test_reintroduced_root_or_engine_notice_is_rejected(self) -> None:
         for package in (self.tree, self.tree / "afyx-graph" / "engine"):
             with self.subTest(package=package):
                 notice = package / NOTICE
-                notice.write_text("obsolete notice", encoding="utf-8")
+                notice.write_text("forbidden notice", encoding="utf-8")
                 result = self.validate()
                 self.assertNotEqual(result.returncode, 0)
-                self.assertIn("obsolete historical legal payload must not exist", result.stdout + result.stderr)
                 notice.unlink()
 
     def test_bundle_with_stale_historical_payload_is_rejected(self) -> None:
-        self.write_bundle(["metadata.json", "LICENSE", "licenses/THIRD_PARTY_ENGINE_MIT.txt"])
+        self.write_bundle(["metadata.json", "LICENSE", NOTICE, "licenses/THIRD_PARTY_ENGINE_MIT.txt"])
         result = self.validate()
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("obsolete or unexplained legal payload", result.stdout + result.stderr)

@@ -36,11 +36,6 @@ export function artifactPlan(target) {
 
 export class DistributionError extends Error {}
 
-export function isObsoleteNotice(path) {
-  const base = path.split(/[\\/]/).pop().toLowerCase();
-  return base.startsWith('third_party_notices') || /^notice(\.|$)/.test(base);
-}
-
 function requireFile(path, label = path) {
   if (!existsSync(path) || !statSync(path).isFile()) throw new DistributionError(`missing ${label}`);
   return path;
@@ -80,6 +75,21 @@ export function verifyEngineDistribution(root = SCRIPT_ROOT) {
   return { assets: assets.length, engineSourceMaps: engineMaps.length };
 }
 
+export function verifyDistributionLegalFiles(root) {
+  for (const forbidden of ['THIRD_PARTY_NOTICES.md', 'NOTICE', 'NOTICE.md', 'NOTICE.txt']) {
+    if (existsSync(join(root, forbidden)) || existsSync(join(root, 'lib', forbidden))) {
+      throw new DistributionError(`forbidden third-party notice present: ${forbidden}`);
+    }
+  }
+  for (const legal of DISTRIBUTION_PRODUCT.legalFiles) {
+    const file = requireFile(join(root, ...legal.bundlePath.split('/')), legal.bundlePath);
+    if (statSync(file).size === 0) throw new DistributionError(`${legal.bundlePath} is empty`);
+    if (legal.sha256 && createHash('sha256').update(readFileSync(file)).digest('hex') !== legal.sha256) {
+      throw new DistributionError(`${legal.bundlePath} digest mismatch`);
+    }
+  }
+}
+
 export function verifyBundle(root, target) {
   const bundle = resolve(root);
   const plan = artifactPlan(target);
@@ -108,17 +118,7 @@ export function verifyBundle(root, target) {
       throw new DistributionError('metadata.json has incomplete revision/build/extraction identity');
     }
   }
-  for (const legal of plan.legalFiles) {
-    const file = requireFile(join(bundle, ...legal.bundlePath.split('/')), legal.bundlePath);
-    if (statSync(file).size === 0) throw new DistributionError(`${legal.bundlePath} is empty`);
-    if (legal.sha256 && createHash('sha256').update(readFileSync(file)).digest('hex') !== legal.sha256) {
-      throw new DistributionError(`${legal.bundlePath} digest mismatch`);
-    }
-  }
-  const obsoleteNotices = walkFiles(bundle).filter(isObsoleteNotice);
-  if (obsoleteNotices.length > 0) {
-    throw new DistributionError(`bundle must not contain obsolete third-party notice files: ${obsoleteNotices.map((f) => relative(bundle, f)).join(', ')}`);
-  }
+  verifyDistributionLegalFiles(bundle);
   for (const bundledRuntime of ['node', 'node.exe']) {
     if (existsSync(join(bundle, bundledRuntime))) {
       throw new DistributionError(`bundle must not contain a bundled Node runtime: ${bundledRuntime}`);

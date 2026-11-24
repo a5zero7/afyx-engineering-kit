@@ -256,6 +256,10 @@ describe('Symlink escape prevention (#527)', () => {
     const graph = AfyxGraph.initSync(root);
     try {
       expect(await graph.indexAll()).toMatchObject({ symlinkOutsideRoot: 1, symlinkDuplicate: 2 });
+      expect(graph.getIndexAccounting()?.skippedReasons).toMatchObject({
+        'skipped:symlink-outside-root': 1,
+        'skipped:symlink-duplicate': 2,
+      });
       expect(await graph.sync({ paths: ['aaa_link.py'] })).toMatchObject({ symlinkOutsideRoot: 1, symlinkDuplicate: 2 });
       expect(graph.getNodesByKind('function').filter(node => node.name === 'report').map(node => node.filePath)).toEqual(['real.py']);
       expect(await graph.sync()).toMatchObject({ symlinkOutsideRoot: 1, symlinkDuplicate: 2 });

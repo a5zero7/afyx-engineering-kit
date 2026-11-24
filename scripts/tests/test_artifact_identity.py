@@ -19,6 +19,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 SCRIPT = ROOT / "scripts/afyx-graph-artifact.mjs"
+GRAPH_VERSION = json.loads((ROOT / "afyx-graph/engine/package.json").read_text(encoding="utf-8"))["version"]
 
 
 def host_target() -> tuple[str, str]:
@@ -41,7 +42,7 @@ def create_bundle(release: Path, revision: str) -> Path:
     stage = release / "stage" / name
     metadata = {
         "product_name": "Afyx Graph",
-        "product_version": "1.0.0",
+        "product_version": GRAPH_VERSION,
         "cli": "afyx-graph",
         "release_channel": "technical-alpha",
         "supported_platforms": [target],
@@ -52,9 +53,9 @@ def create_bundle(release: Path, revision: str) -> Path:
         "extraction_version": 27,
     }
     write(stage / "metadata.json", json.dumps(metadata))
-    write(stage / "LICENSE", "Synthetic MIT fixture\n")
+    write(stage / "LICENSE", "MIT License\n\nCopyright (c) 2026 Afyx\n")
     write(stage / "lib/package.json", json.dumps({"name": "@a5zero7/afyx-graph", "bin": {"afyx-graph": "./dist/bin/afyx-graph.js"}}))
-    write(stage / "lib/dist/bin/afyx-graph.js", "console.log(process.argv[2] === '--version' ? '1.0.0' : 'help');\n")
+    write(stage / "lib/dist/bin/afyx-graph.js", f"console.log(process.argv[2] === '--version' ? {json.dumps(GRAPH_VERSION)} : 'help');\n")
     write(stage / "lib/dist/db/schema.sql", "-- schema fixture\n")
     write(stage / "lib/dist/index.js", "exports.ok = true;\n")
     write(stage / "lib/dist/index.js.map", "{}\n")
@@ -238,7 +239,7 @@ exec "$AFYX_TEST_REAL_NODE" "$@"
             metadata = root / "metadata.json"
             archive = root / "bundle.zip"
             metadata.write_text(
-                json.dumps({"product_name": "Afyx Graph", "product_version": "1.0.0", "release_channel": "technical-alpha"}),
+                json.dumps({"product_name": "Afyx Graph", "product_version": GRAPH_VERSION, "release_channel": "technical-alpha"}),
                 encoding="utf-8",
             )
             archive.write_bytes(b"synthetic-afyx-artifact")
@@ -271,7 +272,7 @@ exec "$AFYX_TEST_REAL_NODE" "$@"
             family, target = host_target()
             metadata = release / "metadata.json"
             write(metadata, json.dumps({
-                "product_name": "Afyx Graph", "product_version": "1.0.0",
+                "product_name": "Afyx Graph", "product_version": GRAPH_VERSION,
                 "release_channel": "technical-alpha", "artifact_identity_schema": 1,
                 "artifact_target": target, "source_revision": revision,
                 "build_identity": f"git:{revision}", "extraction_version": 27,
@@ -279,7 +280,7 @@ exec "$AFYX_TEST_REAL_NODE" "$@"
             manifest = release / "RELEASE-MANIFEST.json"
             self.run_tool(
                 "create-release-manifest", "--directory", str(release), "--output", str(manifest),
-                "--revision", revision, "--version", "1.0.0", "--tag", "afyx-graph-v1.0.0",
+                "--revision", revision, "--version", GRAPH_VERSION, "--tag", f"afyx-graph-v{GRAPH_VERSION}",
             )
             verified = self.run_tool(
                 "verify-release-manifest", "--manifest", str(manifest), "--archive", str(archive), "--metadata", str(metadata)
@@ -313,7 +314,7 @@ exec "$AFYX_TEST_REAL_NODE" "$@"
                 "--metadata", str(metadata), expected=1,
             )
             self.assertIn("version does not match", wrong_version.stderr)
-            manifest_record["product_version"] = "1.0.0"
+            manifest_record["product_version"] = GRAPH_VERSION
             manifest.write_text(json.dumps(manifest_record), encoding="utf-8")
 
             archive.write_bytes(archive.read_bytes() + b"tampered")
@@ -335,7 +336,7 @@ exec "$AFYX_TEST_REAL_NODE" "$@"
             create_bundle(release, current)
             self.run_tool(
                 "create-release-manifest", "--directory", str(release), "--output", str(release / "RELEASE-MANIFEST.json"),
-                "--revision", current, "--version", "1.0.0", "--tag", "afyx-graph-v1.0.0",
+                "--revision", current, "--version", GRAPH_VERSION, "--tag", f"afyx-graph-v{GRAPH_VERSION}",
             )
             env = os.environ.copy()
             env.update({
@@ -381,7 +382,7 @@ exec "$AFYX_TEST_REAL_NODE" "$@"
             self.run_tool(
                 "create-release-manifest", "--directory", str(release),
                 "--output", str(release / "RELEASE-MANIFEST.json"),
-                "--revision", "b" * 40, "--version", "1.0.0", "--tag", "afyx-graph-v1.0.0",
+                "--revision", "b" * 40, "--version", GRAPH_VERSION, "--tag", f"afyx-graph-v{GRAPH_VERSION}",
             )
             stale = subprocess.run(stale_command, cwd=ROOT, env=env, capture_output=True, text=True)
             self.assertNotEqual(stale.returncode, 0)
@@ -417,7 +418,8 @@ exec "$AFYX_TEST_REAL_NODE" "$@"
                 validate = [shell, str(installer), "--validate-only"]
 
             env = os.environ.copy()
-            env.update({"AFYX_GRAPH_RUNTIME_ROOT": str(runtime), "AFYX_GRAPH_BIN_DIR": str(base / "bin")})
+            env.update({"HOME": str(base), "USERPROFILE": str(base), "CODEX_HOME": str(base / "codex"),
+                        "AFYX_GRAPH_RUNTIME_ROOT": str(runtime), "AFYX_GRAPH_BIN_DIR": str(base / "bin")})
             recovered = subprocess.run(update, cwd=ROOT, env=env, capture_output=True, text=True)
             self.assertNotEqual(recovered.returncode, 0)
             self.assertIn("Recovered interrupted Afyx Graph transaction", recovered.stdout + recovered.stderr)
@@ -495,7 +497,8 @@ exec "$AFYX_TEST_REAL_NODE" "$@"
             release.mkdir()
             archive = create_bundle(release, "UNKNOWN")
             env = os.environ.copy()
-            env.update({"AFYX_GRAPH_RUNTIME_ROOT": str(runtime), "AFYX_GRAPH_BIN_DIR": str(base / "bin")})
+            env.update({"HOME": str(base), "USERPROFILE": str(base), "CODEX_HOME": str(base / "codex"),
+                        "AFYX_GRAPH_RUNTIME_ROOT": str(runtime), "AFYX_GRAPH_BIN_DIR": str(base / "bin")})
             command = ([shell, "-NoProfile", "-NonInteractive", "-File", str(installer), "-RuntimeRoot", str(runtime), "-SkipPathUpdate", "-Offline", "-ArchivePath", str(archive)]
                        if os.name == "nt" else [shell, str(installer), "--offline", "--archive", str(archive)])
             result = subprocess.run(command, cwd=ROOT, env=env, capture_output=True, text=True)

@@ -4,6 +4,7 @@ import { createRequire } from 'node:module';
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { dirname, join, resolve, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { verifyReviewedProvenance } from './verify-upstream-provenance.mjs';
 
 const scriptDirectory = dirname(fileURLToPath(import.meta.url));
 const argument = (name, fallback) => {
@@ -61,11 +62,11 @@ const PROHIBITED_SUBSTANTIVE_PATTERNS = [
   },
   {
     name: 'Historical upstream product author attribution in active source',
-    pattern: new RegExp('Copyright\\s+\\(c\\)\\s+\\d{4}\\s+' + ['Code', 'Graph'].join(''), 'i'),
+    pattern: /Copyright\s+\(c\)\s+\d{4}\s+CodeGraph/i,
   },
   {
     name: 'Historical upstream package identifier in active imports',
-    pattern: new RegExp('from\\s+[\'"]@' + ['code', 'graph'].join('') + '\\/', 'i'),
+    pattern: /from\s+['"]@codegraph\//i,
   },
 ];
 
@@ -130,6 +131,11 @@ if (manifest.schema !== 1 || !Array.isArray(manifest.entries) || manifest.entrie
 } else if (manifest.totalProductionFiles !== manifest.entries.length) {
   fail(`manifest count discrepancy: declared totalProductionFiles (${manifest.totalProductionFiles}) !== actual entries (${manifest.entries.length})`);
 } else {
+  try {
+    verifyReviewedProvenance(repository, manifest.entries);
+  } catch (error) {
+    fail(error.message);
+  }
   const seen = new Set();
   const manifestPaths = new Set();
 

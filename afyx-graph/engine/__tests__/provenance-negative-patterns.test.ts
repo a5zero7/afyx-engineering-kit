@@ -21,7 +21,12 @@ function copyProvenanceFixture(tempDir: string) {
   // Keep the full reviewed manifest and every source it owns, including Context/Forge.
   const manifest = JSON.parse(readFileSyncSafe(MANIFEST_PATH));
   const files = new Set<string>([
+    'LICENSE',
+    'package.json',
+    'afyx-graph/engine/LICENSE',
+    'afyx-graph/engine/package.json',
     'scripts/verify-native-source-ownership.mjs',
+    'scripts/verify-upstream-provenance.mjs',
     'scripts/native-source-ownership.json',
     ...manifest.entries.map((entry: { path: string }) => entry.path),
   ]);

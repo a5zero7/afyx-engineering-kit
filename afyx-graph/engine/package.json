@@ -1,6 +1,6 @@
 {
   "name": "@a5zero7/afyx-graph",
-  "version": "1.0.0",
+  "version": "1.0.2",
   "description": "Afyx-owned local structural code intelligence.",
   "repository": {
     "type": "git",
@@ -15,6 +15,7 @@
   "files": [
     "dist",
     "scripts",
+    "LICENSE",
     "README.md"
   ],
   "workspaces": [

@@ -8,14 +8,16 @@ Owner menyetujui promosi dari tree `dev` dan installer Windows
 Snapshot Owner mencatat 361/363 Done. AFYX-87 dan AFYX-11 memerlukan
 verifikasi kanal publik. [Catatan rilis](RELEASE_READINESS.md)
 
-**Checkpoint AFYX-359, 23 November 2026 (Amandemen #11441 & #11443).** Owner
-secara formal mengesahkan penggantian *clean-room* pra-v1.0 atas 26 path
-Graph/UI dan penghapusan notice historis CodeGraph (`THIRD_PARTY_NOTICES.md`)
-dari distribusi AFYX-native pada `dev`. Distribusi aktif mempertahankan
-lisensi utama AFYX (`Copyright (c) 2026 Afyx`) dengan `0` berkas notice usang
-pada paket Kit, paket Graph, installer, dan bundel rilis Graph. Gerbang rilis
-interaktif Owner, pilot eksternal, signing, Beta, dan Stable v1 tetap berlaku.
-Status gerbang rilis utama: `MAIN_RELEASE_GATE = BLOCKED_BY_OPEN_V1_GATES`.
+### Kebijakan distribusi v1.0.2
+
+Lisensi utama MIT adalah `Copyright (c) 2026 Afyx` pada `LICENSE`, tanpa berkas
+notice pihak ketiga, tanpa atribusi eksternal, dan tanpa dependensi runtime
+eksternal (`dependencies: {}`). Verifikasi tercatat dalam
+[rencana independensi](AFYX_INDEPENDENCE_PLAN.md).
+
+Akar `eaa4096` dan `9adf427` disatukan pada `1753aa76`. Tag
+`v0.1.0-alpha.*` dan paket npm Alpha yang telah terbit tetap menjadi
+riwayat publik yang tidak diubah oleh promosi Stable.
 
 **Checkpoint AFYX-348, 19 November 2026.** Baseline integrasi
 `bc4debba494358d099da4cce4c123f653388f20e` memuat PR #19 dan #20. Disposisi per
@@ -54,7 +56,7 @@ Next product boundary: **Complete the expanded v1 component gates and T12 before
 Last merged Phase 5F major checkpoint: **PR #57 — Utility Runtime + UI Runtime**  
 Phase 5E merge baseline: `48b6078ed37349e405213258819fa5225bcdb3fb`
 
-Workspace boundary: `D:\Project\workspace\afyx-engineering-kit\afyx-engineering-kit` is the canonical and exclusive clean development repository for implementation, source changes, fixes, documentation, versioning, commits, builds, and release preparation. Workspace testing and benchmark artifacts remain under the sibling `testing` and `benchmark` directories. `D:\Project\workspace\afyx-engineering-kit\legacy-primary` and its linked worktrees preserve historical development state and are not the clean repository's Git common directory. `D:\Project\afyx-alpha` is restricted to clean-install, update, installed-identity, and post-install smoke/acceptance testing. Any defect observed there must be reproduced and fixed in the canonical repository, rebuilt there, and then reinstalled or updated for acceptance. This rule applies to T01-T12 without changing their scope, gates, or recorded history; the detailed contract is in the Alpha integration roadmap.
+Workspace boundary: `<REPO_ROOT>` is the canonical and exclusive clean development repository for implementation, source changes, fixes, documentation, versioning, commits, builds, and release preparation. Workspace testing and benchmark artifacts remain under the sibling `testing` and `benchmark` directories. `<WORKSPACE_ROOT>\legacy-primary` and its linked worktrees preserve historical development state and are not the clean repository's Git common directory. `<ALPHA_ACCEPTANCE_ROOT>` is restricted to clean-install, update, installed-identity, and post-install smoke/acceptance testing. Any defect observed there must be reproduced and fixed in the canonical repository, rebuilt there, and then reinstalled or updated for acceptance. This rule applies to T01-T12 without changing their scope, gates, or recorded history; the detailed contract is in the Alpha integration roadmap.
 
 ## 2026-10-27 authoritative v1 finalization contract
 
@@ -462,7 +464,7 @@ dialihkan ke backlog peningkatan v1.1 (pasca-v1.0). Batasan komparator historis
 `b7a1aa27...` dan bukti sumber tetap dicatat dalam
 [rencana audit AFYX-359](AFYX_INDEPENDENCE_PLAN.md#status-teknis-afyx-359).
 Meskipun disposisi lisensi v1.0 telah ditetapkan, gerbang promosi rilis utama
-tetap `MAIN_RELEASE_GATE = BLOCKED_BY_OPEN_V1_GATES` menunggu pemenuhan seluruh
+pada checkpoint pra-Stable tersebut menunggu pemenuhan seluruh
 gerbang rilis v1 yang tersisa.
 
 All remaining independence work follows this sequence:
@@ -3575,7 +3577,7 @@ artifact, provider, evaluator, or release evidence above.
   checkpoint. The workspace has 30 registered worktrees in the required
   26 `progres` / 3 external Alpha / 1 primary topology.
 - The workspace-root Afyx Graph index resolves
-  `D:\Project\workspace\afyx-codex-engineering-kit`, is CURRENT with zero
+  `<LEGACY_REPO_ROOT>`, is CURRENT with zero
   pending changes and zero extraction failures, and excludes `progres`,
   `testing`, `benchmark`, `_afyx-admin`, `afyx-daily-source`, and the Alpha
   locator tree. The archived pre-consolidation database remains immutable.

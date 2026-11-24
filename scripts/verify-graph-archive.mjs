@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import { gunzipSync, inflateRawSync } from 'node:zlib';
-import { artifactPlan, DISTRIBUTION_PRODUCT, isObsoleteNotice } from '../afyx-graph/engine/scripts/distribution-contract.mjs';
+import { artifactPlan, DISTRIBUTION_PRODUCT } from '../afyx-graph/engine/scripts/distribution-contract.mjs';
 import { GRAPH_PACKAGE_TARGETS, graphArchiveName } from './afyx-graph-targets.mjs';
 
 const MAX_METADATA_BYTES = 16 * 1024;
@@ -38,12 +38,6 @@ export function verifyGraphArchivePaths(bytes, fileName, identity, { requireNoti
     .map((file) => [`${plan.bundleName}/${file.bundlePath}`, file.sha256]));
   const seenNotices = new Set();
   const identityError = (reason) => new Error(`Graph archive identity: ${fileName}: ${reason}`);
-  const checkForbiddenNotice = (entryName) => {
-    const base = entryName.replace(/\/$/, '').split('/').pop().toLowerCase();
-    if (base.startsWith('third_party_notices') || /^notice(\.|$)/.test(base)) {
-      throw identityError(`obsolete third-party notice entry is forbidden: ${entryName}`);
-    }
-  };
   const recordEvidence = (name, data) => {
     if (noticeDigests.has(name)) {
       if (seenNotices.has(name) || createHash('sha256').update(data).digest('hex') !== noticeDigests.get(name)) {
@@ -67,8 +61,6 @@ export function verifyGraphArchivePaths(bytes, fileName, identity, { requireNoti
       const field = (start, end) => header.subarray(start, end).toString('utf8').replace(/\0.*$/, '');
       const name = [field(345, 500), field(0, 100)].filter(Boolean).join('/');
       safeName(name);
-      if (plan && isObsoleteNotice(name.replace(/\/$/, ''))) throw identityError('obsolete third-party notice');
-      checkForbiddenNotice(name);
       const type = header[156];
       if (type !== 0 && type !== 48 && type !== 53) throw new Error(`Unsupported Graph archive entry: ${name}`);
       const sizeText = field(124, 136).trim();
@@ -104,8 +96,6 @@ export function verifyGraphArchivePaths(bytes, fileName, identity, { requireNoti
       if (end > bytes.length) throw new Error('Truncated Graph zip entry');
       const name = bytes.subarray(offset + 46, offset + 46 + nameLength).toString('utf8');
       safeName(name);
-      if (plan && isObsoleteNotice(name.replace(/\/$/, ''))) throw identityError('obsolete third-party notice');
-      checkForbiddenNotice(name);
       const localOffset = bytes.readUInt32LE(offset + 42);
       if (localOffset + 30 > bytes.length || bytes.readUInt32LE(localOffset) !== 0x04034b50) {
         throw new Error(`Missing Graph zip local entry: ${name}`);

@@ -16,7 +16,7 @@
  * `trust` unset so the user controls confirmation prompts.
  *
  * The Antigravity IDE shares `~/.gemini/GEMINI.md` for instructions
- * but uses a separate MCP config file (`~/.gemini/antigravity/mcp_config.json`)
+ * but uses a separate MCP config file (`<GEMINI_HOME>/antigravity/mcp_config.json`)
  * — see `./antigravity.ts`. Both targets writing to GEMINI.md is
  * safe: the marker-based section replacement makes the second write
  * a byte-identical no-op.

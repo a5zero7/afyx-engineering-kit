@@ -292,12 +292,11 @@ The POSIX Graph installer requires GitHub CLI attestation for GitHub release
 downloads. Use `--require-attestation` to require it for other archive sources.
 Verification must succeed on the exact archive before runtime promotion. A successful checksum alone does not establish publisher identity.
 
-Explicit backup pruning is available as `--purge-backups` in Bash or
-`-PurgeBackups` in PowerShell. For each selected AFYX skill, it retains the
-five most recent verified completed backups. The uninstaller preserves
-foreign, altered, and active rollback entries. Pair the opt-in with
-`--dry-run` or `-WhatIf` to preview. Ordinary uninstall does not invoke
-this purge.
+Use `--prune-backups` in Bash or `-PruneBackups` in PowerShell to retain the
+five newest completed, verified backups per selected AFYX skill.
+`--purge-backups` / `-PurgeBackups` removes all such backups after confirmation
+or explicit noninteractive authorization. Both operations preserve foreign,
+altered, and active rollback entries. Preview with `--dry-run` or `-WhatIf`.
 
 ## Usage Tracking
 

@@ -561,7 +561,7 @@ describe('Installer targets — partial-state idempotency', () => {
     expect(paths.some((p) => p.endsWith('/.kiro/steering/afyx-graph.md'))).toBe(false);
   });
 
-  it('antigravity: install writes to LEGACY ~/.gemini/antigravity/mcp_config.json when no migration marker', () => {
+  it('antigravity: install writes to LEGACY <GEMINI_HOME>/antigravity/mcp_config.json when no migration marker', () => {
     const antigravity = getTarget('antigravity')!;
     antigravity.install('global', { autoAllow: true });
 

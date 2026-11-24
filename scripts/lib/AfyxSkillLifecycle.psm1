@@ -354,7 +354,10 @@ function Assert-AfyxBackupPurgeRoot {
 
 function Remove-AfyxRetainedBackups {
     [CmdletBinding(SupportsShouldProcess)]
-    param([Parameter(Mandatory)][ValidatePattern('^[a-z0-9][a-z0-9-]*$')][string]$Component)
+    param(
+        [Parameter(Mandatory)][ValidatePattern('^[a-z0-9][a-z0-9-]*$')][string]$Component,
+        [ValidateSet(0, 5)][int]$Keep = 0
+    )
     $root = Join-Path (Get-AfyxBackupRoot) $Component
     Assert-AfyxBackupPath -Path $root
     if (-not (Test-Path -LiteralPath $root -PathType Container)) { return }
@@ -380,7 +383,7 @@ function Remove-AfyxRetainedBackups {
             } catch { Write-Verbose "Preserving unverified backup: $candidate" }
         })
         $verified = @($verified | Sort-Object Name -Descending)
-        foreach ($entry in @($verified | Select-Object -Skip 5)) {
+        foreach ($entry in @($verified | Select-Object -Skip $Keep)) {
             $candidate = $entry.FullName
             if ($PSCmdlet.ShouldProcess($candidate, 'Purge verified AFYX skill backup')) {
                 Assert-AfyxBackupPath -Path $candidate

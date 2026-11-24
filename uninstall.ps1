@@ -11,6 +11,8 @@ param(
     [switch]$RemoveProviderConfiguration,
     [switch]$All,
     [switch]$PurgeBackups,
+    [switch]$PruneBackups,
+    [switch]$NonInteractive,
     [string[]]$Provider = @('codex'),
     [ValidateSet('global', 'workspace')][string]$ProviderScope = 'global',
     [string]$WorkspaceRoot = (Get-Location).Path,
@@ -30,7 +32,7 @@ $SelectedComponent = @($SelectedComponent | ForEach-Object { $_ -split ',' } | F
 $Provider = @($Provider | ForEach-Object { $_ -split ',' } | ForEach-Object { $_.Trim() } | Where-Object { $_ })
 $codexHome = if ($env:CODEX_HOME) { $env:CODEX_HOME } else { Join-Path $env:USERPROFILE '.codex' }
 
-Write-Host 'Afyx Engineering Kit v1.0.1 — Windows uninstaller (PowerShell)'
+Write-Host 'Afyx Engineering Kit v1.0.2 — Windows uninstaller (PowerShell)'
 if ($All) {
     $RemoveUsageTracker = $true
     $RemoveAfyxGraph = $true
@@ -100,7 +102,12 @@ foreach ($component in $contract) {
     }
 }
 
-if ($PurgeBackups) { Assert-AfyxBackupPurgeRoot }
+if ($PurgeBackups -and $PruneBackups) { throw 'Choose either -PurgeBackups or -PruneBackups.' }
+if ($PurgeBackups -and -not $WhatIfPreference -and -not $NonInteractive -and $env:AFYX_NONINTERACTIVE -ne '1') {
+    if ([Console]::IsInputRedirected) { throw 'Use -NonInteractive to authorize backup purge without a terminal.' }
+    if (-not $PSCmdlet.ShouldContinue('Remove all completed, verified AFYX backups in scope?', 'Backup purge')) { return }
+}
+if ($PurgeBackups -or $PruneBackups) { Assert-AfyxBackupPurgeRoot }
 foreach ($entry in $targets) {
     Remove-AfyxSkillSafely -SkillsRoot $SkillsRoot -Component $entry.Component -Target $entry.Target -ExpectedOwner $entry.Owner -Confirm:$false -WhatIf:$WhatIfPreference
 }
@@ -210,9 +217,10 @@ if ($RemoveHostBridge) {
     }
 }
 
-if ($PurgeBackups) {
+if ($PurgeBackups -or $PruneBackups) {
+    $backupKeep = if ($PruneBackups) { 5 } else { 0 }
     foreach ($entry in $targets) {
-        Remove-AfyxRetainedBackups -Component $entry.Component -Confirm:$false -WhatIf:$WhatIfPreference
+        Remove-AfyxRetainedBackups -Component $entry.Component -Keep $backupKeep -Confirm:$false -WhatIf:$WhatIfPreference
     }
 }
 $backupRootDir = if ($env:AFYX_BACKUP_ROOT) { [IO.Path]::GetFullPath($env:AFYX_BACKUP_ROOT) } else { Join-Path $HOME '.afyx\backups' }

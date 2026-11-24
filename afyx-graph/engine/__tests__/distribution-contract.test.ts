@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { mkdtempSync, mkdirSync, rmSync, unlinkSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, readFileSync, rmSync, unlinkSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { tmpdir } from 'node:os';
 // The production helper is intentionally plain ESM so release shells can invoke it directly.
@@ -94,10 +94,10 @@ describe('Afyx distribution contract', () => {
     expect(() => verifyBundle(root, 'win32-x64')).toThrow();
   });
 
-  it('rejects an obsolete third-party notice in bundle', () => {
+  it('rejects any third-party notice in the bundle', () => {
     const root = bundle();
-    file(root, 'THIRD_PARTY_NOTICES.md', 'obsolete notice');
-    expect(() => verifyBundle(root, 'win32-x64')).toThrow(/obsolete third-party notice/);
+    file(root, 'THIRD_PARTY_NOTICES.md', 'forbidden notice');
+    expect(() => verifyBundle(root, 'win32-x64')).toThrow(/forbidden third-party notice/);
   });
 
   it('rejects development-only content', () => {

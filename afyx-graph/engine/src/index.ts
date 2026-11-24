@@ -770,6 +770,8 @@ export class AfyxGraph {
               this.queries.setMetadata(key, String(value));
             }
             const skippedReasons: Record<string, number> = {};
+            if (result.symlinkDuplicate) skippedReasons['skipped:symlink-duplicate'] = result.symlinkDuplicate;
+            if (result.symlinkOutsideRoot) skippedReasons['skipped:symlink-outside-root'] = result.symlinkOutsideRoot;
             for (const error of result.errors) {
               // Only reasons that actually increment filesSkipped belong here.
               // Parse/salvage warnings may describe an indexed file and must

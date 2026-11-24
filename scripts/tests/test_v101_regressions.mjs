@@ -33,23 +33,32 @@ function toPosixPath(p) {
   return p.replace(/\\/g, '/').replace(/^([A-Za-z]):/, (_, d) => `/${d.toLowerCase()}`);
 }
 
-test('v1.0.1 version parity across package, CLI, scripts, and SECURITY.md', () => {
-  assert.equal(getPackageVersion(), '1.0.1');
+const version = JSON.parse(fs.readFileSync(join(PACKAGE_ROOT, 'package.json'), 'utf8')).version;
+
+test('version parity across package metadata, CLI, scripts, and SECURITY.md', () => {
+  assert.equal(getPackageVersion(), version);
+  for (const name of ['package-lock.json', 'afyx-graph/engine/package.json',
+    'afyx-graph/engine/package-lock.json', 'afyx-graph/engine/ui/package.json']) {
+    const metadata = JSON.parse(fs.readFileSync(join(PACKAGE_ROOT, name), 'utf8'));
+    assert.equal(metadata.version, version, name);
+    if (metadata.packages) assert.equal(metadata.packages[''].version, version, name);
+    if (metadata.packages?.ui) assert.equal(metadata.packages.ui.version, version, name);
+  }
   const cli = spawnSync(process.execPath, [join(PACKAGE_ROOT, 'bin', 'afyx-engineering-kit.mjs'), '--version'], {
     encoding: 'utf8',
     timeout: 10000,
   });
   assert.equal(cli.status, 0, cli.stderr);
-  assert.match(cli.stdout.trim(), /v1\.0\.1$/);
+  assert.ok(cli.stdout.trim().endsWith('v' + version));
 
-  for (const rel of ['install.sh', 'verify.sh', 'uninstall.sh', 'install.ps1', 'verify.ps1', 'uninstall.ps1']) {
+  for (const rel of ['install.sh', 'verify.sh', 'update.sh', 'uninstall.sh', 'install.ps1', 'verify.ps1', 'update.ps1', 'uninstall.ps1']) {
     const text = fs.readFileSync(join(PACKAGE_ROOT, rel), 'utf8');
-    assert.match(text, /1\.0\.1/, `${rel} must reference v1.0.1`);
+    assert.ok(text.includes(version), rel);
     assert.doesNotMatch(text, /0\.1\.0-alpha\.12/, `${rel} must not contain stale 0.1.0-alpha.12`);
   }
 
   const security = fs.readFileSync(join(PACKAGE_ROOT, 'SECURITY.md'), 'utf8');
-  assert.match(security, /1\.0\.x.*v1\.0\.1/);
+  assert.match(security, /Latest published `1\.0\.x`/);
 });
 
 test('VS Code extension-only providers are not selectable and display accurate note', () => {
@@ -100,9 +109,14 @@ test('VS Code extension-only providers are not selectable and display accurate n
   assert.ok(normalizedFrame.includes('VSCodeextensiononly—standaloneCLIrequiredforMCPregistration'));
 });
 
-test('README.md has no relative docs/ links and includes v1.0.1 and global alpha note', () => {
+test('README documents the current Kit and Graph versions and portable npm installation', () => {
   const readme = fs.readFileSync(join(PACKAGE_ROOT, 'README.md'), 'utf8');
-  assert.match(readme, /\*\*Versi Kit 1\.0\.1\.\*\*/);
+  assert.ok(readme.includes('**Kit version ' + version + '.**'));
+  assert.ok(readme.includes('The Kit version is `' + version + '`.'));
+  assert.ok(readme.split('\n').find(line => line.startsWith('| [Graph]')).includes('`' + version + '`'));
+  assert.doesNotMatch(readme, /afyx-engineering-kit@(?:1\.0\.[01]|0\.1\.0-alpha)[^\s]*/);
+  const kitReferences = [...readme.matchAll(/\bKit (?:version (?:is )?)?`?(\d+\.\d+\.\d+)\b/g)];
+  assert.ok(kitReferences.every(([, value]) => value === version));
   assert.equal((readme.match(/\(docs\//g) || []).length, 0, 'README.md must not have relative (docs/ links');
   assert.match(readme, /https:\/\/github\.com\/a5zero7\/afyx-engineering-kit\/blob\/main\/docs\//);
   assert.match(readme, /npm uninstall -g afyx-engineering-kit/);
@@ -123,6 +137,13 @@ test('CLI supports uninstall --all --purge-backups --non-interactive', () => {
   const winCall = buildSubprocessCall(parsed.command, parsed.options, 'win32');
   assert.ok(winCall.args.includes('-All'));
   assert.ok(winCall.args.includes('-PurgeBackups'));
+  for (const host of ['linux', 'win32']) {
+    const prune = parseCliArgs(['uninstall', '--all', '--prune-backups']);
+    const command = buildSubprocessCall(prune.command, prune.options, host);
+    assert.ok(command.args.includes(host === 'linux' ? '--prune-backups' : '-PruneBackups'));
+  }
+  const conflicting = parseCliArgs(['uninstall', '--purge-backups', '--prune-backups']);
+  assert.ok(conflicting.errors.some(error => error.includes('Choose either')));
 });
 
 test('Bash 3.2 empty-argument safety and uninstall --all --purge-backups in disposable HOME', { skip: !bashExe }, () => {
@@ -164,9 +185,9 @@ test('Bash 3.2 empty-argument safety and uninstall --all --purge-backups in disp
     assert.match(installRes.stdout, /Claude Code host \[REQUIRED\]/);
     assert.match(installRes.stdout, /Codex host \[OPTIONAL \/ NOT_SELECTED\]/);
 
-    // 2. Bash -u update.sh with zero args must not throw unbound variable under set -u
+    // 2. Check the updater syntax without performing a source update.
     const updateZeroArgs = spawnSync(bashExe, [
-      '-u',
+      '-n', '-u',
       toPosixPath(join(PACKAGE_ROOT, 'update.sh')),
     ], { env, encoding: 'utf8', timeout: 30000 });
     assert.doesNotMatch(updateZeroArgs.stderr || '', /unbound variable/i);

@@ -74,19 +74,18 @@ const result = JSON.parse(run(process.execPath, npmArgs, { cwd: stage }));
 const pkg = result[0];
 if (!pkg?.filename || !Array.isArray(pkg.files)) throw new Error('npm pack did not return a valid inventory');
 const fileNames = new Set(pkg.files.map((file) => file.path));
-for (const required of ['.afyx-source-revision', 'bin/afyx-engineering-kit.mjs',
+for (const fileName of fileNames) {
+  if (/(?:^|\/)(?:THIRD_PARTY_NOTICES|NOTICE)(?:\.[^/]+)?$/i.test(fileName)) {
+    throw new Error(`Forbidden third-party notice in npm package: ${fileName}`);
+  }
+}
+for (const required of ['.afyx-source-revision', 'bin/afyx-engineering-kit.mjs', 'LICENSE',
   `${release.replaceAll('\\', '/')}/RELEASE-MANIFEST.json`,
   `${release.replaceAll('\\', '/')}/SHA256SUMS`,
   `${release.replaceAll('\\', '/')}/afyx-graph-win32-x64.zip`,
   ...GRAPH_PACKAGE_TARGETS.filter((target) => target.startsWith('darwin')).map((target) => `${release.replaceAll('\\', '/')}/${graphArchiveName(target)}`),
   `${release.replaceAll('\\', '/')}/afyx-graph-linux-x64.tar.gz`]) {
   if (!fileNames.has(required)) throw new Error(`Incomplete npm package: ${required}`);
-}
-for (const packedPath of fileNames) {
-  const base = packedPath.split('/').pop().toLowerCase();
-  if (base.startsWith('third_party_notices') || /^notice(\.|$)/.test(base)) {
-    throw new Error(`Obsolete notice file must not be included in npm package: ${packedPath}`);
-  }
 }
 const candidate = join(outputDir, pkg.filename);
 if (!dryRun) {

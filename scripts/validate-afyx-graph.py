@@ -48,11 +48,10 @@ LICENSE_MARKERS = (
     "The above copyright notice and this permission notice shall be included in all",
     'THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND',
 )
-NOTICE_NAME = "THIRD_PARTY_NOTICES.md"
 EXPECTED_LEGAL_FILES = [
     {"source": "LICENSE", "bundlePath": "LICENSE"},
 ]
-OBSOLETE_LEGAL_NAMES = ("THIRD_PARTY_ENGINE_MIT.txt", "THIRD_PARTY_NOTICES.md")
+OBSOLETE_LEGAL_NAMES = ("THIRD_PARTY_ENGINE_MIT.txt", "THIRD_PARTY_NOTICES.md", "NOTICE", "NOTICE.md", "NOTICE.txt")
 
 REQUIRED_METADATA = {
     "product_name",
@@ -140,14 +139,12 @@ for obsolete_path in obsolete_legal_paths:
         fail(f"obsolete historical legal payload must not exist: {obsolete_path.relative_to(ROOT).as_posix()}")
 
 for package_root in (ROOT, ENGINE):
-    notice = package_root / NOTICE_NAME
-    if notice.exists():
-        fail(f"obsolete notice must not exist: {notice.relative_to(ROOT).as_posix()}")
     package_files = json.loads((package_root / "package.json").read_text(encoding="utf-8"))["files"]
-    if NOTICE_NAME in package_files:
-        fail(f"obsolete notice must not be in package allowlist: {package_root.relative_to(ROOT).as_posix()}")
+    for entry in package_files:
+        if any(obs in str(entry) for obs in ("THIRD_PARTY_NOTICES", "NOTICE")):
+            fail(f"forbidden notice in package allowlist: {package_root.relative_to(ROOT).as_posix()}: {entry}")
 
-# Every bundle must ship the current Afyx license and the verified notice. The artifact plan is
+# Every bundle must ship only the current Afyx license. The artifact plan is
 # the source of truth and the shell must consume its legal-file staging command.
 bundle_script = bundle_script_path.read_text(encoding="utf-8")
 distribution_product = json.loads(distribution_product_path.read_text(encoding="utf-8"))

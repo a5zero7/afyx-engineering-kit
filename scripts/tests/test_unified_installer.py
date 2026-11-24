@@ -18,6 +18,7 @@ from scripts.tests.test_provider_transaction import fake_codex
 
 ROOT = Path(__file__).resolve().parents[2]
 WINDOWS = os.name == "nt"
+GRAPH_VERSION = json.loads((ROOT / "afyx-graph/engine/package.json").read_text(encoding="utf-8"))["version"]
 COMPONENTS = [
     "afyx-efficient-coding",
     "afyx-odoo-engineering",
@@ -88,12 +89,12 @@ class UnifiedInstallerIntegrationTests(unittest.TestCase):
         fake_server(entry)
         launcher = self.graph / "current" / "bin" / "afyx-graph.cmd"
         launcher.parent.mkdir(parents=True, exist_ok=True)
-        launcher.write_text("@echo off\r\necho Afyx Graph 1.0.0\r\n", encoding="utf-8")
+        launcher.write_text(f"@echo off\r\necho Afyx Graph {GRAPH_VERSION}\r\n", encoding="utf-8")
         public_launcher = self.graph / "bin" / "afyx-graph.cmd"
         public_launcher.parent.mkdir(parents=True, exist_ok=True)
-        public_launcher.write_text("@echo off\r\necho Afyx Graph 1.0.0\r\n", encoding="utf-8")
+        public_launcher.write_text(f"@echo off\r\necho Afyx Graph {GRAPH_VERSION}\r\n", encoding="utf-8")
         (self.graph / "metadata.json").write_text(
-            json.dumps({"product_name": "Afyx Graph", "product_version": "1.0.0"}) + "\n",
+            json.dumps({"product_name": "Afyx Graph", "product_version": GRAPH_VERSION}) + "\n",
             encoding="utf-8",
         )
 

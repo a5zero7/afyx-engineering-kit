@@ -1,6 +1,6 @@
 # AFYX Alpha Stabilization — Evidence-First Execution Preflight
 
-This preflight records the 2026-10-27 Alpha baseline. Its former workspace path is historical; current development uses registered worktrees under `D:\Project\workspace\afyx-engineering-kit`.
+This preflight records the 2026-10-27 Alpha baseline. Its former workspace path is historical; current development uses registered worktrees under `<WORKSPACE_ROOT>`.
 
 **Status:** PREPARATION IMPLEMENTED; REAL PILOT `NOT_RUN`; COMBINED ACCEPTANCE `BLOCKED`
 
@@ -81,9 +81,9 @@ holdout/canary/rubric material remain outside developer and candidate roots.
    wiring, session/recovery, explicit-disable and actual provider restart/read-back.
    A passing provider skill test is not native MCP acceptance.
 2. **Alpha installed pilot:** after an exact candidate is built and reviewed,
-   use `D:\Project\afyx-alpha` **only** for clean install/update and smoke
+   use `<ALPHA_ACCEPTANCE_ROOT>` **only** for clean install/update and smoke
    acceptance. All source builds/patches remain under
-   `D:\Project\workspace\afyx-codex-engineering-kit`.
+   `<LEGACY_REPO_ROOT>`.
    The pilot has **not** been run by this increment.
 3. **Phase 8 paired dogfood:** run the six bounded scenarios on authorized data.
    Existing synthetic fixture evidence and AFYX-64 historical observations can

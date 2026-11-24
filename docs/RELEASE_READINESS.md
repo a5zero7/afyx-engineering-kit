@@ -1,7 +1,7 @@
-# AFYX Engineering Kit v1.0.0 — Catatan rilis dan verifikasi
+# AFYX Engineering Kit v1.0.2 — Catatan rilis dan verifikasi
 
-Versi Kit dan Graph adalah `1.0.0`. Status publikasi harus diverifikasi
-melalui tag `v1.0.0`, parity `dev` dan `main`, serta metadata registry.
+Versi Kit dan Graph pada kandidat patch Stable ini adalah `1.0.2`. Status publikasi harus diverifikasi
+melalui tag `v1.0.2`, parity `dev` dan `main`, serta metadata registry.
 Gunakan SHA pada manifest distribusi; artefak harus berasal dari commit
 integrasi yang ditunjuk tag.
 
@@ -12,9 +12,11 @@ menampilkan peringatan SmartScreen. Verifikasi sumber, SHA-256, dan
 manifest sebelum menjalankan paket. Attestation build memiliki cakupan
 provenance yang terpisah dari Authenticode.
 
-Bundel aktif mempertahankan lisensi AFYX dan mengikuti kontrak distribusi
-tanpa notice historis yang usang. Dasar keputusan produk dan keterbatasan
-pembanding historis tercatat dalam
+Rilis **`v1.0.2`** adalah distribusi **100% AFYX-native** (`Copyright (c) 2026 Afyx` pada
+`LICENSE`) dengan nol atribusi pihak ketiga, nol berkas notice pihak ketiga, dan
+nol dependensi runtime eksternal (`dependencies: {}`). Topologi riwayat Git
+menyatukan dua akar (`eaa4096` dan `9adf427`) pada `1753aa76` secara bersih tanpa
+mengubah riwayat terpublikasi. Dasar verifikasi provenance tercatat dalam
 [rencana independensi](AFYX_INDEPENDENCE_PLAN.md#status-teknis-afyx-359).
 
 ## Cakupan rilis
@@ -44,9 +46,9 @@ AFYX-87 dan AFYX-11 masih terbuka. Snapshot itu mencatat AFYX-346, AFYX-8, dan A
 keputusan Owner. Status Jira tersebut belum dibaca ulang lewat konektor.
 Bukti teknis OFF/ON sebelumnya menunjukkan satu panggilan Graph di sesi ON,
 dengan batas pada atribusi jawaban, persetujuan MCP, dan review independen.
-Keputusan distribusi tanpa notice historis dicatat di
+Bukti atribusi sumber dan retensi notice tercatat di
 [rencana independensi](AFYX_INDEPENDENCE_PLAN.md#status-teknis-afyx-359).
-Manifest 514 berkas adalah cakupan validasi teknis. Komparator historis tetap
+Manifest produksi menetapkan cakupan validasi teknis. Komparator historis tetap
 terbatas dan cakupan hash tidak menentukan kepemilikan hak cipta secara hukum.
 
 ## Verifikasi artefak
@@ -56,7 +58,7 @@ terbatas dan cakupan hash tidak menentukan kepemilikan hak cipta secara hukum.
    sumber Kit dan metadata bundel dengan commit tersebut.
 3. Hitung ulang SHA-256 setiap file dan bandingkan dengan `SHA256SUMS` dan
    `RELEASE-MANIFEST.json`. Periksa target, versi, identitas sumber, isi
-   tarball, payload lisensi AFYX, dan absennya notice historis.
+   tarball, payload lisensi AFYX, dan notice MIT upstream yang diverifikasi.
 4. Untuk executable installer Windows yang akan didistribusikan, gunakan
    sertifikat tepercaya di bawah kendali Owner. Verifikasi dengan
    `Get-AuthenticodeSignature` dan `signtool verify /pa /v`. Setelah
@@ -66,6 +68,15 @@ terbatas dan cakupan hash tidak menentukan kepemilikan hak cipta secara hukum.
 Penerimaan AFYX-87 memerlukan parity sumber, CI, tag, checksum, waiver
 dan publikasi yang terverifikasi. AFYX-11 menunggu penerimaan AFYX-87
 dan ketersediaan distribusi publik.
+
+## Riwayat Git dan kanal
+
+Akar `eaa4096` dan `9adf427` digabung pada `1753aa76`. Tag
+`v0.1.0-alpha.*` dan paket npm Alpha yang telah terbit tetap menjadi
+riwayat publik yang tidak diubah. Tag Git Alpha yang masih tercantum di
+remote adalah `v0.1.0-alpha.2`, `v0.1.0-alpha.6`, `v0.1.0-alpha.7`, dan
+`v0.1.0-alpha.8`. Commit tag tersebut tidak terjangkau dari baseline
+Stable `35b89bd`. Pilot eksternal macOS masih terbuka.
 
 ## Riwayat Technical Alpha
 

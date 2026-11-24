@@ -1,3 +1,4 @@
+import { join } from 'node:path';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
@@ -12,11 +13,14 @@ import {
 
 import { createInstalledHostAdapters } from '../afyx-host-adapters.mjs';
 
-const INSTALL_ROOT = 'D:/Project/afyx-alpha/afyx-305-exact-candidate/install-root';
-const PROJECT_ROOT = 'D:/Project/afyx-alpha/afyx-305-exact-candidate/test-data/sample-project';
-const STATE_ROOT = 'D:/Project/afyx-alpha/afyx-305-exact-candidate/context-state';
-const CODEX_TOOLS_ROOT = 'D:/Project/afyx-alpha/afyx-305-exact-candidate/provider-home/.codex/tools';
+const PILOT_ROOT = process.env.AFYX_INTEROP_PILOT_ROOT;
+const INSTALL_ROOT = join(PILOT_ROOT ?? '.', 'install-root');
+const PROJECT_ROOT = join(PILOT_ROOT ?? '.', 'test-data/sample-project');
+const STATE_ROOT = join(PILOT_ROOT ?? '.', 'context-state');
+const CODEX_TOOLS_ROOT = join(PILOT_ROOT ?? '.', 'provider-home/.codex/tools');
 const SOURCE_REVISION = '0f0b7cbae250d151a3dc571fb866804c4d495fea';
+
+const pilotTest = PILOT_ROOT ? test : test.skip;
 
 // Real host adapters connected to the disposable pilot installation
 const installedAdapters = createInstalledHostAdapters({
@@ -42,7 +46,7 @@ function installedComponentStates(availableIds = SEVEN_REGISTERED_COMPONENT_IDS)
 // ---------------------------------------------------------------------------
 // 1. Exact Known-Source Edit: Zero Unnecessary Runtime Calls
 // ---------------------------------------------------------------------------
-test('real-host matrix 1: exact known-source edit invokes zero Afyx runtime', async () => {
+pilotTest('real-host matrix 1: exact known-source edit invokes zero Afyx runtime', async () => {
   const result = await executeAfyxCapabilityRoute({
     task: {
       id: 'task-real-exact-source',
@@ -67,7 +71,7 @@ test('real-host matrix 1: exact known-source edit invokes zero Afyx runtime', as
 // ---------------------------------------------------------------------------
 // 2. Odoo Engineering Task: Domain Authority and Relevant Selection
 // ---------------------------------------------------------------------------
-test('real-host matrix 2: Odoo engineering task engages Odoo skill and triggers Graph evidence', async () => {
+pilotTest('real-host matrix 2: Odoo engineering task engages Odoo skill and triggers Graph evidence', async () => {
   const result = await executeAfyxCapabilityRoute({
     task: {
       id: 'task-real-odoo',
@@ -103,7 +107,7 @@ test('real-host matrix 2: Odoo engineering task engages Odoo skill and triggers 
 // ---------------------------------------------------------------------------
 // 3. Real Graph/Context Exchange with Exact Source and Context
 // ---------------------------------------------------------------------------
-test('real-host matrix 3: Graph and Context execution on real installed pilot', async () => {
+pilotTest('real-host matrix 3: Graph and Context execution on real installed pilot', async () => {
   const result = await executeAfyxCapabilityRoute({
     task: {
       id: 'task-real-graph',
@@ -128,7 +132,7 @@ test('real-host matrix 3: Graph and Context execution on real installed pilot', 
 // ---------------------------------------------------------------------------
 // 4. Installed-but-Irrelevant Components Remain Idle
 // ---------------------------------------------------------------------------
-test('real-host matrix 4: installed-but-irrelevant components remain idle', async () => {
+pilotTest('real-host matrix 4: installed-but-irrelevant components remain idle', async () => {
   // Task is pure architecture analysis: Expert is needed, Graph/Context/Forge are idle
   const result = await executeAfyxCapabilityRoute({
     task: {
@@ -153,7 +157,7 @@ test('real-host matrix 4: installed-but-irrelevant components remain idle', asyn
 // ---------------------------------------------------------------------------
 // 5. Missing / Disabled Component: Graceful Fallback & Explicit OFF
 // ---------------------------------------------------------------------------
-test('real-host matrix 5: missing component gracefully degrades to direct source fallback', async () => {
+pilotTest('real-host matrix 5: missing component gracefully degrades to direct source fallback', async () => {
   // Graph is absent (not installed)
   const result = await executeAfyxCapabilityRoute({
     task: {
@@ -173,7 +177,7 @@ test('real-host matrix 5: missing component gracefully degrades to direct source
   assert.equal(result.degradations[0].fallback, 'DIRECT_SOURCE');
 });
 
-test('real-host matrix 5b: explicit Context OFF disables context component and bypasses it', async () => {
+pilotTest('real-host matrix 5b: explicit Context OFF disables context component and bypasses it', async () => {
   const result = await executeAfyxCapabilityRoute({
     task: {
       id: 'task-real-context-off',
@@ -198,7 +202,7 @@ test('real-host matrix 5b: explicit Context OFF disables context component and b
 // ---------------------------------------------------------------------------
 // 6. Forge Core: Advisory Only, Autonomous Campaign Blocked Pending A8
 // ---------------------------------------------------------------------------
-test('real-host matrix 6: Forge assistive advice succeeds with installed doctor diagnostics', async () => {
+pilotTest('real-host matrix 6: Forge assistive advice succeeds with installed doctor diagnostics', async () => {
   const adviceResult = await executeAfyxCapabilityRoute({
     task: {
       id: 'task-real-forge-advice',
@@ -241,7 +245,7 @@ test('real-host matrix 6: Forge assistive advice succeeds with installed doctor 
 // ---------------------------------------------------------------------------
 // 7. Usage Tracking: Passive and Permission-Gated
 // ---------------------------------------------------------------------------
-test('real-host matrix 7: Usage tracking executes on Codex and is rejected on Antigravity', async () => {
+pilotTest('real-host matrix 7: Usage tracking executes on Codex and is rejected on Antigravity', async () => {
   // On Codex provider: allowed
   const codexResult = await executeAfyxCapabilityRoute({
     task: {
@@ -281,7 +285,7 @@ test('real-host matrix 7: Usage tracking executes on Codex and is rejected on An
 // ---------------------------------------------------------------------------
 // 8. Dynamic Component: Discoverability Without Hard-Coded Integration List
 // ---------------------------------------------------------------------------
-test('real-host matrix 8: synthetic future component discovered and routed without modifying source allowlist', async () => {
+pilotTest('real-host matrix 8: synthetic future component discovered and routed without modifying source allowlist', async () => {
   const dynamicId = 'afyx-custom-telemetry-forwarder';
   const dynamicCap = 'telemetry-forwarder-capability';
 
