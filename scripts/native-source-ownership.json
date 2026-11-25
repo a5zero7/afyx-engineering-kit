@@ -1166,7 +1166,7 @@
     {
       "path": "afyx-graph/engine/src/impact/cross-repo-contract.ts",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "a804f7354e1ffc11c52ddfdfbdada44a019c89dde93bea88f6655e6e002f5bcc",
+      "reviewedSha256": "b779d553199e86f93f867bc2d3847f6afcca1cbbff71207c9d2b92d1c7909354",
       "evidence": "AFYX native bounded contract impact over explicitly authorized, fresh sibling indexes and exact source locations."
     },
     {

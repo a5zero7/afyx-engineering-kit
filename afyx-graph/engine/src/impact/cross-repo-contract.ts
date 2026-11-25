@@ -51,9 +51,9 @@ function realPeer(parent: string, root: string, input: string): string | undefin
   if (typeof input !== 'string' || !input || input.length > 1024) return;
   try {
     const requested = isAbsolute(input) ? resolve(input) : resolve(parent, input);
-    if (dirname(requested) !== parent || lstatSync(requested).isSymbolicLink()) return;
+    if (lstatSync(requested).isSymbolicLink()) return;
     const peer = realpathSync(requested);
-    if (peer !== requested || peer === root || !statSync(peer).isDirectory()) return;
+    if (dirname(peer) !== parent || peer === root || !statSync(peer).isDirectory()) return;
     const directory = getAfyxGraphDir(peer);
     if (realpathSync(directory) !== directory || !isInsideRoot(peer, directory)) return;
     const db = getDatabasePath(peer);
