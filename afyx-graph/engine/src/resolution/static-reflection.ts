@@ -4,6 +4,8 @@ import type { MaybeYield } from './cooperative-yield';
 import { BindingSource, callable, localSource, type SchemaBindingContext } from './schema-binding-source';
 
 const MAX_EDGES = 2048;
+const MAX_LOOKUPS = 8192;
+const MAX_SOURCE_LOOKUPS = 256;
 function currentScope(source: BindingSource, line: number): Node | undefined {
   const matches = source.nodes.filter(node => callable(node) && node.startLine <= line && node.endLine >= line);
   return matches.length === 1 ? matches[0] : undefined;
@@ -46,16 +48,23 @@ function csharpMethodName(source: BindingSource, argument: number, call: number)
   return source.text(source.next(value)) === ';' ? source.literal(value) : undefined;
 }
 
-function* reflect(source: BindingSource): IterableIterator<Edge> {
+function* reflect(source: BindingSource, budget: { remaining: number }): IterableIterator<Edge> {
+  const language = source.file.endsWith('.php') ? 'php' : source.file.endsWith('.cs') ? 'csharp' : 'ruby';
+  let attempts = MAX_SOURCE_LOOKUPS;
   for (let i = 0; i < source.length; i++) {
-    const language = source.file.endsWith('.php') ? 'php' : source.file.endsWith('.cs') ? 'csharp' : 'ruby';
     const marker = source.text(i);
-    if (!['ReflectionMethod', '[', 'typeof', 'public_send'].includes(marker)) continue;
+    const phpReflection = language === 'php' && marker === 'ReflectionMethod' &&
+      source.text(i - 1) === '\\' && source.text(i - 2) === 'new';
+    if (!(phpReflection || (language === 'php' && marker === '[') ||
+        (language === 'csharp' && marker === 'typeof') || (language === 'ruby' && marker === 'public_send'))) continue;
+    if (attempts === 0 || budget.remaining === 0) return;
+    attempts--;
+    budget.remaining--;
     const caller = currentScope(source, source.line(i));
     if (!caller) continue;
     let resolved: Node | undefined;
     let kind: Edge['kind'] = 'references';
-    if (language === 'php' && ((marker === 'ReflectionMethod' && source.text(i - 1) === 'new') || marker === '[')) {
+    if (language === 'php') {
       const open = marker === '[' ? i : source.next(i);
       if (source.text(open) !== (marker === '[' ? '[' : '(')) continue;
       const [type, method, extra] = [...source.items(open)];
@@ -79,6 +88,9 @@ function* reflect(source: BindingSource): IterableIterator<Edge> {
       if (source.text(open) !== '(' || close === undefined) continue;
       const type = source.names(source.next(open), '.');
       if (!type.parts.length || type.next !== close) continue;
+      if ([...source.marks('using')].some(mark =>
+        source.text(source.next(mark)) === type.parts[0] &&
+        source.text(source.next(source.next(mark))) === '=')) continue;
       const name = type.parts.length === 1
         ? [...caller.qualifiedName.split('::').slice(0, -2), ...type.parts].join('::') : type.parts.join('::');
       const dot = source.next(close);
@@ -89,12 +101,16 @@ function* reflect(source: BindingSource): IterableIterator<Edge> {
         const member = csharpMethodName(source, arg.start, i);
         if (member) resolved = target(source, name, member, 'csharp');
       } else if (source.text(i - 1) === '(' && source.text(i - 2) === 'CreateInstance' &&
-                 source.text(i - 3) === '.' && source.text(i - 4) === 'Activator' && source.text(dot) === ')') {
+                 source.text(i - 3) === '.' && source.text(i - 4) === 'Activator' &&
+                 source.text(i - 5) === '.' && source.text(i - 6) === 'System' &&
+                 source.text(i - 7) === '::' && source.text(i - 8) === 'global' && source.text(dot) === ')') {
         resolved = target(source, name, undefined, 'csharp');
         kind = 'instantiates';
       }
     } else if (language === 'ruby' && marker === 'public_send') {
-      if (source.text(i - 1) === '.' && source.text(i - 2) !== 'self') continue;
+      const receiver = source.text(i - 1);
+      if (['::', '&.'].includes(receiver) ||
+          (receiver === '.' && (source.text(i - 2) !== 'self' || source.text(i - 3) === '&'))) continue;
       const type = caller.qualifiedName.split('::').slice(0, -1).join('::');
       if (!type || target(source, type, 'public_send', 'ruby')) continue;
       const open = source.next(i);
@@ -114,12 +130,14 @@ function* reflect(source: BindingSource): IterableIterator<Edge> {
 
 export async function staticReflectionEdges(ctx: SchemaBindingContext, files: readonly string[], yieldToLoop: MaybeYield): Promise<Edge[]> {
   const edges: Edge[] = [];
+  const budget = { remaining: MAX_LOOKUPS };
   for (const file of files) {
+    if (budget.remaining === 0) break;
     if (!/\.(?:php|cs|rb)$/.test(file)) continue;
     await yieldToLoop();
     const content = localSource(ctx, file);
     if (!content || !/::class|ReflectionMethod|GetMethod|CreateInstance|public_send/.test(content)) continue;
-    for (const edge of reflect(new BindingSource(ctx, file, content))) {
+    for (const edge of reflect(new BindingSource(ctx, file, content), budget)) {
       edges.push(edge);
       if (edges.length >= MAX_EDGES) return edges;
     }

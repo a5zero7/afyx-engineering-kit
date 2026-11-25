@@ -2037,7 +2037,7 @@
     {
       "path": "afyx-graph/engine/src/resolution/static-reflection.ts",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "78d170fdf5c7214ae06c16978b601a5cdcf667e5be00b7635040e8821d2ae3ed",
+      "reviewedSha256": "fd1f6cb70c5cd970ddd6c0b298052baa42b0af1336d18a21f5d1af7c0096820a",
       "evidence": "V1.2.0 Batch 1 native implementation extending existing AFYX contracts with bounded parsing and focused synthetic validation."
     },
     {
