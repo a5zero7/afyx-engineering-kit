@@ -1,13 +1,14 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, realpathSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { collectClaudeLocalUsage, collectAntigravityLocalUsage } from '../src/collector.js';
 import { createUsageAnalytics } from '../src/usage.js';
 
 function fixture(t) {
-  const dir = mkdtempSync(join(tmpdir(), 'afyx-provider-usage-'));
+  // macOS temporary directories may be exposed under the system alias /var.
+  const dir = mkdtempSync(join(realpathSync(tmpdir()), 'afyx-provider-usage-'));
   t.after(() => rmSync(dir, { recursive: true, force: true }));
   return dir;
 }
