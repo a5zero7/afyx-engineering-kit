@@ -318,6 +318,9 @@ export function parseCliArgs(rawArgs) {
           Number(result.options.maxAgeHours) > 8760)) result.errors.push('--max-age-hours requires an integer from 6 to 8760');
 
   // Cross-option validation
+  if (result.options.offline && result.options.verifyAttestation) {
+    result.errors.push('--verify-attestation requires verification and cannot be used with --offline');
+  }
   if (result.options.skipProviderConfiguration && result.options.provider) {
     result.errors.push('--skip-provider-configuration cannot be used together with --provider');
   }

@@ -4,7 +4,7 @@ Copyright (c) 2026 Afyx
 
 ## Dukungan dan pelaporan
 
-Perbaikan keamanan ditujukan untuk rilis stabil terbaru dan jalur pengembangan aktif. Periksa halaman rilis untuk versi yang berlaku. Kirim temuan secara privat dengan versi, platform, dampak, dan langkah reproduksi minimal yang telah disanitasi. [Rilis AFYX](https://github.com/a5zero7/afyx-engineering-kit/releases) · [GitHub Private Vulnerability Reporting](https://github.com/a5zero7/afyx-engineering-kit/security/advisories/new)
+Perbaikan keamanan ditujukan untuk rilis stabil terbaru, saat ini `1.1.0`, dan jalur pengembangan aktif. Kirim temuan secara privat dengan versi, platform, dampak, dan langkah reproduksi minimal yang telah disanitasi. [Rilis AFYX](https://github.com/a5zero7/afyx-engineering-kit/releases) · [GitHub Private Vulnerability Reporting](https://github.com/a5zero7/afyx-engineering-kit/security/advisories/new)
 
 ## Batas akses
 
@@ -19,11 +19,11 @@ SQLite, CSV, dan JSON tetap dibaca dari workspace. PostgreSQL dan MySQL memakai 
 
 Adapter memverifikasi identitas TLS. MySQL memerlukan `tlsCaFile`; PostgreSQL memakai trust store sistem pada versi libpq yang mendukungnya atau CA yang diberikan. Startup klien dan prompt autentikasi dinonaktifkan. Kredensial yang diberikan secara eksplisit diteruskan hanya melalui environment proses anak. Batasi akses ke akun OS yang menjalankan AFYX karena akun dengan izin inspeksi proses dapat membaca environment. Output berisi metadata terbatas dan kode kegagalan tersanitasi.
 
-Operasi live mendukung katalog tabel, proyeksi kolom sederhana dari satu tabel yang disetujui, dan EXPLAIN tanpa eksekusi. Proyeksi hanya melaporkan jumlah baris dalam sampel terbatas. Transaksi baca-saja dan timeout menjadi lapisan tambahan setelah validasi operasi. Koneksi live memerlukan otorisasi terpisah dari inspeksi lokal.
+Operasi live mendukung katalog tabel dan kolom, proyeksi kolom sederhana dari satu tabel yang disetujui, dan EXPLAIN tanpa eksekusi. Proyeksi melaporkan jumlah baris dalam sampel terbatas. EXPLAIN mengembalikan jenis akses yang dikenali dan estimasi jumlah baris, tanpa menyalin kondisi atau data mentah dari server. Transaksi baca-saja dan timeout menjadi lapisan tambahan setelah validasi operasi. Koneksi live memerlukan otorisasi terpisah dari inspeksi lokal.
 
 ## Cleanup sementara
 
-`afyx clean --dry-run --json` mempratinjau pembersihan artefak sementara. Retensi minimum enam jam berlaku di root kanonik `os.tmpdir()`. Untuk saat ini, hanya spill CLI yang selesai dengan receipt AFYX, digest dan identitas payload yang cocok, serta proses pembuat yang sudah berakhir yang dapat dibersihkan. Gunakan direktori sementara pribadi milik akun OS. Receipt memakai batas kepercayaan akun lokal. Direktori dengan file tambahan, link, atau kepemilikan yang meragukan dilewati. Pemeriksaan ulang identitas dilakukan sebelum penghapusan. Gunakan preview untuk memeriksa cakupan.
+`afyx clean --dry-run --json` mempratinjau pembersihan artefak sementara. Retensi minimum enam jam berlaku di root kanonik `os.tmpdir()`. Pada Windows, root harus berada di dalam profil pengguna OS. Untuk saat ini, hanya spill CLI yang selesai dengan receipt AFYX, digest dan identitas payload yang cocok, serta proses pembuat yang sudah berakhir yang dapat dibersihkan. Receipt memakai batas kepercayaan akun lokal. Direktori dengan file tambahan, link, atau kepemilikan yang meragukan dilewati. Pemeriksaan ulang identitas dilakukan sebelum penghapusan.
 
 ## Integritas dan provenance paket
 

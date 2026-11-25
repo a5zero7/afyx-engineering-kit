@@ -58,7 +58,8 @@ test('version parity across package metadata, CLI, scripts, and SECURITY.md', ()
   }
 
   const security = fs.readFileSync(join(PACKAGE_ROOT, 'SECURITY.md'), 'utf8');
-  assert.match(security, /Latest published `1\.0\.x`/);
+  assert.ok(security.includes('`' + version + '`'));
+  assert.ok(security.includes('https://github.com/a5zero7/afyx-engineering-kit/security/advisories/new'));
 });
 
 test('VS Code extension-only providers are not selectable and display accurate note', () => {

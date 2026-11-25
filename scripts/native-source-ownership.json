@@ -2955,7 +2955,7 @@
     {
       "path": "scripts/afyx-npm-installer.mjs",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "db31f86191090413a48a2c5dd4660cfb1df51c1e1d3277a6ac60da9d90236f59",
+      "reviewedSha256": "ce1e412d085a3e745f678ceab0febeb87fda59d0520b3a4e0f14b3c8ecbfa948",
       "evidence": "Installer UX v2 with synchronized universal capability summaries, help text, and version 0.1.0-alpha.12 (AFYX-77)."
     },
     {

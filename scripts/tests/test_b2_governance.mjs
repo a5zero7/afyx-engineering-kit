@@ -34,6 +34,7 @@ test('declarative parser retains aliases, repeatables, inline values and fail-fa
     [['install', '--skills-root', '--dry-run'], /requires a value/],
     [['install', '--provider=a', '--provider=b'], /only be specified once/],
     [['verify', '--dry-run'], /not supported/],
+    [['install', '--offline', '--verify-attestation'], /cannot be used with --offline/],
     [['doctor', 'unexpected'], /Unknown option/],
     [['clean', '--max-age-hours=-6'], /integer from 6/],
     [['clean', '--max-age-hours=0'], /integer from 6/],
