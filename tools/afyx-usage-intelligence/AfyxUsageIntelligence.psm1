@@ -113,12 +113,48 @@ function Get-AfyxUniversalUsageReport {
     [CmdletBinding()]
     param(
         [string[]]$Providers = @('codex', 'antigravity', 'claude'),
-        [switch]$IncludeEstimates = $false
+        [switch]$IncludeEstimates = $false,
+        [switch]$CollectLocalProviders,
+        [string]$ClaudeProjectsRoot,
+        [string]$GeminiSessionRoot
     )
 
     $reports = [System.Collections.Generic.List[object]]::new()
 
     foreach ($prov in $Providers) {
+        if ($CollectLocalProviders -and $prov -in @('claude', 'antigravity')) {
+            $local = $null
+            $reason = 'CONTEXT_CLI_UNAVAILABLE'
+            $node = Get-Command node -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
+            $context = if ($env:AFYX_CONTEXT_RUNTIME_ROOT) { $env:AFYX_CONTEXT_RUNTIME_ROOT }
+                else { Join-Path $env:USERPROFILE '.afyx/context' }
+            $cli = Join-Path $context 'current/dist/cli.js'
+            if ($node -and (Test-Path -LiteralPath $cli -PathType Leaf)) {
+                $arguments = @($cli, 'usage', '--provider', $prov, '--authorized', 'yes')
+                if ($prov -eq 'claude' -and $ClaudeProjectsRoot) { $arguments += @('--provider-root', $ClaudeProjectsRoot) }
+                if ($prov -eq 'antigravity' -and $GeminiSessionRoot) {
+                    $arguments += @('--provider-root', $GeminiSessionRoot, '--format', 'gemini-cli-chat/v1')
+                }
+                try {
+                    $output = & $node.Source @arguments 2>$null
+                    if ($LASTEXITCODE -eq 0) { $local = $output | ConvertFrom-Json }
+                } catch { $local = $null }
+                if (-not $local) { $reason = 'COLLECTOR_UNAVAILABLE' }
+            }
+            $reports.Add([pscustomobject]@{
+                Contract = 'afyx-usage/v1'
+                Provider = $prov
+                Status = if ($local) { $local.status } else { 'NOT_AVAILABLE' }
+                Reason = if ($local) { $local.reason } else { $reason }
+                ObservedTokens = if ($local -and $local.PSObject.Properties['totals'] -and $local.totals) { $local.totals } else { $null }
+                ActualBilledCostUsd = $null
+                EstimatedApiCostUsd = $null
+                CostKind = 'UNAVAILABLE'
+                PresentationSurfaces = @('Terminal')
+                LocalEvidence = $local
+            })
+            continue
+        }
         $status = Get-AfyxProviderStatus -Provider $prov
         if ($prov -eq 'codex' -and $status.InstallationStatus -eq 'INSTALLED') {
             $codexHome = if ($env:CODEX_HOME) { $env:CODEX_HOME } else { Join-Path $env:USERPROFILE '.codex' }

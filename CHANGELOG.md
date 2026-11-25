@@ -1,5 +1,14 @@
 # Changelog
 
+## [Unreleased] — v1.2.0
+
+- Graph menambahkan binding eksplisit GraphQL dan gRPC untuk Rust, C#, PHP,
+  dan Ruby, serta edge refleksi untuk target statis yang dapat dibuktikan.
+- Usage Intelligence menerima metadata lokal Claude Code dan format rekaman
+  Gemini CLI yang didukung melalui persetujuan eksplisit. Cakupan yang tidak
+  lengkap menahan total. Biaya dan format Antigravity yang belum diverifikasi
+  tetap tidak tersedia.
+
 ## [1.1.0] - 2026-11-25
 
 - **Batch 1 — Documentation hygiene, historical archives, and governance:**

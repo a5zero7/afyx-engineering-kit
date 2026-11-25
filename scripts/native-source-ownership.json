@@ -2,7 +2,7 @@
   "schema": 1,
   "baselineRevision": "c4e4d8e29de239a2fcbc0db8ac65eea2276e7b00",
   "scope": "AFYX-320 comprehensive production source inventory",
-  "totalProductionFiles": 524,
+  "totalProductionFiles": 525,
   "entries": [
     {
       "path": "afyx-context/src/budget.js",
@@ -19,13 +19,13 @@
     {
       "path": "afyx-context/src/cli.js",
       "classification": "PUBLIC_API_BARREL",
-      "reviewedSha256": "9a2ad56a275ebf390093819b4f988667dedee8e0dabe871e0acc85dc24e201bd",
+      "reviewedSha256": "ead9525e788dbe4ab8fac70d242721a9d70bee1be1eb978def79ddd640b6bac1",
       "evidence": "AFYX native source: authored from AFYX functional requirements; verified clean room implementation with zero third-party code import."
     },
     {
       "path": "afyx-context/src/collector.js",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "89531476392c363cffcbe8a66a4bd20ae037977576ce98e7c2dcad53f1b2e3d0",
+      "reviewedSha256": "f9274f7557df9b740bbe67c894de7f098d238aa3905e25fb3f14413daba9ec8c",
       "evidence": "AFYX-353 review: authored from AFYX functional requirements and afyx-usage/v1 canonical contract; read-only Codex telemetry collector and bounded aggregation; no external prompts, dependencies or code imported."
     },
     {
@@ -129,6 +129,12 @@
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
       "reviewedSha256": "52de2932dd355cadcba11ca84ddc6c0d8982a3ef37bd47b8eb849e8598f2d9e5",
       "evidence": "Strict clean-room path containment, workspace boundary verification, directory traversal defense, and canonicalization (AFYX-329)."
+    },
+    {
+      "path": "afyx-context/src/provider-usage.js",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "379d8c2e30b3009111e7516f089353f9911974d75b56b65dfc16b09a1afea95d",
+      "evidence": "V1.2.0 Batch 1 native implementation extending existing AFYX contracts with bounded parsing and focused synthetic validation."
     },
     {
       "path": "afyx-context/src/storage.js",
@@ -3123,7 +3129,7 @@
     {
       "path": "tools/afyx-usage-intelligence/AfyxUsageIntelligence.psm1",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "20d346251634c6d40499076b2e105992746553ebaad7ca02c6a2d9e4bd972955",
+      "reviewedSha256": "1790fb9809d041cef04b2483de3c31ebcdce938d8914c04fad1a96ee4b79c8c5",
       "evidence": "AFYX native source: authored from AFYX functional requirements; verified clean room implementation with zero third-party code import."
     },
     {

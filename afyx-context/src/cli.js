@@ -2,6 +2,7 @@
 import fs from 'node:fs';
 import process from 'node:process';
 import { ACE_LIMITS, AfyxContextEngine, validateContextRequest } from './engine.js';
+import { collectClaudeLocalUsage, collectAntigravityLocalUsage } from './collector.js';
 import { AceError } from './errors.js';
 
 const VERSION = '0.1.0';
@@ -12,6 +13,7 @@ function usage() {
 Usage:
   afyx-context reduce --state <absolute-path> --owner <id> --session <id> --input <json-file|-> [--budget <chars>]
   afyx-context get --state <absolute-path> --owner <id> --session <id> --reference <ace:v1:...>
+  afyx-context usage --provider <claude|antigravity> --authorized <yes> [--provider-root <path>] [--format gemini-cli-chat/v1]
   afyx-context --version
 `;
 }
@@ -81,6 +83,17 @@ function main() {
     return;
   }
   const parsed = options(rest);
+  if (command === 'usage') {
+    const provider = required(parsed, 'provider');
+    const collect = provider === 'claude' ? collectClaudeLocalUsage
+      : provider === 'antigravity' ? collectAntigravityLocalUsage : null;
+    if (!collect) throw new AceError('INVALID_CLI', 'unsupported usage provider');
+    const report = collect({ authorized: parsed.authorized === 'yes',
+      enabled: process.env.AFYX_USAGE_OPT_IN !== '0',
+      providerRoot: parsed['provider-root'], format: parsed.format });
+    process.stdout.write(JSON.stringify(report) + '\n');
+    return;
+  }
   if (command === 'reduce') {
     const inputPath = required(parsed, 'input');
     const source = readBoundedInput(inputPath);

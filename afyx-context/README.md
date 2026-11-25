@@ -1,5 +1,22 @@
 # Afyx Context Engine
 
+### Penggunaan provider lokal
+
+Jalankan `afyx-context usage --provider claude --authorized yes` untuk metadata
+pesan Claude Code. Gunakan `--provider-root` untuk mengganti direktori
+`$CLAUDE_CONFIG_DIR/projects` atau `~/.claude/projects`. Untuk rekaman Gemini
+CLI, pilih `--provider antigravity --format gemini-cli-chat/v1` dan berikan
+direktori absolut dengan `--provider-root`. Nilai `sourceProduct` menunjukkan
+asal rekaman. Format penyimpanan Antigravity IDE yang belum diverifikasi tetap
+`NOT_AVAILABLE`. Setel `AFYX_USAGE_OPT_IN=0` untuk menonaktifkan koleksi.
+
+Koleksi hanya membaca metadata dengan batas waktu dan ukuran. ID sesi dan
+pesan dipseudonimkan. Untuk Claude, input mencakup input tanpa cache dan cache
+read saat kedua counter tersedia. Cache write dicatat tersendiri. Rekaman
+Gemini CLI mencerminkan counter yang diserialisasi oleh host. Biaya tidak
+dihitung. Saat cakupan parsial, event terverifikasi tetap dilaporkan dan total
+tidak diterbitkan. Artefak dengan operasi patch atau rewind diabaikan.
+
 **Standalone local context optimization — Technical Alpha v0.1.0.**
 
 Afyx Context Engine (ACE) is an Afyx-owned, standalone Node.js component for

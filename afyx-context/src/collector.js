@@ -1,6 +1,7 @@
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { basename, join, resolve } from 'node:path';
 import { homedir } from 'node:os';
+import { collectProviderUsage } from './provider-usage.js';
 import { USAGE_CONTRACT, normalizeUsageEvent } from './usage.js';
 
 function fail(code, message) {
@@ -266,26 +267,12 @@ export function collectCodexLocalUsage(options = {}) {
   };
 }
 
-export function collectClaudeLocalUsage({ enabled = true } = {}) {
-  if (!enabled) return { contract: USAGE_CONTRACT, provider: 'claude', status: 'DISABLED', events: [] };
-  return {
-    contract: USAGE_CONTRACT,
-    provider: 'claude',
-    status: 'NOT_AVAILABLE',
-    events: [],
-    reason: 'PROVIDER_TELEMETRY_UNCONFIGURED',
-  };
+export function collectClaudeLocalUsage(options = {}) {
+  return collectProviderUsage('claude', options);
 }
 
-export function collectAntigravityLocalUsage({ enabled = true } = {}) {
-  if (!enabled) return { contract: USAGE_CONTRACT, provider: 'antigravity', status: 'DISABLED', events: [] };
-  return {
-    contract: USAGE_CONTRACT,
-    provider: 'antigravity',
-    status: 'NOT_AVAILABLE',
-    events: [],
-    reason: 'PROVIDER_TELEMETRY_UNCONFIGURED',
-  };
+export function collectAntigravityLocalUsage(options = {}) {
+  return collectProviderUsage('antigravity', options);
 }
 
 export function aggregateUsage(events = [], options = {}) {
