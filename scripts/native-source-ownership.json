@@ -3039,7 +3039,7 @@
     {
       "path": "scripts/lib/afyx-skill-lifecycle.sh",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "3133bc718d508368e9d7d5cc0ecf24e18a5f91c4447bfe3de076b55bab081b35",
+      "reviewedSha256": "1a441cfe24d58f44e92f6afacac188e7ddecb2d59f62a4aed9da4e44ec62e9d0",
       "evidence": "AFYX post-v1 audit remediation: AFYX-owned installer and lifecycle implementation maintained in this repository."
     },
     {
