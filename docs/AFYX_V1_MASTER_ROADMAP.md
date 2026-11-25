@@ -1,5 +1,11 @@
 # Afyx v1 Master Roadmap
 
+## Siklus pengembangan v1.1.0
+
+Branch `dev` memulai siklus v1.1.0 dari `977b7af` dengan penataan dokumentasi
+serta aturan kontribusi. Paket, installer, dan contoh instalasi tetap memakai
+jalur Stable v1.0.2. Riwayat siklus tercatat dalam [changelog](../CHANGELOG.md).
+
 ## Promosi AFYX Engineering Kit v1.0.0
 
 Baseline kandidat adalah `aee53853941dbeed6c837e95ce17018b93ea117c`.
@@ -22,7 +28,7 @@ riwayat publik yang tidak diubah oleh promosi Stable.
 **Checkpoint AFYX-348, 19 November 2026.** Baseline integrasi
 `bc4debba494358d099da4cce4c123f653388f20e` memuat PR #19 dan #20. Disposisi per
 file, bukti pengganti, dan port terbatas lima PR historis dicatat pada
-[rekonsiliasi AFYX-348](AFYX_348_HELD_PR_RECONCILIATION.md). Batch berikut
+[rekonsiliasi AFYX-348](archive/AFYX_348_HELD_PR_RECONCILIATION.md). Batch berikut
 melanjutkan penerimaan provider T12 dengan fixture terisolasi. Gate legal,
 distribusi, dan penerimaan pengguna eksternal tetap dinilai terpisah.
 
@@ -457,7 +463,7 @@ required output quality**.
 ## Canonical development method
 
 Keputusan formal Owner pada AFYX-359 menetapkan bahwa v1.0 mempertahankan
-lisensi utama AFYX (`Copyright (c) 2026 Afyx`) bersama atribusi MIT CodeGraph
+lisensi utama AFYX (`Copyright (c) 2026 Afyx`) bersama atribusi MIT dari implementasi terdahulu
 historis dalam `THIRD_PARTY_NOTICES.md` pada paket Kit, paket Graph, dan kontrak
 bundel Graph. Sasaran penggantian independen untuk 26 path historis Graph/UI
 dialihkan ke backlog peningkatan v1.1 (pasca-v1.0). Batasan komparator historis
@@ -1608,7 +1614,7 @@ Evidence lokal: focused adoption 4/4 PASS; lifecycle security 6/6 PASS; lifecycl
 
 Status: **IMPLEMENTED; ACCEPTANCE REQUIRES FINAL-HEAD CI; AFYX-248 remains IN PROGRESS**
 
-Efficient Coding 1.2.0 mempertahankan correctness-first dan progressive disclosure sambil menambahkan loop `GROUND → LOCATE → REPRODUCE → CHANGE → VALIDATE → REPORT`, reliable bug baseline, cost lens kondisional, approval boundary eksplisit, serta pelaporan proporsional. Direct inspection tetap default untuk target sederhana; Afyx Graph hanya untuk relasi struktural yang material; saat Graph tidak tersedia fallback adalah direct-source search dan CodeGraph dilarang. Headroom tetap selektif dan exact original evidence harus tersedia.
+Efficient Coding 1.2.0 mempertahankan correctness-first dan progressive disclosure sambil menambahkan loop `GROUND → LOCATE → REPRODUCE → CHANGE → VALIDATE → REPORT`, reliable bug baseline, cost lens kondisional, approval boundary eksplisit, serta pelaporan proporsional. Direct inspection tetap default untuk target sederhana; Afyx Graph hanya untuk relasi struktural yang material; saat Graph tidak tersedia fallback adalah direct-source search dan indeks lama tidak digunakan. Headroom tetap selektif dan exact original evidence harus tersedia.
 
 Matriks sintetis enam skenario yang sama memberi baseline 1.1.0 `2/6 FULL` dan kandidat 1.2.0 `6/6 FULL`: known-file grounding, unknown-defect reproduction/stopping, cross-module Graph routing, unavailable-Graph fallback, authorization boundary, dan proportional reporting/noisy evidence. Ini bukti kontrak deterministik, bukan model-quality atau token-savings benchmark; tidak ada klaim penghematan token tanpa pengukuran. Usulan rigid three-search limit, mandatory six-line report, dan major-version 2.0.0 ditolak.
 
@@ -2230,7 +2236,7 @@ the owner's personal Ubuntu are excluded from formal execution. Status remains
 
 ### T09.E5 checkpoint — WSL formal-runtime amendment proposed
 
-[AFYX_FORGE_T09_E5_WSL_RUNTIME_AMENDMENT.md](AFYX_FORGE_T09_E5_WSL_RUNTIME_AMENDMENT.md)
+[AFYX_FORGE_T09_E5_WSL_RUNTIME_AMENDMENT.md](archive/AFYX_FORGE_T09_E5_WSL_RUNTIME_AMENDMENT.md)
 records a versioned, unapproved `CONDITIONAL` feasibility proposal. It preserves
 the native-Windows T09.E1 contract as authoritative while specifying the
 split-plane, containerized WSL controls and fresh independent acceptance needed
@@ -2253,7 +2259,7 @@ acceptance. Status remains **CAMPAIGN BLOCKED — 0/36**.
 
 ### T09.E8.P0 checkpoint — WSL runtime readiness preflight
 
-[AFYX_FORGE_T09_E8_RUNTIME_PREFLIGHT.md](AFYX_FORGE_T09_E8_RUNTIME_PREFLIGHT.md)
+[AFYX_FORGE_T09_E8_RUNTIME_PREFLIGHT.md](archive/AFYX_FORGE_T09_E8_RUNTIME_PREFLIGHT.md)
 records a read-only snapshot at PR #66 baseline. WSL2 `amd64`, the accepted
 compiler/linker, cgroup v2, namespace, seccomp, subordinate-ID, ext4, and
 overlay/fuse substrate are visible. Container engines, low-level runtimes,
@@ -2266,7 +2272,7 @@ ACCEPTANCE BLOCKED — 0/36**.
 
 ### T09.E8.P1 checkpoint — ordinary WSL reconciliation and rootless design
 
-[AFYX_FORGE_T09_E8_ROOTLESS_PROVISIONING_DESIGN.md](AFYX_FORGE_T09_E8_ROOTLESS_PROVISIONING_DESIGN.md)
+[AFYX_FORGE_T09_E8_ROOTLESS_PROVISIONING_DESIGN.md](archive/AFYX_FORGE_T09_E8_ROOTLESS_PROVISIONING_DESIGN.md)
 preserves the P0 managed-sandbox snapshot while recording distinct
 owner-supplied ordinary WSL observations: systemd is PID 1 and running, cgroup
 v2 is `rw,nsdelegate`, ext4 is writable, and engine/rootless/OCI tooling remains
@@ -2281,7 +2287,7 @@ invented, no package or host state changed, and no container ran. Status remains
 
 ### T09.E8.P2 checkpoint — rootless runtime source compatibility
 
-[AFYX_FORGE_T09_E8_RUNTIME_COMPATIBILITY.md](AFYX_FORGE_T09_E8_RUNTIME_COMPATIBILITY.md)
+[AFYX_FORGE_T09_E8_RUNTIME_COMPATIBILITY.md](archive/AFYX_FORGE_T09_E8_RUNTIME_COMPATIBILITY.md)
 implements only the two accepted P1 source gaps. All T09.E6 lifecycle commands
 and T09.E7 build/inspect commands now select the exact rootless Unix endpoint
 with no inherited Docker context or rootful fallback. The launcher requires a
@@ -2298,7 +2304,7 @@ ROOTLESS RUNTIME NOT TESTED / FORMAL CAMPAIGN BLOCKED — 0/36**.
 
 ### T09.E8.P3 checkpoint — controlled provisioning readiness
 
-[AFYX_FORGE_T09_E8_P3_PROVISIONING_READINESS.md](AFYX_FORGE_T09_E8_P3_PROVISIONING_READINESS.md)
+[AFYX_FORGE_T09_E8_P3_PROVISIONING_READINESS.md](archive/AFYX_FORGE_T09_E8_P3_PROVISIONING_READINESS.md)
 records a read-only package/provenance audit at the PR #69 merge baseline.
 Ubuntu 26.04/amd64, the 65,536-entry subordinate UID/GID ranges, ext4
 repository, overlay substrate, cgroup v2 controllers and systemd packages are
@@ -2324,7 +2330,7 @@ remains **BLOCKED — 0/36**.
 
 ### T09.E8.P4 checkpoint — Docker CE provenance and partial package lock
 
-[AFYX_FORGE_T09_E8_P4_DOCKER_CE_PACKAGE_LOCK.md](AFYX_FORGE_T09_E8_P4_DOCKER_CE_PACKAGE_LOCK.md)
+[AFYX_FORGE_T09_E8_P4_DOCKER_CE_PACKAGE_LOCK.md](archive/AFYX_FORGE_T09_E8_P4_DOCKER_CE_PACKAGE_LOCK.md)
 records bounded acquisition from official Docker CE Resolute/stable/amd64.
 Independent fingerprint corroboration, isolated `gpgv` verification, the
 signed Release-to-index digest and all five required Docker `.deb` size/hash
@@ -2344,9 +2350,9 @@ Forge remains **BLOCKED — 0/36**.
 
 ### T09.E8.P5 checkpoint — Ubuntu dependency closure and host-relative lock
 
-[AFYX_FORGE_T09_E8_P5_UBUNTU_DEPENDENCY_LOCK.md](AFYX_FORGE_T09_E8_P5_UBUNTU_DEPENDENCY_LOCK.md)
+[AFYX_FORGE_T09_E8_P5_UBUNTU_DEPENDENCY_LOCK.md](archive/AFYX_FORGE_T09_E8_P5_UBUNTU_DEPENDENCY_LOCK.md)
 and its deterministic
-[lock manifest](AFYX_FORGE_T09_E8_P5_LOCK_MANIFEST.json) record fresh signed
+[lock manifest](archive/AFYX_FORGE_T09_E8_P5_LOCK_MANIFEST.json) record fresh signed
 Ubuntu Resolute base, updates and security metadata plus exact archive-byte
 verification for the eleven missing Ubuntu transaction packages. The five P4
 Docker CE archives remain byte-identical and were not reacquired. P4's 68
@@ -2505,7 +2511,7 @@ Goal:
 > evidence-driven, deeply optimized native engine using real production
 > workloads rather than historical implementation constraints.
 
-Track D is not a second rewrite of CodeGraph. It starts from Afyx-owned behavior,
+Track D starts from Afyx-owned behavior,
 architecture, and workload evidence.
 
 Canonical optimization rule:
@@ -3468,7 +3474,7 @@ reference is recovered. Therefore no general savings claim is made. Headroom
 is a provider proxy/evaluation surface rather than an equivalent standalone
 transform, and active routing, credentials, private sessions, and global state
 were not used. Full methods and raw evidence are recorded in
-`docs/AFYX_CONTEXT_ENGINE_AFYX_291_BENCHMARK.md` and
+`docs/archive/AFYX_CONTEXT_ENGINE_AFYX_291_BENCHMARK.md` and
 `docs/evidence/afyx-291/`.
 
 ## AFYX-292 — Native ACE multi-process coordination and crash-safe local state
@@ -3487,7 +3493,7 @@ content artifacts are adopted only after digest verification.
 Focused deterministic child-process tests cover concurrency, contention,
 hard-kill recovery, invisible partial commits, exact retrieval, release after
 failure, and ambiguous lock evidence. The full contract and limitations are in
-`docs/AFYX_CONTEXT_ENGINE_AFYX_292_COORDINATION.md`. Real Graph/MCP consumers,
+`docs/archive/AFYX_CONTEXT_ENGINE_AFYX_292_COORDINATION.md`. Real Graph/MCP consumers,
 distributed coordination, authentication, deployment, and preset activation
 remain separate future boundaries.
 

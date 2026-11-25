@@ -13,7 +13,7 @@ Jira: AFYX-285
 ## 1. Scope and authority
 
 This document proposes, but does not approve, an amendment to the
-[T09.E1 secure evaluator handoff](AFYX_FORGE_T09_E1_SECURE_HANDOFF.md). Until
+[T09.E1 secure evaluator handoff](../AFYX_FORGE_T09_E1_SECURE_HANDOFF.md). Until
 the owner and independent evaluator approve a final amendment, T09.E1 remains
 authoritative: formal cells are native-Windows only and WSL is excluded.
 
@@ -41,7 +41,7 @@ identity and scope:
 
 - PR #61 public controller interfaces and fail-closed lifecycle behavior;
 - PR #62 [evidence-readiness, finalization, receipt, replay, and sanitized
-  public-result contracts](AFYX_FORGE_AFYX_285_EVIDENCE_RETENTION.md);
+  public-result contracts](../AFYX_FORGE_AFYX_285_EVIDENCE_RETENTION.md);
 - PR #63 [T09.E4 actual WSL subprocess and raw-stream retention
   evidence](AFYX_FORGE_T09_E4_WSL_LAB.md), including its focused negative
   cases;

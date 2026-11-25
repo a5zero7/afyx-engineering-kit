@@ -6,6 +6,9 @@ under `OWNER_SIGNING_WAIVER_V1` and may trigger SmartScreen. Verify its source
 revision and SHA-256 before running it.
 [Release notes](https://github.com/a5zero7/afyx-engineering-kit/blob/main/docs/RELEASE_READINESS.md)
 
+See the [changelog](CHANGELOG.md) for the v1.1.0 development cycle and
+[contributing guide](CONTRIBUTING.md) for branch and verification requirements.
+
 **Local-first engineering intelligence, adaptive guidance, and evidence-driven validation for AI coding agents.**
 
 > **Individually Reliable. Collectively Solid.**
@@ -434,6 +437,5 @@ providers, models, unrelated MCP entries, and external tools are preserved.
 License scope must be checked **per package**. The Kit root, Graph and ACE are
 MIT-licensed in their respective license/metadata files; the standalone Forge
 Core package currently declares `Apache-2.0` in `afyx-forge/package.json`.
-Do not infer one blanket license from the umbrella README. The current provenance ledger records retained upstream-derived Graph/UI
-source. Package and bundle validators require the matching MIT notice.
-External tools remain under their own terms.
+The source ownership ledger records the reviewed AFYX implementations. The
+distribution gates verify the current licensing and attribution policy.

@@ -37,7 +37,7 @@ PERMITTED_CONTENT_PATHS = {
     # excluded from product packages and has its own fail-closed ownership gate.
     "scripts/native-source-ownership.json": "LEGAL_PROVENANCE",
     "docs/AFYX_INDEPENDENCE_PLAN.md": "HISTORICAL_EVIDENCE",
-    "docs/AFYX_PHASE5F_THIRD_PARTY_REPLACEMENT.md": "HISTORICAL_EVIDENCE",
+    "docs/archive/AFYX_PHASE5F_THIRD_PARTY_REPLACEMENT.md": "HISTORICAL_EVIDENCE",
     "docs/AFYX_V1_MASTER_ROADMAP.md": "HISTORICAL_EVIDENCE",
     "AFYX-320-execution-handoff-2026-11-05.md": "HISTORICAL_EVIDENCE",
 }

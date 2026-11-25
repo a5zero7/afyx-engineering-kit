@@ -21,7 +21,7 @@
 Eksekusi **`POSTV1-AUDIT-50C64D2-FINAL-SECURITY-CERTIFICATION`** telah diselesaikan secara 100% otonom dan end-to-end tanpa intervensi manual:
 1. **Reproduksi & Disposisi Audit Keamanan 38 Temuan (Fase 1):**
    - Melakukan reproduksi exact terhadap 38 temuan audit awal (18 Critical, 9 High, 11 Medium) pada suite pengujian repository.
-   - Mempublikasikan ledger deterministik terikat hash konteks SHA-256 di [`scripts/security-audit-disposition.json`](../../scripts/security-audit-disposition.json).
+   - Mempublikasikan ledger deterministik terikat hash konteks SHA-256 di [`scripts/security-audit-disposition.json`](../../../scripts/security-audit-disposition.json).
    - Memperbaiki risiko riil (`REAL_RISK`) pada `scripts/tests/test_npm_package_smoke.mjs:44` dengan beralih ke `execFileSync('tar', ...)`.
    - Mengeliminasi false positive pemanggilan helper pada `scripts/tests/test_security_auditor_hardening.mjs:67`.
    - Menjalankan suite regresi adversarial (`test_security_auditor_hardening.mjs` - 4 PASS) yang membuktikan sistem audit fail-closed: penolakan waiver kode produksi (`INVALID_WAIVER_SCOPE`), penolakan perubahan token/baris yang dimanipulasi, dan penolakan scan parsial (`INCOMPLETE`/`PARTIAL`).
@@ -32,7 +32,7 @@ Eksekusi **`POSTV1-AUDIT-50C64D2-FINAL-SECURITY-CERTIFICATION`** telah diselesai
    - **Windows Python Regression Suite:** 593 tests dijalankan dengan clean PATH (`555 PASS, 0 FAIL, 0 ERROR, 38 SKIP`, Exit code 0).
    - **WSL2 Ubuntu Regression Suite:** 61 tests POSIX PASS (`test_forge_wsl_lab`, `test_forge_synthetic_image`, `test_forge_controller`).
 3. **Gerbang Lokal & Git Delivery (Fase 3):**
-   - Memperbarui LF-hash reviewed pada [`scripts/native-source-ownership.json`](../../scripts/native-source-ownership.json) untuk file yang dimodifikasi.
+   - Memperbarui LF-hash reviewed pada [`scripts/native-source-ownership.json`](../../../scripts/native-source-ownership.json) untuk file yang dimodifikasi.
    - Memvalidasi kelima gerbang repositori (5/5 PASS) dan pre-push hook lengkap (Vitest 5.955 PASS / 32 SKIP, Semantic 6 fixtures PASS, Smoke 23 checks PASS).
    - Melakukan commit implementasi (`24dcaced0d055d59f72376171f88a8b487fbcdd5`) dan commit laporan audit mandiri (`180dd7708ea99d24372286a9d4a3afc4fda9ed88`) serta fast-forward push ke `origin/dev`.
 4. **Verifikasi CI & Penutupan Jira (Fase 4):**
@@ -44,7 +44,7 @@ Eksekusi **`POSTV1-AUDIT-50C64D2-FINAL-SECURITY-CERTIFICATION`** telah diselesai
 
 ## 2. Disposisi 38 Temuan Self-Audit Keamanan
 
-Ledger mesin [`scripts/security-audit-disposition.json`](../../scripts/security-audit-disposition.json) mengikat setiap kandidat temuan dengan digest SHA-256 dari baris kode terkait:
+Ledger mesin [`scripts/security-audit-disposition.json`](../../../scripts/security-audit-disposition.json) mengikat setiap kandidat temuan dengan digest SHA-256 dari baris kode terkait:
 
 | Kategori Klasifikasi | Jumlah | Rincian & Tindakan Remediasi |
 | :--- | :---: | :--- |

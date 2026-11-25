@@ -4,7 +4,7 @@ This preflight records the 2026-10-27 Alpha baseline. Its former workspace path 
 
 **Status:** PREPARATION IMPLEMENTED; REAL PILOT `NOT_RUN`; COMBINED ACCEPTANCE `BLOCKED`
 
-**Authority:** [AFYX_V1_MASTER_ROADMAP.md](AFYX_V1_MASTER_ROADMAP.md), 2026-10-27 expanded v1 finalization contract.
+**Authority:** [AFYX_V1_MASTER_ROADMAP.md](../AFYX_V1_MASTER_ROADMAP.md), 2026-10-27 expanded v1 finalization contract.
 
 **Starting source baseline:** `dev` at `b273b7b27ba33838075c86870e0b8a58fdbaca95` (observed from GitHub).
 
@@ -12,7 +12,7 @@ This preflight records the 2026-10-27 Alpha baseline. Its former workspace path 
 
 ## What this increment delivers
 
-- One explicit, conservative [acceptance ledger](AFYX_ALPHA_ACCEPTANCE_LEDGER.json) with 18 release-blocking expanded-v1 gate identities and six prospective Phase 8 real-workload scenarios. All remain `NOT_RUN` or `BLOCKED`; no historical synthetic result is silently promoted.
+- One explicit, conservative [acceptance ledger](../AFYX_ALPHA_ACCEPTANCE_LEDGER.json) with 18 release-blocking expanded-v1 gate identities and six prospective Phase 8 real-workload scenarios. All remain `NOT_RUN` or `BLOCKED`; no historical synthetic result is silently promoted.
 - A standard-library-only, offline `scripts/alpha_acceptance_preflight.py` consistency checker. No Graph indexing, agent/model calls, telemetry scanning, private data reading, installation, release or Git modification.
 - Negative regressions against missing evidence, identity mismatch, Forge A8 jump, absent independent-review provenance, incomplete representative scenarios, forged artifact claims and unsafe output destinations.
 - A useful `BLOCKED` report rather than a fabricated green release verdict. `READY_FOR_INDEPENDENT_REVIEW` (if every claim has the required record and prerequisites) is **not** `RELEASE_READY`, an evaluator verification, or owner release consent.

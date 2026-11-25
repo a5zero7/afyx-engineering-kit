@@ -5,7 +5,7 @@ Date: 2026-10-16
 Base source revision: `63f528e24ed0b4b0217b8db3666ed8b7dd06bebd` (`dev`)  
 Jira: [AFYX-12](https://afifbendol.atlassian.net/browse/AFYX-12), [AFYX-93](https://afifbendol.atlassian.net/browse/AFYX-93), [AFYX-285](https://afifbendol.atlassian.net/browse/AFYX-285) (owner-only evidence), [AFYX-286](https://afifbendol.atlassian.net/browse/AFYX-286) (public controller implementation).
 
-This is a sanitized summary of owner-reported local synthetic tests, **not an independently audited security acceptance, host deployment attestation, runtime authorization, A8 GO, or benchmark result**. Original owner-supplied console records were reviewed in the conversation; owner-controlled private archival and independent integrity attestation remain PENDING. Raw console output, Windows identities, local/protected paths, canary material, auth, rubrics, scoring, and holdouts are excluded here. The public trust-boundary and input/output contracts remain authoritative in [AFYX_FORGE_T09_E1_SECURE_HANDOFF.md](AFYX_FORGE_T09_E1_SECURE_HANDOFF.md).
+This is a sanitized summary of owner-reported local synthetic tests, **not an independently audited security acceptance, host deployment attestation, runtime authorization, A8 GO, or benchmark result**. Original owner-supplied console records were reviewed in the conversation; owner-controlled private archival and independent integrity attestation remain PENDING. Raw console output, Windows identities, local/protected paths, canary material, auth, rubrics, scoring, and holdouts are excluded here. The public trust-boundary and input/output contracts remain authoritative in [AFYX_FORGE_T09_E1_SECURE_HANDOFF.md](../AFYX_FORGE_T09_E1_SECURE_HANDOFF.md).
 
 ## Observed synthetic evidence
 
