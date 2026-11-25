@@ -94,9 +94,16 @@ describe('MCP public semantic contract', () => {
           description: 'Host-authorized sibling roots. Requires an exact contract file and qualified symbol.',
         });
         expect(tool.inputSchema.required).not.toContain('peerProjectPaths');
+        expect(props.autoDiscoverPeers).toEqual({
+          type: 'boolean',
+          description: 'Discover peers only within the host-configured boundary. An explicit peer list disables discovery unless this option is true.',
+        });
+        expect(tool.inputSchema.required).not.toContain('autoDiscoverPeers');
         delete props.peerProjectPaths;
+        delete props.autoDiscoverPeers;
       } else {
         expect(props.peerProjectPaths).toBeUndefined();
+        expect(props.autoDiscoverPeers).toBeUndefined();
       }
     }
     expect(createHash('sha256').update(JSON.stringify(previousCatalog)).digest('hex'))
