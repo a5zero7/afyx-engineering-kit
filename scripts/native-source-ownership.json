@@ -2,7 +2,7 @@
   "schema": 1,
   "baselineRevision": "c4e4d8e29de239a2fcbc0db8ac65eea2276e7b00",
   "scope": "AFYX-320 comprehensive production source inventory",
-  "totalProductionFiles": 526,
+  "totalProductionFiles": 527,
   "entries": [
     {
       "path": "afyx-context/src/budget.js",
@@ -13,7 +13,7 @@
     {
       "path": "afyx-context/src/cli-compactor.js",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "44aa3690c38218c0b04ed9d3babb04d29616d69da95b82ea0943ccda1fde9779",
+      "reviewedSha256": "06465fdae40e5cf4ecb27f5257a018cbcc49154b6e2891dd570c5be39de4c77f",
       "evidence": "Pure Node.js terminal output compactor with fail-closed secure private spill directories, true chunk streaming to disk, honest truncation flags, and spill recovery (AFYX-329)."
     },
     {
@@ -141,6 +141,12 @@
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
       "reviewedSha256": "fc94e4bee2d30f0fd3a86a8ecd68051d9a7f215e7178bf25a5da23a356e32f80",
       "evidence": "AFYX native source: authored from AFYX functional requirements; verified clean room implementation with zero third-party code import."
+    },
+    {
+      "path": "afyx-context/src/temp-artifacts.js",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "595a2e72c3ee4ad65d170247efc5ff373f42854b1b34ee301d2537a94ce3d9f2",
+      "evidence": "V1.2.0 Batch 2 native implementation with bounded input and isolated positive and negative fixtures."
     },
     {
       "path": "afyx-context/src/usage.js",
@@ -2739,7 +2745,7 @@
     {
       "path": "bin/afyx-engineering-kit.mjs",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "2b74493617464e7e685f4f1c58cd2dc2bd17db09d735bf42cc3cad62257f99ca",
+      "reviewedSha256": "acdabce0073b9aa5d7d3e495d9447dabb98a1463aa5a48f644e386d91a7a6e7d",
       "evidence": "Installer UX v2: reviewed AFYX executable lifecycle wiring for shared interactive wizard, backend event forwarding and actual verification. Uses existing AFYX modules and runtime APIs only."
     },
     {
@@ -2835,7 +2841,7 @@
     {
       "path": "scripts/afyx-graph-artifact.mjs",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "141d236f98191a5f38eba4e92f19c8fb312a87b38b5a55d655768472dd20f29c",
+      "reviewedSha256": "abd42bec36e10de8c9603d0621f202c234f7e2a407b19d498be49cde37cba23a",
       "evidence": "MB12 review: authored from AFYX functional requirements and existing reviewed 251f73a contracts; no upstream implementation, prompts, assets or dependency imported. Trusted-host boundaries and negative/regression tests recorded in MB12-native-consolidation-20261114-r1."
     },
     {
@@ -2949,7 +2955,7 @@
     {
       "path": "scripts/afyx-npm-installer.mjs",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "c16069e0020f515c04669f8c9e3ff05b715668ea622fb132c2ad56d6cd659d43",
+      "reviewedSha256": "db31f86191090413a48a2c5dd4660cfb1df51c1e1d3277a6ac60da9d90236f59",
       "evidence": "Installer UX v2 with synchronized universal capability summaries, help text, and version 0.1.0-alpha.12 (AFYX-77)."
     },
     {
@@ -3039,13 +3045,13 @@
     {
       "path": "scripts/install-afyx-graph.ps1",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "40de8a587265a628ea123fb4c223c5ccd24642d96f141066e45a68d8d67148c7",
+      "reviewedSha256": "6cf4552c0c362ec2cd0fbb552829f4cb6073581474f5f8f57459ea21f5ee8be8",
       "evidence": "AFYX post-v1 audit remediation: AFYX-owned installer and lifecycle implementation maintained in this repository."
     },
     {
       "path": "scripts/install-afyx-graph.sh",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "183464b693c28d9d6fa2164a174710e0cba788501fd0a319c4e96528983d1a2d",
+      "reviewedSha256": "a75cd9c899f5c54848802f36c82797d4e49ae6dc9cf28084b88aeb6b4e877860",
       "evidence": "AFYX post-v1 audit remediation: AFYX-owned installer and lifecycle implementation maintained in this repository."
     },
     {

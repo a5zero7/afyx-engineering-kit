@@ -579,12 +579,19 @@ try {
     } elseif ($resolvedArchive.Source -eq 'github-release') {
         throw 'GitHub release is missing RELEASE-MANIFEST.json.'
     }
-    $gh = Get-Command gh -ErrorAction SilentlyContinue
-    if ($resolvedArchive.Source -eq 'github-release' -and $gh) {
-        & $gh.Source attestation verify $archive --repo a5zero7/afyx-engineering-kit *> $null
+    $attestationMode = $env:AFYX_GRAPH_ATTESTATION_MODE
+    if ($resolvedArchive.Source -eq 'github-release') { $attestationMode = 'required' }
+    if ($attestationMode) {
+        $attestationArgs = @('verify-attestation', '--archive', $archive, '--metadata', (Join-Path $bundle.FullName 'metadata.json'),
+            '--mode', $attestationMode, '--offline', ([string][bool]$Offline).ToLowerInvariant())
+        if ($manifestStatus -eq 'VERIFIED') { $attestationArgs += @('--manifest', $releaseManifest) }
+        $attestationStatus = & (Get-Command node).Source $artifactIdentityTool @attestationArgs
         if ($LASTEXITCODE -ne 0) { throw 'GitHub publisher/build attestation verification failed.' }
-        $publisherAuthenticity = 'GITHUB_ATTESTED'
-        $buildProvenance = 'GITHUB_ATTESTED'
+        Write-Host "Attestation: $attestationStatus"
+        if ($attestationStatus -eq 'VERIFIED') {
+            $publisherAuthenticity = 'GITHUB_ATTESTED'
+            $buildProvenance = 'GITHUB_ATTESTED'
+        }
     }
     if ($resolvedArchive.Source -eq 'local-build' -and $resolvedArchive.PSObject.Properties['BuildProvenance'] -and $resolvedArchive.BuildProvenance) { $buildProvenance = $resolvedArchive.BuildProvenance }
     & (Get-Command node).Source $artifactIdentityTool record-install --metadata (Join-Path $bundle.FullName 'metadata.json') --archive $archive --provenance $resolvedArchive.Source --requested-revision $(if ($requestedRevision) { $requestedRevision } else { 'UNKNOWN' }) --release-manifest-status $manifestStatus --publisher-authenticity $publisherAuthenticity --build-provenance $buildProvenance *> $null

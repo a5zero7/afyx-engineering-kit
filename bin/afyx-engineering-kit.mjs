@@ -12,6 +12,8 @@ import {
   buildSubprocessCall,
   executeSubprocess,
 } from '../scripts/afyx-npm-installer.mjs';
+import { tmpdir } from 'node:os';
+import { cleanTempArtifacts } from '../afyx-context/src/temp-artifacts.js';
 import { runMidnightCircuit, terminalMode, recordInstallerDiagnostic } from '../scripts/afyx-midnight-circuit.mjs';
 
 function verifyNodeRuntime() {
@@ -43,6 +45,15 @@ async function main() {
     }
     console.error('\nRun "afyx-engineering-kit --help" for usage information.');
     process.exit(parsed.errorExitCode ?? 1);
+  }
+
+  if (parsed.command === 'clean') {
+    const report = cleanTempArtifacts({ root: tmpdir(), dryRun: parsed.options.dryRun, maxAgeHours:
+      parsed.options.maxAgeHours === undefined ? undefined : Number(parsed.options.maxAgeHours) });
+    console.log(parsed.options.json ? JSON.stringify(report) :
+      `AFYX clean${report.dryRun ? ' (dry-run)' : ''}: ${report.discovered} discovered, ${report.eligible} eligible, ${report.removed} removed, ${report.skipped} skipped, ${report.failed} failed`);
+    process.exitCode = report.failed ? 1 : 0;
+    return;
   }
 
   let finish, onOutput, startProgress;

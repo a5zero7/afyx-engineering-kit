@@ -255,7 +255,7 @@ if [[ "$mode" == validate ]]; then
     if [[ "$installed_revision" == "$requested_revision" ]]; then installed_revision_status=MATCH; else installed_revision_status=REVISION_MISMATCH; fi
   else installed_revision_status=UNKNOWN; fi
   printf 'Product: Afyx Graph\nState: %s\nRuntimeRoot: %s\nVersion: %s\nSourceRevision: %s\nExtractionVersion: %s\nProvenance: %s\nReleaseManifestStatus: %s\nPublisherAuthenticity: %s\nBuildProvenance: %s\nCurrentCheckoutRevision: %s\nRevisionStatus: %s\nUpdateAvailable: %s\n' "$state" "$RUNTIME_ROOT" "$VERSION" "${installed_revision:-UNKNOWN}" "${installed_extraction:-UNKNOWN}" "${installed_provenance:-UNKNOWN}" "${installed_manifest_status:-MISSING}" "${installed_publisher_authenticity:-UNVERIFIED}" "${installed_build_provenance:-UNVERIFIED}" "$requested_revision" "$installed_revision_status" "$([[ "$installed_revision_status" == REVISION_MISMATCH ]] && printf true || printf false)"
-  if [[ "$installed_revision_status" == REVISION_MISMATCH ]]; then printf 'UPDATE AVAILABLE — REVISION MISMATCH\n'; fi
+  if [[ "$installed_revision_status" == REVISION_MISMATCH ]]; then printf 'UPDATE AVAILABLE â€” REVISION MISMATCH\n'; fi
   [[ "$state" != INCOMPLETE && "$state" != INVALID ]]
   exit $?
 fi
@@ -410,25 +410,14 @@ elif [[ "$artifact_source" == github-release ]]; then
   printf 'GitHub release is missing RELEASE-MANIFEST.json.\n' >&2
   exit 1
 fi
-if "$require_attestation" || [[ "$artifact_source" == github-release ]]; then
-  if ! command -v gh >/dev/null 2>&1 || [[ "${AFYX_TEST_ATTESTATION:-}" == unavailable ]]; then
-    printf '[ATTESTATION_UNAVAILABLE] GitHub CLI is unavailable.\n' >&2
-    exit 1
-  else
-    if ! GH_PROMPT_DISABLED=1 gh auth status --hostname github.com >/dev/null 2>&1; then
-      printf '[ATTESTATION_AUTH_REQUIRED] GitHub CLI authentication is unavailable or invalid.\n' >&2
-      exit 1
-    fi
-    if ! GH_PROMPT_DISABLED=1 gh attestation verify "$archive_path" --repo a5zero7/afyx-engineering-kit >/dev/null 2>"$transaction/attestation-error"; then
-      if grep -Eqi 'no attestations? found|attestations? not found' "$transaction/attestation-error"; then
-        printf '[ATTESTATION_MISSING] No attestation found for this archive.\n' >&2
-      elif grep -Eqi 'network|timeout|connection|HTTP 5[0-9][0-9]|rate limit' "$transaction/attestation-error"; then
-        printf '[ATTESTATION_SERVICE_ERROR] Unable to contact the attestation service.\n' >&2
-      else
-        printf '[ATTESTATION_VERIFICATION_FAILED] Archive attestation could not be verified.\n' >&2
-      fi
-      exit 1
-    fi
+attestation_mode="${AFYX_GRAPH_ATTESTATION_MODE:-}"
+if "$require_attestation" || [[ "$artifact_source" == github-release ]]; then attestation_mode=required; fi
+if [[ -n "$attestation_mode" ]]; then
+  attestation_manifest=
+  [[ "$manifest_status" == VERIFIED ]] && attestation_manifest="$release_manifest"
+  attestation_status="$(node "$ARTIFACT_IDENTITY" verify-attestation --archive "$archive_path" --metadata "$bundle/metadata.json" --manifest "$attestation_manifest" --mode "$attestation_mode" --offline "$offline")" || exit 1
+  printf 'Attestation: %s\n' "$attestation_status"
+  if [[ "$attestation_status" == VERIFIED ]]; then
     publisher_authenticity=GITHUB_ATTESTED
     build_provenance=GITHUB_ATTESTED
   fi
@@ -491,7 +480,7 @@ else
   mcp_state="$(printf '%s' "$mcp_json" | sed -n 's/.*"mcp":"\([^"]*\)".*/\1/p')"
   mcp_detail="$(printf '%s' "$mcp_json" | sed -n 's/.*"detail":"\([^"]*\)".*/\1/p')"
   [[ -n "$mcp_state" ]] || mcp_state=MCP_BLOCKED
-  printf 'Afyx Graph MCP: %s — %s\n' "$mcp_state" "$mcp_detail"
+  printf 'Afyx Graph MCP: %s â€” %s\n' "$mcp_state" "$mcp_detail"
   if [[ "$configure_mcp" == true && "$mcp_exit" == 0 && "$mcp_state" == MCP_REACHABLE ]] && printf '%s' "$mcp_json" | grep -Eq '"changed":[[:space:]]*true'; then
     printf 'Start a new Codex session to load the updated MCP configuration.\n'
   fi

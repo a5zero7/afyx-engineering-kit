@@ -96,12 +96,25 @@ class ArtifactIdentityTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as raw:
             base = Path(raw).resolve()
             archive = create_bundle(base, current)
+            self.run_tool("create-release-manifest", "--directory", str(base),
+                          "--output", str(base / "RELEASE-MANIFEST.json"),
+                          "--revision", current, "--version", GRAPH_VERSION, "--tag", f"afyx-graph-v{GRAPH_VERSION}")
             fake_bin = base / "fake-bin"
             gh = fake_bin / "gh"
+            digest = hashlib.sha256(archive.read_bytes()).hexdigest()
+            output = json.dumps([{"verificationResult": {"statement": {
+                "predicateType": "https://slsa.dev/provenance/v1",
+                "subject": [{"digest": {"sha256": digest}}],
+            }}}])
             write(gh, """#!/bin/sh
-if [ "$1" = auth ]; then [ "$AFYX_TEST_ATTESTATION" != auth ]; exit; fi
+if [ "$3" = --help ]; then
+  [ "$AFYX_TEST_ATTESTATION" != unavailable ] || exit 1
+  echo '--repo --signer-workflow --source-digest --format --predicate-type --hostname'
+  exit 0
+fi
 case "$AFYX_TEST_ATTESTATION" in
-  valid) exit 0 ;;
+  valid) printf '%s\\n' '""" + output + """'; exit 0 ;;
+  auth) echo 'HTTP 401 authentication required' >&2 ;;
   missing) echo 'no attestations found' >&2 ;;
   service) echo 'network timeout' >&2 ;;
   *) echo 'signature rejected' >&2 ;;
@@ -109,7 +122,7 @@ esac
 exit 1
 """, executable=True)
             for state, diagnostic in (
-                ("unavailable", "ATTESTATION_UNAVAILABLE"),
+                ("unavailable", "ATTESTATION_REQUIRED_FLAGS_UNAVAILABLE"),
                 ("auth", "ATTESTATION_AUTH_REQUIRED"), ("missing", "ATTESTATION_MISSING"),
                 ("service", "ATTESTATION_SERVICE_ERROR"), ("invalid", "ATTESTATION_VERIFICATION_FAILED"),
                 ("valid", None),
@@ -121,7 +134,7 @@ exit 1
                            "AFYX_GRAPH_RUNTIME_ROOT": str(runtime), "AFYX_GRAPH_BIN_DIR": str(base / "bin")}
                     result = subprocess.run(
                         ["bash", str(ROOT / "scripts/install-afyx-graph.sh"), "--archive", str(archive),
-                         "--skip-mcp", "--offline", "--require-attestation"], cwd=ROOT,
+                         "--skip-mcp", "--require-attestation"], cwd=ROOT,
                         env=env, capture_output=True, text=True, timeout=60,
                     )
                     if diagnostic:
@@ -181,7 +194,6 @@ exit 1
                     "--archive",
                     str(archive),
                     "--skip-mcp",
-                    "--offline",
                     "--require-attestation",
                 ],
                 cwd=ROOT,

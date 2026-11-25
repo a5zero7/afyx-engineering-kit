@@ -13,6 +13,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawn } from 'node:child_process';
+import { parseArgs } from 'node:util';
 import { StringDecoder } from 'node:string_decoder';
 
 import {
@@ -67,7 +68,7 @@ export function getPackageVersion() {
   return '1.1.0';
 }
 
-export const SUPPORTED_COMMANDS = ['install', 'verify', 'doctor', 'update', 'uninstall'];
+export const SUPPORTED_COMMANDS = ['install', 'verify', 'doctor', 'update', 'uninstall', 'clean'];
 
 // Explicit per-command option allowlist
 export const COMMAND_ALLOWED_OPTIONS = {
@@ -75,7 +76,7 @@ export const COMMAND_ALLOWED_OPTIONS = {
     'preset', 'provider', 'providerScope', 'workspaceRoot', 'skillsRoot',
     'contextRuntimeRoot', 'forgeRuntimeRoot', 'graphRuntimeRoot',
     'customComponents', 'componentActions',
-    'dryRun', 'validateOnly', 'force', 'allowDowngrade', 'offline', 'noBuildFallback',
+    'dryRun', 'validateOnly', 'force', 'allowDowngrade', 'offline', 'noBuildFallback', 'verifyAttestation',
     'skipProviderConfiguration', 'nonInteractive', 'ui'
   ]),
   verify: new Set([
@@ -83,6 +84,7 @@ export const COMMAND_ALLOWED_OPTIONS = {
     'contextRuntimeRoot', 'forgeRuntimeRoot', 'graphRuntimeRoot',
     'customComponents', 'skipProviderConfiguration'
   ]),
+  clean: new Set(['dryRun', 'json', 'maxAgeHours']),
   doctor: new Set([
     'skillsRoot', 'project'
   ]),
@@ -90,7 +92,7 @@ export const COMMAND_ALLOWED_OPTIONS = {
     'preset', 'provider', 'providerScope', 'workspaceRoot', 'skillsRoot',
     'contextRuntimeRoot', 'forgeRuntimeRoot', 'graphRuntimeRoot',
     'customComponents', 'componentActions',
-    'dryRun', 'allowDowngrade', 'offline', 'noBuildFallback', 'skipProviderConfiguration',
+    'dryRun', 'allowDowngrade', 'offline', 'noBuildFallback', 'verifyAttestation', 'skipProviderConfiguration',
     'skipSelfUpdate', 'nonInteractive'
   ]),
   uninstall: new Set([
@@ -103,9 +105,49 @@ export const COMMAND_ALLOWED_OPTIONS = {
   ])
 };
 
+const OPTIONS = {
+  'dry-run': { key: 'dryRun', type: 'boolean', aliases: ['-n', '--what-if'] },
+  'validate-only': { key: 'validateOnly', type: 'boolean' },
+  force: { key: 'force', type: 'boolean' },
+  'allow-downgrade': { key: 'allowDowngrade', type: 'boolean' },
+  offline: { key: 'offline', type: 'boolean' },
+  'no-build-fallback': { key: 'noBuildFallback', type: 'boolean' },
+  'verify-attestation': { key: 'verifyAttestation', type: 'boolean' },
+  'skip-provider-configuration': { key: 'skipProviderConfiguration', type: 'boolean' },
+  'skip-self-update': { key: 'skipSelfUpdate', type: 'boolean' },
+  'remove-provider-configuration': { key: 'removeProviderConfiguration', type: 'boolean' },
+  'remove-afyx-graph': { key: 'removeAfyxGraph', type: 'boolean' },
+  'remove-afyx-context': { key: 'removeAfyxContext', type: 'boolean' },
+  'remove-afyx-forge': { key: 'removeAfyxForge', type: 'boolean' },
+  all: { key: 'all', type: 'boolean' },
+  'prune-backups': { key: 'pruneBackups', type: 'boolean' },
+  'purge-backups': { key: 'purgeBackups', type: 'boolean' },
+  'non-interactive': { key: 'nonInteractive', type: 'boolean', aliases: ['-y', '--yes'] },
+  json: { key: 'json', type: 'boolean' },
+  ui: { key: 'ui', type: 'string' },
+  preset: { key: 'preset', type: 'string', allowEmpty: true },
+  provider: { key: 'provider', type: 'string' },
+  'provider-scope': { key: 'providerScope', type: 'string' },
+  'workspace-root': { key: 'workspaceRoot', type: 'string' },
+  'skills-root': { key: 'skillsRoot', type: 'string' },
+  'context-runtime-root': { key: 'contextRuntimeRoot', type: 'string' },
+  'forge-runtime-root': { key: 'forgeRuntimeRoot', type: 'string' },
+  'graph-runtime-root': { key: 'graphRuntimeRoot', type: 'string' },
+  project: { key: 'project', type: 'string' },
+  'custom-component': { key: 'customComponents', type: 'string', repeat: resolveComponentId },
+  component: { key: 'componentActions', type: 'string', repeat: value => {
+    const [id, action] = value.split('=');
+    return action === undefined ? value : resolveComponentId(id) + '=' + action;
+  } },
+  'max-age-hours': { key: 'maxAgeHours', type: 'string' },
+};
+const PARSE_OPTIONS = Object.fromEntries(Object.entries(OPTIONS).map(([name, spec]) => [name, { type: spec.type }]));
+const OPTION_NAMES = new Map(Object.entries(OPTIONS).flatMap(([name, spec]) =>
+  ['--' + name, ...(spec.aliases ?? [])].map(flag => [flag, name])));
+
 export function getHelpText() {
   const version = getPackageVersion();
-  return `AFYX Engineering Kit — Universal Cross-Platform CLI Installer v${version}
+  return `AFYX Engineering Kit â€” Universal Cross-Platform CLI Installer v${version}
 
 Usage:
   afyx-engineering-kit <command> [options]
@@ -117,6 +159,7 @@ Commands:
   doctor        Inspect environment readiness and diagnostic checks (read-only)
   update        Update installed AFYX components to the latest revision
   uninstall     Safely remove AFYX-managed components and provider entries
+  clean         Remove inactive, verified AFYX temporary artifacts
 
 Universal Native Capabilities:
   afyx-work-ledger             Cryptographic task ledger and execution receipts
@@ -155,6 +198,9 @@ Options:
   --allow-downgrade               Allow replacing a higher-version installation with this package
   --offline                       Disable network requests during installation
   --no-build-fallback             Fail if pre-packaged binary archive is unavailable
+  --verify-attestation            Require GitHub provenance before Graph installation
+  --max-age-hours <hours>         Clean retention (default and minimum 6 hours)
+  --json                          Output cleanup counts as JSON
   --non-interactive, -y, --yes    Bypass interactive confirmations
   --project <path>                Target directory for doctor inspection
   --version, -v                   Display package version
@@ -240,126 +286,36 @@ export function parseCliArgs(rawArgs) {
       return result;
     }
 
-    const extractOptionValue = (flagName) => {
-      if (arg.includes('=')) {
-        return arg.slice(arg.indexOf('=') + 1);
-      }
-      if (i + 1 >= args.length) {
-        result.errors.push(`${flagName} requires a value`);
-        return null;
-      }
-      const nextToken = args[i + 1];
-      if (nextToken.startsWith('-')) {
-        result.errors.push(`${flagName} requires a value`);
-        return null;
-      }
-      i++;
-      return nextToken;
-    };
-
-    if (arg === '--dry-run' || arg === '-n' || arg === '--what-if') {
-      if (recordOption('dryRun', arg)) result.options.dryRun = true;
-    } else if (arg === '--validate-only') {
-      if (recordOption('validateOnly', arg)) result.options.validateOnly = true;
-    } else if (arg === '--force') {
-      if (recordOption('force', arg)) result.options.force = true;
-    } else if (arg === '--allow-downgrade') {
-      if (recordOption('allowDowngrade', arg)) result.options.allowDowngrade = true;
-    } else if (arg === '--offline') {
-      if (recordOption('offline', arg)) result.options.offline = true;
-    } else if (arg === '--no-build-fallback') {
-      if (recordOption('noBuildFallback', arg)) result.options.noBuildFallback = true;
-    } else if (arg === '--skip-provider-configuration') {
-      if (recordOption('skipProviderConfiguration', arg)) result.options.skipProviderConfiguration = true;
-    } else if (arg === '--skip-self-update') {
-      if (recordOption('skipSelfUpdate', arg)) result.options.skipSelfUpdate = true;
-    } else if (arg === '--remove-provider-configuration') {
-      if (recordOption('removeProviderConfiguration', arg)) result.options.removeProviderConfiguration = true;
-    } else if (arg === '--remove-afyx-graph') {
-      if (recordOption('removeAfyxGraph', arg)) result.options.removeAfyxGraph = true;
-    } else if (arg === '--remove-afyx-context') {
-      if (recordOption('removeAfyxContext', arg)) result.options.removeAfyxContext = true;
-    } else if (arg === '--remove-afyx-forge') {
-      if (recordOption('removeAfyxForge', arg)) result.options.removeAfyxForge = true;
-    } else if (arg === '--all') {
-      if (recordOption('all', arg)) result.options.all = true;
-    } else if (arg === '--prune-backups') {
-      if (recordOption('pruneBackups', arg)) result.options.pruneBackups = true;
-    } else if (arg === '--purge-backups') {
-      if (recordOption('purgeBackups', arg)) result.options.purgeBackups = true;
-    } else if (arg === '--non-interactive' || arg === '-y' || arg === '--yes') {
-      if (recordOption('nonInteractive', arg)) result.options.nonInteractive = true;
-    } else if (arg === '--ui' || arg.startsWith('--ui=')) {
-      const val = extractOptionValue('--ui');
-      if (val === null) {}
-      else if (!['auto', 'tui', 'plain'].includes(val)) result.errors.push('--ui requires auto, tui, or plain');
-      else if (recordOption('ui', '--ui')) result.options.ui = val;
-    } else if (arg === '--preset' || arg.startsWith('--preset=')) {
-      const val = extractOptionValue('--preset');
-      if (val === null) {}
-      else if (!val) result.errors.push('--preset requires a value');
-      else if (recordOption('preset', '--preset')) result.options.preset = val;
-    } else if (arg === '--provider' || arg.startsWith('--provider=')) {
-      const val = extractOptionValue('--provider');
-      if (val === null) {}
-      else if (!val) result.errors.push('--provider requires a value');
-      else if (recordOption('provider', '--provider')) result.options.provider = val;
-    } else if (arg === '--provider-scope' || arg.startsWith('--provider-scope=')) {
-      const val = extractOptionValue('--provider-scope');
-      if (val === null) {}
-      else if (!val) result.errors.push('--provider-scope requires a value');
-      else if (recordOption('providerScope', '--provider-scope')) result.options.providerScope = val;
-    } else if (arg === '--workspace-root' || arg.startsWith('--workspace-root=')) {
-      const val = extractOptionValue('--workspace-root');
-      if (val === null) {}
-      else if (!val) result.errors.push('--workspace-root requires a value');
-      else if (recordOption('workspaceRoot', '--workspace-root')) result.options.workspaceRoot = val;
-    } else if (arg === '--skills-root' || arg.startsWith('--skills-root=')) {
-      const val = extractOptionValue('--skills-root');
-      if (val === null) {}
-      else if (!val) result.errors.push('--skills-root requires a value');
-      else if (recordOption('skillsRoot', '--skills-root')) result.options.skillsRoot = val;
-    } else if (arg === '--context-runtime-root' || arg.startsWith('--context-runtime-root=')) {
-      const val = extractOptionValue('--context-runtime-root');
-      if (val === null) {}
-      else if (!val) result.errors.push('--context-runtime-root requires a value');
-      else if (recordOption('contextRuntimeRoot', '--context-runtime-root')) result.options.contextRuntimeRoot = val;
-    } else if (arg === '--forge-runtime-root' || arg.startsWith('--forge-runtime-root=')) {
-      const val = extractOptionValue('--forge-runtime-root');
-      if (val === null) {}
-      else if (!val) result.errors.push('--forge-runtime-root requires a value');
-      else if (recordOption('forgeRuntimeRoot', '--forge-runtime-root')) result.options.forgeRuntimeRoot = val;
-    } else if (arg === '--graph-runtime-root' || arg.startsWith('--graph-runtime-root=')) {
-      const val = extractOptionValue('--graph-runtime-root');
-      if (val === null) {}
-      else if (!val) result.errors.push('--graph-runtime-root requires a value');
-      else if (recordOption('graphRuntimeRoot', '--graph-runtime-root')) result.options.graphRuntimeRoot = val;
-    } else if (arg === '--project' || arg.startsWith('--project=')) {
-      const val = extractOptionValue('--project');
-      if (val === null) {}
-      else if (!val) result.errors.push('--project requires a value');
-      else if (recordOption('project', '--project')) result.options.project = val;
-    } else if (arg === '--custom-component' || arg.startsWith('--custom-component=')) {
-      const val = extractOptionValue('--custom-component');
-      if (val === null) {}
-      else if (!val) result.errors.push('--custom-component requires a value');
-      else if (recordOption('customComponents', '--custom-component')) result.options.customComponents.push(resolveComponentId(val));
-    } else if (arg === '--component' || arg.startsWith('--component=')) {
-      const val = extractOptionValue('--component');
-      if (val === null) {}
-      else if (!val) result.errors.push('--component requires a value');
-      else if (recordOption('componentActions', '--component')) {
-        if (val.includes('=')) {
-          const [cId, cAction] = val.split('=');
-          result.options.componentActions.push(`${resolveComponentId(cId)}=${cAction}`);
-        } else {
-          result.options.componentActions.push(val);
-        }
-      }
-    } else {
+    const equal = arg.indexOf('=');
+    const name = OPTION_NAMES.get(equal < 0 ? arg : arg.slice(0, equal));
+    if (!name || (equal >= 0 && OPTIONS[name].type !== 'string')) {
       result.errors.push(`Unknown option: "${arg}"`);
+      continue;
+    }
+    const spec = OPTIONS[name];
+    const flag = '--' + name;
+    let normalized = flag;
+    if (spec.type === 'string') {
+      if (equal < 0 && (i + 1 >= args.length || args[i + 1].startsWith('-'))) {
+        result.errors.push(flag + ' requires a value');
+        continue;
+      }
+      normalized += '=' + (equal < 0 ? args[++i] : arg.slice(equal + 1));
+    }
+    const value = parseArgs({ args: [normalized], options: PARSE_OPTIONS }).values[name];
+    if (spec.type === 'string' && !value && !spec.allowEmpty && name !== 'ui') {
+      result.errors.push(flag + ' requires a value');
+    } else if (name === 'ui' && !['auto', 'tui', 'plain'].includes(value)) {
+      result.errors.push('--ui requires auto, tui, or plain');
+    } else if (recordOption(spec.key, spec.type === 'boolean' ? arg : flag)) {
+      if (spec.repeat) result.options[spec.key].push(spec.repeat(value));
+      else result.options[spec.key] = value;
     }
   }
+
+  if (result.command === 'clean' && result.options.maxAgeHours !== undefined &&
+      (!/^\d{1,5}$/.test(result.options.maxAgeHours) || Number(result.options.maxAgeHours) < 6 ||
+          Number(result.options.maxAgeHours) > 8760)) result.errors.push('--max-age-hours requires an integer from 6 to 8760');
 
   // Cross-option validation
   if (result.options.skipProviderConfiguration && result.options.provider) {
@@ -380,6 +336,7 @@ export function parseCliArgs(rawArgs) {
 export function buildSubprocessCall(command, options = {}, platform = process.platform, pkgRoot = PACKAGE_ROOT) {
   const isWindows = platform === 'win32';
   const env = { ...process.env };
+  if (options.verifyAttestation) env.AFYX_GRAPH_ATTESTATION_MODE = 'required';
 
   // Graph runtime root is passed via environment variable across all backend scripts
   if (options.graphRuntimeRoot) {

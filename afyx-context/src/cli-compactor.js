@@ -21,23 +21,19 @@ import {
   closeSync,
   constants,
   existsSync,
-  mkdirSync,
   mkdtempSync,
   openSync,
-  readdirSync,
   readFileSync,
-  statSync,
-  unlinkSync,
   writeSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { registerCompletedSpill } from './temp-artifacts.js';
 
 export const CLI_COMPACTOR_CONTRACT = 'AfyxCliCompactor/v1';
 export const COMPACTED_OUTPUT_MARKER = '<!-- AFYX-CLI-COMPACTED -->';
 
 const MAX_SUMMARY_ERRORS = 500;
-const SPILL_MAX_AGE_MS = 24 * 60 * 60 * 1000; // 24 hours
 
 export class CliCompactor {
   /**
@@ -50,7 +46,6 @@ export class CliCompactor {
     this.spillBaseDir = options.spillDir || tmpdir();
     this.enableSpill = options.enableSpill !== false;
     this.maxSpillSizeBytes = options.maxSpillSizeBytes || 50 * 1024 * 1024;
-    this._spillDir = null;
   }
 
   /**
@@ -61,49 +56,10 @@ export class CliCompactor {
    * @returns {string|null}
    */
   _getSecureSpillDir() {
-    if (this._spillDir && existsSync(this._spillDir)) {
-      return this._spillDir;
-    }
-
     try {
-      this._spillDir = mkdtempSync(join(this.spillBaseDir, 'afyx-cli-spill-'));
-      // Clean up old spills lazily
-      this._cleanupOldSpills();
-      return this._spillDir;
+      return mkdtempSync(join(this.spillBaseDir, 'afyx-cli-spill-'));
     } catch {
-      this._spillDir = null;
       return null;
-    }
-  }
-
-  /**
-   * Removes spill files older than SPILL_MAX_AGE_MS.
-   * @private
-   */
-  _cleanupOldSpills() {
-    try {
-      const now = Date.now();
-      const files = readdirSync(this.spillBaseDir);
-      for (const file of files) {
-        if (file.startsWith('afyx-cli-spill-') || file.startsWith('afyx_raw_cli_')) {
-          const full = join(this.spillBaseDir, file);
-          const st = statSync(full);
-          if (now - st.mtimeMs > SPILL_MAX_AGE_MS) {
-            try {
-              if (st.isDirectory()) {
-                const subfiles = readdirSync(full);
-                for (const sub of subfiles) unlinkSync(join(full, sub));
-              } else {
-                unlinkSync(full);
-              }
-            } catch {
-              // Ignore cleanup race
-            }
-          }
-        }
-      }
-    } catch {
-      // Ignore directory read failure
     }
   }
 
@@ -157,6 +113,7 @@ export class CliCompactor {
         closeSync(fd);
       }
 
+      registerCompletedSpill(filePath);
       return {
         path: filePath,
         truncated,
@@ -215,7 +172,7 @@ export class CliCompactor {
       const res = this._compactVitest(rawOutput);
       compactedBody = res.text;
       failuresPreserved = res.failuresCount;
-    } else if (command.includes('node --test') || rawOutput.includes('ℹ pass') || rawOutput.includes('ℹ fail')) {
+    } else if (command.includes('node --test') || rawOutput.includes('â„¹ pass') || rawOutput.includes('â„¹ fail')) {
       const res = this._compactNodeTest(rawOutput);
       compactedBody = res.text;
       failuresPreserved = res.failuresCount;
@@ -335,9 +292,9 @@ export class CliCompactor {
       }
 
       if (command.includes('vitest') || line.includes('RUN  v') || line.includes('Test Files')) {
-        if (line.includes('✓') && (line.includes('passed') || line.includes('tests)'))) {
+        if (line.includes('âœ“') && (line.includes('passed') || line.includes('tests)'))) {
           passedCount++;
-        } else if (line.includes('FAIL') || line.includes('Failed Tests') || line.includes('×')) {
+        } else if (line.includes('FAIL') || line.includes('Failed Tests') || line.includes('Ã—')) {
           inFailureSection = true;
           failedCount++;
           if (failureLines.length < MAX_SUMMARY_ERRORS) failureLines.push(line);
@@ -347,15 +304,15 @@ export class CliCompactor {
         } else if (inFailureSection) {
           if (failureLines.length < MAX_SUMMARY_ERRORS) failureLines.push(line);
         }
-      } else if (command.includes('node --test') || line.includes('ℹ pass') || line.includes('ℹ fail')) {
-        if (line.startsWith('✔')) {
+      } else if (command.includes('node --test') || line.includes('â„¹ pass') || line.includes('â„¹ fail')) {
+        if (line.startsWith('âœ”')) {
           passedCount++;
-        } else if (line.startsWith('✖')) {
+        } else if (line.startsWith('âœ–')) {
           failedCount++;
           if (failureLines.length < MAX_SUMMARY_ERRORS) failureLines.push(line);
-        } else if (line.startsWith('ℹ')) {
+        } else if (line.startsWith('â„¹')) {
           summaryLines.push(line);
-        } else if (failedCount > 0 && !line.startsWith('✔')) {
+        } else if (failedCount > 0 && !line.startsWith('âœ”')) {
           if (failureLines.length < MAX_SUMMARY_ERRORS) failureLines.push(line);
         }
       } else if (command.includes('pytest') || line.includes('==== test session starts ====')) {
@@ -431,7 +388,10 @@ export class CliCompactor {
 
       stream.on('end', () => {
         if (fd !== null) {
-          try { closeSync(fd); } catch { /* ignore */ }
+          try {
+            closeSync(fd);
+            if (filePath) registerCompletedSpill(filePath);
+          } catch { /* ignore */ }
         }
 
         const remaining = leftoverLine + decoder.end();
@@ -442,14 +402,14 @@ export class CliCompactor {
         let compactedBody = '';
         if (command.includes('vitest')) {
           const parts = [];
-          if (passedCount > 0) parts.push(`✓ [Compacted ${passedCount} passing test suite lines]`);
-          if (failureLines.length > 0) parts.push('⎯⎯⎯⎯⎯⎯⎯ PRESERVED FAILURE DIAGNOSTICS ⎯⎯⎯⎯⎯⎯⎯\n' + failureLines.join('\n'));
+          if (passedCount > 0) parts.push(`âœ“ [Compacted ${passedCount} passing test suite lines]`);
+          if (failureLines.length > 0) parts.push('âŽ¯âŽ¯âŽ¯âŽ¯âŽ¯âŽ¯âŽ¯ PRESERVED FAILURE DIAGNOSTICS âŽ¯âŽ¯âŽ¯âŽ¯âŽ¯âŽ¯âŽ¯\n' + failureLines.join('\n'));
           if (summaryLines.length > 0) parts.push(summaryLines.join('\n'));
           compactedBody = parts.join('\n\n') || `[Compacted ${totalLinesCount} lines]`;
         } else if (command.includes('node --test')) {
           const parts = [];
-          if (passedCount > 0) parts.push(`✔ [Compacted ${passedCount} passing tests]`);
-          if (failureLines.length > 0) parts.push('✖ PRESERVED TEST FAILURES:\n' + failureLines.join('\n'));
+          if (passedCount > 0) parts.push(`âœ” [Compacted ${passedCount} passing tests]`);
+          if (failureLines.length > 0) parts.push('âœ– PRESERVED TEST FAILURES:\n' + failureLines.join('\n'));
           if (summaryLines.length > 0) parts.push(summaryLines.join('\n'));
           compactedBody = parts.join('\n\n') || `[Compacted ${totalLinesCount} lines]`;
         } else if (command.includes('pytest')) {
@@ -521,12 +481,12 @@ export class CliCompactor {
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
 
-      if (line.includes('✓') && (line.includes('passed') || line.includes('tests)'))) {
+      if (line.includes('âœ“') && (line.includes('passed') || line.includes('tests)'))) {
         passedCount++;
         continue;
       }
 
-      if (line.includes('FAIL') || line.includes('Failed Tests') || line.includes('×')) {
+      if (line.includes('FAIL') || line.includes('Failed Tests') || line.includes('Ã—')) {
         inFailureSection = true;
         failedCount++;
       }
@@ -544,11 +504,11 @@ export class CliCompactor {
 
     const parts = [];
     if (passedCount > 0) {
-      parts.push(`✓ [Compacted ${passedCount} passing test suite lines]`);
+      parts.push(`âœ“ [Compacted ${passedCount} passing test suite lines]`);
     }
 
     if (failureLines.length > 0) {
-      parts.push('⎯⎯⎯⎯⎯⎯⎯ PRESERVED FAILURE DIAGNOSTICS ⎯⎯⎯⎯⎯⎯⎯\n' + failureLines.join('\n'));
+      parts.push('âŽ¯âŽ¯âŽ¯âŽ¯âŽ¯âŽ¯âŽ¯ PRESERVED FAILURE DIAGNOSTICS âŽ¯âŽ¯âŽ¯âŽ¯âŽ¯âŽ¯âŽ¯\n' + failureLines.join('\n'));
     }
 
     if (summaryLine) {
@@ -568,24 +528,24 @@ export class CliCompactor {
     const summaryLines = [];
 
     for (const line of lines) {
-      if (line.startsWith('✔')) {
+      if (line.startsWith('âœ”')) {
         passedCount++;
-      } else if (line.startsWith('✖')) {
+      } else if (line.startsWith('âœ–')) {
         failedCount++;
         failureLines.push(line);
-      } else if (line.startsWith('ℹ')) {
+      } else if (line.startsWith('â„¹')) {
         summaryLines.push(line);
-      } else if (failedCount > 0 && !line.startsWith('✔')) {
+      } else if (failedCount > 0 && !line.startsWith('âœ”')) {
         failureLines.push(line);
       }
     }
 
     const parts = [];
     if (passedCount > 0) {
-      parts.push(`✔ [Compacted ${passedCount} passing tests]`);
+      parts.push(`âœ” [Compacted ${passedCount} passing tests]`);
     }
     if (failureLines.length > 0) {
-      parts.push('✖ PRESERVED TEST FAILURES:\n' + failureLines.join('\n'));
+      parts.push('âœ– PRESERVED TEST FAILURES:\n' + failureLines.join('\n'));
     }
     if (summaryLines.length > 0) {
       parts.push(summaryLines.join('\n'));

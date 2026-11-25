@@ -1,8 +1,9 @@
 #!/usr/bin/env node
 /** Canonical Afyx Graph artifact identity shared by Windows and POSIX lifecycle scripts. */
 import { createHash } from 'node:crypto';
-import { readFileSync, writeFileSync, readdirSync } from 'node:fs';
-import { basename, join, resolve } from 'node:path';
+import { spawnSync } from 'node:child_process';
+import { readFileSync, writeFileSync, readdirSync, statSync, realpathSync } from 'node:fs';
+import { basename, delimiter, isAbsolute, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const UNKNOWN = 'UNKNOWN';
@@ -121,6 +122,69 @@ function verifyReleaseManifest(manifestFile, archiveFile, metadataFile) {
   return { status: 'VERIFIED', sourceRevision: identity.sourceRevision, target: identity.target, archiveSha256: entry.sha256 };
 }
 
+const RELEASE_REPOSITORY = 'a5zero7/afyx-engineering-kit';
+const RELEASE_WORKFLOW = RELEASE_REPOSITORY + '/.github/workflows/graph-release.yml';
+const SLSA_PREDICATE = 'https://slsa.dev/provenance/v1';
+
+function findGitHubCli() {
+  const executable = process.platform === 'win32' ? 'gh.exe' : 'gh';
+  for (const dir of (process.env.PATH || '').split(delimiter).filter(isAbsolute).slice(0, 128)) {
+    try {
+      const path = realpathSync(join(dir, executable));
+      if (statSync(path).isFile()) return path;
+    } catch {}
+  }
+}
+
+export function verifyArtifactAttestation(archive, identity, {
+  mode = 'optional', offline = false, executable = findGitHubCli(), run = spawnSync,
+} = {}) {
+  const result = (status, reason) => ({ status, reason, accepted: status === 'VERIFIED' ||
+    (mode === 'optional' && status.startsWith('SKIPPED_')) });
+  if (offline) return result('SKIPPED_OFFLINE', 'ATTESTATION_OFFLINE');
+  if (!executable) return result('SKIPPED_GH_UNAVAILABLE', 'ATTESTATION_UNAVAILABLE');
+  const args = ['attestation', 'verify'];
+  const options = { env: { ...process.env, GH_PROMPT_DISABLED: '1', GH_NO_UPDATE_NOTIFIER: '1',
+    GH_NO_EXTENSION_UPDATE_NOTIFIER: '1' }, timeout: 15000, killSignal: 'SIGKILL',
+    maxBuffer: 2 * 1024 * 1024, encoding: 'utf8', shell: false, windowsHide: true };
+  try {
+    const help = run(executable, [...args, '--help'], options);
+    if (help.error || help.status !== 0 || !['--repo', '--signer-workflow', '--source-digest', '--format', '--predicate-type', '--hostname']
+      .every(flag => typeof help.stdout === 'string' && help.stdout.includes(flag))) {
+      return result('SKIPPED_GH_UNAVAILABLE', 'ATTESTATION_REQUIRED_FLAGS_UNAVAILABLE');
+    }
+    if (!/^[0-9a-f]{40}$/.test(identity?.sourceRevision ?? '') ||
+        !/^[0-9a-f]{64}$/i.test(identity?.archiveSha256 ?? '') ||
+        sha256(archive) !== identity.archiveSha256.toLowerCase()) {
+      return result('FAILED', 'ATTESTATION_ARTIFACT_IDENTITY_MISMATCH');
+    }
+    const verification = run(executable, [...args, resolve(archive), '--repo', RELEASE_REPOSITORY,
+      '--hostname', 'github.com', '--signer-workflow', RELEASE_WORKFLOW,
+      '--source-digest', identity.sourceRevision, '--predicate-type', SLSA_PREDICATE, '--format', 'json'], options);
+    if (verification.status !== 0 || verification.error) {
+      const stderr = verification.stderr ?? '';
+      const reason = /no attestations? found|attestations? not found/i.test(stderr) ? 'ATTESTATION_MISSING' :
+        /auth|login|401/i.test(stderr) ? 'ATTESTATION_AUTH_REQUIRED' :
+        /network|timeout|connection|HTTP 5\d\d|rate limit/i.test(stderr) || verification.error?.code === 'ETIMEDOUT'
+          ? 'ATTESTATION_SERVICE_ERROR' : 'ATTESTATION_VERIFICATION_FAILED';
+      return result('FAILED', reason);
+    }
+    // gh enforces source digest and workflow against the verified signing
+    // certificate. Only examine the statement from that verification result.
+    const statements = JSON.parse(verification.stdout);
+    if (!Array.isArray(statements) || !statements.some(item => {
+      const statement = item?.verificationResult?.statement;
+      return statement?.predicateType === SLSA_PREDICATE && Array.isArray(statement.subject) &&
+        statement.subject.some(subject => subject?.digest?.sha256 === identity.archiveSha256.toLowerCase());
+    }) || sha256(archive) !== identity.archiveSha256.toLowerCase()) {
+      return result('FAILED', 'ATTESTATION_SUBJECT_MISMATCH');
+    }
+    return result('VERIFIED', null);
+  } catch {
+    return result('FAILED', 'ATTESTATION_VERIFICATION_FAILED');
+  }
+}
+
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   try {
     const command = process.argv[2];
@@ -146,6 +210,16 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
         requireValue(argument('--archive'), '--archive'),
         requireValue(file, '--metadata'),
       )));
+    } else if (command === 'verify-attestation') {
+      const mode = argument('--mode');
+      if (!['optional', 'required'].includes(mode)) throw new Error('Invalid attestation mode');
+      const archive = requireValue(argument('--archive'), '--archive');
+      const manifest = argument('--manifest');
+      const identity = manifest && file ? verifyReleaseManifest(manifest, archive, file) : null;
+      const result = verifyArtifactAttestation(archive, identity, { mode, offline: argument('--offline') === 'true' });
+      console.log(result.status);
+      if (result.reason) console.error('[' + result.reason + ']');
+      if (!result.accepted) process.exitCode = 1;
     } else if (command === 'stamp') {
       const stamped = stampArtifact(readMetadata(file), {
         target: requireValue(argument('--target'), '--target'),

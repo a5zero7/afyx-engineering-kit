@@ -2,6 +2,16 @@
 
 ## [Unreleased] — v1.2.0
 
+- Graph menemukan peer dari deklarasi workspace statis dan sibling yang
+  diizinkan. Indeks yang sudah ada tetap harus segar dan memiliki binding
+  kontrak sah.
+- Inspector menyediakan inspeksi PostgreSQL/MySQL baca-saja dengan host dan
+  role yang disetujui serta operasi terbatas. SQLite, CSV, dan JSON tetap lokal.
+- CLI lifecycle memakai parser deklaratif. `afyx clean` mendukung preview dan
+  receipt spill yang telah selesai. Instalasi Graph dapat mewajibkan attestation
+  yang terikat pada repo, workflow, SHA sumber, dan digest artefak.
+- Kebijakan keamanan dan tata tertib kontribusi disertakan dalam distribusi.
+
 - Graph menambahkan binding eksplisit GraphQL dan gRPC untuk Rust, C#, PHP,
   dan Ruby, serta edge refleksi untuk target statis yang dapat dibuktikan.
 - Usage Intelligence menerima metadata lokal Claude Code dan format rekaman
