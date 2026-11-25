@@ -1,18 +1,31 @@
 # Changelog
 
-## [Unreleased] — v1.1.0
+## [1.1.0] - 2026-11-25
 
-- Opened the v1.1.0 development cycle on `dev` from `977b7af`.
-- Archived completed engineering reports and added contributor verification
+- **Batch 1 — Documentation hygiene, historical archives, and governance:**
+  Archived completed engineering reports and added contributor verification
   and release-branch guidance.
-- Linked GraphQL SDL fields to explicit resolver bindings in TypeScript,
-  JavaScript, Python, and Go.
-- Linked Protobuf RPC declarations to gRPC handlers in Go, TypeScript,
-  JavaScript, Python, and Java. Incremental sync reconciles dispatch edges
-  so callers, callees, and impact analysis follow current bindings.
-- Added [cross-repository contract impact](docs/tool-guides/AFYX_CROSS_REPO_CONTRACT_IMPACT.md)
+- **Batch 2 — Cross-language GraphQL/gRPC resolver linking:** Linked GraphQL SDL
+  fields to explicit resolver bindings in TypeScript, JavaScript, Python, and Go,
+  and linked Protobuf RPC declarations to gRPC handlers in Go, TypeScript,
+  JavaScript, Python, and Java with incremental dispatch-edge reconciliation.
+- **Batch 3 — Cross-repository contract impact and massive-context Forge
+  integration:** Added [cross-repository contract impact](docs/tool-guides/AFYX_CROSS_REPO_CONTRACT_IMPACT.md)
   for explicitly configured, fresh sibling indexes, with bounded Context
-  evidence and producer-first Forge advisory plans.
+  evidence, producer-first Forge advisory plans, and canonical macOS path
+  resolution.
+- **Batch 4 — Unified Node.js installer core consolidation:** Added
+  `scripts/afyx-installer-core.mjs` (pure Node.js standard library, zero external
+  runtime dependencies) consolidating path normalization/containment, component
+  contract & version checks, skill manifest validation, ownership/backup
+  digests, receipt validation, atomic receipt persistence, and backup retention
+  planning across PowerShell, Bash, and npm installers while preserving existing
+  TUI, CLI flags, exit codes, security boundaries, and shell-only bootstrap
+  fallbacks.
+- **Compatibility, Platforms & Signing:** Targets Windows x64, Linux x64, macOS
+  ARM64 (`macos-15`), and macOS Intel x64 (`macos-15-intel`) with Node.js >=
+  22.5.0. Windows installer remains unsigned under `OWNER_SIGNING_WAIVER_V1`
+  (`NotSigned`). Upgrade from `v1.0.x` via `npx afyx-engineering-kit@1.1.0 update`.
 
 ## [1.0.2] — 2026-11-24
 

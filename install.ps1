@@ -155,7 +155,7 @@ if ($wizardMode) {
     Enable-AfyxDashboard -Terminal $terminal -Providers $providerSnapshot
 }
 if (-not (Test-AfyxDashboard -Terminal $terminal)) {
-    Show-AfyxBanner -Terminal $terminal -Subtitle 'Interactive Installer v1.0.2 | Midnight Circuit'
+    Show-AfyxBanner -Terminal $terminal -Subtitle 'Interactive Installer v1.1.0 | Midnight Circuit'
 }
 
 try {
@@ -1244,7 +1244,7 @@ foreach ($entry in $summary.GetEnumerator()) {
         Detail = "outcome=$($entry.Value)"
     }
 }
-# Expose 8 Universal Native Capability Summaries (v1.0.2)
+# Expose 8 Universal Native Capability Summaries (v1.1.0)
 if ($states['Afyx Context Engine'] -eq 'HEALTHY' -or ($contextAction -and $contextAction -ne 'skip')) {
     $receipt += [pscustomobject]@{ Status = 'HEALTHY'; Name = 'Capability: afyx-work-ledger'; Detail = 'Cryptographic task ledger and verified execution receipts' }
     $receipt += [pscustomobject]@{ Status = 'HEALTHY'; Name = 'Capability: afyx-impact-simulator'; Detail = 'Deterministic change blast radius and ripple simulation' }

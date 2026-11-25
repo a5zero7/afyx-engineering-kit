@@ -31,7 +31,7 @@ param(
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
-Write-Host 'Afyx Engineering Kit v1.0.2 — Windows updater (PowerShell)'
+Write-Host 'Afyx Engineering Kit v1.1.0 — Windows updater (PowerShell)'
 $installer = Join-Path $PSScriptRoot 'install.ps1'
 $root = $PSScriptRoot
 if (-not $PSBoundParameters.ContainsKey('SkillsRoot') -and $ProviderScope -eq 'workspace' -and 'antigravity' -in $Provider) {

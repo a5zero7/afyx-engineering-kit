@@ -15,15 +15,17 @@ import { fileURLToPath } from 'node:url';
 import { spawn } from 'node:child_process';
 import { StringDecoder } from 'node:string_decoder';
 
+import {
+  LEGACY_COMPONENT_ALIASES,
+  loadComponentsContract,
+  resolveComponentId as resolveCanonicalComponentId,
+} from './afyx-installer-core.mjs';
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 export const PACKAGE_ROOT = resolve(__dirname, '..');
-const componentIds = new Set(JSON.parse(readFileSync(join(__dirname, 'components.json'), 'utf8')).components.map((entry) => entry.id));
-const legacyAliases = new Map([
-  ['efficient-coding', 'afyx-efficient-coding'],
-  ['odoo-engineering', 'afyx-odoo-engineering'],
-  ['codex-usage-tracking', 'afyx-usage-intelligence'],
-]);
+const componentIds = new Set(loadComponentsContract(join(__dirname, 'components.json')).components.map((entry) => entry.id));
+const legacyAliases = LEGACY_COMPONENT_ALIASES;
 
 function checkedComponents(values, actions = false) {
   if (!Array.isArray(values)) throw new Error('Component selections must be an array.');
@@ -56,13 +58,13 @@ export function getPackageVersion() {
     const pkgJsonPath = join(PACKAGE_ROOT, 'package.json');
     if (existsSync(pkgJsonPath)) {
       const data = JSON.parse(readFileSync(pkgJsonPath, 'utf8'));
-      cachedVersion = data.version || '1.0.2';
+      cachedVersion = data.version || '1.1.0';
       return cachedVersion;
     }
   } catch {
     // fallback
   }
-  return '1.0.2';
+  return '1.1.0';
 }
 
 export const SUPPORTED_COMMANDS = ['install', 'verify', 'doctor', 'update', 'uninstall'];
@@ -169,10 +171,7 @@ Examples:
 }
 
 export function resolveComponentId(id) {
-  if (id === 'efficient-coding') return 'afyx-efficient-coding';
-  if (id === 'odoo-engineering') return 'afyx-odoo-engineering';
-  if (id === 'codex-usage-tracking') return 'afyx-usage-intelligence';
-  return id;
+  return resolveCanonicalComponentId(id);
 }
 
 export function parseCliArgs(rawArgs) {

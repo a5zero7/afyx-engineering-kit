@@ -1,6 +1,27 @@
 Set-StrictMode -Version Latest
 
 $script:MarkerName = '.afyx-install.json'
+$script:InstallerCorePath = Join-Path (Split-Path -Parent $PSScriptRoot) 'afyx-installer-core.mjs'
+
+function Invoke-AfyxCoreRetentionPlan {
+    param(
+        [Parameter(Mandatory)][string]$ComponentRoot,
+        [Parameter(Mandatory)][string]$Component,
+        [int]$Limit = 20,
+        [Nullable[int]]$Keep = $null,
+        [switch]$ProtectNew
+    )
+    if ($env:AFYX_FORCE_SHELL_FALLBACK -eq '1') { return $null }
+    $nodeCmd = Get-Command node -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
+    if (-not $nodeCmd -or -not (Test-Path -LiteralPath $script:InstallerCorePath -PathType Leaf)) { return $null }
+    $argsList = @($script:InstallerCorePath, 'plan-backup-retention', '--root', $ComponentRoot, '--component', $Component)
+    if ($null -ne $Keep) { $argsList += @('--keep', [string]$Keep) }
+    else { $argsList += @('--limit', [string]$Limit) }
+    if ($ProtectNew) { $argsList += '--protect-new' }
+    $raw = & $nodeCmd.Source @argsList 2>$null
+    if ($LASTEXITCODE -ne 0 -or -not $raw) { return $null }
+    return ($raw -join "`n") | ConvertFrom-Json -ErrorAction Stop
+}
 
 function Get-AfyxBackupRoot {
     if ($env:AFYX_BACKUP_ROOT) { return [IO.Path]::GetFullPath($env:AFYX_BACKUP_ROOT) }
@@ -370,20 +391,26 @@ function Remove-AfyxRetainedBackups {
         if (Test-Path -LiteralPath $lockPath) { throw 'Backup lock is active; purge preview refused.' }
     }
     try {
-        $verified = @(foreach ($entry in Get-ChildItem -LiteralPath $root -Directory -Force) {
-            $candidate = $entry.FullName
-            if ($entry.Name -notmatch '^\d{8}-\d{6}-[a-zA-Z0-9_-]+$' -or
-                (Get-Item -LiteralPath "$candidate.afyx-active" -Force -ErrorAction SilentlyContinue)) { continue }
-            try {
-                Assert-AfyxBackupPath -Path "$candidate.afyx-backup"
-                $record = [IO.File]::ReadAllLines("$candidate.afyx-backup")
-                if ($record.Count -eq 4 -and $record[0] -eq 'AfyxSkillBackup/v1' -and
-                    $record[1] -ceq $Component -and $record[2] -ceq $entry.Name -and
-                    $record[3] -cmatch '^[0-9a-f]{64}$' -and (Get-AfyxBackupDigest -Directory $candidate) -ceq $record[3]) { $entry }
-            } catch { Write-Verbose "Preserving unverified backup: $candidate" }
-        })
-        $verified = @($verified | Sort-Object Name -Descending)
-        foreach ($entry in @($verified | Select-Object -Skip $Keep)) {
+        $plan = Invoke-AfyxCoreRetentionPlan -ComponentRoot $root -Component $Component -Keep $Keep
+        if ($null -ne $plan) {
+            $removeItems = @($plan.toRemove | ForEach-Object { Get-Item -LiteralPath $_.path -Force })
+        } else {
+            $verified = @(foreach ($entry in Get-ChildItem -LiteralPath $root -Directory -Force) {
+                $candidate = $entry.FullName
+                if ($entry.Name -notmatch '^\d{8}-\d{6}-[a-zA-Z0-9_-]+$' -or
+                    (Get-Item -LiteralPath "$candidate.afyx-active" -Force -ErrorAction SilentlyContinue)) { continue }
+                try {
+                    Assert-AfyxBackupPath -Path "$candidate.afyx-backup"
+                    $record = [IO.File]::ReadAllLines("$candidate.afyx-backup")
+                    if ($record.Count -eq 4 -and $record[0] -eq 'AfyxSkillBackup/v1' -and
+                        $record[1] -ceq $Component -and $record[2] -ceq $entry.Name -and
+                        $record[3] -cmatch '^[0-9a-f]{64}$' -and (Get-AfyxBackupDigest -Directory $candidate) -ceq $record[3]) { $entry }
+                } catch { Write-Verbose "Preserving unverified backup: $candidate" }
+            })
+            $verified = @($verified | Sort-Object Name -Descending)
+            $removeItems = @($verified | Select-Object -Skip $Keep)
+        }
+        foreach ($entry in $removeItems) {
             $candidate = $entry.FullName
             if ($PSCmdlet.ShouldProcess($candidate, 'Purge verified AFYX skill backup')) {
                 Assert-AfyxBackupPath -Path $candidate

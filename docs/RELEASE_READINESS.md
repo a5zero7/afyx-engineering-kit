@@ -1,9 +1,7 @@
-# AFYX Engineering Kit v1.0.2 — Catatan rilis dan verifikasi
+# AFYX Engineering Kit v1.1.0 — Catatan rilis dan verifikasi
 
-Kit dan Graph menggunakan versi Stable `1.0.2`. Registry npm memuat Kit
-`1.0.2`. Tag `v1.0.2` menunjuk commit paket `bcfeae9`, dan `977b7af` adalah
-baseline tindak lanjut di `main` dan titik awal siklus v1.1.0 di `dev`.
-Cocokkan SHA pada manifest distribusi dengan sumber artefak yang diperiksa.
+Kit dan Graph menggunakan versi Stable `1.1.0` (berlanjut dari baseline `v1.0.2` pada
+`bcfeae9` / `977b7af`). Cocokkan SHA pada manifest distribusi dengan sumber artefak yang diperiksa.
 
 Owner mengizinkan installer Windows tanpa tanda tangan berdasarkan
 `OWNER_SIGNING_WAIVER_V1` (AFYX-85, komentar 11458, rujukan Owner).

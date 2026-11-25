@@ -155,7 +155,7 @@ elif [[ "$provider_scope" == workspace && ",$skill_providers," == *,claude,* ]];
   [[ "$skills_root" == "$claude_skills" ]] || additional_skill_roots+=("$claude_skills")
 fi
 
-printf 'Afyx Engineering Kit v1.0.2 — Linux/macOS installer (Bash)\n'
+printf 'Afyx Engineering Kit v1.1.0 — Linux/macOS installer (Bash)\n'
 
 valid_manifest() { [[ -s "$1/SKILL.md" ]] && [[ "$(head -n 1 "$1/SKILL.md")" == '---' ]]; }
 # One component truth: scripts/components.json, read through the shared library.
@@ -750,7 +750,7 @@ if "$forge_companion_desired" && { [[ "$forge_action" != skip ]] || [[ "$afyx_fo
   done
 fi
 
-printf '\nInstallation Summary (v1.0.2)\n[%s] Afyx Efficient Coding\n[%s] Afyx Odoo Engineering\n[%s] Afyx Engineering Expert\n[%s] Afyx Graph\n[%s] Afyx Context Engine\n[%s] Afyx Forge Core\n[SKIPPED] Afyx Usage Intelligence (Windows-only)\n' "$efficient_result" "$odoo_result" "$expert_result" "$graph_result" "$context_result" "$forge_result"
+printf '\nInstallation Summary (v1.1.0)\n[%s] Afyx Efficient Coding\n[%s] Afyx Odoo Engineering\n[%s] Afyx Engineering Expert\n[%s] Afyx Graph\n[%s] Afyx Context Engine\n[%s] Afyx Forge Core\n[SKIPPED] Afyx Usage Intelligence (Windows-only)\n' "$efficient_result" "$odoo_result" "$expert_result" "$graph_result" "$context_result" "$forge_result"
 if [[ "$context_result" != skipped && "$context_result" != NOT_INSTALLED ]]; then
   printf '[HEALTHY] Capability: afyx-work-ledger (cryptographic task ledger and execution receipts)\n'
   printf '[HEALTHY] Capability: afyx-impact-simulator (deterministic change blast radius simulation)\n'

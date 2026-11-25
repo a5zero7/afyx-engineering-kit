@@ -2,7 +2,7 @@
 set -euo pipefail
 
 root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
-printf 'Afyx Engineering Kit v1.0.2 — Linux/macOS updater (Bash)\n'
+printf 'Afyx Engineering Kit v1.1.0 — Linux/macOS updater (Bash)\n'
 skip_self_update=false
 dry_run=false
 offline=false

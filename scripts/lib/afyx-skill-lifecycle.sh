@@ -2,8 +2,23 @@
 # Transactional skill lifecycle helpers for Bash 3.2+.
 
 AFYX_SKILL_MARKER='.afyx-install.json'
+AFYX_INSTALLER_CORE="${AFYX_INSTALLER_CORE:-$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)/afyx-installer-core.mjs}"
 afyx_backup_root="${AFYX_BACKUP_ROOT:-$HOME/.afyx/backups}"
 afyx_backup_limit="${AFYX_BACKUP_LIMIT:-20}"
+
+afyx_core_plan_purge() {
+  local root="$1" component="$2" keep="$3" out_file="$4"
+  [[ "${AFYX_FORCE_SHELL_FALLBACK:-0}" != 1 ]] || return 1
+  command -v node >/dev/null 2>&1 || return 1
+  [[ -f "$AFYX_INSTALLER_CORE" ]] || return 1
+  node -e '
+    const { pathToFileURL } = await import("node:url");
+    const { planBackupRetention } = await import(pathToFileURL(process.argv[1]).href);
+    const fs = await import("node:fs");
+    const plan = planBackupRetention(process.argv[2], process.argv[3], { keep: Number(process.argv[4]) });
+    fs.writeFileSync(process.argv[5], plan.toRemove.map((x) => x.path).join("\n") + (plan.toRemove.length ? "\n" : ""));
+  ' "$AFYX_INSTALLER_CORE" "$root" "$component" "$keep" "$out_file" 2>/dev/null
+}
 
 afyx_sha256() {
   if command -v sha256sum >/dev/null 2>&1; then sha256sum "$1" | awk '{print $1}'
@@ -247,6 +262,24 @@ afyx_purge_skill_backups() (
   file=''
   trap '[[ -z "$file" ]] || rm -f -- "$file"; [[ "$dry" == true ]] || rmdir "$root/.afyx-backup.lock"' EXIT
   file="$(mktemp "${TMPDIR:-/tmp}/afyx-purge.XXXXXX")" || exit 1
+  if afyx_core_plan_purge "$root" "$component" "$keep" "$file"; then
+    while IFS= read -r candidate; do
+      [[ -n "$candidate" ]] || continue
+      printf '[BACKUP-PURGE] %s %q\n' "$([[ "$dry" == true ]] && printf 'would remove' || printf 'remove')" "$candidate"
+      if [[ "$dry" != true ]]; then
+        afyx_assert_backup_path "$candidate" || exit 1
+        [[ ! -e "$candidate.afyx-active" && ! -L "$candidate.afyx-active" ]] || exit 1
+        receipt="$candidate.afyx-backup"
+        [[ -f "$receipt" && ! -L "$receipt" ]] || exit 1
+        digest="$(sed -n '4p' "$receipt")"
+        [[ "$(sed -n '1p' "$receipt")" == AfyxSkillBackup/v1 && "$(sed -n '2p' "$receipt")" == "$component" &&
+           "$(sed -n '3p' "$receipt")" == "${candidate##*/}" && "$digest" =~ ^[0-9a-f]{64}$ &&
+           "$(afyx_backup_digest "$candidate")" == "$digest" ]] || exit 1
+        rm -rf -- "$candidate" && rm -f -- "$candidate.afyx-backup" || exit 1
+      fi
+    done <"$file"
+    exit 0
+  fi
   for candidate in "$root"/*; do
     [[ -d "$candidate" && ! -L "$candidate" && ! -e "$candidate.afyx-active" && ! -L "$candidate.afyx-active" ]] || continue
     name="${candidate##*/}"; receipt="$candidate.afyx-backup"
