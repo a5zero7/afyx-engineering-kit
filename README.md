@@ -1,12 +1,12 @@
 # AFYX Engineering Kit
 
-**Kit version 1.1.0.** Stable v1 is the release line. Check the Git tag and
-npm registry for publication status. The Windows installer is unsigned
-under `OWNER_SIGNING_WAIVER_V1` and may trigger SmartScreen. Verify its source
+**Kit version 1.2.0.** Stable v1 is the release line. Check the Git tag and
+npm registry for publication status. The Kit tarball includes Windows
+PowerShell scripts and a Graph command launcher. Verify its source
 revision and SHA-256 before running it.
 [Release notes](https://github.com/a5zero7/afyx-engineering-kit/blob/main/docs/RELEASE_READINESS.md)
 
-See the [changelog](CHANGELOG.md) for the v1.1.0 development cycle and
+See the [changelog](CHANGELOG.md) for the v1.2.0 changes and
 [contributing guide](CONTRIBUTING.md) for branch and verification requirements.
 
 **Local-first engineering intelligence, adaptive guidance, and evidence-driven validation for AI coding agents.**
@@ -31,7 +31,7 @@ Graph, Forge, Context Engine, and Engineering Expert provide four foundational
 engineering pillars. Efficient Coding and Odoo Engineering are **equally
 recognized standalone products**, not merely auxiliary documentation.
 
-The AFYX v1.1.0 release uses the Afyx MIT [license](LICENSE) (`Copyright (c) 2026 Afyx`)
+AFYX Engineering Kit uses the Afyx MIT [license](LICENSE) (`Copyright (c) 2026 Afyx`)
 with zero third-party attributions, zero third-party license notices, and zero
 external runtime dependencies.
 [Provenance review](https://github.com/a5zero7/afyx-engineering-kit/blob/main/docs/AFYX_INDEPENDENCE_PLAN.md#status-teknis-afyx-359)
@@ -87,14 +87,14 @@ installable IDs, presets, supported platforms, and ownership. Consult the
 
 ## Kit and component versions
 
-The Kit version is `1.1.0`. Independent component versions
+The Kit version is `1.2.0`. Independent component versions
 track their individual CLI and contract compatibility. The Kit version tracks
 distribution and installer releases, so a component can retain its version
 while the Kit evolves. Check the release notes for distribution status.
 
 | Component | Version |
 |---|---|
-| [Graph](afyx-graph/engine/README.md) | `1.1.0` |
+| [Graph](afyx-graph/engine/README.md) | `1.2.0` |
 | [Context](afyx-context/README.md) | `0.1.0` |
 | [Forge](afyx-forge/README.md) | `0.1.0` |
 | [Efficient Coding](https://github.com/a5zero7/afyx-engineering-kit/blob/main/docs/tool-guides/AFYX_EFFICIENT_CODING.md) | `1.2.2` |

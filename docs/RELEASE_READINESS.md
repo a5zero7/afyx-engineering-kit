@@ -1,9 +1,23 @@
-# AFYX Engineering Kit v1.1.0 — Catatan rilis dan verifikasi
+# AFYX Engineering Kit — Catatan rilis dan verifikasi
+
+## Kandidat v1.2.0
+
+Kit dan Graph memakai versi `1.2.0`. Penerimaan distribusi memerlukan
+kecocokan commit sumber, CI, tag, serta checksum tarball yang sama pada
+GitHub Release dan npm. Verifikasi status publik melalui tag dan registry.
+[Changelog](../CHANGELOG.md)
+
+Cakupan rilis adalah tarball Kit dengan bundel Graph, launcher, dan skrip
+lifecycle. Build dan attestation bundel Graph diverifikasi terpisah dari
+Authenticode untuk executable Windows mandiri. Waiver AFYX-85 di bawah
+berlaku untuk kandidat historis yang disebutkan di keputusan Owner.
+
+## Rilis v1.1.0
 
 Kit dan Graph menggunakan versi Stable `1.1.0` (berlanjut dari baseline `v1.0.2` pada
 `bcfeae9` / `977b7af`). Cocokkan SHA pada manifest distribusi dengan sumber artefak yang diperiksa.
 
-Owner mengizinkan installer Windows tanpa tanda tangan berdasarkan
+Untuk kandidat historis `AfyxSetup.exe`, Owner mengizinkan distribusi tanpa tanda tangan berdasarkan
 `OWNER_SIGNING_WAIVER_V1` (AFYX-85, komentar 11458, rujukan Owner).
 Status Authenticode yang diharapkan adalah `NotSigned`. Windows dapat
 menampilkan peringatan SmartScreen. Verifikasi sumber, SHA-256, dan

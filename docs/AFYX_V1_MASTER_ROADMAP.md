@@ -1,5 +1,13 @@
 # Afyx v1 Master Roadmap
 
+## Siklus pengembangan v1.2.0
+
+Batch 1 memperluas resolver Graph dan koleksi usage lokal. Batch 2
+menambahkan discovery peer, inspeksi DB baca-saja, parser CLI deklaratif,
+cleanup, attestation, dan tata kelola root. Batch 3 menyelaraskan versi Kit
+dan Graph serta memverifikasi distribusi dari satu SHA sumber dan tarball
+yang sama pada kanal publik. [Changelog](../CHANGELOG.md) · [Catatan rilis](RELEASE_READINESS.md)
+
 ## Siklus pengembangan v1.1.0
 
 Branch `dev` memulai siklus v1.1.0 dari `977b7af` dengan penataan dokumentasi

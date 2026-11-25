@@ -1,23 +1,38 @@
 # Changelog
 
-## [Unreleased] — v1.2.0
+## [Unreleased]
 
-- Graph menemukan peer dari deklarasi workspace statis dan sibling yang
-  diizinkan. Indeks yang sudah ada tetap harus segar dan memiliki binding
-  kontrak sah.
-- Inspector menyediakan inspeksi PostgreSQL/MySQL baca-saja dengan host dan
-  role yang disetujui serta operasi terbatas. SQLite, CSV, dan JSON tetap lokal.
-- CLI lifecycle memakai parser deklaratif. `afyx clean` mendukung preview dan
-  receipt spill yang telah selesai. Instalasi Graph dapat mewajibkan attestation
-  yang terikat pada repo, workflow, SHA sumber, dan digest artefak.
-- Kebijakan keamanan dan tata tertib kontribusi disertakan dalam distribusi.
+## [1.2.0] - 2026-11-26
 
-- Graph menambahkan binding eksplisit GraphQL dan gRPC untuk Rust, C#, PHP,
-  dan Ruby, serta edge refleksi untuk target statis yang dapat dibuktikan.
-- Usage Intelligence menerima metadata lokal Claude Code dan format rekaman
-  Gemini CLI yang didukung melalui persetujuan eksplisit. Cakupan yang tidak
-  lengkap menahan total. Biaya dan format Antigravity yang belum diverifikasi
-  tetap tidak tersedia.
+### Graph dan engineering intelligence
+
+- Memperluas resolusi GraphQL dan gRPC untuk Rust, C#/.NET, PHP, dan Ruby
+  melalui pipeline native. Refleksi dan dispatch memakai bukti statis yang
+  terbatas. Target dinamis atau ambigu tetap tidak terselesaikan.
+- Menemukan peer dari deklarasi workspace statis dan sibling yang diizinkan.
+  Indeks peer yang sudah ada harus segar dan memiliki binding kontrak sah.
+
+### Usage Intelligence
+
+- Koleksi baca-saja metadata lokal Claude Code dan rekaman Gemini CLI yang
+  kompatibel melalui persetujuan eksplisit. Pelaporan memisahkan counter cache
+  dan menahan total saat cakupan parsial. Biaya dan format Antigravity IDE yang
+  belum diverifikasi tetap tidak tersedia. Penerimaan provider memakai fixture.
+
+### Inspeksi database
+
+- PostgreSQL dan MySQL menyediakan inspeksi opt-in dengan klien native, host
+  dan role yang disetujui, TLS, transaksi baca-saja, kebijakan query terbatas,
+  dan redaksi kredensial. SQLite, CSV, dan JSON tetap lokal. Pengujian koneksi
+  memakai mock.
+
+### CLI dan distribusi
+
+- Installer memakai `node:util.parseArgs`. `afyx clean` menyediakan preview dan
+  memeriksa receipt spill yang selesai dengan retensi minimum enam jam.
+- Instalasi Graph dapat mewajibkan verifikasi attestation dengan identitas
+  repo, workflow, SHA sumber, dan digest artefak yang sesuai.
+- Paket menyertakan kebijakan keamanan dan tata tertib kontribusi.
 
 ## [1.1.0] - 2026-11-25
 

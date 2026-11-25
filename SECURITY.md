@@ -4,7 +4,7 @@ Copyright (c) 2026 Afyx
 
 ## Dukungan dan pelaporan
 
-Perbaikan keamanan ditujukan untuk rilis stabil terbaru, saat ini `1.1.0`, dan jalur pengembangan aktif. Kirim temuan secara privat dengan versi, platform, dampak, dan langkah reproduksi minimal yang telah disanitasi. [Rilis AFYX](https://github.com/a5zero7/afyx-engineering-kit/releases) · [GitHub Private Vulnerability Reporting](https://github.com/a5zero7/afyx-engineering-kit/security/advisories/new)
+Perbaikan keamanan ditujukan untuk rilis stabil terbaru dan jalur pengembangan aktif `1.2.0`. Kirim temuan secara privat dengan versi, platform, dampak, dan langkah reproduksi minimal yang telah disanitasi. [Rilis AFYX](https://github.com/a5zero7/afyx-engineering-kit/releases) · [GitHub Private Vulnerability Reporting](https://github.com/a5zero7/afyx-engineering-kit/security/advisories/new)
 
 ## Batas akses
 

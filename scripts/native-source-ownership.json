@@ -2751,7 +2751,7 @@
     {
       "path": "install.sh",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "07bad29a1b21742f7251fe5a115124bcdc71ea67eb303f15ee906fa48b821004",
+      "reviewedSha256": "1c10dcbd394a3cf73cf0ddc6aa88851f934d3b6742143340e2f85b00fb46c2f5",
       "evidence": "AFYX POSIX kit installer with explicit platform, component, and provider skill-root lifecycle boundaries (AFYX-361, AFYX-362)."
     },
     {
@@ -2955,7 +2955,7 @@
     {
       "path": "scripts/afyx-npm-installer.mjs",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "ce1e412d085a3e745f678ceab0febeb87fda59d0520b3a4e0f14b3c8ecbfa948",
+      "reviewedSha256": "53a7b860e06566117f5c58a948dbd9f05731d73839f77d05cef6175201cda7fc",
       "evidence": "Installer UX v2 with synchronized universal capability summaries, help text, and version 0.1.0-alpha.12 (AFYX-77)."
     },
     {
@@ -3153,25 +3153,25 @@
     {
       "path": "uninstall.ps1",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "ab4ad2b722408928719855a06c043b360166e9c44e6db3ad11ebd01e8c9fdc2f",
+      "reviewedSha256": "3df23804738dbfaed16eb10f4fdbbd129940ffb890c8c58ccec7a553f348efdf",
       "evidence": "AFYX native Kit lifecycle entrypoint maintained in this repository."
     },
     {
       "path": "uninstall.sh",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "baccd28b1135447722fbb1c30085ef2b223313849cdf449fcd2f2d07c0c08acf",
+      "reviewedSha256": "67059e6fd7feeed16e59a9a9916a2989ffa1c7860483a611e5d3b56af30a90ea",
       "evidence": "AFYX post-v1 audit remediation: AFYX-owned installer and lifecycle implementation maintained in this repository."
     },
     {
       "path": "update.sh",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "6946846251ffcc8f4fe4f688ba53c504469135e009603c091da1b97882f3c951",
+      "reviewedSha256": "d1e7d84ab737aac9a68c2f70b71a0fdc421320715b1b18813b5e99614cb23337",
       "evidence": "AFYX native Kit lifecycle entrypoint maintained in this repository."
     },
     {
       "path": "verify.sh",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "7e2c5c9c98812c3a2fb83d83528675f71af926635fa278b5fcd1ea91d77118ff",
+      "reviewedSha256": "854ceae35890895d6a79cf9809346cf286dfcff4af2b9e0c890e09b8eae65edb",
       "evidence": "AFYX post-v1 audit remediation: AFYX-owned installer and lifecycle implementation maintained in this repository."
     }
   ]

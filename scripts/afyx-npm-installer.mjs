@@ -59,13 +59,13 @@ export function getPackageVersion() {
     const pkgJsonPath = join(PACKAGE_ROOT, 'package.json');
     if (existsSync(pkgJsonPath)) {
       const data = JSON.parse(readFileSync(pkgJsonPath, 'utf8'));
-      cachedVersion = data.version || '1.1.0';
+      cachedVersion = data.version || '1.2.0';
       return cachedVersion;
     }
   } catch {
     // fallback
   }
-  return '1.1.0';
+  return '1.2.0';
 }
 
 export const SUPPORTED_COMMANDS = ['install', 'verify', 'doctor', 'update', 'uninstall', 'clean'];
