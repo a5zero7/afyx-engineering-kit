@@ -551,6 +551,56 @@ export function extractNativeFacts(filePath: string, source: string, language: L
     }
   }
 
+  if (TS_FAMILY_LANGUAGES.has(language)) {
+    // A literal handler table passed directly to a gRPC service registration
+    // has no variable declaration to own its inline function bodies.
+    for (let i = 1; i < tokens.length - 4; i += 1) {
+      if (tokens[i]!.text !== 'addService' || tokens[i - 1]?.text !== '.' || tokens[i + 1]?.text !== '(') continue;
+      const callEnd = scan.pairs.get(i + 1);
+      if (callEnd === undefined) continue;
+      let comma = i + 2;
+      while (comma < callEnd && (tokens[comma]?.kind === 'identifier' || tokens[comma]?.text === '.')) comma += 1;
+      const descriptor = tokens[comma - 1]?.text ?? '';
+      if (!/^[A-Za-z_]\w*Service$/.test(descriptor) && descriptor !== 'service') continue;
+      const open = comma + 1;
+      const close = scan.pairs.get(open);
+      if (tokens[comma]?.text !== ',' || tokens[open]?.text !== '{' || close === undefined || close >= callEnd) continue;
+      const descriptorPath = tokens.slice(i + 2, comma).map(token => token.text).join('');
+      const qualifiedOwner = `${descriptorPath}@${tokens[i]!.start.line}:${tokens[i]!.start.column}`;
+      for (let property = open + 1; property < close;) {
+        let limit = property;
+        while (limit < close && tokens[limit]?.text !== ',') limit = (scan.pairs.get(limit) ?? limit) + 1;
+        const async = tokens[property]?.text === 'async' && tokens[property + 1]?.kind === 'identifier';
+        const key = property + Number(async);
+        property = limit + 1;
+        const token = tokens[key];
+        const name = token?.kind === 'identifier' ? token.text
+          : /^(['"])([A-Za-z_]\w*)\1$/.exec(token?.text ?? '')?.[2];
+        if (!name) continue;
+        let callable: ReturnType<typeof callableValue>;
+        if (tokens[key + 1]?.text === ':') {
+          const value = key + 2;
+          const head = tokens[value]?.text === 'async' ? value + 1 : value;
+          const arrow = tokens[head]?.text === '(' ? (scan.pairs.get(head) ?? limit) + 1 : head + 1;
+          if (tokens[head]?.text === 'function' || tokens[arrow]?.text === '=>') {
+            callable = callableValue(value, limit);
+          }
+        } else if (tokens[key + 1]?.text === '(') {
+          const paramsEnd = scan.pairs.get(key + 1);
+          const bodyStart = paramsEnd === undefined ? -1 : findNext(tokens, paramsEnd + 1, '{', limit);
+          const bodyEnd = scan.pairs.get(bodyStart);
+          if (bodyEnd !== undefined) callable = { bodyStart, bodyEnd, async };
+        }
+        if (!callable || callable.bodyStart >= limit) continue;
+        const end = Math.min(callable.bodyEnd, limit - 1);
+        declarations.push({
+          kind: 'function', name, qualifiedOwner, start: key, end,
+          bodyStart: callable.bodyStart, bodyEnd: end, async: callable.async,
+        });
+      }
+    }
+  }
+
   if (language === 'python') {
     for (let i = 0; i < tokens.length - 1; i += 1) {
       const keyword = tokens[i]!;

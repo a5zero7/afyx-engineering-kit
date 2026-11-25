@@ -128,6 +128,7 @@ export class QueryBuilder {
 
   insertEdge(edge: Edge): void { this.writer.edges.insert(edge); }
   insertEdges(edges: Edge[]): void { this.writer.edges.insertMany(edges); }
+  replaceSchemaDispatchEdges(edges: Edge[]): void { this.writer.edges.replaceSchemaDispatch(edges); }
   deleteEdgesBySource(sourceId: string): void { this.writer.edges.deleteBySource(sourceId); }
 
   getOutgoingEdges(sourceId: string, kinds?: EdgeKind[], provenance?: string): Edge[] { return this.reader.edges.getOutgoingEdges(sourceId, kinds, provenance); }

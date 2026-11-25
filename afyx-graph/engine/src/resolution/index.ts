@@ -25,6 +25,8 @@ import { ResolverPool, minRefsForPool } from './resolver-pool';
 import { resolveAliasBinding } from './alias-binding';
 import { detectFrameworks } from './frameworks';
 import { synthesizeCallbackEdges } from './callback-synthesizer';
+import { graphqlResolverEdges } from './graphql-resolver-synthesizer';
+import { grpcServiceEdges } from './grpc-service-synthesizer';
 import { createYielder, type MaybeYield } from './cooperative-yield';
 import { loadProjectAliases, loadFileAliases, clearFileAliasCache, type AliasMap } from './path-aliases';
 import { loadGoModule, type GoModule } from './go-module';
@@ -1962,6 +1964,22 @@ export class ReferenceResolver {
       unresolved: [],
       stats: aggregateStats,
     };
+  }
+
+  /** Reconcile dispatch bindings independently from pending reference counts. */
+  async refreshSchemaDispatch(): Promise<void> {
+    this.queries.setMetadata('schema_dispatch_ready', '0');
+    const files = this.context.getAllFiles().sort();
+    if (files.some(file => /\.(?:graphql|gql|proto)$/i.test(file))) {
+      this.clearCaches();
+      const yieldToLoop = createYielder();
+      const context = { ...this.context, indexedHash: (file: string) => this.queries.getFileByPath(file)?.contentHash };
+      const graphql = await graphqlResolverEdges(context, files, yieldToLoop);
+      const grpc = await grpcServiceEdges(context, files, yieldToLoop);
+      // All endpoints are taken from the current index, under the caller's writer lock.
+      this.queries.replaceSchemaDispatchEdges([...graphql, ...grpc]);
+    }
+    this.queries.setMetadata('schema_dispatch_ready', '1');
   }
 
   /**

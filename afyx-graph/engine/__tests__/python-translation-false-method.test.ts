@@ -1,3 +1,4 @@
+import { EXTRACTION_VERSION } from '../src/extraction/extraction-version';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import * as fs from 'fs';
 import * as os from 'os';
@@ -197,7 +198,7 @@ describe('Graph resolution for imported external translation', () => {
     expect(graph.getIndexBuildInfo().extractionVersion).toBe(29);
     expect(graph.isIndexStale()).toBe(true);
     await graph.indexAll();
-    expect(graph.getIndexBuildInfo().extractionVersion).toBe(30);
+    expect(graph.getIndexBuildInfo().extractionVersion).toBe(EXTRACTION_VERSION);
     expect(graph.isIndexStale()).toBe(false);
   });
 });

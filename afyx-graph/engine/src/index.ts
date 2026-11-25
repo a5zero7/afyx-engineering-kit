@@ -671,6 +671,10 @@ export class AfyxGraph {
           resolutionLinkMs = Date.now() - tResolve;
         }
 
+        if (result.success && result.filesIndexed > 0) {
+          await this.resolver.refreshSchemaDispatch();
+        }
+
         // Refresh planner stats + checkpoint the WAL after bulk writes.
         // Off-thread (worker connection): on a multi-GB index this is minutes
         // of IO, and inline it starved the #850 watchdog AFTER a fully
@@ -1090,6 +1094,10 @@ export class AfyxGraph {
           // Same lifecycle for `this.<member>` callback registrations whose
           // member is inherited from a supertype (#808).
           await this.resolver.resolveDeferredThisMemberRefs();
+        }
+
+        if (filesChanged || result.filesRemoved > 0 || this.queries.getMetadata('schema_dispatch_ready') !== '1') {
+          await this.resolver.refreshSchemaDispatch();
         }
 
         // Refresh planner stats + checkpoint the WAL after bulk writes.

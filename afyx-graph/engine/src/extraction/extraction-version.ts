@@ -31,4 +31,6 @@
 // model grants), and security XML (record rules, security groups & category definitions).
 // v30: remove fabricated Python methods and unrelated imported-call targets;
 // existing indexes may retain those false nodes and edges until rebuilt.
-export const EXTRACTION_VERSION = 30;
+// v31: link indexed GraphQL and Protobuf declarations to static server
+// bindings and index inline gRPC handler implementations.
+export const EXTRACTION_VERSION = 31;

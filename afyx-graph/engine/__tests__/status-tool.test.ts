@@ -1,3 +1,4 @@
+import { EXTRACTION_VERSION } from '../src/extraction/extraction-version';
 import { createHash } from 'crypto';
 import * as fs from 'fs';
 import { describe, expect, it, vi } from 'vitest';
@@ -268,8 +269,8 @@ describe('Afyx-native Status seam', () => {
       '- Filesystem/content: CURRENT (0 pending)\n' +
       '- Extraction: COMPLETE\n' +
       // The fixture is built with extraction v28, while the current runtime
-      // is v30; the version comparison must remain visible to operators.
-      '- Extraction version: 28/30\n' +
+      // tracks the engine version; show both values in the evidence.
+      `- Extraction version: 28/${EXTRACTION_VERSION}\n` +
       '- Pending references: 0\n' +
       '- Watcher: ENABLED\n' +
       '- Last full index accounting: unavailable\n' +

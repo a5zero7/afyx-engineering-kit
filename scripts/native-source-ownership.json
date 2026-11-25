@@ -2,7 +2,7 @@
   "schema": 1,
   "baselineRevision": "c4e4d8e29de239a2fcbc0db8ac65eea2276e7b00",
   "scope": "AFYX-320 comprehensive production source inventory",
-  "totalProductionFiles": 515,
+  "totalProductionFiles": 518,
   "entries": [
     {
       "path": "afyx-context/src/budget.js",
@@ -391,7 +391,7 @@
     {
       "path": "afyx-graph/engine/src/db/edge-writer.ts",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "f2828f8735446b02e93f65b785b7aa322728fc56e67518e6b5285bb19d164296",
+      "reviewedSha256": "e876880073a1c1cc6b1b30e5d51554d8e02bf56276af5a774d5cad09f12ea0eb",
       "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
     },
     {
@@ -451,7 +451,7 @@
     {
       "path": "afyx-graph/engine/src/db/queries.ts",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "6cc18b24941be4782bbeac5a19aef792dd0fef6e482946c349cef8f6a2498b03",
+      "reviewedSha256": "0da334a539d9e197461b94e6d96743bf981d699322cad6ccfa4046e2e8192c3a",
       "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
     },
     {
@@ -649,7 +649,7 @@
     {
       "path": "afyx-graph/engine/src/extraction/extraction-version.ts",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "65c272d824f242158bb04dee4946b1f302ed4f07ea784a2bf20598d3d6c809a4",
+      "reviewedSha256": "a613843b7319c362acf8fa8e44abab72da6e2c5b7942ba6b76c4562fcac5099c",
       "evidence": "Independently authored AFYX native component tracking engine schema and extraction version state."
     },
     {
@@ -769,7 +769,7 @@
     {
       "path": "afyx-graph/engine/src/extraction/native/fact-extractor.ts",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "5a881bbd5d7b49a27efdd4d5ee8db2187c63336e3fdf94956936856535db7074",
+      "reviewedSha256": "ed02979c5e6f7b632d00927f0dfe493aee0a83991b642ea980f42c42bd5d5d85",
       "evidence": "Independently authored AFYX native component implementing source-grounded grammar and AST symbol extraction."
     },
     {
@@ -1190,7 +1190,7 @@
     {
       "path": "afyx-graph/engine/src/index.ts",
       "classification": "PUBLIC_API_BARREL",
-      "reviewedSha256": "57be2af2c7bd97ab405c8a14cddb9c5e5bdff9c22779595290a2aaa1ab88fe70",
+      "reviewedSha256": "75d39cff9a03a29ca4ed8f7fd4d2e72ae01154087cb577b79e417fbbf29b8506",
       "evidence": "MB15 Graph lifecycle: reviewed failed asynchronous initialization closing its unpublished database and file lock while preserving the original rejection; existing index ownership and success behavior unchanged."
     },
     {
@@ -1908,6 +1908,18 @@
       "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
     },
     {
+      "path": "afyx-graph/engine/src/resolution/graphql-resolver-synthesizer.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "4dccf8e66c809b6cdf5537b3f8e5086c4d21d0a6c59dff06d1778cb5fc709a83",
+      "evidence": "AFYX native schema dispatch links indexed SDL fields to explicit resolver maps, decorators and Go receivers."
+    },
+    {
+      "path": "afyx-graph/engine/src/resolution/grpc-service-synthesizer.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "a4bfefa9bb190770ae0eb89fe06c3c42c43eefd3e2f2a97720c56170ab96a04f",
+      "evidence": "AFYX native schema dispatch links indexed RPCs to service-specific registrations, decorators and implementation bases."
+    },
+    {
       "path": "afyx-graph/engine/src/resolution/import-resolver.ts",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
       "reviewedSha256": "e8667c7578fa6855e569dc5daa0dd4957f87b1f58212e28a0f5abe21d837fc93",
@@ -1916,7 +1928,7 @@
     {
       "path": "afyx-graph/engine/src/resolution/index.ts",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "7bfa273c57f24a411d590d885674cc4053d3daa9373319020f7362721f32f773",
+      "reviewedSha256": "8bc52c731bde61c1d989fedca80405ec02cf77660e2ebf83fd1d6ddd8a00c5fd",
       "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and reference resolution orchestration."
     },
     {
@@ -1985,6 +1997,12 @@
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
       "reviewedSha256": "88c5ae3df7d71c8fdf346cf56c54c102f63d8f551d4fee75de8ed28240f201ec",
       "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
+    },
+    {
+      "path": "afyx-graph/engine/src/resolution/schema-binding-source.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "911d4318624d29538229fac28050d2ae44b69cef68ae61c3972f4f339a29fbe9",
+      "evidence": "AFYX native shared helpers for revision-checked source reads, token-based binding discovery and heuristic dispatch evidence."
     },
     {
       "path": "afyx-graph/engine/src/resolution/strip-comments.ts",

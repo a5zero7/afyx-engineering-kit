@@ -61,6 +61,20 @@ export class EdgeWriter {
     this.session.statement('DELETE FROM edges WHERE source = ?').run(sourceId);
   }
 
+  /** Replace only schema dispatch edges, preserving ordinary and other synthesized calls. */
+  replaceSchemaDispatch(edges: Edge[]): void {
+    this.session.transaction(() => {
+      this.session.statement(`
+        DELETE FROM edges WHERE source IN (
+          SELECT id FROM nodes
+          WHERE file_path LIKE '%.graphql' OR file_path LIKE '%.gql' OR file_path LIKE '%.proto'
+        ) AND kind = 'calls' AND provenance = 'heuristic'
+          AND json_extract(metadata, '$.synthesis') IN ('graphql-resolver', 'grpc-service')
+      `).run();
+      this.insertTrusted(edges);
+    });
+  }
+
   /** Delete edges by primary key in one transaction; returns the rows removed. */
   deleteByIds(edgeIds: number[]): number {
     if (edgeIds.length === 0) return 0;

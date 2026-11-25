@@ -51,13 +51,12 @@ describe('TASK G8.5 — Phase 3 Compatibility & Index Lifecycle', () => {
     }
   });
 
-  it('verifies fresh v30 index creation and metadata identity', async () => {
+  it('verifies fresh index creation and metadata identity', async () => {
     cg = await AfyxGraph.init(tempDir);
     await cg.indexAll();
     cg.resolveReferences();
 
     const buildInfo = cg.getIndexBuildInfo();
-    expect(buildInfo.extractionVersion).toBe(30);
     expect(buildInfo.extractionVersion).toBe(EXTRACTION_VERSION);
     expect(cg.isIndexStale()).toBe(false);
 
@@ -105,13 +104,13 @@ describe('TASK G8.5 — Phase 3 Compatibility & Index Lifecycle', () => {
     const statusJson = JSON.parse(statusRes.stdout.trim());
     expect(statusJson.index.reindexRecommended).toBe(true);
     expect(statusJson.index.builtWithExtractionVersion).toBe(28);
-    expect(statusJson.index.currentExtractionVersion).toBe(30);
+    expect(statusJson.index.currentExtractionVersion).toBe(EXTRACTION_VERSION);
 
     // 6. Validated rebuild heals the index to v30
     await reopenedCg.indexAll();
     reopenedCg.resolveReferences();
     expect(reopenedCg.isIndexStale()).toBe(false);
-    expect(reopenedCg.getIndexBuildInfo().extractionVersion).toBe(30);
+    expect(reopenedCg.getIndexBuildInfo().extractionVersion).toBe(EXTRACTION_VERSION);
 
     await reopenedCg.close();
   });

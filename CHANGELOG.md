@@ -5,6 +5,11 @@
 - Opened the v1.1.0 development cycle on `dev` from `977b7af`.
 - Archived completed engineering reports and added contributor verification
   and release-branch guidance.
+- Linked GraphQL SDL fields to explicit resolver bindings in TypeScript,
+  JavaScript, Python, and Go.
+- Linked Protobuf RPC declarations to gRPC handlers in Go, TypeScript,
+  JavaScript, Python, and Java. Incremental sync reconciles dispatch edges
+  so callers, callees, and impact analysis follow current bindings.
 
 ## [1.0.2] — 2026-11-24
 

@@ -222,7 +222,6 @@ class TestPurchaseRequest(TransactionCase):
       // 1. Verify extraction version & metadata
       const buildInfo = cg.getIndexBuildInfo();
       expect(buildInfo.extractionVersion).toBe(EXTRACTION_VERSION);
-      expect(EXTRACTION_VERSION).toBe(30);
       expect(cg.isIndexStale()).toBe(false);
 
       // 2. Verify Nodes in DB
@@ -317,7 +316,7 @@ class PurchaseRequestTag(models.Model):
       cg.resolveReferences();
 
       const buildInfo = cg.getIndexBuildInfo();
-      expect(buildInfo.extractionVersion).toBe(30);
+      expect(buildInfo.extractionVersion).toBe(EXTRACTION_VERSION);
 
       // Validated rebuild path:
       await cg.indexAll();
