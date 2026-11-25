@@ -215,7 +215,14 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
       if (!['optional', 'required'].includes(mode)) throw new Error('Invalid attestation mode');
       const archive = requireValue(argument('--archive'), '--archive');
       const manifest = argument('--manifest');
-      const identity = manifest && file ? verifyReleaseManifest(manifest, archive, file) : null;
+      let identity = null;
+      if (manifest && file) {
+        try {
+          identity = verifyReleaseManifest(manifest, archive, file);
+        } catch {
+          throw new Error('ATTESTATION_ARTIFACT_IDENTITY_MISMATCH');
+        }
+      }
       const result = verifyArtifactAttestation(archive, identity, { mode, offline: argument('--offline') === 'true' });
       console.log(result.status);
       if (result.reason) console.error('[' + result.reason + ']');

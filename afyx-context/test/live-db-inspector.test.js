@@ -30,6 +30,9 @@ for (const dialect of ['postgres', 'mysql']) {
       return response;
     } });
     const explain = { kind: 'explain', sql: 'SELECT id FROM catalog' };
+    const invalidDialect = db.inspectExternalCatalog('postgresql://sample:' + password + '@example.invalid/sample');
+    assert.equal(invalidDialect.dialect, null);
+    assert.ok(!JSON.stringify(invalidDialect).includes(password));
     assert.equal(db.inspectExternalCatalog(dialect).status, 'NOT_AVAILABLE');
     assert.equal(db.inspectExternalCatalog(dialect, { ...config, allowedHosts: [] }).status, 'ACCESS_DENIED');
     assert.equal(db.inspectExternalCatalog(dialect, { ...config, executable: join(root, 'absent') }).reason, 'DB_CLIENT_UNAVAILABLE');

@@ -43,7 +43,7 @@
     {
       "path": "afyx-context/src/db-inspector.js",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "a32386281419840a04064c39f1ab289e33896610d6c7e1803419b6fecf75992a",
+      "reviewedSha256": "5424fb72436e7ad06267ee309cd6971f3e01cd67b0f5c983a8e0a436a439e98d",
       "evidence": "Strictly read-only data and schema inspector for CSV, JSON, NDJSON, SQLite, and external catalogs with identifier escaping, SCHEMA_INSPECTED status separation, path containment, and SHA-256 invariance (AFYX-329)."
     },
     {
@@ -2841,7 +2841,7 @@
     {
       "path": "scripts/afyx-graph-artifact.mjs",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "abd42bec36e10de8c9603d0621f202c234f7e2a407b19d498be49cde37cba23a",
+      "reviewedSha256": "2783efb57f6883e73e3c1908158b438744f09ec6063cdd84b4d69cbf0f92e1d3",
       "evidence": "MB12 review: authored from AFYX functional requirements and existing reviewed 251f73a contracts; no upstream implementation, prompts, assets or dependency imported. Trusted-host boundaries and negative/regression tests recorded in MB12-native-consolidation-20261114-r1."
     },
     {

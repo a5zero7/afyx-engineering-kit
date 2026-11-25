@@ -24,6 +24,7 @@ const SENSITIVE_COLUMN_PATTERN = /^(password|passwd|secret|token|api_key|apikey|
 const MUTATION_SQL_PATTERN = /\b(INSERT|UPDATE|DELETE|DROP|ALTER|TRUNCATE|CREATE|REPLACE|GRANT|REVOKE|VACUUM|ATTACH|DETACH|REINDEX)\b/i;
 const IDENTIFIER = /^[a-z_][a-z0-9_]{0,62}$/;
 const LIVE_CLIENTS = { postgres: 'psql', mysql: 'mysql' };
+const DIALECTS = ['sqlite', 'postgres', 'mysql', 'mssql'];
 const LIVE_LIMIT = 100;
 const LIVE_BUFFER = 256 * 1024;
 const LIVE_TIMEOUT = 6000;
@@ -174,11 +175,12 @@ export class DbInspector {
    * @returns {object}
    */
   inspectExternalCatalog(dialect, config = {}, operation) {
+    const knownDialect = DIALECTS.includes(dialect) ? dialect : null;
     const report = (status, reason, metadata = {}) => ({
-      contract: DB_INSPECTION_CONTRACT, dialect, status, reason, ...metadata,
+      contract: DB_INSPECTION_CONTRACT, dialect: knownDialect, status, reason, ...metadata,
     });
-    if (!Object.hasOwn(LIVE_CLIENTS, dialect) || config?.live !== true || config.authorized !== true) {
-      return report('NOT_AVAILABLE', 'LIVE_DATABASE_NOT_AUTHORIZED', { supportedDialects: ['sqlite', 'postgres', 'mysql', 'mssql'] });
+    if (knownDialect === null || !Object.hasOwn(LIVE_CLIENTS, knownDialect) || config?.live !== true || config.authorized !== true) {
+      return report('NOT_AVAILABLE', 'LIVE_DATABASE_NOT_AUTHORIZED', { supportedDialects: [...DIALECTS] });
     }
     const { host, user, database, password, allowedHosts, readOnlyRole } = config;
     const postgres = dialect === 'postgres';
