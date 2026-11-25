@@ -511,10 +511,31 @@ export class ToolHandler {
     });
   }
 
+  private peerContractResult(
+    cg: AfyxGraph, symbol: string, args: Record<string, unknown>, depth: number,
+  ): ToolResult | undefined {
+    if (args.peerProjectPaths === undefined) return;
+    let approved: unknown;
+    try {
+      approved = JSON.parse(process.env.AFYX_GRAPH_PEER_ROOTS ?? '[]');
+    } catch {
+      return this.errorResult('Invalid host peer configuration');
+    }
+    if (!Array.isArray(approved) || !Array.isArray(args.peerProjectPaths) ||
+        args.peerProjectPaths.length === 0 || args.peerProjectPaths.length > 8 ||
+        !args.peerProjectPaths.every(peer => typeof peer === 'string' && approved.includes(peer)) ||
+        typeof args.file !== 'string' || !args.file) return this.errorResult('Peer scope requires host authorization and exact file');
+    return { content: [{ type: 'text', text: JSON.stringify(cg.getCrossRepoContractImpact(
+      args.file, symbol, args.peerProjectPaths, depth,
+    )) }] };
+  }
+
   private async handleCallers(args: Record<string, unknown>): Promise<ToolResult> {
     const symbol = this.validateString(args.symbol, 'symbol');
     if (typeof symbol !== 'string') return symbol;
     const cg = this.getAfyxGraph(args.projectPath as string | undefined);
+    const peers = this.peerContractResult(cg, symbol, args, 1);
+    if (peers) return peers;
     return executeRelationshipTool(
       this.relationshipToolSource(cg),
       { symbol, file: args.file, limit: args.limit },
@@ -537,6 +558,8 @@ export class ToolHandler {
     const symbol = this.validateString(args.symbol, 'symbol');
     if (typeof symbol !== 'string') return symbol;
     const cg = this.getAfyxGraph(args.projectPath as string | undefined);
+    const peers = this.peerContractResult(cg, symbol, args, Number(args.depth ?? 2));
+    if (peers) return peers;
     return executeImpactTool(this.impactToolSource(cg), {
       symbol,
       depth: args.depth,

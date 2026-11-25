@@ -14,7 +14,7 @@ export function detectRedundancy(lines, { minRepeatCount = 3 } = {}) {
   for (const line of lines) { const value = line.trim(); if (value.length > 10) counts.set(value, (counts.get(value) || 0) + 1); }
   return new Set([...counts].filter(([, count]) => count >= minRepeatCount).map(([line]) => line));
 }
-export function compressContextItems(items, budget = {}) {
+export function compressContextItems(items, budget = {}, { allowPartial = true } = {}) {
   const limits = {};
   for (const [key, fallback] of Object.entries(DEFAULT_CONTEXT_BUDGET)) {
     limits[key] = budget[key] ?? fallback;
@@ -29,6 +29,10 @@ export function compressContextItems(items, budget = {}) {
   for (const item of [...items].sort((a, b) => (b.priority || 0) - (a.priority || 0))) {
     let text = item.text, status = 'FULL';
     if (!fits(text)) {
+      if (!allowPartial) {
+        omitted.push({ id: item.id, originalBytes: estimateBytes(text), references: item.references || [] });
+        continue;
+      }
       const chars = Array.from(text);
       let low = 0, high = chars.length - 1, selected = null;
       // Slice code points so UTF-8 never contains a split surrogate.

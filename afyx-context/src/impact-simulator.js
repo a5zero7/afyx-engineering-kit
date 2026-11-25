@@ -40,6 +40,13 @@ export class ImpactSimulator {
     if (!targetPath || typeof targetPath !== 'string') {
       throw new TypeError('targetPath must be a non-empty string.');
     }
+    if (options.peerProjectPaths !== undefined) {
+      if (!Array.isArray(options.peerProjectPaths) || typeof options.symbol !== 'string' ||
+          typeof this.graph?.getCrossRepoContractImpact !== 'function') {
+        return { contract: IMPACT_SIMULATION_CONTRACT, status: 'NOT_AVAILABLE', reason: 'PEER_GRAPH_REQUIRED' };
+      }
+      return this.graph.getCrossRepoContractImpact(targetPath, options.symbol, options.peerProjectPaths, options.maxDepth);
+    }
 
     const maxDepth = Math.max(1, Math.min(options.maxDepth ?? 3, 10));
     const absTarget = resolve(this.workspaceRoot, targetPath);

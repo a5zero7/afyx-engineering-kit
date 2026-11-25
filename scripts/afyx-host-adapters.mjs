@@ -170,6 +170,16 @@ function requestTimeout(request, ceilingMs) {
  * @param {string} [options.nodePath] - Path to node executable
  * @returns {Object} Map of component adapters { [componentId]: (request) => Promise<result> }
  */
+function parseGraphContractEvidence(stdout) {
+  if (Buffer.byteLength(stdout, 'utf8') > 30000) return null;
+  try {
+    const value = JSON.parse(stdout);
+    return value?.contract === 'AfyxCrossRepoContractImpact/v1' && Array.isArray(value.links) ? value : null;
+  } catch {
+    return null;
+  }
+}
+
 export function createInstalledHostAdapters({
   installRoot,
   projectRoot,
@@ -284,6 +294,22 @@ export function createInstalledHostAdapters({
         runArgs = [graphEntrypoint, 'explore', queryTerm, '--path', targetPath];
       }
 
+      const peers = request.payload?.peerProjectPaths;
+      if (peers !== undefined) {
+        const approved = trustedCapabilities.graph?.peerProjectPaths;
+        if (!['callers', 'impact'].includes(operation) || !Array.isArray(peers) ||
+            peers.length === 0 || peers.length > 8 || !Array.isArray(approved) ||
+            !peers.every(peer => typeof peer === 'string' && peer.length <= 1024 &&
+              !peer.includes(',') && approved.includes(peer)) ||
+            typeof request.payload.file !== 'string' || !request.payload.file) {
+          return { status: 'FAILED', reason: 'GRAPH_PEER_SCOPE_NOT_AUTHORIZED', output: null };
+        }
+        runArgs.push('--file', request.payload.file, '--peer-roots', peers.join(','));
+        if (operation === 'impact' && Number.isSafeInteger(request.payload.depth)) {
+          runArgs.push('--depth', String(request.payload.depth));
+        }
+      }
+
       const execResult = spawnSync(nodePath, runArgs, {
         cwd: targetPath,
         encoding: 'utf8',
@@ -315,6 +341,12 @@ export function createInstalledHostAdapters({
       }
 
       // Check if output is large enough to benefit from context reduction
+      if (peers !== undefined) {
+        const evidence = parseGraphContractEvidence(stdout);
+        return evidence?.producer
+          ? success(evidence, 'cross-repo-contract', [{ kind: 'graph-tool', command: operation }])
+          : { status: 'FAILED', reason: 'GRAPH_PRODUCER_CONTRACT_NOT_VERIFIED', output: null };
+      }
       const outputBytes = Buffer.byteLength(stdout, 'utf8');
       const followUpRequests = [];
       if (outputBytes > 20_000) {
@@ -366,6 +398,14 @@ export function createInstalledHostAdapters({
       }
 
       const source = request.sourceResult;
+      if (source?.componentId === 'afyx-graph' && source.status === 'EXECUTED' &&
+          source.output?.contract === 'AfyxCrossRepoContractImpact/v1') {
+        const { packContractEvidence } = await import(pathToFileURL(join(resolvedInstallRoot, 'context', 'current', 'dist', 'index.js')).href);
+        return success(packContractEvidence(source.output, {
+          maxBytes: Math.min(8000, request.budgetLimits.maxContextBytes),
+          maxTokens: 2000,
+        }), 'bounded-context-optimization');
+      }
       const standaloneContent = typeof request.payload === 'string' ? request.payload
         : (typeof request.text === 'string' ? request.text : (typeof request.input === 'string' ? request.input : null));
       const contentToReduce = (source?.componentId === 'afyx-graph' && source.status === 'EXECUTED' && typeof source.output === 'string')
@@ -439,6 +479,12 @@ export function createInstalledHostAdapters({
      * Real host adapter for Afyx Forge Core
      */
     'afyx-forge': async (request) => {
+      if (request.payload?.peerProjectPaths !== undefined) {
+        const evidence = request.sourceResult?.output;
+        if (!evidence?.producer) return { status: 'FAILED', reason: 'GRAPH_CONTRACT_EVIDENCE_NOT_AVAILABLE', output: null };
+        const forge = await import(pathToFileURL(join(resolvedInstallRoot, 'forge', 'current', 'src', 'index.js')).href);
+        return success(forge.createContractImpactPlan(evidence, request.budgetLimits), 'adaptive-engineering-policy');
+      }
       if (['workflow-execution', 'multi-agent-workflow'].includes(request.taskType)) {
         if (!trustedCapabilities.forge) return { status: 'FAILED', reason: 'FORGE_HOST_ADAPTERS_REQUIRED', output: null };
         const forge = await import(pathToFileURL(join(resolvedInstallRoot, 'forge', 'current', 'src', 'index.js')).href);

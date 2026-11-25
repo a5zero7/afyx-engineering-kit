@@ -2,12 +2,12 @@
   "schema": 1,
   "baselineRevision": "c4e4d8e29de239a2fcbc0db8ac65eea2276e7b00",
   "scope": "AFYX-320 comprehensive production source inventory",
-  "totalProductionFiles": 518,
+  "totalProductionFiles": 521,
   "entries": [
     {
       "path": "afyx-context/src/budget.js",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "83c85637a3c1cfd03310e4acd1395342f509b06fac9dae8d6dbf0b78686d588a",
+      "reviewedSha256": "4cd56f64128a467c9e590fb56239090746eb201294fb8a266203b544efec7734",
       "evidence": "MB12 review: authored from AFYX functional requirements and existing reviewed 251f73a contracts; no upstream implementation, prompts, assets or dependency imported. Trusted-host boundaries and negative/regression tests recorded in MB12-native-consolidation-20261114-r1."
     },
     {
@@ -27,6 +27,12 @@
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
       "reviewedSha256": "89531476392c363cffcbe8a66a4bd20ae037977576ce98e7c2dcad53f1b2e3d0",
       "evidence": "AFYX-353 review: authored from AFYX functional requirements and afyx-usage/v1 canonical contract; read-only Codex telemetry collector and bounded aggregation; no external prompts, dependencies or code imported."
+    },
+    {
+      "path": "afyx-context/src/contract-evidence.js",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "254df9570b3e4e8c0c32e6183fe74d9ed2ffb3e0c61b7559370e8d37a1ca42e1",
+      "evidence": "AFYX native packing of complete contract evidence records with exact citations, byte estimates and bounded token estimates."
     },
     {
       "path": "afyx-context/src/coordination.js",
@@ -91,13 +97,13 @@
     {
       "path": "afyx-context/src/impact-simulator.js",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "ff0cc5d12bb46b046766d05cc3cc381d104d0a5ba16c7bb1dc7473ae8732478f",
+      "reviewedSha256": "3a64d40805893aa821e527a995ac405fcafeecfcd37d6350a4b29b490121c246",
       "evidence": "Universal read-only dependency impact simulation engine with Graph and fallback support (AFYX-116)."
     },
     {
       "path": "afyx-context/src/index.js",
       "classification": "PUBLIC_API_BARREL",
-      "reviewedSha256": "82e28404d5986cfddb0b13e3cd24ba650de8e22e0e675095435614844cc56f07",
+      "reviewedSha256": "3d7f5e476e0ef426e96c8dd549c717d399ce601dde9550a315636fb7276c50ec",
       "evidence": "MB12 review: authored from AFYX functional requirements and existing reviewed 251f73a contracts; no upstream implementation, prompts, assets or dependency imported. Trusted-host boundaries and negative/regression tests recorded in MB12-native-consolidation-20261114-r1."
     },
     {
@@ -155,6 +161,12 @@
       "evidence": "MB12 review: authored from AFYX functional requirements and existing reviewed 251f73a contracts; no upstream implementation, prompts, assets or dependency imported. Trusted-host boundaries and negative/regression tests recorded in MB12-native-consolidation-20261114-r1."
     },
     {
+      "path": "afyx-forge/src/contract-impact-plan.js",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "97b18515104283aaadd1b31919048108d34403710db45414edc2f02657b9aa41",
+      "evidence": "AFYX native producer-first advisory planning from bounded Graph and Context contract evidence."
+    },
+    {
       "path": "afyx-forge/src/contract-validator.js",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
       "reviewedSha256": "e6f76e4a6997b58e2332066a3b31cd2917cee71cbd8a99c00e94c022ba50453d",
@@ -175,7 +187,7 @@
     {
       "path": "afyx-forge/src/index.js",
       "classification": "PUBLIC_API_BARREL",
-      "reviewedSha256": "da643c04a6903cc28e4af0065bd2eff93e737a7ed4c16ea1f5fcec4df662c0cd",
+      "reviewedSha256": "a7bb95ae7dedc9d5f9884ca0ac0295dbcfb3e889a3e153259f3e0060c6726cea",
       "evidence": "MB12 review: authored from AFYX functional requirements and existing reviewed 251f73a contracts; no upstream implementation, prompts, assets or dependency imported. Trusted-host boundaries and negative/regression tests recorded in MB12-native-consolidation-20261114-r1."
     },
     {
@@ -217,7 +229,7 @@
     {
       "path": "afyx-graph/engine/src/bin/afyx-graph.ts",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "10bf3aa1014e501999e0a8d1c927a19a55dca824a9ac48afc1cc57359e2fdb78",
+      "reviewedSha256": "83832b23cb28893d1136791880dde8e76c8c93b3239800d4d3be646321a1eb2a",
       "evidence": "Independently authored AFYX native component implementing command-line interface and query orchestration."
     },
     {
@@ -1152,6 +1164,12 @@
       "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
     },
     {
+      "path": "afyx-graph/engine/src/impact/cross-repo-contract.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "a804f7354e1ffc11c52ddfdfbdada44a019c89dde93bea88f6655e6e002f5bcc",
+      "evidence": "AFYX native bounded contract impact over explicitly authorized, fresh sibling indexes and exact source locations."
+    },
+    {
       "path": "afyx-graph/engine/src/impact/file-impact.ts",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
       "reviewedSha256": "ade289daf487df92b4a4c7c1dc1fb1488385044c8d8e69a3ba576b2945a99cc1",
@@ -1190,7 +1208,7 @@
     {
       "path": "afyx-graph/engine/src/index.ts",
       "classification": "PUBLIC_API_BARREL",
-      "reviewedSha256": "75d39cff9a03a29ca4ed8f7fd4d2e72ae01154087cb577b79e417fbbf29b8506",
+      "reviewedSha256": "c802625c91aad965850e5c24823d490e76bc533873b09eefeca5c34f13bcdc26",
       "evidence": "MB15 Graph lifecycle: reviewed failed asynchronous initialization closing its unpublished database and file lock while preserving the original rejection; existing index ownership and success behavior unchanged."
     },
     {
@@ -1550,7 +1568,7 @@
     {
       "path": "afyx-graph/engine/src/mcp/tool-catalog.ts",
       "classification": "PRODUCT_SCHEMA_DATA",
-      "reviewedSha256": "6d4683ab9c08d5f3e17980ba623035b331b0c049c09ff396a37d4c2b7b42a25c",
+      "reviewedSha256": "3f8f96b5ad24a08ea8864deea78398214069af330f884843a0df95ba4fdb89bf",
       "evidence": "MB11.4 final review: technical MCP schema fields are compatibility data and remain exactly equal to 7035224 after excluding descriptive text (SHA-256 54bac2ebbf9555b85a2c2dc3ff3fdf436a9f8de2e07e94a126330a934a5a808a). All 41 tool/parameter descriptions were authored from AFYX functional requirements, including replacement of inherited long guidance prose. Full catalog contract is independently frozen by mcp-semantic-contract.test.ts; no dispatch implementation is embedded here."
     },
     {
@@ -1580,7 +1598,7 @@
     {
       "path": "afyx-graph/engine/src/mcp/tools.ts",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "18171876e05d49b7297201f9022a1dcad73736f95116109e87074ab20a113e8b",
+      "reviewedSha256": "7d011258dbafdbae3244cd622974989bc0302e73abd364acffb963bdb8b07379",
       "evidence": "MB11.4 independent AFYX rewrite of ToolHandler orchestration (project resolution, reopenIfReplaced, catch-up barrier, allowlist, path validation, worker offload, and facade delegation to modular helpers); difflib vs CodeGraph shows zero inherited algorithmic blocks (ratio 0.0293, max 9 trivial signature/error lines). MB11.4 final residual review: long historical guidance and captions were replaced with AFYX-authored prose derived from runtime requirements; only tested diagnostic labels and technical identifiers are retained. Dispatch, validation, lifecycle policy and structured relationship data are unchanged by this text remediation."
     },
     {
@@ -2715,7 +2733,7 @@
     {
       "path": "scripts/afyx-capability-orchestrator.mjs",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "ece1d3ad7711ee1efa5e57e4874267a00e4cc064d14bacd00d3a98af3525f03e",
+      "reviewedSha256": "40aaf34af45ff6ef9f3df842a54b8b330ff367a57ca2c09c2973dad5c8079451",
       "evidence": "Universal capability orchestrator supporting all 8 modular tools with lazy activation, SCHEMA_INSPECTED / HEADER_ONLY_FALLBACK interop, and strict single primary domain budget (AFYX-329)."
     },
     {
@@ -2805,7 +2823,7 @@
     {
       "path": "scripts/afyx-host-adapters.mjs",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "1683d4ad2c08fe946c1209639f84750b2c2da61c3bdc9a3eb3d79fe87e5f48e4",
+      "reviewedSha256": "b482863202177dfb966088949953e9a0537b822e6ddd01a3abc93510ecd96323",
       "evidence": "MB16 AFYX-283: reviewed bounded Engineering Expert selection, lexical domain hints, and host ceiling consumption; no external logic imported."
     },
     {

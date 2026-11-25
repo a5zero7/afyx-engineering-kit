@@ -3,6 +3,7 @@
  */
 
 import fs from 'node:fs';
+export { createContractImpactPlan } from './contract-impact-plan.js';
 import path from 'node:path';
 import { classifyTask } from './classifier.js';
 import { deriveAdaptivePolicy } from './policy.js';

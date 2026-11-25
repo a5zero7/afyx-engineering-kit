@@ -10,6 +10,9 @@
 - Linked Protobuf RPC declarations to gRPC handlers in Go, TypeScript,
   JavaScript, Python, and Java. Incremental sync reconciles dispatch edges
   so callers, callees, and impact analysis follow current bindings.
+- Added [cross-repository contract impact](docs/tool-guides/AFYX_CROSS_REPO_CONTRACT_IMPACT.md)
+  for explicitly configured, fresh sibling indexes, with bounded Context
+  evidence and producer-first Forge advisory plans.
 
 ## [1.0.2] — 2026-11-24
 

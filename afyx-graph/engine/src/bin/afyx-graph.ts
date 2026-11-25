@@ -2116,7 +2116,8 @@ for (const direction of ['callers', 'callees'] as const) {
      .flag('-f, --file <path>', 'Narrow definitions by file path or suffix (no match: show all with a note)')
      .flag('-l, --limit <number>', 'Maximum results per definition (also caps the JSON union)', '20')
      .flag('-j, --json', 'Output as JSON')
-     .handle(async (symbol: string, options: { path?: string; file?: string; limit?: string; json?: boolean }) => {
+    .flag('--peer-roots <paths>', 'Explicit sibling roots, comma-separated (requires exact --file and symbol)')
+     .handle(async (symbol: string, options: { path?: string; file?: string; limit?: string; peerRoots?: string; json?: boolean }) => {
       const projectPath = resolveProjectPath(options.path);
 
       try {
@@ -2128,6 +2129,12 @@ for (const direction of ['callers', 'callees'] as const) {
         const { default: AfyxGraph } = await loadAfyxGraph();
         const cg = await AfyxGraph.open(projectPath);
         try {
+        if (options.peerRoots !== undefined) {
+          if (direction !== 'callers' || !options.file) throw new Error('Peer analysis requires callers/impact and an exact --file');
+          console.log(JSON.stringify(cg.getCrossRepoContractImpact(options.file, symbol, options.peerRoots.split(','), 1), null, 2));
+          return;
+        }
+
           const limit = parseInt(options.limit || '20', 10);
           const { nodes: targets } = lookupSymbolNodes(cg, symbol);
           if (targets.length === 0) {
@@ -2247,7 +2254,8 @@ program
    .flag('-f, --file <path>', 'Narrow definitions by file path or suffix (no match: show all with a note)')
    .flag('-d, --depth <number>', 'Traversal depth', '2')
    .flag('-j, --json', 'Output as JSON')
-   .handle(async (symbol: string, options: { path?: string; file?: string; depth?: string; json?: boolean }) => {
+    .flag('--peer-roots <paths>', 'Explicit sibling roots, comma-separated (requires exact --file and symbol)')
+   .handle(async (symbol: string, options: { path?: string; file?: string; depth?: string; peerRoots?: string; json?: boolean }) => {
     const projectPath = resolveProjectPath(options.path);
 
     try {
@@ -2259,6 +2267,12 @@ program
       const { default: AfyxGraph } = await loadAfyxGraph();
       const cg = await AfyxGraph.open(projectPath);
       try {
+        if (options.peerRoots !== undefined) {
+          if (!options.file) throw new Error('Peer analysis requires callers/impact and an exact --file');
+          console.log(JSON.stringify(cg.getCrossRepoContractImpact(options.file, symbol, options.peerRoots.split(','), Number(options.depth ?? 2)), null, 2));
+          return;
+        }
+
         const depth = Math.min(Math.max(parseInt(options.depth || '2', 10), 1), 10);
         const { nodes: targets } = lookupSymbolNodes(cg, symbol);
         if (targets.length === 0) {

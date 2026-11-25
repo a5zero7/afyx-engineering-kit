@@ -23,6 +23,7 @@ export {
   compressContextItems,
   detectRedundancy,
 } from './budget.js';
+export { packContractEvidence, CONTRACT_EVIDENCE_DIGEST } from './contract-evidence.js';
 export { DOCUMENTATION_CONTRACT, createDocumentationCatalog } from './documentation.js';
 export { USAGE_CONTRACT, normalizeUsageEvent, createUsageAnalytics } from './usage.js';
 export {

@@ -359,7 +359,8 @@ export function classifyTaskIntent(task = {}, hostMetadata = {}) {
   const hasUniversalContext = dbInspection || cliCompaction || massiveContext || workLedger || impactSimulation || envPreflight;
   const hasUniversalForge = contractValidation || migrationPlanning;
 
-  const contextOptimization = task.needsContextOptimization === true ||
+  const peerImpact = graphRelationshipTask && Array.isArray(task.payload?.peerProjectPaths);
+  const contextOptimization = peerImpact || task.needsContextOptimization === true ||
     taskType === 'large-context' || hasUniversalContext;
   const architecture = ['architecture', 'multi-disciplinary', 'system-design', 'general-engineering', 'skill-discovery', 'skill-refinement', 'skill-composition'].includes(taskType);
   const forgeAdvice = (task.forgeAdvice === true || ['forge-advice', 'workflow-execution', 'multi-agent-workflow'].includes(taskType) || hasUniversalForge);
@@ -386,6 +387,7 @@ export function classifyTaskIntent(task = {}, hostMetadata = {}) {
     directSource,
     odoo,
     relational,
+    peerImpact,
     contextOptimization,
     architecture,
     forgeAdvice,
@@ -464,7 +466,7 @@ function selectionCandidates(task, classification, modularRuntimePlan, discovery
 
   // 2. Supporting Modules (Max 2 Supporting Modules: Graph, Forge, Context)
   const supporting = [];
-  if (classification.relational && (!exclusiveDomain || task.needsRelationalEvidence === true)) {
+  if (classification.relational && (!exclusiveDomain || classification.peerImpact || task.needsRelationalEvidence === true)) {
     supporting.push('afyx-graph');
   }
   if (classification.forgeAdvice && !classification.forgeAutonomous) {
@@ -499,6 +501,7 @@ function selectionCandidates(task, classification, modularRuntimePlan, discovery
     ...(classification.github ? ['afyx-native-github'] : []),
     ...(classification.nativeExecution ? ['afyx-native-execution'] : []),
     ...(classification.securityAudit ? ['afyx-security-auditor'] : []),
+    ...(classification.peerImpact ? ['afyx-graph'] : []),
     ...classification.manualSelection,
     ...(classification.odoo ? ['afyx-odoo-engineering', 'odoo-engineering'] : []),
     ...(classification.architecture ? ['afyx-engineering-expert'] : []),
@@ -893,7 +896,14 @@ export async function executeAfyxCapabilityRoute(options = {}) {
   }
 
   while (queue.length > 0) {
-    const request = queue.shift();
+    let request = queue.shift();
+    if (route.classification.peerImpact && request.targetComponentId === 'afyx-forge') {
+      const sourceResult = results.findLast(item => item.status === 'EXECUTED' &&
+        item.output?.producer && (
+          (item.componentId === 'afyx-context' && item.output.contract === 'AfyxContractEvidenceDigest/v1') ||
+          (item.componentId === 'afyx-graph' && item.output.contract === 'AfyxCrossRepoContractImpact/v1')));
+      request = Object.freeze({ ...request, sourceResult: sourceResult ?? null });
+    }
     const key = dedupeKey(request);
     if (seen.has(key)) {
       duplicateInvocationsAvoided += 1;
@@ -995,7 +1005,12 @@ export async function executeAfyxCapabilityRoute(options = {}) {
     // Process bidirectional follow-up capability requests and dynamic Graph->Context handoff
     const isGraphResult = request.targetComponentId === 'afyx-graph';
     const contextOptimizationRequested = route.classification.contextOptimization === true;
-    const isEligibleGraphPayload = result.status === 'EXECUTED' && typeof result.output === 'string' &&
+    const canPackContract = isGraphResult && result.status === 'EXECUTED' && route.classification.peerImpact &&
+      result.output?.contract === 'AfyxCrossRepoContractImpact/v1' &&
+      Array.isArray(result.output.links) &&
+      result.contextBytes > 8000 && result.output.links.some(link => link.provenance === 'cross-repo-contract') &&
+      activeDiscovery.capabilities['afyx-context']?.available === true;
+    const isEligibleGraphPayload = canPackContract || result.status === 'EXECUTED' && typeof result.output === 'string' &&
       (result.contextBytes > 20_000 || Buffer.byteLength(result.output, 'utf8') > 20_000);
     const alreadyHasContextFollowUp = result.followUpRequests.some((f) => f?.targetComponentId === 'afyx-context');
 
@@ -1080,7 +1095,7 @@ export async function executeAfyxCapabilityRoute(options = {}) {
       scheduledComponents.add(target);
       activeOwners[followUpCapability.capability] = target;
       justified.add(target);
-      queue.push(Object.freeze({
+      const nextRequest = Object.freeze({
         ...makeRequest({
           task: options.task ?? {},
           componentId: target,
@@ -1092,7 +1107,11 @@ export async function executeAfyxCapabilityRoute(options = {}) {
         callerComponentId: request.targetComponentId,
         // Only actual executed evidence is passed to bounded downstream adapters.
         sourceResult: result.status === 'EXECUTED' ? result : null,
-      }));
+      });
+      const forgeIndex = route.classification.peerImpact && target === 'afyx-context'
+        ? queue.findIndex(item => item.targetComponentId === 'afyx-forge') : -1;
+      if (forgeIndex < 0) queue.push(nextRequest);
+      else queue.splice(forgeIndex, 0, nextRequest);
     }
   }
 

@@ -19,6 +19,7 @@ export interface ToolAnnotations {
 
 export interface PropertySchema {
   type: string;
+  items?: { type: string };
   description: string;
   enum?: string[];
   default?: unknown;
@@ -159,6 +160,11 @@ export const AFYX_MCP_TOOL_CATALOG: ToolDefinition[] = [
         description: "Upper bound on displayed incoming callers; defaults to 20.",
         default: 20,
       },
+      peerProjectPaths: {
+        type: 'array',
+        items: { type: 'string' },
+        description: 'Host-authorized sibling roots. Requires an exact contract file and qualified symbol.',
+      },
       projectPath: projectPathProperty,
     },
     ['symbol'],
@@ -200,6 +206,11 @@ export const AFYX_MCP_TOOL_CATALOG: ToolDefinition[] = [
         type: 'number',
         description: "Traversal distance in relationship levels; defaults to 2.",
         default: 2,
+      },
+      peerProjectPaths: {
+        type: 'array',
+        items: { type: 'string' },
+        description: 'Host-authorized sibling roots. Requires an exact contract file and qualified symbol.',
       },
       projectPath: projectPathProperty,
     },
