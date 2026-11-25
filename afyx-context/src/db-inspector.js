@@ -27,6 +27,8 @@ const LIVE_CLIENTS = { postgres: 'psql', mysql: 'mysql' };
 const LIVE_LIMIT = 100;
 const LIVE_BUFFER = 256 * 1024;
 const LIVE_TIMEOUT = 6000;
+const PLAN_NODE_TYPES = new Set(['Seq Scan', 'Index Scan', 'Index Only Scan', 'Bitmap Heap Scan', 'Limit',
+  'Result', 'Nested Loop', 'Sort', 'Aggregate', 'ALL', 'index', 'range', 'ref', 'eq_ref', 'const', 'system']);
 
 function liveExecutable(name, explicit) {
   const file = process.platform === 'win32' ? name + '.exe' : name;
@@ -49,6 +51,11 @@ function liveStatement(dialect, operation, schema, relations) {
       sql: "SELECT table_name FROM information_schema.tables WHERE table_schema = '" + schema +
         "' AND table_type = 'BASE TABLE' ORDER BY table_name LIMIT " + (LIVE_LIMIT + 1),
     };
+  }
+  if (operation?.kind === 'columns' && typeof operation.table === 'string' && IDENTIFIER.test(operation.table) &&
+      Array.isArray(relations) && relations.length <= LIVE_LIMIT && relations.includes(operation.table)) {
+    return { kind: 'columns', sql: "SELECT column_name FROM information_schema.columns WHERE table_schema = '" +
+      schema + "' AND table_name = '" + operation.table + "' ORDER BY ordinal_position LIMIT " + (LIVE_LIMIT + 1) };
   }
   if (!['query', 'explain'].includes(operation?.kind) || typeof operation.sql !== 'string' || operation.sql.length > 2048) return;
   // A projection over one explicitly approved relation. No expressions, comments,
@@ -229,7 +236,13 @@ export class DbInspector {
         if (postgres ? !Array.isArray(plan) || plan.length !== 1 || !plan[0]?.Plan : !plan?.query_block) {
           return report('ERROR', 'DB_INVALID_RESPONSE');
         }
-        return report('PLAN_INSPECTED', null, { readOnly: true, format: 'json', executed: false });
+        const root = postgres ? plan[0].Plan : plan.query_block.table ?? plan.query_block;
+        if (typeof root !== 'object' || root === null || Array.isArray(root)) return report('ERROR', 'DB_INVALID_RESPONSE');
+        const name = postgres ? root['Node Type'] : root.access_type;
+        const rows = postgres ? root['Plan Rows'] : root.rows_examined_per_scan;
+        return report('PLAN_INSPECTED', null, { readOnly: true, format: 'json', executed: false,
+          plan: { access: PLAN_NODE_TYPES.has(name) ? name : null,
+            estimatedRows: Number.isSafeInteger(rows) && rows >= 0 ? rows : null } });
       }
       if (statement.kind === 'query') {
         if (!/^\d{1,3}$/.test(output) || Number(output) > LIVE_LIMIT) return report('ERROR', 'DB_INVALID_RESPONSE');
@@ -237,9 +250,10 @@ export class DbInspector {
       }
       const rows = output ? output.split(/\r?\n/) : [];
       if (rows.length > LIVE_LIMIT + 1 || !rows.every(name => IDENTIFIER.test(name))) return report('ERROR', 'DB_INVALID_RESPONSE');
-      const tables = rows.slice(0, LIVE_LIMIT).map(name =>
+      const names = rows.slice(0, LIVE_LIMIT).map(name =>
         SENSITIVE_COLUMN_PATTERN.test(name) || (password && name.includes(password)) ? '[REDACTED]' : name);
-      return report('SCHEMA_INSPECTED', null, { readOnly: true, tables, truncated: rows.length > LIVE_LIMIT });
+      return report('SCHEMA_INSPECTED', null, { readOnly: true,
+        [statement.kind === 'columns' ? 'columns' : 'tables']: names, truncated: rows.length > LIVE_LIMIT });
     } catch {
       return report('ERROR', 'DB_INVALID_RESPONSE');
     }

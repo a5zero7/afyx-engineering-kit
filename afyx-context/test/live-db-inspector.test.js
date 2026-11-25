@@ -40,8 +40,15 @@ for (const dialect of ['postgres', 'mysql']) {
     }
     assert.equal(calls, 0);
     assert.deepEqual(db.inspectExternalCatalog(dialect, config).tables, ['catalog', '[REDACTED]', '[REDACTED]']);
-    response = { status: 0, stdout: dialect === 'postgres' ? '[{"Plan":{}}]' : '{"query_block":{}}' };
-    assert.equal(db.inspectExternalCatalog(dialect, config, explain).executed, false);
+    assert.deepEqual(db.inspectExternalCatalog(dialect, config, { kind: 'columns', table: 'catalog' }).columns,
+      ['catalog', '[REDACTED]', '[REDACTED]']);
+    response = { status: 0, stdout: dialect === 'postgres' ?
+      '[{"Plan":{"Node Type":"Seq Scan","Plan Rows":3,"Filter":"fixture_private_credential"}}]' :
+      '{"query_block":{"table":{"access_type":"ALL","rows_examined_per_scan":3,"condition":"fixture_private_credential"}}}' };
+    const planned = db.inspectExternalCatalog(dialect, config, explain);
+    assert.equal(planned.executed, false);
+    assert.deepEqual(planned.plan, { access: dialect === 'postgres' ? 'Seq Scan' : 'ALL', estimatedRows: 3 });
+    assert.ok(!JSON.stringify(planned).includes(password));
     response = { status: 0, stdout: '7\n' };
     assert.equal(db.inspectExternalCatalog(dialect, config, { ...explain, kind: 'query' }).rowsObserved, 7);
     for (const failure of [

@@ -43,7 +43,7 @@
     {
       "path": "afyx-context/src/db-inspector.js",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "ede96ef095165edebbb337e7d11217cd8a0872a559a977b8421781ed83e9c94a",
+      "reviewedSha256": "a32386281419840a04064c39f1ab289e33896610d6c7e1803419b6fecf75992a",
       "evidence": "Strictly read-only data and schema inspector for CSV, JSON, NDJSON, SQLite, and external catalogs with identifier escaping, SCHEMA_INSPECTED status separation, path containment, and SHA-256 invariance (AFYX-329)."
     },
     {
