@@ -340,6 +340,16 @@ export function extractNativeCFamilyFacts(filePath: string, source: string, lang
     if (name.kind !== 'identifier' || tokens[i + 1]?.text !== '(' || CONTROL.has(name.text)) continue;
     if (directiveLines.has(name.start.line) || DECLARATION_ATTRIBUTES.has(name.text) ||
         declarationAttributeRanges.some((range) => range.start < i && i < range.end)) continue;
+    if (language === 'csharp') {
+      let prefix = statementStart(i);
+      while (tokens[prefix]?.kind === 'comment' || tokens[prefix]?.text === '[') {
+        if (tokens[prefix]?.kind === 'comment') { prefix++; continue; }
+        const close = scan.pairs.get(prefix);
+        if (close === undefined) break;
+        prefix = close + 1;
+      }
+      if (prefix > i) continue;
+    }
     if (['class', 'struct', 'interface', 'record', 'enum', 'namespace', 'new', 'return'].includes(tokens[i - 1]?.text ?? '')) continue;
     const paramsEnd = scan.pairs.get(i + 1);
     if (paramsEnd === undefined) continue;

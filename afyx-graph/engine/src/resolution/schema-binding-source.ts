@@ -61,10 +61,11 @@ export class BindingSource {
   private braceOwners?: number[];
   readonly nodes: Node[];
 
-  constructor(readonly ctx: ResolutionContext, readonly file: string, source: string) {
+  constructor(readonly ctx: SchemaBindingContext, readonly file: string, readonly sourceText: string) {
     const python = file.endsWith('.py');
-    this.scan = scanSource(source, {
-      hashComments: python,
+    this.scan = scanSource(sourceText, {
+      rustSyntax: file.endsWith('.rs'),
+      hashComments: python || /\.(?:rb|php|gql|graphql)$/.test(file),
       tripleQuotedStrings: python || file.endsWith('.java'),
       javascriptRegex: JS_SOURCE.test(file),
     });
@@ -89,6 +90,10 @@ export class BindingSource {
     const token = this.tokens[i];
     if (token?.kind !== 'string') return undefined;
     return /^(['"])([A-Za-z_]\w*)\1$/.exec(token.text)?.[2];
+  }
+  stringToken(i: number): string | undefined {
+    const token = this.tokens[i];
+    return token?.kind === 'string' ? token.text : undefined;
   }
   line(i: number): number { return this.tokens[i]?.start.line ?? 0; }
   end(i: number): number | undefined { return this.scan.pairs.get(i); }
@@ -122,12 +127,31 @@ export class BindingSource {
     return only((this.positions.get(`${line}:${column}`) ?? []).filter(predicate));
   }
 
-  qualified(i: number): { parts: string[]; next: number } {
+  positionIndex(node: Node): number | undefined {
+    let low = 0, high = this.tokens.length;
+    while (low < high) {
+      const middle = (low + high) >>> 1;
+      const pos = this.tokens[middle]!.start;
+      if (pos.line < node.startLine || (pos.line === node.startLine && pos.column < node.startColumn)) low = middle + 1;
+      else high = middle;
+    }
+    const pos = this.tokens[low]?.start;
+    return pos?.line === node.startLine && pos.column === node.startColumn ? low : undefined;
+  }
+
+  containsPosition(open: number, close: number, node: Node): boolean {
+    const index = this.positionIndex(node);
+    return index !== undefined && index > open && index < close;
+  }
+
+  qualified(i: number) { return this.names(i, '.'); }
+
+  names(i: number, separator: string): { parts: string[]; next: number } {
     const parts: string[] = [];
     for (let name = this.id(i); name; name = this.id(i)) {
       parts.push(name);
       i = this.next(i);
-      if (this.text(i) !== '.') break;
+      if (this.text(i) !== separator) break;
       i = this.next(i);
     }
     return { parts, next: i };

@@ -1,4 +1,5 @@
 /** Copyright (c) 2026 Afyx */
+import { polyglotGraphql, rubyGraphql, lighthouseGraphql } from './polyglot-schema-bindings';
 import { isGraphQLFile } from '../extraction/graphql-extractor';
 import type { Edge, Node } from '../types';
 import type { MaybeYield } from './cooperative-yield';
@@ -127,18 +128,24 @@ export async function graphqlResolverEdges(
   if (fields.size === 0) return [];
 
   const edges: Edge[] = [];
+  for (const file of schemaFiles) {
+    const content = localSource(ctx, file);
+    if (content?.includes('@field')) edges.push(...lighthouseGraphql(new BindingSource(ctx, file, content)));
+  }
   for (const file of files) {
     const js = JS_SOURCE.test(file);
     const python = /\.py$/i.test(file);
     const go = /\.go$/i.test(file);
-    if (!js && !python && !go) continue;
+    const polyglot = /\.(?:cs|rs|rb)$/.test(file);
+    if (!js && !python && !go && !polyglot) continue;
     await yieldToLoop();
     const content = localSource(ctx, file);
     const marker = js ? /\bresolvers\b|@\s*(?:Query|Mutation|Subscription|ResolveField)\b/
       : python ? /@\s*(?:query|mutation|subscription|strawberry)\s*\./ : /\b(?:query|mutation|subscription)Resolver\b/;
-    if (!content || !marker.test(content)) continue;
+    if (!content || !(polyglot ? /Object|Subscription|QueryType|MutationType|resolver:/.test(content) : marker.test(content))) continue;
     const source = new BindingSource(ctx, file, content);
-    const bindings = js ? jsBindings(source) : python ? pythonBindings(source) : goBindings(source);
+    const bindings = js ? jsBindings(source) : python ? pythonBindings(source) : go ? goBindings(source)
+      : file.endsWith('.rb') ? rubyGraphql(source) : polyglotGraphql(source);
     for (const binding of bindings) {
       const matches = fields.get(`${binding.owner}.${binding.member}`);
       if (matches?.length === 1) edges.push(schemaEdge(matches[0]!, binding, GRAPHQL_SYNTHESIS));

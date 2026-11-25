@@ -33,4 +33,5 @@
 // existing indexes may retain those false nodes and edges until rebuilt.
 // v31: link indexed GraphQL and Protobuf declarations to static server
 // bindings and index inline gRPC handler implementations.
-export const EXTRACTION_VERSION = 31;
+// v32: add qualified polyglot schema dispatch and bounded reflection edges.
+export const EXTRACTION_VERSION = 32;

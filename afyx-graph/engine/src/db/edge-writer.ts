@@ -71,6 +71,12 @@ export class EdgeWriter {
         ) AND kind = 'calls' AND provenance = 'heuristic'
           AND json_extract(metadata, '$.synthesis') IN ('graphql-resolver', 'grpc-service')
       `).run();
+      this.session.statement(`
+        DELETE FROM edges WHERE source IN (
+          SELECT id FROM nodes
+          WHERE file_path LIKE '%.php' OR file_path LIKE '%.cs' OR file_path LIKE '%.rb'
+        ) AND provenance = 'heuristic' AND json_extract(metadata, '$.synthesis') = 'static-reflection'
+      `).run();
       this.insertTrusted(edges);
     });
   }

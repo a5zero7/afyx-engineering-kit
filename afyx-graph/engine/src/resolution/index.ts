@@ -27,6 +27,7 @@ import { detectFrameworks } from './frameworks';
 import { synthesizeCallbackEdges } from './callback-synthesizer';
 import { graphqlResolverEdges } from './graphql-resolver-synthesizer';
 import { grpcServiceEdges } from './grpc-service-synthesizer';
+import { staticReflectionEdges } from './static-reflection';
 import { createYielder, type MaybeYield } from './cooperative-yield';
 import { loadProjectAliases, loadFileAliases, clearFileAliasCache, type AliasMap } from './path-aliases';
 import { loadGoModule, type GoModule } from './go-module';
@@ -1970,14 +1971,15 @@ export class ReferenceResolver {
   async refreshSchemaDispatch(): Promise<void> {
     this.queries.setMetadata('schema_dispatch_ready', '0');
     const files = this.context.getAllFiles().sort();
-    if (files.some(file => /\.(?:graphql|gql|proto)$/i.test(file))) {
+    if (files.some(file => /\.(?:graphql|gql|proto|php|cs|rb)$/i.test(file))) {
       this.clearCaches();
       const yieldToLoop = createYielder();
       const context = { ...this.context, indexedHash: (file: string) => this.queries.getFileByPath(file)?.contentHash };
       const graphql = await graphqlResolverEdges(context, files, yieldToLoop);
       const grpc = await grpcServiceEdges(context, files, yieldToLoop);
       // All endpoints are taken from the current index, under the caller's writer lock.
-      this.queries.replaceSchemaDispatchEdges([...graphql, ...grpc]);
+      const reflection = await staticReflectionEdges(context, files, yieldToLoop);
+      this.queries.replaceSchemaDispatchEdges([...graphql, ...grpc, ...reflection]);
     }
     this.queries.setMetadata('schema_dispatch_ready', '1');
   }

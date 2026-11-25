@@ -1,5 +1,6 @@
 /** Copyright (c) 2026 Afyx */
 import { posix } from 'node:path';
+import { phpGrpc, polyglotGrpc, rubyGrpc } from './polyglot-schema-bindings';
 import type { Edge, Node } from '../types';
 import type { MaybeYield } from './cooperative-yield';
 import {
@@ -155,13 +156,17 @@ export async function grpcServiceEdges(
   const serviceGroups = groupBy(declarations.filter(node => node.kind === 'interface' &&
     /^service\s/.test(node.signature ?? '')), node => node.name);
   const services = new Set([...serviceGroups].filter(([, nodes]) => nodes.length === 1).map(([name]) => name));
+  const qualifiedServices = groupBy([...serviceGroups.values()].flat(), node =>
+    node.qualifiedName.slice(node.qualifiedName.lastIndexOf('#') + 1));
   const rpcMethods = groupBy(declarations.filter(node => node.kind === 'method' &&
     /^rpc\s/.test(node.signature ?? '')), node => node.qualifiedName);
   if (rpcMethods.size === 0) return [];
   const edges: Edge[] = [];
   const addBinding = (binding: Binding) => {
-    if (!services.has(binding.owner)) return;
-    const service = serviceGroups.get(binding.owner)![0]!;
+    const qualified = ['tonic-qualified-trait', 'aspnet-grpc-override', 'ruby-grpc-service', 'php-grpc-service-interface'].includes(binding.evidence);
+    const candidates = qualified ? qualifiedServices.get(binding.owner) : serviceGroups.get(binding.owner);
+    if (candidates?.length !== 1) return;
+    const service = candidates[0]!;
     const pascal = binding.member.charAt(0).toUpperCase() + binding.member.slice(1);
     const matches = [...new Set([binding.member, pascal])].flatMap(name =>
       rpcMethods.get(`${service.qualifiedName}.${name}`) ?? []);
@@ -174,13 +179,20 @@ export async function grpcServiceEdges(
     const js = JS_SOURCE.test(file);
     const go = /\.go$/i.test(file);
     const python = /\.py$/i.test(file);
-    if (!js && !go && !python && !/\.java$/i.test(file)) continue;
+    const polyglot = /\.(?:rs|cs|rb|php)$/.test(file);
+    if (!js && !go && !python && !polyglot && !/\.java$/i.test(file)) continue;
     await yieldToLoop();
     const content = localSource(ctx, file);
     if (!content || (js && !/\b(?:addService|GrpcMethod)\b/.test(content)) ||
         (python && !/Servicer\b|Servicer_to_server\b/.test(content)) ||
-        (!js && !go && !python && !/ImplBase\b/.test(content))) continue;
+        (!js && !go && !python && !polyglot && !/ImplBase\b/.test(content)) ||
+        (polyglot && !/async_trait|Base\b|::Service\b|implements\b/.test(content))) continue;
     const source = new BindingSource(ctx, file, content);
+    if (polyglot) {
+      const bindings = file.endsWith('.rb') ? rubyGrpc(source) : file.endsWith('.php') ? phpGrpc(source) : polyglotGrpc(source);
+      for (const binding of bindings) addBinding(binding);
+      continue;
+    }
     if (js) {
       for (const binding of jsBindings(source, services)) addBinding(binding);
       continue;
