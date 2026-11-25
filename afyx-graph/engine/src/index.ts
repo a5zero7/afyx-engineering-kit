@@ -2134,8 +2134,9 @@ export class AfyxGraph {
    * @param maxDepth - Maximum depth to traverse (default: 3)
    * @returns Subgraph containing potentially impacted nodes
    */
-  getCrossRepoContractImpact(file: string, symbol: string, peerProjectPaths: readonly string[], depth = 2) {
-    return crossRepoContractImpact(this.projectRoot, this.queries, { file, symbol }, peerProjectPaths, depth);
+  getCrossRepoContractImpact(file: string, symbol: string, peerProjectPaths?: readonly string[], depth = 2,
+    options?: { autoDiscoverPeers?: boolean; discoveryRoot?: string }) {
+    return crossRepoContractImpact(this.projectRoot, this.queries, { file, symbol }, peerProjectPaths, depth, options);
   }
 
   getImpactRadius(nodeId: string, maxDepth: number = 3): Subgraph {

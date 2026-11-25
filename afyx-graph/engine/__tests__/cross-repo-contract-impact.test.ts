@@ -24,6 +24,7 @@ it('uses exact contract and repository identity, then follows bounded calls in f
     return graph;
   };
   const previousPeers = process.env.AFYX_GRAPH_PEER_ROOTS;
+  const previousDiscovery = process.env.AFYX_GRAPH_PEER_DISCOVERY_ROOT;
   try {
     const api = await init('api', {
       'schema.graphql': 'type Query {\n get: String\n}',
@@ -35,6 +36,7 @@ it('uses exact contract and repository identity, then follows bounded calls in f
       producer, contract: { file, symbol }, consumer: { file: 'use.ts', symbol: consumer },
     });
     const consumer = await init('consumer', {
+      'package.json': '{"name":"fixture-consumer"}',
       'use.ts': 'export function loadGql() {}\nexport function loadRpc() {}\nexport function loadHttp() {}\nexport function route() { loadGql(); }\nexport function get() {}',
     }, [
       use('schema.graphql', 'Query.get', 'loadGql'),
@@ -58,6 +60,14 @@ it('uses exact contract and repository identity, then follows bounded calls in f
 
     const mcp = new ToolHandler(api);
     process.env.AFYX_GRAPH_PEER_ROOTS = JSON.stringify([peer]);
+    process.env.AFYX_GRAPH_PEER_DISCOVERY_ROOT = workspace;
+    const exactTarget = { file: 'schema.graphql', symbol: 'Query.get' };
+    const auto = await mcp.execute('afyx_graph_impact', exactTarget);
+    expect(JSON.parse(auto.content[0]!.text)).toMatchObject({ discovery: { candidates: 1, truncated: false }, links: result.links });
+    const explicitlyEmpty = await mcp.execute('afyx_graph_impact', { ...exactTarget, peerProjectPaths: [] });
+    expect(JSON.parse(explicitlyEmpty.content[0]!.text).links).toEqual([]);
+    const merged = await mcp.execute('afyx_graph_impact', { ...exactTarget, peerProjectPaths: [peer], autoDiscoverPeers: true });
+    expect(JSON.parse(merged.content[0]!.text).links).toEqual(result.links);
     for (const tool of ['afyx_graph_callers', 'afyx_graph_impact']) {
       const response = await mcp.execute(tool, { file: 'schema.graphql', symbol: 'Query.get', peerProjectPaths: [peer] });
       expect(response.isError).toBeFalsy();
@@ -78,6 +88,8 @@ it('uses exact contract and repository identity, then follows bounded calls in f
   } finally {
     if (previousPeers === undefined) delete process.env.AFYX_GRAPH_PEER_ROOTS;
     else process.env.AFYX_GRAPH_PEER_ROOTS = previousPeers;
+    if (previousDiscovery === undefined) delete process.env.AFYX_GRAPH_PEER_DISCOVERY_ROOT;
+    else process.env.AFYX_GRAPH_PEER_DISCOVERY_ROOT = previousDiscovery;
     for (const graph of graphs) graph.close();
     rmSync(workspace, { recursive: true, force: true });
   }

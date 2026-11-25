@@ -9,6 +9,7 @@ import { hashContent } from '../extraction/content-hash';
 import { getFreshness } from '../freshness';
 import type { Node } from '../types';
 import { isInsideRoot, validatePathWithinRoot } from '../utils';
+import { discoverPeers, peerIdentity } from './peer-discovery';
 
 const MANIFEST = 'afyx-contracts.json';
 const MAX_PEERS = 8;
@@ -47,13 +48,15 @@ function manifest(root: string): { value: Manifest; source: string } | undefined
   }
 }
 
-function realPeer(parent: string, root: string, input: string): string | undefined {
+function realPeer(parent: string, root: string, input: string, discovered = false): string | undefined {
   if (typeof input !== 'string' || !input || input.length > 1024) return;
   try {
     const requested = isAbsolute(input) ? resolve(input) : resolve(parent, input);
     if (lstatSync(requested).isSymbolicLink()) return;
     const peer = realpathSync(requested);
-    if (dirname(peer) !== parent || peer === root || !statSync(peer).isDirectory()) return;
+    if ((discovered ? !isInsideRoot(parent, peer) || peerIdentity(requested) !== peerIdentity(peer) :
+        peerIdentity(dirname(peer)) !== peerIdentity(parent)) ||
+        peerIdentity(peer) === peerIdentity(root) || !statSync(peer).isDirectory()) return;
     const directory = getAfyxGraphDir(peer);
     if (realpathSync(directory) !== directory || !isInsideRoot(peer, directory)) return;
     const db = getDatabasePath(peer);
@@ -102,7 +105,8 @@ function citation(repository: string, node: Node): ContractCitation {
 }
 
 export function crossRepoContractImpact(
-  rootPath: string, local: QueryBuilder, target: Endpoint, peerProjectPaths: readonly string[], requestedDepth = 2,
+  rootPath: string, local: QueryBuilder, target: Endpoint, peerProjectPaths?: readonly string[], requestedDepth = 2,
+  options: { autoDiscoverPeers?: boolean; discoveryRoot?: string } = {},
 ) {
   const depth = Number.isSafeInteger(requestedDepth) ? Math.max(1, Math.min(10, requestedDepth)) : 2;
   const links: Link[] = [];
@@ -111,7 +115,11 @@ export function crossRepoContractImpact(
   const skip = (reason: string) => { skipped[reason] = (skipped[reason] ?? 0) + 1; };
   let producer: ContractCitation | undefined;
   let truncated = false;
-  const finish = () => ({ contract: CROSS_REPO_CONTRACT, producer: producer ?? null, links, skipped, depth, truncated });
+  let discovery: ReturnType<typeof discoverPeers> | undefined;
+  const finish = () => ({ contract: CROSS_REPO_CONTRACT, producer: producer ?? null, links, skipped, depth,
+    truncated: truncated || discovery?.truncated === true,
+    ...(discovery && { discovery: { candidates: discovery.paths.length, truncated: discovery.truncated } }),
+  });
   const root = realpathSync(rootPath);
   const identity = manifest(root);
   const node = exact(local, root, target);
@@ -121,19 +129,29 @@ export function crossRepoContractImpact(
     return finish();
   }
   producer = citation(identity.value.repository, node);
-  if (!Array.isArray(peerProjectPaths)) {
+  if (peerProjectPaths !== undefined && !Array.isArray(peerProjectPaths)) {
     skip('PEER_SCOPE_INVALID');
     return finish();
+  }
+  if (options.autoDiscoverPeers === true || (peerProjectPaths === undefined && options.autoDiscoverPeers !== false)) {
+    if (typeof options.discoveryRoot === 'string') discovery = discoverPeers(root, options.discoveryRoot, skip);
+    else skip('PEER_DISCOVERY_NOT_AUTHORIZED');
   }
   const opened: Array<{ root: string; repo: Manifest; queries: QueryBuilder; callers(target: string): string[]; close(): void }> = [];
   const seenRoots = new Set<string>();
   try {
-    if (peerProjectPaths.length > MAX_PEERS) truncated = true;
-    for (const input of peerProjectPaths.slice(0, MAX_PEERS).sort()) {
-      const peer = realPeer(dirname(root), root, input);
+    const explicit = peerProjectPaths ?? [];
+    if (explicit.length > MAX_PEERS) truncated = true;
+    const candidates = [
+      ...explicit.slice(0, MAX_PEERS).sort().map(input => ({ input, auto: false })),
+      ...(discovery?.paths ?? []).map(input => ({ input, auto: true })),
+    ];
+    for (const { input, auto } of candidates) {
+      const peer = realPeer(auto ? discovery!.boundary! : dirname(root), root, input, auto);
       if (!peer) { skip('PEER_UNAVAILABLE_OR_STALE'); continue; }
-      if (seenRoots.has(peer)) continue;
-      seenRoots.add(peer);
+      const key = peerIdentity(peer);
+      if (seenRoots.has(key)) continue;
+      seenRoots.add(key);
       let close: (() => void) | undefined;
       try {
         const { db } = createDatabase(getDatabasePath(peer), { readOnly: true });

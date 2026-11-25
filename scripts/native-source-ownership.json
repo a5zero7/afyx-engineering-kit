@@ -2,7 +2,7 @@
   "schema": 1,
   "baselineRevision": "c4e4d8e29de239a2fcbc0db8ac65eea2276e7b00",
   "scope": "AFYX-320 comprehensive production source inventory",
-  "totalProductionFiles": 525,
+  "totalProductionFiles": 526,
   "entries": [
     {
       "path": "afyx-context/src/budget.js",
@@ -43,7 +43,7 @@
     {
       "path": "afyx-context/src/db-inspector.js",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "dd7bea2b6ea26e9ea4a7bf85f5bbc37bcf8f486eb26444fb69d227517b622544",
+      "reviewedSha256": "ede96ef095165edebbb337e7d11217cd8a0872a559a977b8421781ed83e9c94a",
       "evidence": "Strictly read-only data and schema inspector for CSV, JSON, NDJSON, SQLite, and external catalogs with identifier escaping, SCHEMA_INSPECTED status separation, path containment, and SHA-256 invariance (AFYX-329)."
     },
     {
@@ -1172,7 +1172,7 @@
     {
       "path": "afyx-graph/engine/src/impact/cross-repo-contract.ts",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "b779d553199e86f93f867bc2d3847f6afcca1cbbff71207c9d2b92d1c7909354",
+      "reviewedSha256": "06147062ed283b11a66dd242fe8ef4055db402f8b3916ff6979d08819eedee83",
       "evidence": "AFYX native bounded contract impact over explicitly authorized, fresh sibling indexes and exact source locations."
     },
     {
@@ -1200,6 +1200,12 @@
       "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
     },
     {
+      "path": "afyx-graph/engine/src/impact/peer-discovery.ts",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "64fed7ab346cc9ef85fa293b09466585209977c705359cf4033db7f5f476c248",
+      "evidence": "V1.2.0 Batch 2 native implementation with bounded input and isolated positive and negative fixtures."
+    },
+    {
       "path": "afyx-graph/engine/src/impact/symbol-impact.ts",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
       "reviewedSha256": "ca8df53b768ce285efe95c1d9e3933142c6918875451b571b13489295a5eac1c",
@@ -1214,7 +1220,7 @@
     {
       "path": "afyx-graph/engine/src/index.ts",
       "classification": "PUBLIC_API_BARREL",
-      "reviewedSha256": "c802625c91aad965850e5c24823d490e76bc533873b09eefeca5c34f13bcdc26",
+      "reviewedSha256": "6e170ce84b8147d5507bc86368ef75eb733eda4673d96f612866459d7bfeeb66",
       "evidence": "MB15 Graph lifecycle: reviewed failed asynchronous initialization closing its unpublished database and file lock while preserving the original rejection; existing index ownership and success behavior unchanged."
     },
     {
@@ -1574,7 +1580,7 @@
     {
       "path": "afyx-graph/engine/src/mcp/tool-catalog.ts",
       "classification": "PRODUCT_SCHEMA_DATA",
-      "reviewedSha256": "3f8f96b5ad24a08ea8864deea78398214069af330f884843a0df95ba4fdb89bf",
+      "reviewedSha256": "ecfe09484aca09243145183857bd358b0b12748d0068e4e46b7ff58f84f8a934",
       "evidence": "MB11.4 final review: technical MCP schema fields are compatibility data and remain exactly equal to 7035224 after excluding descriptive text (SHA-256 54bac2ebbf9555b85a2c2dc3ff3fdf436a9f8de2e07e94a126330a934a5a808a). All 41 tool/parameter descriptions were authored from AFYX functional requirements, including replacement of inherited long guidance prose. Full catalog contract is independently frozen by mcp-semantic-contract.test.ts; no dispatch implementation is embedded here."
     },
     {
@@ -1604,7 +1610,7 @@
     {
       "path": "afyx-graph/engine/src/mcp/tools.ts",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "7d011258dbafdbae3244cd622974989bc0302e73abd364acffb963bdb8b07379",
+      "reviewedSha256": "193aa7867f46aec46b8d2e46609aec28da970e31c5c94bf3801c7bbcd9d4bf04",
       "evidence": "MB11.4 independent AFYX rewrite of ToolHandler orchestration (project resolution, reopenIfReplaced, catch-up barrier, allowlist, path validation, worker offload, and facade delegation to modular helpers); difflib vs CodeGraph shows zero inherited algorithmic blocks (ratio 0.0293, max 9 trivial signature/error lines). MB11.4 final residual review: long historical guidance and captions were replaced with AFYX-authored prose derived from runtime requirements; only tested diagnostic labels and technical identifiers are retained. Dispatch, validation, lifecycle policy and structured relationship data are unchanged by this text remediation."
     },
     {

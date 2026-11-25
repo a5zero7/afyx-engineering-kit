@@ -165,6 +165,10 @@ export const AFYX_MCP_TOOL_CATALOG: ToolDefinition[] = [
         items: { type: 'string' },
         description: 'Host-authorized sibling roots. Requires an exact contract file and qualified symbol.',
       },
+      autoDiscoverPeers: {
+        type: 'boolean',
+        description: 'Discover peers only within the host-configured boundary. An explicit peer list disables discovery unless this option is true.',
+      },
       projectPath: projectPathProperty,
     },
     ['symbol'],
@@ -211,6 +215,10 @@ export const AFYX_MCP_TOOL_CATALOG: ToolDefinition[] = [
         type: 'array',
         items: { type: 'string' },
         description: 'Host-authorized sibling roots. Requires an exact contract file and qualified symbol.',
+      },
+      autoDiscoverPeers: {
+        type: 'boolean',
+        description: 'Discover peers only within the host-configured boundary. An explicit peer list disables discovery unless this option is true.',
       },
       projectPath: projectPathProperty,
     },

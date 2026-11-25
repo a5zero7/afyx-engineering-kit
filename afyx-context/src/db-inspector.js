@@ -12,8 +12,9 @@
  */
 
 import { createHash } from 'node:crypto';
-import { existsSync, readFileSync, statSync } from 'node:fs';
-import { extname, resolve } from 'node:path';
+import { spawnSync } from 'node:child_process';
+import { existsSync, readFileSync, realpathSync, statSync } from 'node:fs';
+import { basename, delimiter, extname, isAbsolute, join, resolve } from 'node:path';
 import { checkPathContainment } from './path-containment.js';
 
 export const DB_INSPECTION_CONTRACT = 'AfyxDbInspection/v1';
@@ -21,6 +22,51 @@ export const DB_INSPECTION_CONTRACT = 'AfyxDbInspection/v1';
 const SENSITIVE_COLUMN_PATTERN = /^(password|passwd|secret|token|api_key|apikey|auth|ssn|credit_card|card_num|hash|salt|private_key)$/i;
 
 const MUTATION_SQL_PATTERN = /\b(INSERT|UPDATE|DELETE|DROP|ALTER|TRUNCATE|CREATE|REPLACE|GRANT|REVOKE|VACUUM|ATTACH|DETACH|REINDEX)\b/i;
+const IDENTIFIER = /^[a-z_][a-z0-9_]{0,62}$/;
+const LIVE_CLIENTS = { postgres: 'psql', mysql: 'mysql' };
+const LIVE_LIMIT = 100;
+const LIVE_BUFFER = 256 * 1024;
+const LIVE_TIMEOUT = 6000;
+
+function liveExecutable(name, explicit) {
+  const file = process.platform === 'win32' ? name + '.exe' : name;
+  const candidates = explicit !== undefined ? [explicit] :
+    (process.env.PATH ?? '').split(delimiter).filter(isAbsolute).slice(0, 128).map(dir => join(dir, file));
+  for (const candidate of candidates) {
+    if (typeof candidate !== 'string' || !isAbsolute(candidate) || basename(candidate).toLowerCase() !== file) continue;
+    try {
+      const path = realpathSync(candidate);
+      if (statSync(path).isFile() && basename(path).toLowerCase() === file) return path;
+    } catch {}
+  }
+}
+
+function liveStatement(dialect, operation, schema, relations) {
+  if (operation === undefined || operation?.kind === 'schema' ||
+      (dialect === 'mysql' && operation?.kind === 'show' && operation.name === 'tables')) {
+    return {
+      kind: 'schema',
+      sql: "SELECT table_name FROM information_schema.tables WHERE table_schema = '" + schema +
+        "' AND table_type = 'BASE TABLE' ORDER BY table_name LIMIT " + (LIVE_LIMIT + 1),
+    };
+  }
+  if (!['query', 'explain'].includes(operation?.kind) || typeof operation.sql !== 'string' || operation.sql.length > 2048) return;
+  // A projection over one explicitly approved relation. No expressions, comments,
+  // quoted input, functions, variables, joins, locks or statement separators.
+  const match = /^SELECT +([a-z_][a-z0-9_]*(?: *, *[a-z_][a-z0-9_]*)*) +FROM +([a-z_][a-z0-9_]*)$/i.exec(operation.sql.trim());
+  if (!match || !Array.isArray(relations) || relations.length > LIVE_LIMIT || !relations.includes(match[2])) return;
+  const columns = match[1].split(',').map(s => s.trim());
+  const table = match[2];
+  if (columns.length > 16 || ![table, ...columns].every(v => IDENTIFIER.test(v))) return;
+  const quote = dialect === 'postgres' ? '"' : '`';
+  const q = id => quote + id + quote;
+  const projection = 'SELECT ' + columns.map(q).join(', ') + ' FROM ' + q(schema) + '.' + q(table) + ' LIMIT ' + LIVE_LIMIT;
+  if (operation.kind === 'explain') {
+    return { kind: 'explain', sql: (dialect === 'postgres' ? 'EXPLAIN (FORMAT JSON) ' : 'EXPLAIN FORMAT=JSON ') + projection };
+  }
+  // Read the approved projection but expose only one bounded count, never rows.
+  return { kind: 'query', sql: 'SELECT COUNT(*) FROM (' + projection + ') AS afyx_sample' };
+}
 
 let sqliteModule = null;
 try {
@@ -45,8 +91,9 @@ export class DbInspector {
   /**
    * @param {string} workspaceRoot
    */
-  constructor(workspaceRoot) {
+  constructor(workspaceRoot, { runClient = spawnSync } = {}) {
     this.workspaceRoot = resolve(workspaceRoot);
+    this.runClient = runClient;
   }
 
   /**
@@ -119,15 +166,83 @@ export class DbInspector {
    * @param {object} [config]
    * @returns {object}
    */
-  inspectExternalCatalog(dialect, config = {}) {
-    // Fails closed if driver or live connection is not independently permitted/available
-    return {
-      contract: DB_INSPECTION_CONTRACT,
-      dialect,
-      status: 'NOT_AVAILABLE',
-      reason: `External live database connection for '${dialect}' is not configured or permitted in this context.`,
-      supportedDialects: ['sqlite', 'postgres', 'mysql', 'mssql'],
-    };
+  inspectExternalCatalog(dialect, config = {}, operation) {
+    const report = (status, reason, metadata = {}) => ({
+      contract: DB_INSPECTION_CONTRACT, dialect, status, reason, ...metadata,
+    });
+    if (!Object.hasOwn(LIVE_CLIENTS, dialect) || config?.live !== true || config.authorized !== true) {
+      return report('NOT_AVAILABLE', 'LIVE_DATABASE_NOT_AUTHORIZED', { supportedDialects: ['sqlite', 'postgres', 'mysql', 'mssql'] });
+    }
+    const { host, user, database, password, allowedHosts, readOnlyRole } = config;
+    const postgres = dialect === 'postgres';
+    const schema = config.schema ?? (postgres ? 'public' : database);
+    const port = config.port ?? (postgres ? 5432 : 3306);
+    if (readOnlyRole !== true || typeof host !== 'string' || !/^[a-z0-9][a-z0-9.-]{0,252}$/i.test(host) ||
+        !Array.isArray(allowedHosts) || allowedHosts.length > 16 || !allowedHosts.includes(host) ||
+        ![user, database, schema].every(value => typeof value === 'string' && IDENTIFIER.test(value)) ||
+        !Number.isInteger(port) || port < 1 || port > 65535 ||
+        (password !== undefined && (typeof password !== 'string' || password.length > 1024 || /[\0\r\n]/.test(password)))) {
+      return report('ACCESS_DENIED', 'UNAPPROVED_CONNECTION');
+    }
+    const statement = liveStatement(dialect, operation, schema, config.approvedRelations);
+    if (!statement) return report('ACCESS_DENIED', 'UNSUPPORTED_READ_ONLY_OPERATION');
+    const executable = liveExecutable(LIVE_CLIENTS[dialect], config.executable);
+    if (!executable) return report('NOT_AVAILABLE', 'DB_CLIENT_UNAVAILABLE');
+    let caFile;
+    if (!postgres || config.tlsCaFile !== undefined) {
+      try {
+        if (typeof config.tlsCaFile !== 'string' || !isAbsolute(config.tlsCaFile)) throw new Error();
+        caFile = realpathSync(config.tlsCaFile);
+        if (!statSync(caFile).isFile()) throw new Error();
+      } catch {
+        return report('ACCESS_DENIED', 'DB_TLS_TRUST_REQUIRED');
+      }
+    }
+    const env = process.platform === 'win32' && process.env.SystemRoot ? { SystemRoot: process.env.SystemRoot } : {};
+    const args = ['--host=' + host, '--port=' + port, '--' + (postgres ? 'username' : 'user') + '=' + user];
+    let input;
+    if (postgres) {
+      Object.assign(env, { PGCONNECT_TIMEOUT: '3', PGSSLMODE: 'verify-full', PGSSLROOTCERT: caFile ?? 'system',
+        PGPASSFILE: join(executable, 'disabled-passfile'), PGOPTIONS: '-c default_transaction_read_only=on -c statement_timeout=3000 -c search_path=pg_catalog' });
+      if (password !== undefined) env.PGPASSWORD = password;
+      args.unshift('--no-psqlrc', '--no-password', '--quiet', '--no-align', '--tuples-only', '--set=ON_ERROR_STOP=1');
+      args.push('--dbname=' + database, '--file=-');
+      input = 'BEGIN READ ONLY;\n' + statement.sql + ';\nROLLBACK;\n';
+    } else {
+      if (password !== undefined) env.MYSQL_PWD = password;
+      args.unshift('--no-defaults', '--no-login-paths', '--batch', '--raw', '--skip-column-names', '--binary-mode');
+      args.push('--protocol=TCP', '--connect-timeout=3', '--ssl-mode=VERIFY_IDENTITY', '--ssl-ca=' + caFile, '--database=' + database);
+      input = 'START TRANSACTION READ ONLY;\n' + statement.sql + ';\nROLLBACK;\n';
+    }
+    try {
+      const result = this.runClient(executable, args, {
+        env, input, encoding: 'utf8', shell: false, windowsHide: true,
+        timeout: LIVE_TIMEOUT, killSignal: 'SIGKILL', maxBuffer: LIVE_BUFFER,
+      });
+      if (result.error || result.status !== 0) {
+        return report('ERROR', result.error?.code === 'ETIMEDOUT' ? 'DB_TIMEOUT' : 'DB_CLIENT_FAILED');
+      }
+      if (typeof result.stdout !== 'string' || Buffer.byteLength(result.stdout) > LIVE_BUFFER) return report('ERROR', 'DB_INVALID_RESPONSE');
+      const output = result.stdout.trim();
+      if (statement.kind === 'explain') {
+        const plan = JSON.parse(output);
+        if (postgres ? !Array.isArray(plan) || plan.length !== 1 || !plan[0]?.Plan : !plan?.query_block) {
+          return report('ERROR', 'DB_INVALID_RESPONSE');
+        }
+        return report('PLAN_INSPECTED', null, { readOnly: true, format: 'json', executed: false });
+      }
+      if (statement.kind === 'query') {
+        if (!/^\d{1,3}$/.test(output) || Number(output) > LIVE_LIMIT) return report('ERROR', 'DB_INVALID_RESPONSE');
+        return report('QUERY_INSPECTED', null, { readOnly: true, rowsObserved: Number(output), sampleLimit: LIVE_LIMIT });
+      }
+      const rows = output ? output.split(/\r?\n/) : [];
+      if (rows.length > LIVE_LIMIT + 1 || !rows.every(name => IDENTIFIER.test(name))) return report('ERROR', 'DB_INVALID_RESPONSE');
+      const tables = rows.slice(0, LIVE_LIMIT).map(name =>
+        SENSITIVE_COLUMN_PATTERN.test(name) || (password && name.includes(password)) ? '[REDACTED]' : name);
+      return report('SCHEMA_INSPECTED', null, { readOnly: true, tables, truncated: rows.length > LIVE_LIMIT });
+    } catch {
+      return report('ERROR', 'DB_INVALID_RESPONSE');
+    }
   }
 
   /**

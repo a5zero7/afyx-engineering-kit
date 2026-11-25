@@ -514,19 +514,24 @@ export class ToolHandler {
   private peerContractResult(
     cg: AfyxGraph, symbol: string, args: Record<string, unknown>, depth: number,
   ): ToolResult | undefined {
-    if (args.peerProjectPaths === undefined) return;
+    const discoveryRoot = process.env.AFYX_GRAPH_PEER_DISCOVERY_ROOT;
+    if (args.peerProjectPaths === undefined && args.autoDiscoverPeers !== true &&
+        (!discoveryRoot || args.autoDiscoverPeers === false || typeof args.file !== 'string')) return;
     let approved: unknown;
     try {
       approved = JSON.parse(process.env.AFYX_GRAPH_PEER_ROOTS ?? '[]');
     } catch {
       return this.errorResult('Invalid host peer configuration');
     }
-    if (!Array.isArray(approved) || !Array.isArray(args.peerProjectPaths) ||
-        args.peerProjectPaths.length === 0 || args.peerProjectPaths.length > 8 ||
-        !args.peerProjectPaths.every(peer => typeof peer === 'string' && approved.includes(peer)) ||
+    const peers = args.peerProjectPaths;
+    if (!Array.isArray(approved) ||
+        (peers !== undefined && (!Array.isArray(peers) || peers.length > 8 ||
+          !peers.every(peer => typeof peer === 'string' && approved.includes(peer)))) ||
+        (args.autoDiscoverPeers !== undefined && typeof args.autoDiscoverPeers !== 'boolean') ||
+        (args.autoDiscoverPeers === true && !discoveryRoot) ||
         typeof args.file !== 'string' || !args.file) return this.errorResult('Peer scope requires host authorization and exact file');
     return { content: [{ type: 'text', text: JSON.stringify(cg.getCrossRepoContractImpact(
-      args.file, symbol, args.peerProjectPaths, depth,
+      args.file, symbol, peers, depth, { autoDiscoverPeers: args.autoDiscoverPeers, discoveryRoot },
     )) }] };
   }
 
