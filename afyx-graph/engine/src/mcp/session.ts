@@ -12,13 +12,15 @@
  * `__tests__/mcp-initialize.test.ts` still drive this code path.
  */
 
-import * as path from 'path';
+import { resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { validatePathWithinRoot, validateProjectPath } from '../utils';
 import { JsonRpcRequest, JsonRpcNotification, JsonRpcTransport, ErrorCodes } from './transport';
 import { MCPEngine } from './engine';
 import { parseToolCallParams } from './tool-registry';
 import { SERVER_INSTRUCTIONS, SERVER_INSTRUCTIONS_NO_ROOT_INDEX } from './server-instructions';
 import { AfyxGraphPackageVersion } from './version';
-import { resolveServerRoot } from '../directory';
+import { findNearestAfyxGraphRoot, resolveServerRoot } from '../directory';
 import { AfyxSessionContext } from './session-context';
 import { MCP_SERVER_NAME } from '../product';
 import { McpAceRuntime, ACE_RECOVERY_TOOL, ACE_RECOVERY_DEFINITION } from './ace-runtime';
@@ -47,27 +49,26 @@ const ROOTS_LIST_TIMEOUT_MS = 5000;
  * Convert a file:// URI to a filesystem path. Handles URL encoding and
  * Windows drive letter paths.
  */
-function fileUriToPath(uri: string): string {
+function fileUriToPath(uri: string): string | null {
+  if (Buffer.byteLength(uri, 'utf8') > 32767) return null;
   try {
     const url = new URL(uri);
-    let filePath = decodeURIComponent(url.pathname);
-    if (process.platform === 'win32' && /^\/[a-zA-Z]:/.test(filePath)) {
-      filePath = filePath.slice(1);
-    }
-    return path.resolve(filePath);
+    if (url.protocol !== 'file:' || url.hostname || url.username || url.password || url.search || url.hash) return null;
+    const root = fileURLToPath(url);
+    return !root.includes('\0') && validateProjectPath(root) === null ? root : null;
   } catch {
-    return uri.replace(/^file:\/\/\/?/, '');
+    return null;
   }
 }
 
-/** First usable filesystem path from a `roots/list` result, or null. */
-function firstRootPath(result: unknown): string | null {
-  if (!result || typeof result !== 'object') return null;
+function clientRootPaths(result: unknown): string[] {
+  if (!result || typeof result !== 'object') return [];
   const roots = (result as { roots?: unknown }).roots;
-  if (!Array.isArray(roots) || roots.length === 0) return null;
-  const first = roots[0] as { uri?: unknown };
-  if (typeof first?.uri !== 'string') return null;
-  return fileUriToPath(first.uri);
+  if (!Array.isArray(roots)) return [];
+  return roots.flatMap((root: { uri?: unknown } | null) => {
+    const path = typeof root?.uri === 'string' ? fileUriToPath(root.uri) : null;
+    return path === null ? [] : [path];
+  });
 }
 
 export interface MCPSessionOptions {
@@ -88,6 +89,7 @@ export class MCPSession {
   private rootsAttempted = false;
   private resolvePromise: Promise<void> | null = null;
   private explicitProjectPath: string | null;
+  private projectRoots: string[] = [];
   /** Per-client runtime state. A reconnect receives a fresh context. */
   private readonly context = new AfyxSessionContext();
   private readonly ace = new McpAceRuntime();
@@ -177,18 +179,10 @@ export class MCPSession {
 
     this.clientSupportsRoots = !!params?.capabilities?.roots;
 
-    // Explicit project signal, strongest first: client-provided rootUri /
-    // workspaceFolders (LSP-style), else the --path the server was launched
-    // with. cwd is NOT used here — we defer it so a roots/list answer can
-    // win over it. See issue #196.
-    let explicitPath: string | null = null;
-    if (params?.rootUri) {
-      explicitPath = fileUriToPath(params.rootUri);
-    } else if (params?.workspaceFolders?.[0]?.uri) {
-      explicitPath = fileUriToPath(params.workspaceFolders[0].uri);
-    } else if (this.explicitProjectPath) {
-      explicitPath = this.explicitProjectPath;
-    }
+    // The explicit host path has priority over client workspace hints.
+    let explicitPath = this.explicitProjectPath;
+    const clientUri = params?.rootUri ?? params?.workspaceFolders?.[0]?.uri;
+    if (!explicitPath && typeof clientUri === 'string') explicitPath = fileUriToPath(clientUri);
 
     // Pick the instructions variant by the root's index state — synchronous
     // and bounded (an existsSync walk-up plus, when that misses, the depth- and
@@ -217,6 +211,9 @@ export class MCPSession {
     });
 
     if (explicitPath) {
+      this.projectRoots = [this.explicitProjectPath
+        ? resolveServerRoot(explicitPath).root ?? explicitPath
+        : explicitPath];
       // Kick off engine init in the background. If another session in the
       // same daemon already opened the project, `ensureInitialized` is a
       // ~free no-op — N concurrent clients pay exactly one open.
@@ -266,6 +263,16 @@ export class MCPSession {
     await this.retryInitIfNeeded();
 
     if (process.env.AFYX_GRAPH_MCP_DEBUG) process.stderr.write(`[mcp-debug] toolsCall ${toolName} id=${String(request.id)} dispatch\n`);
+    const requestedPath = toolArgs.projectPath;
+    const hasRequestedPath = typeof requestedPath === 'string' && requestedPath.length > 0;
+    const projectPath = hasRequestedPath
+      ? resolve(requestedPath)
+      : this.engine.getProjectPath();
+    if (projectPath && (hasRequestedPath || this.projectRoots.length > 0) && !this.isProjectAuthorized(projectPath)) {
+      this.transport.sendError(request.id, ErrorCodes.InvalidParams, 'Project path is outside the MCP session workspace roots.');
+      return;
+    }
+
     const handler = this.engine.getToolHandler();
     const result = await this.context.execute(
       toolName,
@@ -277,6 +284,18 @@ export class MCPSession {
       toolName, toolArgs, result, this.engine.getProjectPath() ?? this.explicitProjectPath,
     );
     this.transport.sendResult(request.id, publicResult);
+  }
+
+  private isProjectAuthorized(projectPath: string): boolean {
+    const fallbackRoot = this.engine.getProjectPath() ?? (resolveServerRoot(process.cwd()).root ?? process.cwd());
+    const roots = this.projectRoots.length > 0
+      ? this.projectRoots
+      : [fallbackRoot];
+    return roots.some((root) => {
+      if (validatePathWithinRoot(root, projectPath) === null) return false;
+      const indexRoot = findNearestAfyxGraphRoot(projectPath);
+      return indexRoot === null || validatePathWithinRoot(root, indexRoot) !== null;
+    });
   }
 
   /**
@@ -308,7 +327,7 @@ export class MCPSession {
 
     // Last resort: walk from the best candidate (sync open). Picks up
     // projects that appeared after the server started.
-    const candidate = hint ?? process.cwd();
+    const candidate = this.projectRoots[0] ?? hint ?? process.cwd();
     this.engine.retryInitializeSync(candidate);
   }
 
@@ -320,7 +339,8 @@ export class MCPSession {
     let target = process.cwd();
     try {
       const result = await this.transport.request('roots/list', undefined, ROOTS_LIST_TIMEOUT_MS);
-      const rootPath = firstRootPath(result);
+      this.projectRoots = clientRootPaths(result);
+      const rootPath = this.projectRoots[0];
       if (rootPath) {
         target = rootPath;
       } else {

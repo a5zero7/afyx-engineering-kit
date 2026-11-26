@@ -207,12 +207,7 @@ export function auditDirectory(rootDir, { failOnSeverity = null, maxFiles = 5000
     return path;
   });
   if (dispositionLedger === undefined) {
-    if (dispositionPath !== undefined) {
-      dispositionLedger = dispositionPath ? loadDispositionLedger(resolve(resolvedRoot, dispositionPath)) : null;
-    } else {
-      const defaultLedger = join(resolvedRoot, 'scripts', 'security-audit-disposition.json');
-      dispositionLedger = existsSync(defaultLedger) ? loadDispositionLedger(defaultLedger) : null;
-    }
+    dispositionLedger = dispositionPath ? loadDispositionLedger(resolve(resolvedRoot, dispositionPath)) : null;
   }
   const findings = [], diagnostics = [], visited = new Set();
   let scannedFilesCount = 0, totalBytes = 0;

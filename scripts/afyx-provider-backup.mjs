@@ -6,11 +6,16 @@
 
 import {
   chmodSync,
+  closeSync,
+  fstatSync,
+  lstatSync,
+  openSync,
   copyFileSync,
   existsSync,
   mkdirSync,
   readdirSync,
   readFileSync,
+  realpathSync,
   rmSync,
   statSync,
   writeFileSync,
@@ -18,6 +23,8 @@ import {
 import { basename, dirname, join, resolve } from 'node:path';
 import { createHash, randomBytes } from 'node:crypto';
 import { homedir } from 'node:os';
+import { spawnSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
 
 export const PROVIDER_BACKUP_SCHEMA_VERSION = 1;
 export const DEFAULT_BACKUP_RETENTION_LIMIT = 20;
@@ -107,6 +114,45 @@ export function enforceBackupRetention(providerDir, limit = DEFAULT_BACKUP_RETEN
  * @param {number} [params.retentionLimit=20] - Retention limit for backups
  * @returns {Object} Backup handle
  */
+function writePrivateBackup(file, contents) {
+  const descriptor = openSync(file, 'wx', 0o600);
+  const created = fstatSync(descriptor);
+  try {
+    if (process.platform === 'win32') {
+      const shell = join(process.env.SystemRoot || 'C:\\Windows', 'System32', 'WindowsPowerShell', 'v1.0', 'powershell.exe');
+      const command = [
+        '$ErrorActionPreference = "Stop"',
+        '$file = $env:AFYX_PRIVATE_BACKUP_TARGET',
+        '$sid = [Security.Principal.WindowsIdentity]::GetCurrent().User',
+        '$acl = New-Object Security.AccessControl.FileSecurity',
+        '$acl.SetAccessRuleProtection($true, $false)',
+        '$acl.SetOwner($sid)',
+        '$acl.SetAccessRule(([Security.AccessControl.FileSystemAccessRule]::new($sid, "FullControl", "Allow")))',
+        '[IO.File]::SetAccessControl($file, $acl)',
+        '$verified = [IO.File]::GetAccessControl($file)',
+        '$rules = @($verified.GetAccessRules($true, $true, [Security.Principal.SecurityIdentifier]))',
+        'if (-not $verified.AreAccessRulesProtected -or $rules.Count -ne 1 -or $rules[0].IdentityReference.Value -ne $sid.Value -or $rules[0].AccessControlType -ne "Allow") { exit 2 }',
+      ].join('; ');
+      const secured = spawnSync(shell, ['-NoProfile', '-NonInteractive', '-Command', command], {
+        env: { ...process.env, AFYX_PRIVATE_BACKUP_TARGET: file },
+        stdio: 'ignore', timeout: 10000, windowsHide: true,
+      });
+      const current = lstatSync(file);
+      if (secured.status !== 0 || !current.isFile() || current.isSymbolicLink() ||
+          current.ino !== created.ino || current.dev !== created.dev) {
+        throw new Error('PROVIDER_BACKUP_PERMISSION_UNVERIFIED');
+      }
+    }
+    writeFileSync(descriptor, contents);
+  } catch (error) {
+    const current = lstatSync(file, { throwIfNoEntry: false });
+    if (current && current.ino === created.ino && current.dev === created.dev) rmSync(file);
+    throw error;
+  } finally {
+    closeSync(descriptor);
+  }
+}
+
 export function createConfigurationBackup({
   provider,
   configPath,
@@ -133,7 +179,7 @@ export function createConfigurationBackup({
 
   const root = getProviderBackupRoot(backupRoot);
   const providerDir = join(root, 'provider-config', provider);
-  mkdirSync(providerDir, { recursive: true });
+  mkdirSync(providerDir, { recursive: true, mode: 0o700 });
 
   const now = new Date();
   const timestampStr = now.toISOString().replace(/[:.]/g, '-');
@@ -143,14 +189,8 @@ export function createConfigurationBackup({
   const metaPath = `${backupPath}.meta.json`;
 
   if (existed && originalBytes !== null) {
-    writeFileSync(backupPath, originalBytes);
-    if (originalMode !== null) {
-      try {
-        chmodSync(backupPath, originalMode);
-      } catch {
-        // Platform permission fallback
-      }
-    }
+    writePrivateBackup(backupPath, originalBytes);
+
     // Verify backup integrity immediately
     const verifyBytes = readFileSync(backupPath);
     if (sha256(verifyBytes) !== originalSha256) {
@@ -171,7 +211,7 @@ export function createConfigurationBackup({
     backupFile: existed ? backupFileName : null,
   };
 
-  writeFileSync(metaPath, JSON.stringify(metadata, null, 2), 'utf8');
+  writePrivateBackup(metaPath, JSON.stringify(metadata, null, 2));
 
   // Enforce retention limit
   enforceBackupRetention(providerDir, retentionLimit);
@@ -1221,4 +1261,78 @@ export function listProviderBackups(provider, backupRoot = '') {
     })
     .filter(Boolean)
     .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+}
+
+
+export function pruneOwnedProviderBackups({ providers, keep = 0, dryRun = false, backupRoot = '' }) {
+  if (!Array.isArray(providers) || providers.some((id) => !['codex', 'antigravity', 'claude'].includes(id)) ||
+      !Number.isSafeInteger(keep) || keep < 0 || keep > DEFAULT_BACKUP_RETENTION_LIMIT) {
+    throw new Error('PROVIDER_BACKUP_SCOPE_INVALID');
+  }
+  const root = getProviderBackupRoot(backupRoot);
+  if (!existsSync(root)) return { removed: 0, planned: 0, unresolved: 0 };
+  const canonical = realpathSync(root);
+  if (!lstatSync(root).isDirectory() || lstatSync(root).isSymbolicLink()) throw new Error('PROVIDER_BACKUP_ROOT_UNSAFE');
+  const report = { removed: 0, planned: 0, unresolved: 0 };
+  for (const provider of new Set(providers)) {
+    const parent = join(canonical, 'provider-config');
+    const directory = join(parent, provider);
+    if (!existsSync(directory)) continue;
+    if ([parent, directory].some((entry) => !lstatSync(entry).isDirectory() || lstatSync(entry).isSymbolicLink())) {
+      throw new Error('PROVIDER_BACKUP_PATH_UNSAFE');
+    }
+    const entries = readdirSync(directory, { withFileTypes: true });
+    if (entries.length > 512) throw new Error('PROVIDER_BACKUP_LIMIT');
+    const owned = [];
+    for (const entry of entries) {
+      if (!entry.name.endsWith('.bak.meta.json')) continue;
+      const metaPath = join(directory, entry.name);
+      const backupPath = metaPath.slice(0, -'.meta.json'.length);
+      try {
+        const stat = lstatSync(metaPath);
+        if (!stat.isFile() || stat.isSymbolicLink() || stat.nlink !== 1 || stat.size > 16384) throw new Error();
+        const meta = JSON.parse(readFileSync(metaPath, 'utf8'));
+        if (meta.schemaVersion !== PROVIDER_BACKUP_SCHEMA_VERSION || meta.provider !== provider ||
+            typeof meta.configPath !== 'string' || Number.isNaN(Date.parse(meta.timestamp)) ||
+            !basename(backupPath).startsWith(basename(meta.configPath) + '.')) throw new Error();
+        if (meta.existed === true) {
+          const backed = lstatSync(backupPath);
+          if (meta.backupFile !== basename(backupPath) || !backed.isFile() || backed.isSymbolicLink() ||
+              backed.nlink !== 1 || backed.size !== meta.size || backed.size > 16777216 ||
+              sha256(readFileSync(backupPath)) !== meta.sha256) throw new Error();
+        } else if (meta.existed !== false || meta.backupFile !== null || existsSync(backupPath)) {
+          throw new Error();
+        }
+        owned.push({ meta, metaPath, backupPath });
+      } catch {
+        report.unresolved++;
+      }
+    }
+    owned.sort((a, b) => Date.parse(b.meta.timestamp) - Date.parse(a.meta.timestamp));
+    for (const { meta, metaPath, backupPath } of owned.slice(keep)) {
+      report.planned++;
+      if (!dryRun) {
+        if (meta.existed) rmSync(backupPath);
+        rmSync(metaPath);
+        report.removed++;
+      }
+    }
+  }
+  return report;
+}
+
+if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url) &&
+    process.argv[2] === 'prune-owned') {
+  try {
+    const report = pruneOwnedProviderBackups({
+      providers: (process.argv[3] ?? '').split(','),
+      keep: Number(process.argv[4]),
+      dryRun: process.argv.includes('--dry-run'),
+    });
+    console.log(JSON.stringify(report));
+    if (report.unresolved) process.exitCode = 2;
+  } catch {
+    console.error('Provider backup cleanup could not establish safe ownership.');
+    process.exitCode = 2;
+  }
 }

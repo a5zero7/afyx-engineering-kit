@@ -30,6 +30,7 @@
  */
 
 import * as fs from 'fs';
+import { randomBytes } from 'node:crypto';
 import * as path from 'path';
 
 // ============================================================
@@ -146,29 +147,29 @@ export function validatePathWithinRoot(projectRoot: string, filePath: string): s
 export function validateProjectPath(dirPath: string): string | null {
   const resolved = path.resolve(dirPath);
 
-  // Block sensitive system directories
-  if (SENSITIVE_PATHS.has(resolved) || SENSITIVE_PATHS.has(resolved.toLowerCase())) {
-    return `Refusing to operate on sensitive system directory: ${resolved}`;
-  }
-
-  // Also block common sensitive home subdirectories
   const homeDir = require('os').homedir();
-  const sensitiveHomeDirs = ['.ssh', '.gnupg', '.aws', '.config'];
-  for (const dir of sensitiveHomeDirs) {
-    const sensitivePath = path.join(homeDir, dir);
-    if (resolved === sensitivePath || resolved.startsWith(sensitivePath + path.sep)) {
-      return `Refusing to operate on sensitive directory: ${resolved}`;
+  const privateRoots = ['.ssh', '.gnupg', '.aws', '.config', '.codex', '.claude', '.gemini', '.afyx', '.agents']
+    .map((dir) => path.join(homeDir, dir));
+  const windowsRoot = process.platform === 'win32' ? process.env.SystemRoot ?? 'C:\\Windows' : null;
+  const blocked = (target: string) => {
+    const normalized = process.platform === 'win32' ? target.toLowerCase() : target;
+    if (SENSITIVE_PATHS.has(normalized) || (windowsRoot && isInsideRoot(windowsRoot, target))) {
+      return 'Refusing to operate on sensitive system directory: ' + target;
     }
-  }
+    return privateRoots.some((root) => isInsideRoot(root, target))
+      ? 'Refusing to operate on sensitive directory: ' + target
+      : null;
+  };
+  const lexicalDenial = blocked(resolved);
+  if (lexicalDenial) return lexicalDenial;
 
-  // Verify it's a real directory
   try {
-    const stats = fs.statSync(resolved);
-    if (!stats.isDirectory()) {
-      return `Path is not a directory: ${resolved}`;
-    }
+    const canonical = fs.realpathSync(resolved);
+    const canonicalDenial = blocked(canonical);
+    if (canonicalDenial) return canonicalDenial;
+    if (!fs.statSync(canonical).isDirectory()) return 'Path is not a directory: ' + resolved;
   } catch {
-    return `Path does not exist or is not accessible: ${resolved}`;
+    return 'Path does not exist or is not accessible: ' + resolved;
   }
 
   return null;
@@ -210,77 +211,78 @@ export function normalizePath(filePath: string): string {
  */
 export class FileLock {
   private lockPath: string;
-  private held = false;
-
-  /** Locks older than this are considered stale regardless of PID status */
-  private static readonly STALE_TIMEOUT_MS = 2 * 60 * 1000; // 2 minutes
+  private owner: string | null = null;
 
   constructor(lockPath: string) {
     this.lockPath = lockPath;
   }
 
-  /**
-   * Acquire the lock. Throws if the lock is held by another live process.
-   */
-  acquire(): void {
-    // Check for existing lock
-    if (fs.existsSync(this.lockPath)) {
-      try {
-        const content = fs.readFileSync(this.lockPath, 'utf-8').trim();
-        const pid = parseInt(content, 10);
-        const stat = fs.statSync(this.lockPath);
-        const lockAge = Date.now() - stat.mtimeMs;
-
-        // Treat locks older than the timeout as stale, regardless of PID
-        if (lockAge < FileLock.STALE_TIMEOUT_MS && !isNaN(pid) && this.isProcessAlive(pid)) {
-          throw new Error(
-            `Afyx Graph database is locked by another process (PID ${pid}). ` +
-            `If this is stale, run 'afyx-graph unlock' or delete ${this.lockPath}`
-          );
-        }
-
-        // Stale lock (dead process or timed out) - remove it
-        fs.unlinkSync(this.lockPath);
-      } catch (err) {
-        if (err instanceof Error && err.message.includes('locked by another')) {
-          throw err;
-        }
-        // Other errors reading lock file - try to remove it
-        try { fs.unlinkSync(this.lockPath); } catch { /* ignore */ }
-      }
-    }
-
-    // Write our PID to the lock file using exclusive create flag
+  private readOwner(): string {
+    const fd = fs.openSync(this.lockPath, fs.constants.O_RDONLY | (fs.constants.O_NOFOLLOW || 0));
     try {
-      fs.writeFileSync(this.lockPath, String(process.pid), { flag: 'wx' });
-      this.held = true;
-    } catch (err: any) {
-      if (err.code === 'EEXIST') {
-        // Race condition: another process grabbed the lock between our check and write
-        throw new Error(
-          'Afyx Graph database is locked by another process. ' +
-          `If this is stale, run 'afyx-graph unlock' or delete ${this.lockPath}`
-        );
-      }
-      throw err;
+      const stat = fs.fstatSync(fd);
+      if (!stat.isFile() || stat.nlink !== 1 || stat.size > 128) throw new Error('Unsafe lock record');
+      const buffer = Buffer.alloc(129);
+      const size = fs.readSync(fd, buffer, 0, buffer.length, 0);
+      if (size !== stat.size) throw new Error('Lock record changed');
+      return buffer.subarray(0, size).toString('utf8').trim();
+    } finally {
+      fs.closeSync(fd);
     }
   }
 
-  /**
-   * Release the lock
-   */
-  release(): void {
-    if (!this.held) return;
+  /** Acquire exclusively. Only confirmed dead owners are eligible for recovery. */
+  acquire(): void {
+    const owner = String(process.pid) + ' ' + randomBytes(16).toString('hex');
+    const blocked = () => new Error('Afyx Graph database is locked by another process or has an unverified owner. Run afyx-graph unlock to inspect stale locks.');
+    const create = () => {
+      fs.writeFileSync(this.lockPath, owner, { flag: 'wx', mode: 0o600 });
+      this.owner = owner;
+    };
     try {
-      // Only remove if we still own it (check PID)
-      const content = fs.readFileSync(this.lockPath, 'utf-8').trim();
-      if (parseInt(content, 10) === process.pid) {
-        fs.unlinkSync(this.lockPath);
-      }
-    } catch {
-      // Lock file already gone - that's fine
+      create();
+      return;
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== 'EEXIST') throw error;
     }
-    this.held = false;
+
+    const claim = this.lockPath + '.recovery';
+    let claimFd: number | undefined;
+    try {
+      claimFd = fs.openSync(claim, 'wx', 0o600);
+      const before = this.readOwner();
+      const match = /^([1-9][0-9]{0,9})(?: [a-f0-9]{32})?$/.exec(before);
+      const pid = Number(match?.[1]);
+      if (!match || pid > 0x7fffffff) throw blocked();
+      try {
+        process.kill(pid, 0);
+        throw blocked();
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code !== 'ESRCH') throw blocked();
+      }
+      if (this.readOwner() !== before) throw blocked();
+      fs.unlinkSync(this.lockPath);
+      create();
+    } catch {
+      throw blocked();
+    } finally {
+      if (claimFd !== undefined) {
+        fs.closeSync(claimFd);
+        fs.unlinkSync(claim);
+      }
+    }
+  }
+
+  /** Release only the receipt created by this instance. */
+  release(): void {
+    if (this.owner === null) return;
+    try {
+      if (this.readOwner() === this.owner) fs.unlinkSync(this.lockPath);
+    } catch {
+      // No matching regular lock remains to release.
+    } finally {
+      this.owner = null;
+    }
   }
 
   /**
@@ -310,14 +312,7 @@ export class FileLock {
   /**
    * Check if a process is still running
    */
-  private isProcessAlive(pid: number): boolean {
-    try {
-      process.kill(pid, 0);
-      return true;
-    } catch {
-      return false;
-    }
-  }
+
 }
 
 /**

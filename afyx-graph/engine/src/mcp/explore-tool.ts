@@ -878,7 +878,7 @@ function pointerLineFor(filePath: string, nodes: readonly Node[]): string {
  * traded away, but the agent must still be told that an uncovered area exists
  * and that another explore — not a Read — is how to reach it.
  */
-const EPILOGUE_LOST_NOTE = '> (Trailing pointer list omitted for size. The source above is complete and verbatim — treat it as already Read. For anything this call did not cover, run another afyx_graph_explore with the specific names rather than reading those files.)';
+const EPILOGUE_LOST_NOTE = '> (Trailing pointer list omitted for size. The source above is current, with sensitive literals redacted — treat it as already Read. For anything this call did not cover, run another afyx_graph_explore with the specific names rather than reading those files.)';
 class ExploreTool {
   constructor(
     private readonly cg: AfyxGraph,
@@ -2565,7 +2565,7 @@ class ExploreTool {
     // Recorded so the drift pass below (#1474) can append a per-file exception
     // to this guarantee after the render loop knows which files drifted.
     const verbatimHeaderIdx = lines.length;
-    lines.push('> The code below is the **verbatim, current on-disk source** of these files — re-read from disk on this call and line-numbered, byte-for-byte identical to what the Read tool returns. It is NOT a summary, outline, or stale cache. Treat each block as a Read you have already performed: do not Read a file shown here.');
+    lines.push('> The code below is the **current on-disk source with sensitive literals redacted** of these files — re-read from disk on this call and optionally line-numbered. Use the shown source for structural analysis.');
     lines.push('');
 
     // The response's absolute cap. It MUST stay under the host's inline
@@ -4105,7 +4105,7 @@ class ExploreTool {
     // apology for missing source rather than as an index into source the agent
     // already has.
     if (backReferencedFiles.length > 0) {
-      lines[verbatimHeaderIdx] += ` (Files marked **"Already sent earlier in this conversation"** are not repeated: their source came back on an earlier afyx_graph_explore call in THIS conversation and the file has not changed since, so that copy is exact and current — scroll back for it rather than re-fetching or Reading.)`;
+      lines[verbatimHeaderIdx] += ` (Files marked **"Already sent earlier in this conversation"** are not repeated: their source came back on an earlier afyx_graph_explore call in THIS conversation and the file has not changed since, so that redacted copy is current — scroll back for it rather than re-fetching or Reading.)`;
     }
 
     // Drift epilogue (#1474). The "verbatim / do not Read" guarantee above
@@ -4271,7 +4271,7 @@ class ExploreTool {
     const epilogueOnlyCut = epilogueStart < lines.length
       ? flow.text + lines.slice(0, epilogueStart).join('\n')
       : null;
-    const EPILOGUE_CUT_NOTE = '\n\n> (Trailing notes omitted for size. The source above is complete and verbatim — treat it as already Read. For anything this call did not cover, run another afyx_graph_explore with the specific names rather than reading those files.)';
+    const EPILOGUE_CUT_NOTE = '\n\n> (Trailing notes omitted for size. The source above is current, with sensitive literals redacted — treat it as already Read. For anything this call did not cover, run another afyx_graph_explore with the specific names rather than reading those files.)';
 
     if (output.length > hardCeiling
         && epilogueOnlyCut !== null
@@ -4288,7 +4288,7 @@ class ExploreTool {
       const lastSection = cut.lastIndexOf('\n' + FILE_SECTION_PREFIX);
       const boundary = lastSection > hardCeiling * 0.5 ? lastSection : cut.lastIndexOf('\n');
       const safe = boundary > 0 ? cut.slice(0, boundary) : cut;
-      finalText = safe + '\n\n... (output truncated to budget; the source above is complete and verbatim — treat it as already Read. For any area not covered, run another afyx_graph_explore with the specific names — do NOT Read these files.)';
+      finalText = safe + '\n\n... (output truncated to budget; the source above is current, with sensitive literals redacted — treat it as already Read. For any area not covered, run another afyx_graph_explore with the specific names — do NOT Read these files.)';
     } else {
       finalText = output;
     }

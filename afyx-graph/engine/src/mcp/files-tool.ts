@@ -49,8 +49,15 @@ export function executeFilesTool(source: FilesToolSource, request: FilesToolRequ
     : allFiles;
 
   if (request.pattern) {
-    const matcher = globToRegex(request.pattern);
-    files = files.filter((file) => matcher.test(file.path));
+    if (typeof request.pattern !== 'string' || request.pattern.length > 256) {
+      return textToolResult('File patterns must be strings of at most 256 characters.');
+    }
+    const pattern: string[] = request.pattern.match(/\*\*|[\s\S]/g) ?? [];
+    const wholePath = request.pattern.includes('/') || pattern.includes('**');
+    files = files.filter((file) => {
+      const path = wholePath ? file.path : file.path.slice(file.path.lastIndexOf('/') + 1);
+      return matchesGlob(path, pattern);
+    });
   }
 
   if (files.length === 0) {
@@ -84,14 +91,27 @@ function normalizePathFilter(pathFilter: string | undefined): string {
     : '';
 }
 
-function globToRegex(pattern: string): RegExp {
-  const escaped = pattern
-    .replace(/[.+^${}()|[\]\\]/g, '\\$&')
-    .replace(/\*\*/g, '{{GLOBSTAR}}')
-    .replace(/\*/g, '[^/]*')
-    .replace(/\?/g, '[^/]')
-    .replace(/\{\{GLOBSTAR\}\}/g, '.*');
-  return new RegExp(escaped);
+function matchesGlob(path: string, pattern: string[]): boolean {
+  // Suffix matching with two rows keeps runtime proportional to path × pattern.
+  let next = new Uint8Array(path.length + 1);
+  next[path.length] = 1;
+  let row = new Uint8Array(path.length + 1);
+  for (let index = pattern.length - 1; index >= 0; index--) {
+    const token = pattern[index]!;
+    const star = token === '*' || token === '**';
+    row[path.length] = star ? next[path.length]! : 0;
+    for (let offset = path.length - 1; offset >= 0; offset--) {
+      const char = path[offset]!;
+      if (star) {
+        const consumes = token === '*' ? char !== '/' : !/[\r\n\u2028\u2029]/.test(char);
+        row[offset] = next[offset] || (consumes ? row[offset + 1]! : 0);
+      } else {
+        row[offset] = (token === '?' ? char !== '/' : token === char) ? next[offset + 1]! : 0;
+      }
+    }
+    [row, next] = [next, row];
+  }
+  return next[0] === 1;
 }
 
 function formatFilesFlat(files: FilesToolFile[], includeMetadata: boolean): string {

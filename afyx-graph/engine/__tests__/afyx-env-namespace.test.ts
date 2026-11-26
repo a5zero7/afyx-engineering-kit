@@ -17,6 +17,7 @@ const PLATFORM_ENV = new Set([
   'NODE_ENV',
   'NO_COLOR',
   'PATH',
+  'SystemRoot',
   'TERM',
   'VITEST',
   'WSL_DISTRO_NAME',

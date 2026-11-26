@@ -22,7 +22,7 @@ export const RISK_LEVELS = Object.freeze({
 
 const UNSAFE_DEFINITIONS = [
   {
-    regex: /\b(?:force[\s_-]?push|push\s+(?:--force|-f))\b/i,
+    regex: /\b(?:force[\s_-]?push\b|push\b[^\r\n;]{0,512}?[ \t]+(?:--force(?:-with-lease)?|-f)(?=[ \t=:]|$))/i,
     description: 'Unauthorized autonomous push or force-push directive detected',
   },
   {
@@ -34,7 +34,7 @@ const UNSAFE_DEFINITIONS = [
     description: 'Directives to dump or expose secrets or private credentials are prohibited',
   },
   {
-    regex: /\b(?:rm\s+-rf\s+[\/\*]|format\s+[c-z]:|drop\s+database\s+prod)\b/i,
+    regex: /\b(?:rm\s+(?:-rf|-fr|--recursive\s+--force)\s+(?:\/(?:\*|[^\s;]*)|\*)(?=\s|$|;)|format\s+[c-z]:(?=\s|$|;)|drop\s+database\s+prod\b)/i,
     description: 'Destructive filesystem or database deletion directives are prohibited',
   },
 ];

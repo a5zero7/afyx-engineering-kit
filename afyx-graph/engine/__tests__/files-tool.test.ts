@@ -73,7 +73,7 @@ describe('MCP Files adapter', () => {
     const star = fixture();
     const starOutput = text(star.source, { pattern: '*.ts', format: 'flat', includeMetadata: false });
     expect(starOutput).toContain('src/deep/a.test.ts');
-    expect(starOutput).toContain('web/App.tsx');
+    expect(starOutput).not.toContain('web/App.tsx');
 
     const segmentStar = fixture();
     const segmentStarOutput = text(segmentStar.source, {

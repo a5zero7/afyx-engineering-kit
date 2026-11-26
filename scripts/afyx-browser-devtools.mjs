@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * AFYX Browser DevTools â€” Native Browser Engineering & Diagnostics Engine
+ * AFYX Browser DevTools — Native Browser Engineering & Diagnostics Engine
  *
  * Provides lightweight, zero-third-party Chrome DevTools Protocol (CDP) orchestration
  * for web application debugging, live DOM inspection, console/network telemetry,
@@ -18,9 +18,9 @@
 
 import { spawn } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
-import { existsSync, lstatSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { dirname, isAbsolute, join, relative, resolve } from 'node:path';
+import { existsSync, lstatSync, mkdtempSync, opendirSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
+import { hostname, tmpdir } from 'node:os';
+import { basename, dirname, isAbsolute, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 // globalThis.WebSocket is available natively in Node.js 21+
 
@@ -116,6 +116,48 @@ function scopedPath(root, target, mustExist = true) {
 
 /** One owned CDP session manager. Constructor options are trusted host policy,
  * never options taken from model-supplied command JSON. No attach API exists. */
+const PROFILE_RECEIPT = '.afyx-browser-owner.json';
+const PROFILE_TTL_MS = 24 * 60 * 60 * 1000;
+
+function deadProfileProcess(pid) {
+  if (!Number.isInteger(pid) || pid < 1 || pid > 0x7fffffff) return false;
+  try { process.kill(pid, 0); return false; } catch (error) { return error.code === 'ESRCH'; }
+}
+
+function collectStaleProfiles(root) {
+  const entries = opendirSync(root);
+  try {
+    for (let count = 0; count < 256; count++) {
+      const entry = entries.readSync();
+      if (!entry) break;
+      if (!entry.isDirectory() || !/^afyx-browser-session-[A-Za-z0-9]{6}$/.test(entry.name)) continue;
+      const directory = join(root, entry.name);
+      try {
+        const stat = lstatSync(directory);
+        const marker = join(directory, PROFILE_RECEIPT);
+        const note = lstatSync(marker);
+        if (!stat.isDirectory() || stat.isSymbolicLink() || !note.isFile() ||
+            note.isSymbolicLink() || note.nlink !== 1 || note.size > 4096) continue;
+        if (typeof process.getuid === 'function' && (stat.uid !== process.getuid() || note.uid !== stat.uid)) continue;
+        const raw = readFileSync(marker, 'utf8');
+        const receipt = JSON.parse(raw);
+        if (receipt.schema !== 'afyx-browser-profile/v1' || receipt.host !== hostname() ||
+            receipt.name !== entry.name || receipt.inode !== stat.ino || receipt.createdAt !== stat.birthtimeMs ||
+            Date.now() - stat.birthtimeMs < PROFILE_TTL_MS ||
+            !deadProfileProcess(receipt.hostPid) || !deadProfileProcess(receipt.browserPid)) continue;
+        const current = lstatSync(directory);
+        if (current.isSymbolicLink() || current.ino !== stat.ino || current.birthtimeMs !== stat.birthtimeMs ||
+            readFileSync(marker, 'utf8') !== raw) continue;
+        rmSync(directory, { recursive: true, force: true });
+      } catch {
+        // Preserve ambiguous, live, or unreadable profiles.
+      }
+    }
+  } finally {
+    entries.closeSync();
+  }
+}
+
 export class AfyxBrowserSession {
   #closing = null;
 
@@ -174,7 +216,9 @@ export class AfyxBrowserSession {
     this.budgetDiagnostics.deadline = this.budgetDiagnostics.startedAt + this.policy.sessionTimeoutMs;
     this.budgetDiagnostics.closureReason = null;
     this.budgetDiagnostics.interruptionSource = null;
-    this.userDataDir = mkdtempSync(join(realpathSync(tmpdir()), 'afyx-browser-session-'));
+    const tempRoot = realpathSync(tmpdir());
+    try { collectStaleProfiles(tempRoot); } catch { /* Cleanup is best effort. */ }
+    this.userDataDir = mkdtempSync(join(tempRoot, 'afyx-browser-session-'));
     const flags = ['--remote-debugging-address=127.0.0.1', '--remote-debugging-port=0', `--user-data-dir=${this.userDataDir}`,
       '--no-first-run', '--no-default-browser-check', '--disable-background-networking', '--disable-default-apps',
       '--disable-sync', '--disable-component-update', '--disable-extensions', '--disable-domain-reliability',
@@ -185,6 +229,18 @@ export class AfyxBrowserSession {
     try {
       this.process = spawn(this.chromePath, flags, { stdio: 'ignore', windowsHide: true });
       const ownedChild = this.process;
+      const profileStat = lstatSync(this.userDataDir);
+      try {
+        writeFileSync(join(this.userDataDir, PROFILE_RECEIPT), JSON.stringify({
+          schema: 'afyx-browser-profile/v1',
+          host: hostname(),
+          hostPid: process.pid,
+          browserPid: ownedChild.pid,
+          name: basename(this.userDataDir),
+          inode: profileStat.ino,
+          createdAt: profileStat.birthtimeMs,
+        }), { flag: 'wx', mode: 0o600 });
+      } catch { /* A profile without a receipt remains ineligible for stale cleanup. */ }
       this._processExited = new Promise((done) => {
         this.process.once('exit', () => { this.isAttached = false; this._rejectPending('BROWSER_PROCESS_EXITED'); done();
           if (this.process === ownedChild) void this._close().catch(() => {}); });
@@ -622,7 +678,7 @@ async function runCli() {
 
   if (args.includes('--help') || args.includes('-h')) {
     console.log(`
-AFYX Browser DevTools â€” Native Browser Engineering & Diagnostics
+AFYX Browser DevTools — Native Browser Engineering & Diagnostics
 
 Usage:
   node scripts/afyx-browser-devtools.mjs [options]

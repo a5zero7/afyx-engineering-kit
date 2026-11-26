@@ -125,6 +125,13 @@ describe('MCP project resolution via roots/list (issue #196)', () => {
     const text = resp.result.content[0].text as string;
     expect(text).toContain('Afyx Graph Status');
     expect(text).not.toContain('No Afyx Graph project is loaded');
+
+    send(child, {
+      jsonrpc: '2.0', id: 2, method: 'tools/call',
+      params: { name: 'afyx_graph_files', arguments: { projectPath: cwdDir } },
+    });
+    const refusal = await waitForMessage(messages, (m) => m.id === 2, 5000);
+    expect(refusal.error?.message).toBe('Project path is outside the MCP session workspace roots.');
   }, 20000);
 
   it('returns an actionable error when there is no rootUri and no roots capability', async () => {

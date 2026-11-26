@@ -66,6 +66,17 @@ describe('FileLock', () => {
     lock1.release();
   });
 
+  it('does not steal old live locks or treat malformed ownership as dead', () => {
+    const lock = new FileLock(lockPath);
+    const past = new Date(Date.now() - 180000);
+    fs.writeFileSync(lockPath, String(process.pid));
+    fs.utimesSync(lockPath, past, past);
+    expect(() => lock.acquire()).toThrow(/locked by another process/);
+    expect(fs.readFileSync(lockPath, 'utf8')).toBe(String(process.pid));
+    fs.writeFileSync(lockPath, '123 dead-owner-unknown');
+    expect(() => lock.acquire()).toThrow(/unverified owner/);
+  });
+
   it('should detect and remove stale locks from dead processes', () => {
     // Write a lock file with a PID that doesn't exist
     // PID 99999999 is extremely unlikely to be a real process

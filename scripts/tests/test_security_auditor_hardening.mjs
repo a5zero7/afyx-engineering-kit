@@ -117,7 +117,9 @@ test('disposition ledger hanya mengecualikan test fixtures yang valid dan menola
   writeFileSync(ledgerPath, JSON.stringify(ledger, null, 2));
 
   // 1. Audit with disposition: production secret MUST NOT be waived and must fail the audit
-  const reportWithProd = auditDirectory(root);
+  const withoutApproval = auditDirectory(root);
+  assert.equal(withoutApproval.findings.some((finding) => finding.disposition === 'WAIVED_TEST_FIXTURE'), false);
+  const reportWithProd = auditDirectory(root, { dispositionPath: ledgerPath });
   assert.equal(reportWithProd.status, 'FAIL');
   assert.equal(reportWithProd.coverage, 'COMPLETE_WITHIN_RULES');
   assert.equal(reportWithProd.findings.length, 1);
@@ -127,14 +129,14 @@ test('disposition ledger hanya mengecualikan test fixtures yang valid dan menola
 
   // 2. Remove production secret so only test fixture remains
   writeFileSync(join(root, 'src', 'app.js'), '// Safe production code');
-  const reportClean = auditDirectory(root);
+  const reportClean = auditDirectory(root, { dispositionPath: ledgerPath });
   assert.equal(reportClean.status, 'PASS');
   assert.equal(reportClean.findings.length, 0);
   assert.equal(reportClean.waivedFindings.length, 1);
 
   // 3. Tamper with test fixture content (digest mismatch) -> waiver must be rejected
   writeFileSync(join(root, 'test', 'sample.test.js'), 'const testKey = "ghp_' + 'c'.repeat(36) + '";');
-  const reportTampered = auditDirectory(root);
+  const reportTampered = auditDirectory(root, { dispositionPath: ledgerPath });
   assert.equal(reportTampered.status, 'FAIL');
   assert.equal(reportTampered.findings.length, 1);
   assert.equal(reportTampered.waivedFindings.length, 0);

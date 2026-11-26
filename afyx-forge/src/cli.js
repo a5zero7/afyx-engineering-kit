@@ -78,6 +78,19 @@ export async function runCli(args = process.argv.slice(2)) {
     for (let i = 1; i < args.length; i++) {
       if (args[i] === '--task' && args[i + 1]) {
         taskText = args[++i];
+      } else if (args[i] === '--stdin') {
+        const buffer = Buffer.alloc(262145);
+        let length = 0;
+        while (length < buffer.length) {
+          const count = fs.readSync(0, buffer, length, buffer.length - length, null);
+          if (!count) break;
+          length += count;
+        }
+        if (length === buffer.length) {
+          console.error('Task stdin exceeds the byte limit.');
+          return 1;
+        }
+        taskText = buffer.toString('utf8', 0, length);
       } else if (args[i] === '--task-file' && args[i + 1]) {
         taskFile = args[++i];
       } else if (args[i] === '--format' && args[i + 1]) {
