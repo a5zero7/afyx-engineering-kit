@@ -6,6 +6,7 @@ import {
   mkdirSync,
   mkdtempSync,
   readFileSync,
+  realpathSync,
   rmSync,
   symlinkSync,
   writeFileSync,
@@ -40,7 +41,7 @@ const CORE_CLI = resolve(__dirname, '../afyx-installer-core.mjs');
 const REPO_ROOT = resolve(__dirname, '../..');
 
 function withDisposableTemp(fn) {
-  const root = mkdtempSync(join(tmpdir(), 'afyx-core-test-'));
+  const root = mkdtempSync(join(realpathSync(tmpdir()), 'afyx-core-test-'));
   try {
     return fn(root);
   } finally {

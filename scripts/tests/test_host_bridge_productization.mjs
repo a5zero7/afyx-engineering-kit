@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync, mkdirSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync, mkdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import test from 'node:test';
@@ -14,7 +14,7 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 const SCRIPTS = resolve(HERE, '..');
 
 function fixture() {
-  const root = mkdtempSync(join(tmpdir(), 'afyx-host-product-'));
+  const root = mkdtempSync(join(realpathSync.native(tmpdir()), 'afyx-host-product-'));
   return {
     root,
     runtimeRoot: join(root, 'install', 'host-bridge'),

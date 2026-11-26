@@ -148,7 +148,7 @@ test('CLI supports uninstall --all --purge-backups --non-interactive', () => {
 });
 
 test('Bash 3.2 empty-argument safety and uninstall --all --purge-backups in disposable HOME', { skip: !bashExe }, () => {
-  const tmpRoot = fs.mkdtempSync(join(os.tmpdir(), 'afyx-v101-test-'));
+  const tmpRoot = fs.mkdtempSync(join(fs.realpathSync(os.tmpdir()), 'afyx-v101-test-'));
   try {
     const fakeHome = join(tmpRoot, 'home');
     const fakeBin = join(tmpRoot, 'bin');

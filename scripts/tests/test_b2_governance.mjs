@@ -10,7 +10,7 @@ import { CliCompactor } from '../../afyx-context/src/cli-compactor.js';
 import { cleanTempArtifacts } from '../../afyx-context/src/temp-artifacts.js';
 
 const fixture = t => {
-  const root = mkdtempSync(join(realpathSync(tmpdir()), 'afyx-b2-governance-'));
+  const root = mkdtempSync(join(realpathSync.native(tmpdir()), 'afyx-b2-governance-'));
   t.after(() => rmSync(root, { recursive: true, force: true }));
   return root;
 };

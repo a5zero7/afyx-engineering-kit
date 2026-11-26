@@ -261,7 +261,8 @@ component_action() {
     elif [[ "$AFYX_REPAIR" == REPAIR ]]; then action=repair
     elif [[ "$state" == HEALTHY && -n "$available" && -n "$installed" ]]; then
       if version_lt "$installed" "$available"; then action=update
-      elif version_lt "$available" "$installed" && { "$allow_downgrade" || "$force"; }; then action=repair
+      elif version_lt "$available" "$installed"; then
+        if "$allow_downgrade" || "$force"; then action=repair; else action=skip; fi
       elif [[ "$AFYX_DRIFT" == IN_SYNC || "$installed" == "$available" ]]; then
         if "$force"; then action=update; else action=skip; fi
       else action=update; fi

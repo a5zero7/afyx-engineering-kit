@@ -1,4 +1,4 @@
-# Strict test for AfyxSkillLifecycle backup retention and safe historical rotation
+﻿# Strict test for AfyxSkillLifecycle backup retention and safe historical rotation
 [CmdletBinding()]
 param()
 
@@ -150,21 +150,29 @@ try {
     New-Item -ItemType Directory -Path $external | Out-Null
     Set-Content -LiteralPath (Join-Path $external 'owner-data') -Value 'preserve'
     $junction = Join-Path $fakeSkill 'linked'
-    New-Item -ItemType Junction -Path $junction -Target $external | Out-Null
+    $linkType = if ($env:OS -eq 'Windows_NT') { 'Junction' } else { 'SymbolicLink' }
+    New-Item -ItemType $linkType -Path $junction -Target $external | Out-Null
     try {
         $rejected = $false
         try { Backup-AfyxSkill -Component 'default-limit' -Target $fakeSkill | Out-Null } catch { $rejected = $true }
         if (-not $rejected) { throw 'Linked payload accepted.' }
         foreach ($path in $beforeDirs) { if (-not (Test-Path -LiteralPath $path)) { throw 'History changed on unsafe source.' } }
-    } finally { [IO.Directory]::Delete($junction) }
+    } finally {
+        if ($env:OS -eq 'Windows_NT') { [IO.Directory]::Delete($junction) }
+        elseif (Test-Path -LiteralPath $junction) { Remove-Item -LiteralPath $junction -Force }
+    }
     $ancestor = Join-Path $testTemp 'linked-backups'
-    New-Item -ItemType Junction -Path $ancestor -Target $backupRoot | Out-Null
+    New-Item -ItemType $linkType -Path $ancestor -Target $backupRoot | Out-Null
     try {
         $env:AFYX_BACKUP_ROOT = Join-Path $ancestor 'nested'
         $rejected = $false
         try { Backup-AfyxSkill -Component 'test-skill' -Target $fakeSkill | Out-Null } catch { $rejected = $true }
         if (-not $rejected) { throw 'Linked ancestor accepted.' }
-    } finally { [IO.Directory]::Delete($ancestor); $env:AFYX_BACKUP_ROOT = $backupRoot }
+    } finally {
+        if ($env:OS -eq 'Windows_NT') { [IO.Directory]::Delete($ancestor) }
+        elseif (Test-Path -LiteralPath $ancestor) { Remove-Item -LiteralPath $ancestor -Force }
+        $env:AFYX_BACKUP_ROOT = $backupRoot
+    }
     if ([IO.File]::ReadAllText((Join-Path $external 'owner-data')).Trim() -ne 'preserve') { throw 'External data changed.' }
 
     Write-Host "`nAll AfyxSkillLifecycle backup rotation tests PASSED successfully."

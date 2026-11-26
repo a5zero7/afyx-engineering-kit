@@ -103,6 +103,7 @@ describe('AFYX-72: Downgrade, Recovery & Rollback Lifecycle Suite', () => {
       '--custom-component', 'afyx-efficient-coding',
       '--non-interactive',
       '--no-build-fallback',
+      '--skip-provider-configuration',
       '--skills-root', testSkillsRoot,
       '--graph-runtime-root', testGraphRoot,
     ], {
@@ -126,6 +127,7 @@ describe('AFYX-72: Downgrade, Recovery & Rollback Lifecycle Suite', () => {
       '--allow-downgrade',
       '--non-interactive',
       '--no-build-fallback',
+      '--skip-provider-configuration',
       '--skills-root', testSkillsRoot,
       '--graph-runtime-root', testGraphRoot,
     ], {
@@ -178,6 +180,7 @@ describe('AFYX-72: Downgrade, Recovery & Rollback Lifecycle Suite', () => {
       'verify',
       '--preset', 'custom',
       '--custom-component', 'afyx-efficient-coding',
+      '--skip-provider-configuration',
       '--skills-root', testSkillsRoot,
       '--graph-runtime-root', testGraphRoot,
     ], {
