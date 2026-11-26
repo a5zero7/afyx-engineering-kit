@@ -64,9 +64,9 @@ describe('AFYX-72: Downgrade, Recovery & Rollback Lifecycle Suite', () => {
   });
 
   test('Step 1: Install higher-version fixture (v2.0.0) with complete references and valid receipt', () => {
-    const highSkill = join(testSkillsRoot, 'efficient-coding');
+    const highSkill = join(testSkillsRoot, 'afyx-efficient-coding');
     // Copy bundled complete skill as base
-    cpSync(join(REPO_ROOT, 'skills', 'efficient-coding'), highSkill, { recursive: true });
+    cpSync(join(REPO_ROOT, 'skills', 'afyx-efficient-coding'), highSkill, { recursive: true });
 
     // Mutate version to 2.0.0
     const skillMdPath = join(highSkill, 'SKILL.md');
@@ -77,7 +77,7 @@ describe('AFYX-72: Downgrade, Recovery & Rollback Lifecycle Suite', () => {
     // Generate valid receipt marker using AfyxSkillLifecycle module
     const pwshCmd = `
       Import-Module "${join(REPO_ROOT, 'scripts', 'lib', 'AfyxSkillLifecycle.psm1')}" -Force
-      Write-AfyxSkillMarker -Target "${highSkill}" -Component "efficient-coding" -Owner "afyx" -Version "2.0.0"
+      Write-AfyxSkillMarker -Target "${highSkill}" -Component "afyx-efficient-coding" -Owner "afyx" -Version "2.0.0"
     `;
     const res = spawnSync('pwsh', ['-NoProfile', '-Command', pwshCmd], { encoding: 'utf8' });
     assert.equal(res.status, 0, `Write-AfyxSkillMarker must succeed: ${res.stderr || res.stdout}`);
@@ -87,10 +87,10 @@ describe('AFYX-72: Downgrade, Recovery & Rollback Lifecycle Suite', () => {
   });
 
   test('Step 2: Verify existing higher-version installation is recognized as healthy', () => {
-    const skillContent = readFileSync(join(testSkillsRoot, 'efficient-coding', 'SKILL.md'), 'utf8');
+    const skillContent = readFileSync(join(testSkillsRoot, 'afyx-efficient-coding', 'SKILL.md'), 'utf8');
     assert.match(skillContent, /version:\s*"2\.0\.0"/);
 
-    const marker = JSON.parse(readFileSync(join(testSkillsRoot, 'efficient-coding', '.afyx-install.json'), 'utf8'));
+    const marker = JSON.parse(readFileSync(join(testSkillsRoot, 'afyx-efficient-coding', '.afyx-install.json'), 'utf8'));
     assert.equal(marker.version, '2.0.0');
     assert.equal(marker.owner, 'afyx');
   });
@@ -100,7 +100,7 @@ describe('AFYX-72: Downgrade, Recovery & Rollback Lifecycle Suite', () => {
       cliPath,
       'install',
       '--preset', 'custom',
-      '--custom-component', 'efficient-coding',
+      '--custom-component', 'afyx-efficient-coding',
       '--non-interactive',
       '--no-build-fallback',
       '--skills-root', testSkillsRoot,
@@ -113,7 +113,7 @@ describe('AFYX-72: Downgrade, Recovery & Rollback Lifecycle Suite', () => {
     assert.equal(res.status, 0, `Command should succeed without mutating higher version: ${res.stderr || res.stdout}`);
     
     // Skill must remain 2.0.0 because downgrade was not authorized
-    const skillContent = readFileSync(join(testSkillsRoot, 'efficient-coding', 'SKILL.md'), 'utf8');
+    const skillContent = readFileSync(join(testSkillsRoot, 'afyx-efficient-coding', 'SKILL.md'), 'utf8');
     assert.match(skillContent, /version:\s*"2\.0\.0"/, 'Higher version must be preserved without --allow-downgrade');
   });
 
@@ -122,7 +122,7 @@ describe('AFYX-72: Downgrade, Recovery & Rollback Lifecycle Suite', () => {
       cliPath,
       'install',
       '--preset', 'custom',
-      '--custom-component', 'efficient-coding',
+      '--custom-component', 'afyx-efficient-coding',
       '--allow-downgrade',
       '--non-interactive',
       '--no-build-fallback',
@@ -136,12 +136,12 @@ describe('AFYX-72: Downgrade, Recovery & Rollback Lifecycle Suite', () => {
     assert.equal(res.status, 0, `Authorized downgrade must succeed: ${res.stderr || res.stdout}`);
 
     // Verify skill was downgraded to bundled version
-    const skillContent = readFileSync(join(testSkillsRoot, 'efficient-coding', 'SKILL.md'), 'utf8');
+    const skillContent = readFileSync(join(testSkillsRoot, 'afyx-efficient-coding', 'SKILL.md'), 'utf8');
     assert.doesNotMatch(skillContent, /version:\s*"2\.0\.0"/, 'Skill should no longer be 2.0.0 after downgrade');
     assert.match(skillContent, /version:\s*"1\.2\.\d+"/, 'Skill should be at packaged 1.2.x version');
 
     // Verify backup of previous version was created in backup directory
-    const backups = existsSync(join(testBackupRoot, 'efficient-coding'));
+    const backups = existsSync(join(testBackupRoot, 'afyx-efficient-coding'));
     assert.ok(backups, 'Pre-downgrade backup of skill must exist in backup root');
 
     // Foreign skill and config must remain intact
@@ -152,10 +152,10 @@ describe('AFYX-72: Downgrade, Recovery & Rollback Lifecycle Suite', () => {
 
   test('Step 5: Inject failure during replacement and verify atomic pre-operation restoration', () => {
     // Record current state of the downgraded skill
-    const beforeSkill = readFileSync(join(testSkillsRoot, 'efficient-coding', 'SKILL.md'), 'utf8');
+    const beforeSkill = readFileSync(join(testSkillsRoot, 'afyx-efficient-coding', 'SKILL.md'), 'utf8');
 
     // Simulate atomic skill staging failure recovery
-    const targetDir = join(testSkillsRoot, 'efficient-coding');
+    const targetDir = join(testSkillsRoot, 'afyx-efficient-coding');
     const oldDir = `${targetDir}.afyx-old`;
     mkdirSync(oldDir, { recursive: true });
     writeFileSync(join(oldDir, 'canary.txt'), 'pre-op-backup-data', 'utf8');
@@ -177,7 +177,7 @@ describe('AFYX-72: Downgrade, Recovery & Rollback Lifecycle Suite', () => {
       cliPath,
       'verify',
       '--preset', 'custom',
-      '--custom-component', 'efficient-coding',
+      '--custom-component', 'afyx-efficient-coding',
       '--skills-root', testSkillsRoot,
       '--graph-runtime-root', testGraphRoot,
     ], {

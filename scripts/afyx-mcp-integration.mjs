@@ -1,6 +1,8 @@
 #!/usr/bin/env node
 /** Consent-safe Codex MCP configuration and native read-back. */
-import { chmodSync, closeSync, existsSync, lstatSync, mkdirSync, mkdtempSync, openSync, readFileSync, renameSync, rmdirSync, rmSync, writeFileSync } from 'node:fs';
+import { sha256Bytes } from '../afyx-context/src/artifact-lineage.js';
+import { StateCoordinator } from '../afyx-context/src/coordination.js';
+import { chmodSync, existsSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, renameSync, rmdirSync, rmSync, writeFileSync } from 'node:fs';
 import { basename, dirname, extname, isAbsolute, join, normalize, relative, resolve } from 'node:path';
 import { spawn, spawnSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
@@ -71,6 +73,7 @@ export function classifyEntry(existing, expected, server = '') {
       && normalized(args[0]) === normalized(expected.entry)
       && args[1] === 'serve' && args[2] === '--mcp';
   if (argsMatch && nodeMatches) return 'MCP_CONFIGURED';
+  if (explicitArgs && !server) return 'MCP_BLOCKED';
   const isAfyx = isAfyxTransport(server, transport)
     || (transport.type === 'stdio' && args.some((a) => typeof a === 'string' && /afyx/i.test(a)));
   if (isAfyx) return 'MCP_STALE_OWNED';
@@ -403,19 +406,29 @@ export async function integrate(options) {
   try {
     assertSafePath(home, lock);
     mkdirSync(home, { recursive: true });
-    const handle = openSync(lock, 'wx', 0o600);
     try {
-      return await integrateCodex(options);
-    } finally {
-      closeSync(handle);
-      rmSync(lock);
+      mkdirSync(lock, { mode: 0o700 });
+    } catch (error) {
+      if (error.code !== 'EEXIST') throw error;
     }
+    const stat = lstatSync(lock);
+    if (!stat.isDirectory() || stat.isSymbolicLink()) {
+      throw new McpIntegrationError('MCP_LOCK_OWNERSHIP_UNKNOWN', 'Existing MCP lock has no verified ownership record.');
+    }
+    const stateDir = realpathSync(lock);
+    const coordinator = new StateCoordinator({
+      stateDir,
+      ownerHash: sha256Bytes(stateDir),
+      lockTimeoutMs: 1,
+    });
+    return await coordinator.withLockAsync(() => integrateCodex(options));
   } catch (error) {
     return {
       mcp: 'MCP_BLOCKED',
       changed: false,
-      reason: error.code === 'EEXIST' ? 'CONCURRENT_MODIFICATION_DETECTED' : (error.reason || 'MCP_TRANSACTION_FAILED'),
-      detail: 'Codex configuration transaction could not complete.',
+      reason: error.code === 'LOCK_TIMEOUT' ? 'CONCURRENT_MODIFICATION_DETECTED' :
+        (error.reason || error.code || 'MCP_TRANSACTION_FAILED'),
+      detail: 'Codex configuration transaction could not complete. Check ownership of ' + lock + '.',
     };
   }
 }

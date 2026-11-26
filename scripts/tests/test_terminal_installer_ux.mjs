@@ -48,7 +48,7 @@ describe('T06 (AFYX-316): Terminal Installer UX & Preset Coverage', () => {
     ]);
     assert.equal(parsed.errors.length, 0);
     assert.equal(parsed.options.preset, 'custom');
-    assert.deepEqual(parsed.options.customComponents, ['efficient-coding', 'odoo-engineering']);
+    assert.deepEqual(parsed.options.customComponents, ['afyx-efficient-coding', 'afyx-odoo-engineering']);
   });
 
   test('Error recovery: Clear actionable error on missing option value', () => {

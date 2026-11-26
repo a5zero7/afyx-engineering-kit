@@ -298,7 +298,7 @@ console.log(JSON.stringify({{caller,filesystem,runtime}}));"""
 
         (self.claude_config / "MISMATCH_GET").unlink()
         (self.claude_config / "UNPROVEN_GET").write_text("1", encoding="utf-8")
-        unproven = self.run_helper("--scope", "global", "--apply")
+        unproven = self.run_helper("--scope", "global", "--apply", expected=2)
         self.assertEqual(unproven["status"], "PARTIAL")
         self.assertEqual(unproven["providers"][0]["status"], "UNVERIFIED")
         self.assertEqual(

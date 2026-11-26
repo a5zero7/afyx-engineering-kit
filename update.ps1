@@ -12,6 +12,7 @@ param(
     [switch]$NoBuildFallback,
 
     [switch]$AllowDirtySource,
+    [switch]$AllowDowngrade,
     [switch]$InstallUsageTracker,
     [switch]$SkipUsageTracker,
     [switch]$SkipGraphMcp,
@@ -93,7 +94,7 @@ $usageArguments = @{}
 if ($InstallUsageTracker) { $usageArguments.InstallUsageTracker = $true }
 elseif ($SkipUsageTracker) { $usageArguments.SkipUsageTracker = $true }
 
-& $installer -SkillsRoot $SkillsRoot -UpdateInstalled -ComponentAction $ComponentAction -Preset $Preset -CustomComponent $CustomComponent -Offline:$Offline -NoBuildFallback:$NoBuildFallback -AllowDirtySource:$AllowDirtySource -SkipGraphMcp:$SkipGraphMcp -SkipGraphPathUpdate:$SkipGraphPathUpdate -Provider $Provider -ProviderScope $ProviderScope -WorkspaceRoot $WorkspaceRoot -GeminiHome $GeminiHome -ClaudeHome $ClaudeHome -ClaudeConfigDir $ClaudeConfigDir -SkipProviderConfiguration:$SkipProviderConfiguration -ContextRuntimeRoot $ContextRuntimeRoot -ForgeRuntimeRoot $ForgeRuntimeRoot -AfyxInstallRoot $AfyxInstallRoot -HostBridgeRuntimeRoot $HostBridgeRuntimeRoot -Confirm:$false -WhatIf:$WhatIfPreference @usageArguments
+& $installer -SkillsRoot $SkillsRoot -UpdateInstalled -ComponentAction $ComponentAction -Preset $Preset -CustomComponent $CustomComponent -Offline:$Offline -NoBuildFallback:$NoBuildFallback -AllowDirtySource:$AllowDirtySource -AllowDowngrade:$AllowDowngrade -SkipGraphMcp:$SkipGraphMcp -SkipGraphPathUpdate:$SkipGraphPathUpdate -Provider $Provider -ProviderScope $ProviderScope -WorkspaceRoot $WorkspaceRoot -GeminiHome $GeminiHome -ClaudeHome $ClaudeHome -ClaudeConfigDir $ClaudeConfigDir -SkipProviderConfiguration:$SkipProviderConfiguration -ContextRuntimeRoot $ContextRuntimeRoot -ForgeRuntimeRoot $ForgeRuntimeRoot -AfyxInstallRoot $AfyxInstallRoot -HostBridgeRuntimeRoot $HostBridgeRuntimeRoot -Confirm:$false -WhatIf:$WhatIfPreference @usageArguments
 $installerSucceeded = $?
 $installerExitCode = 0
 if (Test-Path -LiteralPath variable:LASTEXITCODE) { $installerExitCode = [int]$LASTEXITCODE }

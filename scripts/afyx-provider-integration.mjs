@@ -709,7 +709,7 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === resolve(process.argv[1
   };
   runProviderLifecycle(options).then((result) => {
     console.log(JSON.stringify(result));
-    if (result.status === 'BLOCKED') process.exitCode = 2;
+    if (result.status === 'BLOCKED' || (result.status === 'PARTIAL' && (options.apply || options.uninstall))) process.exitCode = 2;
   }).catch((error) => {
     console.error(`[provider-integration] ${error instanceof Error ? error.message : String(error)}`);
     process.exitCode = 1;

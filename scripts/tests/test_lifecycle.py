@@ -20,6 +20,7 @@ SELECTABLE = [
     "afyx-efficient-coding",
     "afyx-odoo-engineering",
     "afyx-engineering-expert",
+    "afyx-ui-architect",
     "afyx-graph",
     "afyx-context",
     "afyx-forge",

@@ -649,6 +649,16 @@ if [[ "$graph_action" != skip ]]; then
   "$dry_run" && graph_args+=(--validate-only)
   afyx_run_install_operation afyx-graph "$graph_action" 'Preparing Afyx Graph runtime' bash "$PACKAGE_ROOT/scripts/install-afyx-graph.sh" ${graph_args[@]+"${graph_args[@]}"}
   graph_result="$graph_action"
+elif [[ "$afyx_graph_state" == HEALTHY ]] && ! "$skip_graph_mcp" &&
+  ! "$skip_provider_configuration" && [[ ",$provider_list," == *,codex,* ]] &&
+  [[ "$(explicit_action afyx-graph || true)" != skip ]] &&
+  afyx_component_desired afyx-graph "$preset" "$custom_component_list" "$provider_list"; then
+  if "$dry_run"; then
+    printf 'Dry-run: would verify and register the existing Afyx Graph MCP runtime.\n'
+  else
+    afyx_run_install_operation afyx-graph configure 'Verifying Afyx Graph MCP registration' \
+      bash "$PACKAGE_ROOT/scripts/install-afyx-graph.sh" --configure-mcp
+  fi
 fi
 
 if ! "$skip_graph_mcp" && ! "$skip_provider_configuration" && [[ ",$provider_list," == *,antigravity,* ]]; then
@@ -752,15 +762,15 @@ fi
 
 printf '\nInstallation Summary (v1.2.1)\n[%s] Afyx Efficient Coding\n[%s] Afyx Odoo Engineering\n[%s] Afyx Engineering Expert\n[%s] Afyx Graph\n[%s] Afyx Context Engine\n[%s] Afyx Forge Core\n[SKIPPED] Afyx Usage Intelligence (Windows-only)\n' "$efficient_result" "$odoo_result" "$expert_result" "$graph_result" "$context_result" "$forge_result"
 if [[ "$context_result" != skipped && "$context_result" != NOT_INSTALLED ]]; then
-  printf '[HEALTHY] Capability: afyx-work-ledger (cryptographic task ledger and execution receipts)\n'
-  printf '[HEALTHY] Capability: afyx-impact-simulator (deterministic change blast radius simulation)\n'
-  printf '[HEALTHY] Capability: afyx-db-inspector (read-only contained SQLite schema and data inspection)\n'
-  printf '[HEALTHY] Capability: afyx-env-preflight (host and workspace environment preflight)\n'
-  printf '[HEALTHY] Capability: afyx-cli-compactor (lossless CLI output compaction with recoverable spills)\n'
-  printf '[HEALTHY] Capability: afyx-massive-context (zero-memory streaming navigation and slice extraction)\n'
+  printf '[NOT PROBED] Capability: afyx-work-ledger (local task ledger and integrity receipts)\n'
+  printf '[NOT PROBED] Capability: afyx-impact-simulator (deterministic change blast radius simulation)\n'
+  printf '[NOT PROBED] Capability: afyx-db-inspector (read-only contained SQLite schema and data inspection)\n'
+  printf '[NOT PROBED] Capability: afyx-env-preflight (host and workspace environment preflight)\n'
+  printf '[NOT PROBED] Capability: afyx-cli-compactor (lossless CLI output compaction with recoverable spills)\n'
+  printf '[NOT PROBED] Capability: afyx-massive-context (bounded streaming streaming navigation and slice extraction)\n'
 fi
 if [[ "$forge_result" != skipped && "$forge_result" != NOT_INSTALLED ]]; then
-  printf '[HEALTHY] Capability: afyx-migration-planner (multi-tier migration and rollback planning)\n'
-  printf '[HEALTHY] Capability: afyx-api-contract-validator (cross-spec API contract validation)\n'
+  printf '[NOT PROBED] Capability: afyx-migration-planner (multi-tier migration and rollback planning)\n'
+  printf '[NOT PROBED] Capability: afyx-api-contract-validator (cross-spec API contract validation)\n'
 fi
 if "$dry_run"; then printf 'Dry-run completed; no files or configuration changed.\n'; fi

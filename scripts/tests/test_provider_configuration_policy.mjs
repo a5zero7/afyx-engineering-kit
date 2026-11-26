@@ -719,3 +719,24 @@ lines.on('line', (line) => {
     }
   });
 });
+
+
+test('provider backup purge preserves unverified and unrelated entries', async (t) => {
+  const { mkdtempSync, readFileSync, rmSync, writeFileSync } = await import('node:fs');
+  const { tmpdir } = await import('node:os');
+  const { join } = await import('node:path');
+  const { createConfigurationBackup, pruneOwnedProviderBackups } = await import('../afyx-provider-backup.mjs');
+  const root = mkdtempSync(join(tmpdir(), 'afyx-provider-purge-fixture-'));
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  const config = join(root, 'settings.json');
+  writeFileSync(config, '{"fixture":true}');
+  const first = createConfigurationBackup({ provider: 'codex', configPath: config, backupRoot: root });
+  const second = createConfigurationBackup({ provider: 'codex', configPath: config, backupRoot: root });
+  const third = createConfigurationBackup({ provider: 'claude', configPath: config, backupRoot: root });
+  writeFileSync(second.backupPath, 'tampered fixture');
+  const report = pruneOwnedProviderBackups({ providers: ['codex'], backupRoot: root });
+  assert.deepEqual(report, { planned: 1, removed: 1, unresolved: 1 });
+  assert.throws(() => readFileSync(first.backupPath), /ENOENT/);
+  assert.equal(readFileSync(second.backupPath, 'utf8'), 'tampered fixture');
+  assert.equal(readFileSync(third.backupPath, 'utf8'), '{"fixture":true}');
+});

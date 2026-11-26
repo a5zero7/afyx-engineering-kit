@@ -147,7 +147,7 @@ const OPTION_NAMES = new Map(Object.entries(OPTIONS).flatMap(([name, spec]) =>
 
 export function getHelpText() {
   const version = getPackageVersion();
-  return `AFYX Engineering Kit â€” Universal Cross-Platform CLI Installer v${version}
+  return `AFYX Engineering Kit — Universal Cross-Platform CLI Installer v${version}
 
 Usage:
   afyx-engineering-kit <command> [options]
@@ -173,6 +173,7 @@ Universal Native Capabilities:
 
 Options:
   --preset <name>                 Component preset (minimal, recommended, full, custom)
+                                  Recommended leaves Graph MCP opt-in.
   --ui <auto|tui|plain>           Installer terminal interface (install only)
   --provider <names>              Target AI provider host(s) (codex, antigravity, claude)
   --provider-scope <scope>        Integration scope (global, workspace)

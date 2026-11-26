@@ -166,7 +166,7 @@ if ($wizardMode) {
         Write-AfyxStatus -Status INFO -Name 'Afyx Forge Core' -Detail 'optional Alpha assistive planner; formal 36-cell eval waived/not run; autonomous execution not authorized' -Terminal $terminal
         Write-AfyxStatus -Status INFO -Name 'Afyx Context' -Detail 'optional to install; enabled by default when healthy; used only when needed' -Terminal $terminal
         $presetOptions = @(
-            [pscustomobject]@{ Id = 'recommended'; Label = 'Recommended'; Detail = 'Core skills + Engineering Expert'; Enabled = $true },
+            [pscustomobject]@{ Id = 'recommended'; Label = 'Recommended'; Detail = 'Core skills + Engineering Expert. Graph MCP remains opt-in.'; Enabled = $true },
             [pscustomobject]@{ Id = 'minimal'; Label = 'Minimal'; Detail = 'Core engineering skills'; Enabled = $true },
             [pscustomobject]@{ Id = 'full'; Label = 'Full'; Detail = 'All six core products (Graph, Context, Forge, Skills) + Codex usage tracking (Windows)'; Enabled = $true },
             [pscustomobject]@{ Id = 'custom'; Label = 'Custom'; Detail = 'Choose exact components'; Enabled = $true }
@@ -768,7 +768,7 @@ if (-not $ValidateOnly -and $providerMcpRequested -and $nodeCommand -and ('codex
     })
     foreach ($blocked in $preflightBlocked) {
         if ($blocked.status -eq 'INCOMPATIBLE') { throw "Provider scope is incompatible: $($blocked.provider) ($($blocked.reason))." }
-        Write-Warning "Provider preflight blocked: $($blocked.provider) ($($blocked.reason))."
+        throw "Provider preflight blocked before mutation: $($blocked.provider) ($($blocked.reason))."
     }
 }
 
@@ -1246,16 +1246,16 @@ foreach ($entry in $summary.GetEnumerator()) {
 }
 # Expose 8 Universal Native Capability Summaries (v1.2.0)
 if ($states['Afyx Context Engine'] -eq 'HEALTHY' -or ($contextAction -and $contextAction -ne 'skip')) {
-    $receipt += [pscustomobject]@{ Status = 'HEALTHY'; Name = 'Capability: afyx-work-ledger'; Detail = 'Cryptographic task ledger and verified execution receipts' }
-    $receipt += [pscustomobject]@{ Status = 'HEALTHY'; Name = 'Capability: afyx-impact-simulator'; Detail = 'Deterministic change blast radius and ripple simulation' }
-    $receipt += [pscustomobject]@{ Status = 'HEALTHY'; Name = 'Capability: afyx-db-inspector'; Detail = 'Read-only contained SQLite schema and data inspection' }
-    $receipt += [pscustomobject]@{ Status = 'HEALTHY'; Name = 'Capability: afyx-env-preflight'; Detail = 'Host and workspace environment prerequisite preflight' }
-    $receipt += [pscustomobject]@{ Status = 'HEALTHY'; Name = 'Capability: afyx-cli-compactor'; Detail = 'Lossless CLI output compaction with recoverable spills' }
-    $receipt += [pscustomobject]@{ Status = 'HEALTHY'; Name = 'Capability: afyx-massive-context'; Detail = 'Zero-memory streaming navigation and slice extraction' }
+    $receipt += [pscustomobject]@{ Status = 'NOT PROBED'; Name = 'Capability: afyx-work-ledger'; Detail = 'Cryptographic task ledger and verified execution receipts' }
+    $receipt += [pscustomobject]@{ Status = 'NOT PROBED'; Name = 'Capability: afyx-impact-simulator'; Detail = 'Deterministic change blast radius and ripple simulation' }
+    $receipt += [pscustomobject]@{ Status = 'NOT PROBED'; Name = 'Capability: afyx-db-inspector'; Detail = 'Read-only contained SQLite schema and data inspection' }
+    $receipt += [pscustomobject]@{ Status = 'NOT PROBED'; Name = 'Capability: afyx-env-preflight'; Detail = 'Host and workspace environment prerequisite preflight' }
+    $receipt += [pscustomobject]@{ Status = 'NOT PROBED'; Name = 'Capability: afyx-cli-compactor'; Detail = 'Lossless CLI output compaction with recoverable spills' }
+    $receipt += [pscustomobject]@{ Status = 'NOT PROBED'; Name = 'Capability: afyx-massive-context'; Detail = 'Bounded streaming navigation and slice extraction' }
 }
 if ($states['Afyx Forge Core'] -eq 'HEALTHY' -or ($forgeAction -and $forgeAction -ne 'skip')) {
-    $receipt += [pscustomobject]@{ Status = 'HEALTHY'; Name = 'Capability: afyx-migration-planner'; Detail = 'Schema and system migration planning, rollback design' }
-    $receipt += [pscustomobject]@{ Status = 'HEALTHY'; Name = 'Capability: afyx-api-contract-validator'; Detail = 'Cross-spec API contract validator (OpenAPI, GraphQL, Protobuf)' }
+    $receipt += [pscustomobject]@{ Status = 'NOT PROBED'; Name = 'Capability: afyx-migration-planner'; Detail = 'Schema and system migration planning, rollback design' }
+    $receipt += [pscustomobject]@{ Status = 'NOT PROBED'; Name = 'Capability: afyx-api-contract-validator'; Detail = 'Cross-spec API contract validator (OpenAPI, GraphQL, Protobuf)' }
 }
 if ($wizardMode) { Show-AfyxStep -Current 5 -Terminal $terminal }
 Show-AfyxReceipt -Items $receipt -Terminal $terminal

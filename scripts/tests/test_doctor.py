@@ -104,8 +104,8 @@ class DoctorTests(unittest.TestCase):
         for shell, (code, out) in self.doctors().items():
             self.assertEqual(code, 1, shell)
             self.assertIn("NOT READY", out, shell)
-            for name in ("Afyx Efficient Coding", "Afyx Odoo Engineering"):
-                self.assertIn(f"[FAIL] {name}", out, shell)
+            self.assertIn("[FAIL] Afyx Efficient Coding", out, shell)
+            self.assertNotIn("[FAIL] Afyx Odoo Engineering", out, shell)
 
     def test_healthy_core_is_reported_with_versions(self) -> None:
         self.install_core()

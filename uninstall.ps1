@@ -34,6 +34,7 @@ $codexHome = if ($env:CODEX_HOME) { $env:CODEX_HOME } else { Join-Path $env:USER
 
 Write-Host 'Afyx Engineering Kit v1.2.1 — Windows uninstaller (PowerShell)'
 if ($All) {
+    $RemoveProviderConfiguration = $true
     $RemoveUsageTracker = $true
     $RemoveAfyxGraph = $true
     $RemoveAfyxContext = $true
@@ -222,6 +223,13 @@ if ($PurgeBackups -or $PruneBackups) {
     foreach ($entry in $targets) {
         Remove-AfyxRetainedBackups -Component $entry.Component -Keep $backupKeep -Confirm:$false -WhatIf:$WhatIfPreference
     }
+    $backupNode = Get-Command node -ErrorAction SilentlyContinue
+    if (-not $backupNode) { throw 'Node.js is required to verify provider backup ownership.' }
+    $providerKeep = if ($PruneBackups) { 5 } else { 0 }
+    $backupArguments = @((Join-Path $PSScriptRoot 'scripts\afyx-provider-backup.mjs'), 'prune-owned', ($Provider -join ','), $providerKeep)
+    if ($WhatIfPreference) { $backupArguments += '--dry-run' }
+    & $backupNode.Source @backupArguments
+    if ($LASTEXITCODE -ne 0) { throw 'Some provider backups could not be verified and were preserved.' }
 }
 $backupRootDir = if ($env:AFYX_BACKUP_ROOT) { [IO.Path]::GetFullPath($env:AFYX_BACKUP_ROOT) } else { Join-Path $HOME '.afyx\backups' }
 $preservedDirs = @(@($graphRoot, $ContextRuntimeRoot, $ForgeRuntimeRoot, $backupRootDir) | Where-Object { Test-Path -LiteralPath $_ })

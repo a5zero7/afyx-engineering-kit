@@ -48,7 +48,7 @@ while (($#)); do
     --remove-afyx-graph) remove_afyx_graph=true; shift ;;
     --remove-afyx-context) remove_afyx_context=true; shift ;;
     --remove-afyx-forge) remove_afyx_forge=true; shift ;;
-    --all) remove_afyx_graph=true; remove_afyx_context=true; remove_afyx_forge=true; shift ;;
+    --all) remove_afyx_graph=true; remove_afyx_context=true; remove_afyx_forge=true; remove_provider_configuration=true; shift ;;
     --remove-provider-configuration) remove_provider_configuration=true; shift ;;
     --provider) afyx_require_option_value "$@" || exit 2; provider_list="$2"; shift 2 ;;
     --provider-scope) afyx_require_option_value "$@" || exit 2; provider_scope="$2"; shift 2 ;;
@@ -231,6 +231,10 @@ if "$purge_backups" || "$prune_backups"; then
     component_selected "$component_id" || continue
     afyx_purge_skill_backups "$component_id" "$dry_run" "$backup_keep"
   done
+  command -v node >/dev/null 2>&1 || { printf 'Node.js required to verify provider backup ownership.\n' >&2; exit 2; }
+  provider_backup_args=(prune-owned "$provider_list" "$backup_keep")
+  "$dry_run" && provider_backup_args+=(--dry-run)
+  node "$root/scripts/afyx-provider-backup.mjs" "${provider_backup_args[@]}"
 fi
 
 preserved_dirs=()

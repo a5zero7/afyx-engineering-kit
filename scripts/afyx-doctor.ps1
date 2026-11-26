@@ -69,7 +69,7 @@ foreach ($state in (Get-AfyxComponentStates -Context $context)) { $states[$state
 
 Write-Host ''
 Write-Host 'CORE'
-foreach ($id in @('afyx-efficient-coding', 'afyx-odoo-engineering')) {
+foreach ($id in @('afyx-efficient-coding')) {
     $component = if ($states.ContainsKey($id)) { $states[$id] } else { $states[$id -replace '^afyx-', ''] }
     if ($component.State -eq 'HEALTHY') { Write-Line 'OK' $component.Name $component.Version }
     else { Write-Line 'FAIL' $component.Name "$($component.State): $($component.Detail)" }
@@ -88,6 +88,29 @@ switch ($graph.State) {
     'HEALTHY' { Write-Line 'OK' $graph.Name $graph.Version; Write-Host "     State: $($graph.State)" }
     'NOT INSTALLED' { Write-Line 'INFO' $graph.Name 'not installed (optional)' }
     default { Write-Line 'WARN' $graph.Name "$($graph.State): $($graph.Detail)" }
+}
+foreach ($id in @('afyx-odoo-engineering', 'afyx-context', 'afyx-forge')) {
+    if (-not $states.ContainsKey($id)) { continue }
+    $runtime = $states[$id]
+    switch ($runtime.State) {
+        'HEALTHY' { Write-Line 'OK' $runtime.Name $runtime.Version }
+        'NOT INSTALLED' { Write-Line 'INFO' $runtime.Name 'not installed (optional)' }
+        default { Write-Line 'WARN' $runtime.Name "$($runtime.State): $($runtime.Detail)" }
+    }
+}
+$codexRoot = if ($env:CODEX_HOME) { $env:CODEX_HOME } else { Join-Path $env:USERPROFILE '.codex' }
+$mcpLock = Join-Path $codexRoot '.afyx-codex-mcp.lock'
+if ((Test-Path -LiteralPath $mcpLock -PathType Leaf) -or
+    (Test-Path -LiteralPath (Join-Path $mcpLock '.ace-lock'))) {
+    Write-Line 'WARN' 'Codex MCP transaction lock' 'Owner requires verification. Run verify under the same provider scope.'
+}
+if (Test-Path -LiteralPath $SkillsRoot -PathType Container) {
+    $remnant = Get-ChildItem -LiteralPath $SkillsRoot -Force -Name |
+        Where-Object { $_ -match '^\.[a-z0-9-]+\.afyx-(?:retired-rollback|stage)$' } |
+        Select-Object -First 1
+    if ($remnant) {
+        Write-Line 'WARN' 'Skill transaction remnant' 'Review the verified target and rollback manifests before recovery.'
+    }
 }
 $usage = if ($states.ContainsKey('afyx-usage-intelligence')) { $states['afyx-usage-intelligence'] } else { $states['codex-usage-tracking'] }
 switch ($usage.State) {

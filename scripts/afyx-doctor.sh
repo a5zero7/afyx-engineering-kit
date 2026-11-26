@@ -57,7 +57,7 @@ graph_freshness() {
 printf 'Afyx Engineering Doctor\n'
 
 printf '\nCORE\n'
-for id in afyx-efficient-coding afyx-odoo-engineering; do
+for id in afyx-efficient-coding; do
   afyx_component_evaluate "$id"
   name="$(afyx_component_field "$id" name)"
   if [[ "$AFYX_STATE" == HEALTHY ]]; then line OK "$name" "$AFYX_VERSION"; else line FAIL "$name" "$AFYX_STATE: $AFYX_DETAIL"; fi
@@ -76,6 +76,25 @@ case "$AFYX_STATE" in
   'NOT INSTALLED') line INFO 'Afyx Graph' 'not installed (optional)' ;;
   *) line WARN 'Afyx Graph' "$AFYX_STATE: $AFYX_DETAIL" ;;
 esac
+for id in afyx-odoo-engineering afyx-context afyx-forge; do
+  afyx_component_evaluate "$id"
+  name="$(afyx_component_field "$id" name)"
+  case "$AFYX_STATE" in
+    HEALTHY) line OK "$name" "$AFYX_VERSION" ;;
+    'NOT INSTALLED') line INFO "$name" 'not installed (optional)' ;;
+    *) line WARN "$name" "$AFYX_STATE: $AFYX_DETAIL" ;;
+  esac
+done
+mcp_lock="${CODEX_HOME:-$HOME/.codex}/.afyx-codex-mcp.lock"
+if [[ -f "$mcp_lock" || -d "$mcp_lock/.ace-lock" || -L "$mcp_lock" ]]; then
+  line WARN 'Codex MCP transaction lock' 'Owner requires verification. Use verify with the same provider scope before recovery.'
+fi
+for remnant in "$skills_root"/.*.afyx-retired-rollback "$skills_root"/.*.afyx-stage; do
+  if [[ -e "$remnant" || -L "$remnant" ]]; then
+    line WARN 'Skill transaction remnant' 'Review owned target and rollback manifests before recovery.'
+    break
+  fi
+done
 afyx_component_evaluate afyx-usage-intelligence
 case "$AFYX_STATE" in
   HEALTHY) line OK 'Afyx Usage Intelligence' ;;
