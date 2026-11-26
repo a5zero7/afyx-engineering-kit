@@ -25,7 +25,7 @@ gemini_home="${AFYX_GEMINI_HOME:-$HOME/.gemini}"
 claude_home="${CLAUDE_CONFIG_DIR:-${CLAUDE_HOME:-$HOME/.claude}}"
 claude_config_dir="${CLAUDE_CONFIG_DIR:-}"
 
-printf 'Afyx Engineering Kit v1.2.0 — Linux/macOS uninstaller (Bash)\n'
+printf 'Afyx Engineering Kit v1.2.1 — Linux/macOS uninstaller (Bash)\n'
 
 usage() {
   printf '%s\n' 'Usage: ./uninstall.sh [--skills-root PATH] [--context-runtime-root PATH] [--forge-runtime-root PATH] [--component AFYX-SKILL-ID] [--remove-provider-configuration] [--provider codex|antigravity|claude[,..]] [--provider-scope global|workspace] [--workspace-root PATH] [--gemini-home PATH] [--claude-home PATH] [--claude-config-dir PATH] [--remove-afyx-graph] [--remove-afyx-context] [--remove-afyx-forge] [--all] [--purge-backups | --prune-backups] [--non-interactive] [--dry-run]'

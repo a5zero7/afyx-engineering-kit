@@ -1,8 +1,8 @@
 # AFYX Engineering Kit — Catatan rilis dan verifikasi
 
-## Kandidat v1.2.0
+## Kandidat v1.2.1
 
-Kit dan Graph memakai versi `1.2.0`. Penerimaan distribusi memerlukan
+Kit dan Graph memakai versi `1.2.1`. Penerimaan distribusi memerlukan
 kecocokan commit sumber, CI, tag, serta checksum tarball yang sama pada
 GitHub Release dan npm. Verifikasi status publik melalui tag dan registry.
 [Changelog](../CHANGELOG.md)

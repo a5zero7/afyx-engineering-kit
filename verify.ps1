@@ -98,7 +98,7 @@ foreach ($id in $CustomComponent) {
 }
 $controlPlan = if ($Preset) { Get-AfyxControlPlan -Preset $Preset -CustomComponent $CustomComponent -Provider $Provider -Context $componentContext -StateById $componentStates } else { $null }
 
-Show-AfyxBanner -Terminal $terminal -Subtitle 'Readiness Verification v1.2.0 | Midnight Circuit'
+Show-AfyxBanner -Terminal $terminal -Subtitle 'Readiness Verification v1.2.1 | Midnight Circuit'
 $gitSource = Get-Command git -ErrorAction SilentlyContinue
 if ($gitSource -and (Test-Path -LiteralPath (Join-Path $PSScriptRoot '.git'))) {
     $sourceCommit = (& git -C $PSScriptRoot rev-parse HEAD 2>$null) -join ''

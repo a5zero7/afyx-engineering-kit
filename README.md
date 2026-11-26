@@ -1,6 +1,6 @@
 # AFYX Engineering Kit
 
-**Kit version 1.2.0.** Stable v1 is the release line. Check the Git tag and
+**Kit version 1.2.1.** Stable v1 is the release line. Check the Git tag and
 npm registry for publication status. The Kit tarball includes Windows
 PowerShell scripts and a Graph command launcher. Verify its source
 revision and SHA-256 before running it.
@@ -87,14 +87,14 @@ installable IDs, presets, supported platforms, and ownership. Consult the
 
 ## Kit and component versions
 
-The Kit version is `1.2.0`. Independent component versions
+The Kit version is `1.2.1`. Independent component versions
 track their individual CLI and contract compatibility. The Kit version tracks
 distribution and installer releases, so a component can retain its version
 while the Kit evolves. Check the release notes for distribution status.
 
 | Component | Version |
 |---|---|
-| [Graph](afyx-graph/engine/README.md) | `1.2.0` |
+| [Graph](afyx-graph/engine/README.md) | `1.2.1` |
 | [Context](afyx-context/README.md) | `0.1.0` |
 | [Forge](afyx-forge/README.md) | `0.1.0` |
 | [Efficient Coding](https://github.com/a5zero7/afyx-engineering-kit/blob/main/docs/tool-guides/AFYX_EFFICIENT_CODING.md) | `1.2.2` |

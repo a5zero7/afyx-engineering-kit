@@ -13,7 +13,7 @@ const root = rootAt >= 0 && process.argv[rootAt + 1]
 try {
   verifyDistributionLegalFiles(root);
   const result = verifyReleaseReady(root);
-  console.log(`[release-ready] PASS source=${result.sourceDigest}; assets=${result.assets}`);
+  console.error(`[release-ready] PASS source=${result.sourceDigest}; assets=${result.assets}`);
 } catch (error) {
   console.error(`[release-ready] ${error instanceof Error ? error.message : String(error)}`);
   process.exitCode = 1;

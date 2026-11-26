@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+## [1.2.1] - 2026-11-26
+
+### Perbaikan
+
+- Mengalihkan diagnostik prepack ke stderr agar keluaran JSON npm pack tetap valid.
+- Menambahkan regresi packaging JSON untuk Kit dan Afyx Graph.
+- Menyelaraskan metadata rilis dan versi lifecycle ke 1.2.1. Kandidat patch
+  menggantikan publikasi 1.2.0 yang belum selesai. Tag historis v1.2.0 tetap dipertahankan.
+
 ## [1.2.0] - 2026-11-26
 
 ### Graph dan engineering intelligence

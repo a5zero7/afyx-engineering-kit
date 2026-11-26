@@ -155,7 +155,7 @@ if ($wizardMode) {
     Enable-AfyxDashboard -Terminal $terminal -Providers $providerSnapshot
 }
 if (-not (Test-AfyxDashboard -Terminal $terminal)) {
-    Show-AfyxBanner -Terminal $terminal -Subtitle 'Interactive Installer v1.2.0 | Midnight Circuit'
+    Show-AfyxBanner -Terminal $terminal -Subtitle 'Interactive Installer v1.2.1 | Midnight Circuit'
 }
 
 try {

@@ -42,12 +42,12 @@ export function buildGraphBundle({ root, target, revision, outputDir }) {
       const npmCmd = process.platform === 'win32' ? 'npm.cmd' : 'npm';
       execFileSync(npmCmd, ['ci'], {
         cwd: engineRoot,
-        stdio: 'inherit',
+        stdio: ['inherit', 2, 2],
       });
     }
     execFileSync(process.execPath, [join(engineRoot, 'scripts', 'build-release.mjs')], {
       cwd: engineRoot,
-      stdio: 'inherit',
+      stdio: ['inherit', 2, 2],
     });
     verifyReleaseReady(engineRoot);
   }

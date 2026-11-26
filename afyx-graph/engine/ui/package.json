@@ -1,7 +1,7 @@
 {
   "name": "@a5zero7/afyx-graph-ui",
   "private": true,
-  "version": "1.2.0",
+  "version": "1.2.1",
   "type": "module",
   "description": "The Afyx Graph reader as native browser views behind one data adapter.",
   "keywords": [
