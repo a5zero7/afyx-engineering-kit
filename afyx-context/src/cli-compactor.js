@@ -23,6 +23,9 @@ import {
   existsSync,
   mkdtempSync,
   openSync,
+  readSync,
+  fstatSync,
+  rmSync,
   readFileSync,
   writeSync,
 } from 'node:fs';
@@ -33,7 +36,38 @@ import { registerCompletedSpill } from './temp-artifacts.js';
 export const CLI_COMPACTOR_CONTRACT = 'AfyxCliCompactor/v1';
 export const COMPACTED_OUTPUT_MARKER = '<!-- AFYX-CLI-COMPACTED -->';
 
-const MAX_SUMMARY_ERRORS = 500;
+function writeSpill(fd, bytes, length) {
+  for (let offset = 0; offset < length;) {
+    const written = writeSync(fd, bytes, offset, length - offset);
+    if (written <= 0) throw new Error('SPILL_SHORT_WRITE');
+    offset += written;
+  }
+}
+
+function verifiedSpill(path, bytes, digest) {
+  const fd = openSync(path, constants.O_RDONLY | (constants.O_NOFOLLOW || 0));
+  try {
+    const stat = fstatSync(fd);
+    if (!stat.isFile() || stat.nlink !== 1 || stat.size !== bytes) return false;
+    const hash = createHash('sha256');
+    const chunk = Buffer.alloc(65536);
+    for (let remaining = bytes; remaining > 0;) {
+      const size = readSync(fd, chunk, 0, Math.min(remaining, chunk.length), null);
+      if (size === 0) return false;
+      hash.update(chunk.subarray(0, size));
+      remaining -= size;
+    }
+    return hash.digest('hex') === digest && fstatSync(fd).size === bytes;
+  } finally {
+    closeSync(fd);
+  }
+}
+
+function discardSpill(path) {
+  if (path) {
+    try { rmSync(path, { recursive: true, force: true }); } catch { /* Recovery remains unavailable. */ }
+  }
+}
 
 export class CliCompactor {
   /**
@@ -99,29 +133,33 @@ export class CliCompactor {
 
       try {
         const buf = Buffer.isBuffer(rawOutput) ? rawOutput : Buffer.from(rawOutput, 'utf8');
-        hasher.update(buf);
+
         if (buf.length > this.maxSpillSizeBytes) {
-          writeSync(fd, buf, 0, this.maxSpillSizeBytes);
+          writeSpill(fd, buf, this.maxSpillSizeBytes);
           bytesWritten = this.maxSpillSizeBytes;
           truncated = true;
         } else {
-          writeSync(fd, buf, 0, buf.length);
+          writeSpill(fd, buf, buf.length);
           bytesWritten = buf.length;
           truncated = false;
         }
+        hasher.update(buf.subarray(0, bytesWritten));
       } finally {
         closeSync(fd);
       }
 
+      const hash = hasher.digest('hex');
+      if (!verifiedSpill(filePath, bytesWritten, hash)) throw new Error('SPILL_INTEGRITY_FAILED');
       registerCompletedSpill(filePath);
       return {
         path: filePath,
         truncated,
         losslessRecovery: !truncated,
         bytesWritten,
-        hash: hasher.digest('hex'),
+        hash,
       };
     } catch {
+      discardSpill(targetDir);
       return { path: null, truncated: false, losslessRecovery: false, bytesWritten: 0, hash: null };
     }
   }
@@ -172,7 +210,7 @@ export class CliCompactor {
       const res = this._compactVitest(rawOutput);
       compactedBody = res.text;
       failuresPreserved = res.failuresCount;
-    } else if (command.includes('node --test') || rawOutput.includes('â„¹ pass') || rawOutput.includes('â„¹ fail')) {
+    } else if (command.includes('node --test') || rawOutput.includes('\u2139 pass') || rawOutput.includes('\u2139 fail')) {
       const res = this._compactNodeTest(rawOutput);
       compactedBody = res.text;
       failuresPreserved = res.failuresCount;
@@ -278,11 +316,14 @@ export class CliCompactor {
     let inFailureSection = false;
     const fileHeaders = [];
     const firstLines = [];
+    const shortLines = [];
+    let spillWriteFailed = false;
     const recentLines = [];
     let totalLinesCount = 0;
 
     const processLine = (line) => {
       totalLinesCount++;
+      if (totalLinesCount <= 50) shortLines.push(line);
       if (firstLines.length < 15) {
         firstLines.push(line);
       }
@@ -292,28 +333,28 @@ export class CliCompactor {
       }
 
       if (command.includes('vitest') || line.includes('RUN  v') || line.includes('Test Files')) {
-        if (line.includes('âœ“') && (line.includes('passed') || line.includes('tests)'))) {
+        if (line.includes('\u2713') && (line.includes('passed') || line.includes('tests)'))) {
           passedCount++;
-        } else if (line.includes('FAIL') || line.includes('Failed Tests') || line.includes('Ã—')) {
+        } else if (line.includes('FAIL') || line.includes('Failed Tests') || line.includes('\u00d7')) {
           inFailureSection = true;
           failedCount++;
-          if (failureLines.length < MAX_SUMMARY_ERRORS) failureLines.push(line);
+          failureLines.push(line);
         } else if (line.includes('Test Files') || line.includes('Tests  ') || line.includes('Duration  ')) {
           summaryLines.push(line);
           inFailureSection = false;
         } else if (inFailureSection) {
-          if (failureLines.length < MAX_SUMMARY_ERRORS) failureLines.push(line);
+          failureLines.push(line);
         }
-      } else if (command.includes('node --test') || line.includes('â„¹ pass') || line.includes('â„¹ fail')) {
-        if (line.startsWith('âœ”')) {
+      } else if (command.includes('node --test') || line.includes('\u2139 pass') || line.includes('\u2139 fail')) {
+        if (line.startsWith('\u2714')) {
           passedCount++;
-        } else if (line.startsWith('âœ–')) {
+        } else if (line.startsWith('\u2716')) {
           failedCount++;
-          if (failureLines.length < MAX_SUMMARY_ERRORS) failureLines.push(line);
-        } else if (line.startsWith('â„¹')) {
+          failureLines.push(line);
+        } else if (line.startsWith('\u2139')) {
           summaryLines.push(line);
-        } else if (failedCount > 0 && !line.startsWith('âœ”')) {
-          if (failureLines.length < MAX_SUMMARY_ERRORS) failureLines.push(line);
+        } else if (failedCount > 0 && !line.startsWith('\u2714')) {
+          failureLines.push(line);
         }
       } else if (command.includes('pytest') || line.includes('==== test session starts ====')) {
         if (line.includes('=== FAILURES ===') || line.includes('=== ERRORS ===')) {
@@ -321,7 +362,7 @@ export class CliCompactor {
         }
         if (inFailureSection) {
           if (line.startsWith('FAILED ') || line.includes('Error:')) failedCount++;
-          if (failureLines.length < MAX_SUMMARY_ERRORS) failureLines.push(line);
+          failureLines.push(line);
         }
         if (line.includes('=== short test summary info ===') || line.includes('passed in') || line.includes('failed in')) {
           inFailureSection = false;
@@ -333,9 +374,7 @@ export class CliCompactor {
         }
       } else {
         if (/error|fail|exception|fatal|panic/i.test(line)) {
-          if (failureLines.length < MAX_SUMMARY_ERRORS) {
-            failureLines.push(`[L${totalLinesCount}] ${line}`);
-          }
+          failureLines.push(`[L${totalLinesCount}] ${line}`);
           failedCount++;
         }
       }
@@ -345,30 +384,16 @@ export class CliCompactor {
       stream.on('data', (chunk) => {
         const buf = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
         rawBytes += buf.length;
-        hasher.update(buf);
-
-        if (fd !== null) {
-          if (bytesWrittenToSpill + buf.length <= this.maxSpillSizeBytes) {
-            try {
-              writeSync(fd, buf, 0, buf.length);
-              bytesWrittenToSpill += buf.length;
-            } catch {
-              // ignore write error
-            }
-          } else {
-            const allowed = Math.max(0, this.maxSpillSizeBytes - bytesWrittenToSpill);
-            if (allowed > 0) {
-              try {
-                writeSync(fd, buf, 0, allowed);
-                bytesWrittenToSpill += allowed;
-              } catch {
-                // ignore write error
-              }
-            }
-            truncated = true;
+        if (fd !== null && !spillWriteFailed) {
+          const length = Math.min(buf.length, Math.max(0, this.maxSpillSizeBytes - bytesWrittenToSpill));
+          truncated ||= length < buf.length;
+          try {
+            writeSpill(fd, buf, length);
+            hasher.update(buf.subarray(0, length));
+            bytesWrittenToSpill += length;
+          } catch {
+            spillWriteFailed = true;
           }
-        } else if (rawBytes > this.maxSpillSizeBytes) {
-          truncated = true;
         }
 
         const textChunk = leftoverLine + decoder.write(buf);
@@ -383,15 +408,26 @@ export class CliCompactor {
         if (fd !== null) {
           try { closeSync(fd); } catch { /* ignore */ }
         }
+        discardSpill(targetDir);
         rejectPromise(err);
       });
 
       stream.on('end', () => {
-        if (fd !== null) {
-          try {
+        let spillHash = null;
+        try {
+          if (fd !== null) {
             closeSync(fd);
-            if (filePath) registerCompletedSpill(filePath);
-          } catch { /* ignore */ }
+            const digest = hasher.digest('hex');
+            if (!spillWriteFailed && verifiedSpill(filePath, bytesWrittenToSpill, digest)) {
+              registerCompletedSpill(filePath);
+              spillHash = digest;
+            }
+          }
+        } catch { /* The spill could not be verified. */ }
+        if (!spillHash) {
+          discardSpill(targetDir);
+          filePath = null;
+          bytesWrittenToSpill = 0;
         }
 
         const remaining = leftoverLine + decoder.end();
@@ -402,14 +438,14 @@ export class CliCompactor {
         let compactedBody = '';
         if (command.includes('vitest')) {
           const parts = [];
-          if (passedCount > 0) parts.push(`âœ“ [Compacted ${passedCount} passing test suite lines]`);
-          if (failureLines.length > 0) parts.push('âŽ¯âŽ¯âŽ¯âŽ¯âŽ¯âŽ¯âŽ¯ PRESERVED FAILURE DIAGNOSTICS âŽ¯âŽ¯âŽ¯âŽ¯âŽ¯âŽ¯âŽ¯\n' + failureLines.join('\n'));
+          if (passedCount > 0) parts.push(`\u2713 [Compacted ${passedCount} passing test suite lines]`);
+          if (failureLines.length > 0) parts.push('\u23af\u23af\u23af\u23af\u23af\u23af\u23af PRESERVED FAILURE DIAGNOSTICS \u23af\u23af\u23af\u23af\u23af\u23af\u23af\n' + failureLines.join('\n'));
           if (summaryLines.length > 0) parts.push(summaryLines.join('\n'));
           compactedBody = parts.join('\n\n') || `[Compacted ${totalLinesCount} lines]`;
         } else if (command.includes('node --test')) {
           const parts = [];
-          if (passedCount > 0) parts.push(`âœ” [Compacted ${passedCount} passing tests]`);
-          if (failureLines.length > 0) parts.push('âœ– PRESERVED TEST FAILURES:\n' + failureLines.join('\n'));
+          if (passedCount > 0) parts.push(`\u2714 [Compacted ${passedCount} passing tests]`);
+          if (failureLines.length > 0) parts.push('\u2716 PRESERVED TEST FAILURES:\n' + failureLines.join('\n'));
           if (summaryLines.length > 0) parts.push(summaryLines.join('\n'));
           compactedBody = parts.join('\n\n') || `[Compacted ${totalLinesCount} lines]`;
         } else if (command.includes('pytest')) {
@@ -423,7 +459,7 @@ export class CliCompactor {
             fileHeaders.join('\n');
         } else {
           if (totalLinesCount <= 50) {
-            compactedBody = firstLines.join('\n');
+            compactedBody = shortLines.join('\n');
           } else {
             let body = `${firstLines.join('\n')}\n\n... [${Math.max(0, totalLinesCount - 30)} lines compacted] ...\n\n${recentLines.join('\n')}`;
             if (failureLines.length > 0) {
@@ -463,7 +499,7 @@ export class CliCompactor {
           exitCode,
           truncated,
           losslessRecovery: !truncated && Boolean(spillFilePath),
-          spillHash: hasher.digest('hex'),
+          spillHash,
           spillBytes: bytesWrittenToSpill,
         });
       });
@@ -481,12 +517,12 @@ export class CliCompactor {
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
 
-      if (line.includes('âœ“') && (line.includes('passed') || line.includes('tests)'))) {
+      if (line.includes('\u2713') && (line.includes('passed') || line.includes('tests)'))) {
         passedCount++;
         continue;
       }
 
-      if (line.includes('FAIL') || line.includes('Failed Tests') || line.includes('Ã—')) {
+      if (line.includes('FAIL') || line.includes('Failed Tests') || line.includes('\u00d7')) {
         inFailureSection = true;
         failedCount++;
       }
@@ -504,11 +540,11 @@ export class CliCompactor {
 
     const parts = [];
     if (passedCount > 0) {
-      parts.push(`âœ“ [Compacted ${passedCount} passing test suite lines]`);
+      parts.push(`\u2713 [Compacted ${passedCount} passing test suite lines]`);
     }
 
     if (failureLines.length > 0) {
-      parts.push('âŽ¯âŽ¯âŽ¯âŽ¯âŽ¯âŽ¯âŽ¯ PRESERVED FAILURE DIAGNOSTICS âŽ¯âŽ¯âŽ¯âŽ¯âŽ¯âŽ¯âŽ¯\n' + failureLines.join('\n'));
+      parts.push('\u23af\u23af\u23af\u23af\u23af\u23af\u23af PRESERVED FAILURE DIAGNOSTICS \u23af\u23af\u23af\u23af\u23af\u23af\u23af\n' + failureLines.join('\n'));
     }
 
     if (summaryLine) {
@@ -528,24 +564,24 @@ export class CliCompactor {
     const summaryLines = [];
 
     for (const line of lines) {
-      if (line.startsWith('âœ”')) {
+      if (line.startsWith('\u2714')) {
         passedCount++;
-      } else if (line.startsWith('âœ–')) {
+      } else if (line.startsWith('\u2716')) {
         failedCount++;
         failureLines.push(line);
-      } else if (line.startsWith('â„¹')) {
+      } else if (line.startsWith('\u2139')) {
         summaryLines.push(line);
-      } else if (failedCount > 0 && !line.startsWith('âœ”')) {
+      } else if (failedCount > 0 && !line.startsWith('\u2714')) {
         failureLines.push(line);
       }
     }
 
     const parts = [];
     if (passedCount > 0) {
-      parts.push(`âœ” [Compacted ${passedCount} passing tests]`);
+      parts.push(`\u2714 [Compacted ${passedCount} passing tests]`);
     }
     if (failureLines.length > 0) {
-      parts.push('âœ– PRESERVED TEST FAILURES:\n' + failureLines.join('\n'));
+      parts.push('\u2716 PRESERVED TEST FAILURES:\n' + failureLines.join('\n'));
     }
     if (summaryLines.length > 0) {
       parts.push(summaryLines.join('\n'));
@@ -620,12 +656,9 @@ export class CliCompactor {
 
     let body = `${firstLines}\n\n... [${lines.length - 30} lines compacted] ...\n\n${lastLines}`;
     if (errors.length > 0) {
-      // Preserve all errors up to MAX_SUMMARY_ERRORS without silently dropping
-      const displayErrors = errors.slice(0, MAX_SUMMARY_ERRORS).map((e) => `[L${e.lineIndex}] ${e.text}`).join('\n');
+      // Keep failure lines available even without raw recovery.
+      const displayErrors = errors.map((e) => `[L${e.lineIndex}] ${e.text}`).join('\n');
       body += `\n\n[Preserved Error Lines (${errors.length})]:\n${displayErrors}`;
-      if (errors.length > MAX_SUMMARY_ERRORS) {
-        body += `\n... [${errors.length - MAX_SUMMARY_ERRORS} additional errors preserved in raw spill file]`;
-      }
     }
 
     return { text: body, failuresCount: errors.length };
