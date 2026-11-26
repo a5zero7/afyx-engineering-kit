@@ -31,6 +31,14 @@ import { assertPathContained, checkPathContainment } from './path-containment.js
 
 export const MASSIVE_CONTEXT_CONTRACT = 'AfyxMassiveContext/v1';
 
+const PRIVATE_FILE = /^(?:\.env|id_(?:rsa|ed25519))|(?:\.pem|\.key)$/i;
+const PRIVATE_DIRECTORY = /^(?:\.afyx(?:-.*)?|\.codex|\.claude|\.gemini|\.agents|\.ssh)$/i;
+
+function privatePath(path) {
+  const parts = path.split(/[\\/]/);
+  return PRIVATE_FILE.test(parts.at(-1)) || parts.slice(0, -1).some((part) => PRIVATE_DIRECTORY.test(part));
+}
+
 const BINARY_EXTENSIONS = new Set([
   '.png', '.jpg', '.jpeg', '.gif', '.ico', '.pdf', '.zip', '.tar', '.gz',
   '.exe', '.dll', '.so', '.dylib', '.bin', '.iso', '.woff', '.woff2', '.ttf'
@@ -105,6 +113,7 @@ export function readStructuredDocument(workspaceRoot, file, {
   if (!path.contained) {
     return { status: path.reason === 'TARGET_NOT_FOUND' ? 'INVALID_DOCUMENT' : 'ACCESS_DENIED' };
   }
+  if (privatePath(relative(resolve(workspaceRoot), path.canonicalPath))) return { status: 'ACCESS_DENIED' };
   const extension = extname(path.canonicalPath).toLowerCase();
   const format = DOCUMENT_FORMATS.get(extension);
   if (!format) {
@@ -356,6 +365,8 @@ export class MassiveContextNavigator {
       // Validate directory containment
       const dirCheck = checkPathContainment(dir, this.workspaceRoot, { expectDirectory: true, mustExist: true });
       if (!dirCheck.contained || visited.has(dirCheck.canonicalPath)) return;
+      if (relative(this.workspaceRoot, dirCheck.canonicalPath).split(/[\\/]/)
+          .some((part) => PRIVATE_DIRECTORY.test(part))) return;
       dir = dirCheck.canonicalPath;
       visited.add(dir);
 
@@ -370,7 +381,7 @@ export class MassiveContextNavigator {
             }
           } else if (entry.isFile()) {
             const ext = extname(entry.name).toLowerCase();
-            if (BINARY_EXTENSIONS.has(ext)) continue;
+            if (BINARY_EXTENSIONS.has(ext) || PRIVATE_FILE.test(entry.name)) continue;
 
             // Enforce file-level path containment
             const fileCheck = checkPathContainment(full, this.workspaceRoot, { expectFile: true, mustExist: true });

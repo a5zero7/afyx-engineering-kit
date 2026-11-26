@@ -1,5 +1,6 @@
 import { AceError, assertNonEmpty } from './errors.js';
 import { ContextStore, sha256 } from './storage.js';
+import { canPersistSegment } from './privacy.js';
 
 const CLASSIFICATIONS = new Set(['normal', 'diagnostic', 'security', 'source-evidence']);
 const PRESERVED = new Set(['diagnostic', 'security', 'source-evidence']);
@@ -140,17 +141,17 @@ export class AfyxContextEngine {
     let used = 0;
     for (const segment of normalized) {
       const digest = sha256(segment.content);
-      const reference = this.store.reference(segment.content);
+      const reference = canPersistSegment(segment) ? this.store.reference(segment.content) : undefined;
       const original = originalLine(segment);
       const repeated = seen.has(digest) || knownBefore.has(digest);
       const preserve = PRESERVED.has(segment.classification);
       const refReason = repeated ? 'repeated' : 'budgeted';
-      const reduced = referenceLine(segment, reference, refReason);
+      const reduced = reference ? referenceLine(segment, reference, refReason) : original;
       const separator = rendered.length === 0 ? 0 : 2;
       const reservedLater = normalized.slice(items.length + 1)
         .filter((candidate) => PRESERVED.has(candidate.classification))
         .reduce((total, candidate) => total + originalLine(candidate).length + 2, 0);
-      const mayReference = !preserve && reduced.length < original.length;
+      const mayReference = Boolean(reference) && !preserve && reduced.length < original.length;
       const chooseReference = mayReference && (repeated || used + separator + original.length + reservedLater > budgetChars);
       const selected = chooseReference ? reduced : original;
       if (used + separator + selected.length + reservedLater > budgetChars) {
@@ -184,6 +185,10 @@ export class AfyxContextEngine {
         reductionRatio: rawContext.length === 0 ? 0 : (rawContext.length - renderedContext.length) / rawContext.length,
       },
     };
+  }
+
+  collectExpired(options) {
+    return this.store.collectExpired(options);
   }
 
   retrieve(reference) {

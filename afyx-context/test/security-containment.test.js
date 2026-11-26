@@ -400,3 +400,20 @@ test('MassiveContextNavigator: Byte-accurate offsets, repeated lines with CRLF/L
     fs.rmSync(tempDir, { recursive: true, force: true });
   }
 });
+
+test('CliCompactor preserves native test diagnostics and complete short streams', async () => {
+  const { Readable } = await import('node:stream');
+  const compactor = new CliCompactor({ enableSpill: false });
+  const terminal = '\u2714 passed\n\u2716 fixture failed\n  decoder payload mismatch\n\u2139 tests 2\n\u2139 fail 1';
+  const context = { command: 'node --test', exitCode: 1 };
+  for (const report of [compactor.compact(terminal, context), await compactor.compactStream(Readable.from([Buffer.from(terminal)]), context)]) {
+    assert.equal(report.exitCode, 1);
+    assert.equal(report.failuresPreserved, 1);
+    assert.match(report.compactedOutput, /decoder payload mismatch/);
+    assert.match(report.compactedOutput, /fail 1/);
+    assert.equal(report.losslessRecovery, false);
+  }
+  const plain = Array.from({ length: 40 }, (_, index) => 'line-' + index).join('\r\n');
+  const stream = await compactor.compactStream(Readable.from([Buffer.from(plain)]));
+  for (let index = 0; index < 40; index++) assert.match(stream.compactedOutput, new RegExp('(?:^|\\n)line-' + index + '(?:\\n|$)'));
+});

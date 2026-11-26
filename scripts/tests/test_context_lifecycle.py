@@ -48,7 +48,7 @@ class ContextLifecycleContractTests(unittest.TestCase):
         self.assertEqual(context["install_root"], "afyx_context_root")
         self.assertEqual(context["presets"], "full")
         expected = {
-            "minimal": {"afyx-efficient-coding", "afyx-odoo-engineering"},
+            "minimal": {"afyx-efficient-coding"},
             "recommended": {"afyx-efficient-coding", "afyx-odoo-engineering", "afyx-engineering-expert"},
             "full": {"afyx-efficient-coding", "afyx-odoo-engineering", "afyx-engineering-expert", "afyx-graph", "afyx-context", "afyx-forge", "afyx-usage-intelligence"},
         }

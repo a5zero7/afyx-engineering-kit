@@ -19,7 +19,7 @@ import { checkPathContainment } from './path-containment.js';
 
 export const DB_INSPECTION_CONTRACT = 'AfyxDbInspection/v1';
 
-const SENSITIVE_COLUMN_PATTERN = /^(password|passwd|secret|token|api_key|apikey|auth|ssn|credit_card|card_num|hash|salt|private_key)$/i;
+const SENSITIVE_COLUMN_PATTERN = /(?:^|[_-])(?:password|passwd|secret|token|api[_-]?key|auth|authorization|credential|cookie|ssn|credit[_-]?card|card[_-]?num|hash|salt|private[_-]?key)(?:$|[_-])/i;
 
 const MUTATION_SQL_PATTERN = /\b(INSERT|UPDATE|DELETE|DROP|ALTER|TRUNCATE|CREATE|REPLACE|GRANT|REVOKE|VACUUM|ATTACH|DETACH|REINDEX)\b/i;
 const IDENTIFIER = /^[a-z_][a-z0-9_]{0,62}$/;
@@ -272,36 +272,24 @@ export class DbInspector {
       return { safe: false, error: 'SQL query must be a non-empty string.' };
     }
 
-    const trimmed = sql.trim();
-
-    // Check for multi-statements
-    if (trimmed.includes(';')) {
-      const parts = trimmed.split(';').map((s) => s.trim()).filter(Boolean);
-      if (parts.length > 1) {
-        return { safe: false, error: 'Multi-statement SQL queries are strictly prohibited.' };
-      }
+    if (sql.length > 65536 || sql.includes('\0')) return { safe: false, error: 'SQL query exceeds policy bounds.' };
+    // Remove comments while retaining string literals and quoted identifiers for parsing.
+    const lexemes = /'(?:''|[^'])*'|"(?:[^\"]|"")*"|\x60(?:[^\x60]|\x60\x60)*\x60|\[[^\]]*\]|--[^\r\n]*|\/\*[\s\S]*?(?:\*\/|$)/g;
+    let invalidComment = false;
+    const stripped = sql.replace(lexemes, (token) => {
+      if (token.startsWith('/*') && !token.endsWith('*/')) invalidComment = true;
+      return token.startsWith('--') || token.startsWith('/*') ? ' ' : token;
+    }).trim().replace(/;\s*$/, '');
+    const words = stripped.replace(lexemes, (token) => token.startsWith('--') || token.startsWith('/*') ? token : ' ');
+    if (invalidComment || words.includes(';') ||
+        MUTATION_SQL_PATTERN.test(words) || /\b(?:EXPLAIN|ANALYZE|LOAD_EXTENSION)\b/i.test(words)) {
+      return { safe: false, error: 'Query contains restricted SQL statements.' };
     }
-
-    // Check for mutation keywords
-    if (MUTATION_SQL_PATTERN.test(trimmed)) {
-      return { safe: false, error: 'Query contains mutation or administrative SQL keywords.' };
-    }
-
-    // Check for dangerous PRAGMAs or EXPLAIN ANALYZE
-    if (/\bPRAGMA\b/i.test(trimmed)) {
-      const isReadOnlyPragma = /\bPRAGMA\s+(?:table_info|foreign_key_list|index_list|index_info)\b/i.test(trimmed);
-      if (!isReadOnlyPragma) {
-        return { safe: false, error: 'Only schema-inspection PRAGMA statements are permitted.' };
-      }
-    }
-
-    if (/\bEXPLAIN\s+ANALYZE\b/i.test(trimmed)) {
-      return { safe: false, error: 'EXPLAIN ANALYZE executes mutations and is not permitted.' };
-    }
-
-    // Must be SELECT or allowed PRAGMA or WITH query
-    if (!/^\s*(?:SELECT|PRAGMA|WITH)\b/i.test(trimmed)) {
-      return { safe: false, error: 'Query must be a SELECT or read-only PRAGMA query.' };
+    if (/^PRAGMA\b/i.test(stripped)) {
+      const allowed = /^PRAGMA\s+(?:table_info|foreign_key_list|index_list|index_info)\s*\(\s*(?:[a-z_][a-z0-9_]*|"[^"]+"|'[^']+'|\[[^\]]+\])\s*\)\s*$/i;
+      if (!allowed.test(stripped)) return { safe: false, error: 'Only schema-inspection PRAGMA statements are permitted.' };
+    } else if (!/^(?:SELECT|WITH)\b/i.test(stripped) || /\bPRAGMA\b/i.test(words)) {
+      return { safe: false, error: 'Query must be a SELECT or a read-only PRAGMA query.' };
     }
 
     return { safe: true };

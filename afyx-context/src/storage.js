@@ -2,8 +2,10 @@ import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import { StateCoordinator } from './coordination.js';
+import { canPersistSegment } from './privacy.js';
 import { AceError, assertNonEmpty } from './errors.js';
 
+const CONTENT_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 const STATE_FORMAT = 'ace.state/v1';
 const SESSION_FORMAT = 'ace.session/v1';
 const MAX_STATE_METADATA_BYTES = 65_536;
@@ -27,7 +29,7 @@ function jsonText(value, maxBytes) {
   return text;
 }
 
-function atomicText(file, content) {
+export function atomicText(file, content) {
   const temporary = `${file}.${process.pid}.${crypto.randomUUID()}.tmp`;
   let handle;
   try {
@@ -82,7 +84,7 @@ function readContentFile(target) {
 }
 
 export class ContextStore {
-  constructor({ stateDir, ownerId, sessionId, lockTimeoutMs, lockRetryMs } = {}) {
+  constructor({ stateDir, ownerId, sessionId, lockTimeoutMs, lockRetryMs, contentTtlMs = CONTENT_TTL_MS } = {}) {
     assertNonEmpty(stateDir, 'stateDir');
     assertNonEmpty(ownerId, 'ownerId');
     assertNonEmpty(sessionId, 'sessionId');
@@ -94,6 +96,10 @@ export class ContextStore {
     if (!path.isAbsolute(stateDir)) {
       throw new AceError('UNSAFE_STATE_PATH', 'stateDir must be absolute');
     }
+    if (!Number.isSafeInteger(contentTtlMs) || contentTtlMs < 1 || contentTtlMs > 365 * 24 * 60 * 60 * 1000) {
+      throw new AceError('INVALID_INPUT', 'contentTtlMs must be a positive duration of at most one year');
+    }
+    this.contentTtlMs = contentTtlMs;
     this.stateDir = path.resolve(stateDir);
     this.ownerHash = sha256(ownerId);
     this.sessionHash = sha256(sessionId);
@@ -196,8 +202,8 @@ export class ContextStore {
     return this.#validateSession(session);
   }
 
-  #validateSession(session) {
-    if (session.format !== SESSION_FORMAT || session.ownerHash !== this.ownerHash || session.sessionHash !== this.sessionHash
+  #validateSession(session, expectedSessionHash = this.sessionHash) {
+    if (session.format !== SESSION_FORMAT || session.ownerHash !== this.ownerHash || session.sessionHash !== expectedSessionHash
       || !Array.isArray(session.content) || !session.records || typeof session.records !== 'object' || Array.isArray(session.records)) {
       throw new AceError('INVALID_SESSION', 'session metadata is invalid or does not match this owner/session');
     }
@@ -210,6 +216,12 @@ export class ContextStore {
         throw new AceError('INVALID_SESSION', 'session content identities are malformed or duplicated');
       }
       known.add(digest);
+    }
+    if (session.expiresAt !== undefined &&
+        (!session.expiresAt || typeof session.expiresAt !== 'object' || Array.isArray(session.expiresAt) ||
+        Object.entries(session.expiresAt).some(([digest, expiry]) => !known.has(digest) ||
+          !Number.isSafeInteger(expiry) || expiry < 1))) {
+      throw new AceError('INVALID_SESSION', 'session content expiration metadata is malformed');
     }
     for (const [digest, observations] of Object.entries(session.records)) {
       if (!known.has(digest) || !Array.isArray(observations) || observations.length > MAX_OBSERVATIONS_PER_CONTENT) {
@@ -263,7 +275,9 @@ export class ContextStore {
 
   snapshotAndPersist(segments) {
     return this.withExclusiveAccess(() => {
-      const knownBefore = new Set(this.#readSession().content);
+      const session = this.#readSession();
+      const now = Date.now();
+      const knownBefore = new Set(session.content.filter((digest) => (session.expiresAt?.[digest] ?? Infinity) > now));
       this.#persist(segments);
       return knownBefore;
     });
@@ -277,11 +291,15 @@ export class ContextStore {
     const session = this.#readSession();
     const known = new Set(session.content);
     const records = { ...session.records };
+    const expiresAt = { ...session.expiresAt };
+    const expires = Date.now() + this.contentTtlMs;
     const pending = [];
     for (const segment of segments) {
+      if (!canPersistSegment(segment)) continue;
       const { content } = segment;
       const digest = sha256(content);
       known.add(digest);
+      expiresAt[digest] = expires;
       const observation = {
         id: segment.id,
         classification: segment.classification,
@@ -298,10 +316,11 @@ export class ContextStore {
       records[digest] = observations;
       pending.push({ content, digest, target: path.join(this.contentDir, `${digest}.txt`) });
     }
+    if (pending.length === 0) return;
     if (known.size > MAX_SESSION_CONTENT) {
       throw new AceError('RESOURCE_LIMIT', `session exceeds the ${MAX_SESSION_CONTENT} content limit`);
     }
-    const nextSession = { ...session, content: [...known].sort(), records };
+    const nextSession = { ...session, content: [...known].sort(), records, expiresAt };
     jsonText(nextSession, MAX_SESSION_METADATA_BYTES);
     const missing = [];
     for (const { content, digest, target } of pending) {
@@ -318,6 +337,43 @@ export class ContextStore {
     atomicJson(this.sessionPath, nextSession, MAX_SESSION_METADATA_BYTES);
   }
 
+  collectExpired({ maxDeletes = 64 } = {}) {
+    if (!Number.isSafeInteger(maxDeletes) || maxDeletes < 1 || maxDeletes > 256) {
+      throw new AceError('INVALID_INPUT', 'maxDeletes must be between 1 and 256');
+    }
+    return this.withExclusiveAccess(() => {
+      const sessionsRoot = path.dirname(this.sessionDir);
+      const hashes = fs.readdirSync(sessionsRoot);
+      if (hashes.length > 128 || hashes.some((hash) => !/^[0-9a-f]{64}$/.test(hash))) {
+        throw new AceError('RESOURCE_LIMIT', 'cannot verify all ACE sessions within collection bounds');
+      }
+      const live = new Set();
+      const expired = new Set();
+      const now = Date.now();
+      for (const hash of hashes) {
+        const directory = path.join(sessionsRoot, hash);
+        const stat = fs.lstatSync(directory);
+        if (!stat.isDirectory() || stat.isSymbolicLink()) throw new AceError('UNSAFE_STATE_PATH', 'unsafe ACE session directory');
+        const file = path.join(directory, 'session.json');
+        const session = this.#validateSession(this.#readJson(file, 'INVALID_SESSION', MAX_SESSION_METADATA_BYTES), hash);
+        for (const digest of session.content) {
+          ((session.expiresAt?.[digest] ?? Infinity) > now ? live : expired).add(digest);
+        }
+      }
+
+      let removed = 0;
+      for (const digest of expired) {
+        if (live.has(digest)) continue;
+        const file = path.join(this.contentDir, digest + '.txt');
+        if (!fs.existsSync(file)) continue;
+        assertRegularFile(file);
+        fs.unlinkSync(file);
+        if (++removed >= maxDeletes) break;
+      }
+      return { removed };
+    });
+  }
+
   reference(content) {
     return `ace:v1:${this.ownerHash.slice(0, 16)}:${this.sessionHash.slice(0, 16)}:${sha256(content)}`;
   }
@@ -332,8 +388,11 @@ export class ContextStore {
     if (match[1] !== this.ownerHash.slice(0, 16) || match[2] !== this.sessionHash.slice(0, 16)) {
       throw new AceError('REFERENCE_BOUNDARY', 'reference belongs to a different owner or session');
     }
-    const known = new Set(this.#readSession().content);
-    if (!known.has(match[3])) throw new AceError('REFERENCE_BOUNDARY', 'reference is not owned by this session');
+    const session = this.#readSession();
+    if (!session.content.includes(match[3])) throw new AceError('REFERENCE_BOUNDARY', 'reference is not owned by this session');
+    if ((session.expiresAt?.[match[3]] ?? Infinity) <= Date.now()) {
+      throw new AceError('REFERENCE_EXPIRED', 'ACE original expired under the content retention policy');
+    }
     const target = path.join(this.contentDir, `${match[3]}.txt`);
     let content;
     try {

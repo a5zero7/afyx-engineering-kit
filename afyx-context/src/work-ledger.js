@@ -3,28 +3,39 @@
  *
  * Universal task, decision, and evidence tracking engine.
  * - Works standalone in any workspace, directory, or document tree without Git or Jira.
- * - Integrates with scripts/afyx-provenance.mjs for SHA-256 artifact integrity.
+ * - Uses a shared SHA-256 digest for local integrity checks.
  * - Records actual evidence only; never stores secrets or raw user prompts by default.
  * - Atomic file writes, deterministic receipt generation, idempotent updates.
  */
 
-import { createHash } from 'node:crypto';
-import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
-import { basename, dirname, join, resolve } from 'node:path';
-import { tmpdir } from 'node:os';
+import { existsSync, lstatSync, mkdirSync, readFileSync, realpathSync } from 'node:fs';
+import { basename, join, relative, resolve } from 'node:path';
+import { sha256Bytes as sha256 } from './artifact-lineage.js';
+import { StateCoordinator } from './coordination.js';
+import { checkPathContainment } from './path-containment.js';
+import { atomicText } from './storage.js';
 
 export const WORK_LEDGER_CONTRACT = 'AfyxWorkLedger/v1';
 export const WORK_LEDGER_RECEIPT_CONTRACT = 'AfyxWorkLedgerReceipt/v1';
 
-const SENSITIVE_PATTERN = /(?:password|secret|token|api_key|authorization|bearer\s+[a-z0-9_\-\.]+)/i;
+const SECRET_KEY = /^(?:password|passwd|secret|token|credential|access[_-]?token|refresh[_-]?token|api[_-]?key|authorization|cookie|private[_-]?key)$/i;
+const SECRET_HEADER = /\b(?:Bearer|Basic)\s+[^\s,;"']+/gi;
+const SECRET_ASSIGNMENT = /(\b(?:password|passwd|secret|token|credential|access[_-]?token|refresh[_-]?token|api[_-]?key|authorization|cookie|private[_-]?key)\s*["']?\s*[:=]\s*)(?:"[^"\r\n]*"|'[^'\r\n]*'|[^\s,;]+)/gi;
 
-function sha256(data) {
-  return createHash('sha256').update(data).digest('hex');
+function sanitizeText(value) {
+  return typeof value === 'string'
+    ? value.replace(SECRET_HEADER, '[REDACTED]').replace(SECRET_ASSIGNMENT, '$1[REDACTED]')
+    : '';
 }
 
-function sanitizeText(str) {
-  if (typeof str !== 'string') return '';
-  return str.replace(SENSITIVE_PATTERN, '[REDACTED]');
+function sanitizeRecord(value) {
+  if (typeof value === 'string') return sanitizeText(value);
+  if (Array.isArray(value)) return value.map(sanitizeRecord);
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(Object.entries(value).map(([key, entry]) =>
+      [sanitizeText(key), SECRET_KEY.test(key) ? '[REDACTED]' : sanitizeRecord(entry)]));
+  }
+  return value;
 }
 
 function hashFileContent(filePath) {
@@ -49,13 +60,13 @@ export class WorkLedger {
    */
   constructor(workspaceRoot, options = {}) {
     this.workspaceRoot = resolve(workspaceRoot);
-    this.ledgerDir = options.ledgerDir || join(this.workspaceRoot, '.afyx-ledger');
+    this.ledgerDir = resolve(options.ledgerDir || join(this.workspaceRoot, '.afyx-ledger'));
   }
 
   _ensureDir() {
-    if (!existsSync(this.ledgerDir)) {
-      mkdirSync(this.ledgerDir, { recursive: true });
-    }
+    mkdirSync(this.ledgerDir, { recursive: true, mode: 0o700 });
+    const stat = lstatSync(this.ledgerDir);
+    if (!stat.isDirectory() || stat.isSymbolicLink()) throw new Error('LEDGER_DIRECTORY_UNSAFE');
   }
 
   _getLedgerPath(ledgerId) {
@@ -84,24 +95,23 @@ export class WorkLedger {
     }
 
     this._ensureDir();
-    const filePath = this._getLedgerPath(params.ledgerId);
+    const stateDir = realpathSync(this.ledgerDir);
+    const lock = new StateCoordinator({ stateDir, ownerHash: sha256(stateDir) });
+    return lock.withLock(() => this._recordEntry(params));
+  }
 
-    let existing = null;
-    if (existsSync(filePath)) {
-      try {
-        existing = JSON.parse(readFileSync(filePath, 'utf8'));
-      } catch {
-        existing = null;
-      }
-    }
+  _recordEntry(params) {
+    const filePath = this._getLedgerPath(params.ledgerId);
+    const existing = this.getLedger(params.ledgerId);
 
     const now = new Date().toISOString();
     const affectedFilesHashes = [];
 
     if (Array.isArray(params.affectedFiles)) {
       for (const relOrAbs of params.affectedFiles) {
-        const full = resolve(this.workspaceRoot, relOrAbs);
-        const fileInfo = hashFileContent(full);
+        const target = checkPathContainment(relOrAbs, this.workspaceRoot, { mustExist: true, expectFile: true });
+        const fileInfo = target.contained ? hashFileContent(target.canonicalPath) : null;
+        if (fileInfo) fileInfo.path = relative(this.workspaceRoot, resolve(this.workspaceRoot, relOrAbs)).replace(/\\/g, '/');
         if (fileInfo) {
           affectedFilesHashes.push(fileInfo);
         } else {
@@ -143,7 +153,7 @@ export class WorkLedger {
       }
     }
 
-    const record = {
+    const record = sanitizeRecord({
       contract: WORK_LEDGER_CONTRACT,
       ledgerId: params.ledgerId,
       workspace: {
@@ -160,12 +170,9 @@ export class WorkLedger {
       jiraIssue: params.jiraIssue || existing?.jiraIssue || null,
       createdAt: existing?.createdAt || now,
       updatedAt: now,
-    };
+    });
 
-    // Atomic write via temporary file
-    const tempPath = join(tmpdir(), `afyx_ledger_${params.ledgerId}_${Date.now()}.tmp`);
-    writeFileSync(tempPath, JSON.stringify(record, null, 2), 'utf8');
-    renameSync(tempPath, filePath);
+    atomicText(filePath, JSON.stringify(record, null, 2));
 
     return record;
   }
@@ -178,16 +185,24 @@ export class WorkLedger {
    */
   getLedger(ledgerId) {
     const filePath = this._getLedgerPath(ledgerId);
-    if (!existsSync(filePath)) return null;
-    try {
-      return JSON.parse(readFileSync(filePath, 'utf8'));
-    } catch {
-      return null;
+    let stat;
+    try { stat = lstatSync(filePath); } catch (error) {
+      if (error.code === 'ENOENT') return null;
+      throw error;
     }
+    if (!stat.isFile() || stat.isSymbolicLink() || stat.nlink !== 1 || stat.size > 16 * 1024 * 1024) {
+      throw new Error('LEDGER_FILE_UNSAFE');
+    }
+    const record = JSON.parse(readFileSync(filePath, 'utf8'));
+    if (record?.contract !== WORK_LEDGER_CONTRACT || !Array.isArray(record.evidence) ||
+        !Array.isArray(record.decisions) || !Array.isArray(record.affectedFiles)) {
+      throw new Error('LEDGER_CORRUPTED');
+    }
+    return record;
   }
 
   /**
-   * Generates a tamper-evident, deterministic receipt for a ledger entry.
+   * Generates a deterministic integrity digest for a ledger entry.
    *
    * @param {string} ledgerId
    * @returns {object} Receipt with cryptographic hash

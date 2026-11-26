@@ -117,6 +117,24 @@ export class StateCoordinator {
     }
   }
 
+  async withLockAsync(action) {
+    const acquisition = this.#acquire();
+    let failure;
+    try {
+      return await action({ recovered: acquisition.recovered });
+    } catch (error) {
+      failure = error;
+      throw error;
+    } finally {
+      try {
+        this.#release(acquisition.owner.token);
+      } catch (releaseError) {
+        if (failure) failure.cause ??= releaseError;
+        else throw releaseError;
+      }
+    }
+  }
+
   #identity(format, token = crypto.randomUUID()) {
     return {
       format,
