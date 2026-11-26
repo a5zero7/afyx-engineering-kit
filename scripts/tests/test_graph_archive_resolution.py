@@ -39,7 +39,8 @@ class GraphArchiveResolutionTests(unittest.TestCase):
                 ["git", "-c", "user.name=Afyx Test", "-c", "user.email=afyx-test@example.invalid", "commit", "-qm", "fixture"],
                 cwd=kit, check=True, capture_output=True,
             )
-            shutil.copy2(ROOT / "scripts" / "install-afyx-graph.ps1", kit / "scripts" / "install-afyx-graph.ps1")
+            for script in ("install-afyx-graph.ps1", "afyx-graph-artifact.mjs"):
+                shutil.copy2(ROOT / "scripts" / script, kit / "scripts" / script)
 
             env = os.environ.copy()
             env["USERPROFILE"] = str(base / "profile")

@@ -2,7 +2,7 @@
 /** Canonical Afyx Graph artifact identity shared by Windows and POSIX lifecycle scripts. */
 import { createHash } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
-import { readFileSync, writeFileSync, readdirSync, statSync, realpathSync } from 'node:fs';
+import { closeSync, constants, fstatSync, openSync, readSync, readFileSync, writeFileSync, readdirSync, statSync, realpathSync } from 'node:fs';
 import { basename, delimiter, isAbsolute, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -227,6 +227,22 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
       console.log(result.status);
       if (result.reason) console.error('[' + result.reason + ']');
       if (!result.accepted) process.exitCode = 1;
+    } else if (command === 'read-extraction-version') {
+      const path = requireValue(argument('--compiled'), '--compiled');
+      const file = openSync(path, constants.O_RDONLY | (constants.O_NOFOLLOW || 0));
+      try {
+        const info = fstatSync(file);
+        if (!info.isFile() || info.size > 32768) throw new Error('Invalid compiled extraction identity file');
+        const bytes = Buffer.alloc(32769);
+        const count = readSync(file, bytes, 0, bytes.length, 0);
+        if (count !== info.size) throw new Error('Compiled extraction identity file changed');
+        const source = new TextDecoder('utf-8', { fatal: true }).decode(bytes.subarray(0, count));
+        const assignments = [...source.matchAll(/^[ \t]*exports\.EXTRACTION_VERSION[ \t]*=[ \t]*([1-9][0-9]{0,8});[ \t]*\r?$/gm)];
+        if (assignments.length !== 1) throw new Error('Missing or ambiguous compiled extraction identity');
+        console.log(assignments[0][1]);
+      } finally {
+        closeSync(file);
+      }
     } else if (command === 'stamp') {
       const stamped = stampArtifact(readMetadata(file), {
         target: requireValue(argument('--target'), '--target'),

@@ -255,7 +255,7 @@ if [[ "$mode" == validate ]]; then
     if [[ "$installed_revision" == "$requested_revision" ]]; then installed_revision_status=MATCH; else installed_revision_status=REVISION_MISMATCH; fi
   else installed_revision_status=UNKNOWN; fi
   printf 'Product: Afyx Graph\nState: %s\nRuntimeRoot: %s\nVersion: %s\nSourceRevision: %s\nExtractionVersion: %s\nProvenance: %s\nReleaseManifestStatus: %s\nPublisherAuthenticity: %s\nBuildProvenance: %s\nCurrentCheckoutRevision: %s\nRevisionStatus: %s\nUpdateAvailable: %s\n' "$state" "$RUNTIME_ROOT" "$VERSION" "${installed_revision:-UNKNOWN}" "${installed_extraction:-UNKNOWN}" "${installed_provenance:-UNKNOWN}" "${installed_manifest_status:-MISSING}" "${installed_publisher_authenticity:-UNVERIFIED}" "${installed_build_provenance:-UNVERIFIED}" "$requested_revision" "$installed_revision_status" "$([[ "$installed_revision_status" == REVISION_MISMATCH ]] && printf true || printf false)"
-  if [[ "$installed_revision_status" == REVISION_MISMATCH ]]; then printf 'UPDATE AVAILABLE â€” REVISION MISMATCH\n'; fi
+  if [[ "$installed_revision_status" == REVISION_MISMATCH ]]; then printf 'UPDATE AVAILABLE — REVISION MISMATCH\n'; fi
   [[ "$state" != INCOMPLETE && "$state" != INVALID ]]
   exit $?
 fi
@@ -272,7 +272,43 @@ if [[ "$mode" == uninstall ]]; then
   exit 0
 fi
 
+configure_installed_mcp() {
+  mcp_state=MCP_NOT_CONFIGURED
+  if "$skip_mcp"; then
+    printf 'Afyx Graph MCP: skipped explicitly.\n'
+  else
+    codex_home="${CODEX_HOME:-$HOME/.codex}"
+    mcp_args=("$PACKAGE_ROOT/scripts/afyx-mcp-integration.mjs" --node "$(command -v node)" --entry "$RUNTIME_ROOT/current/lib/dist/bin/afyx-graph.js" --codex-home "$codex_home")
+    if command -v codex >/dev/null 2>&1; then mcp_args+=(--codex "$(command -v codex)"); fi
+    "$configure_mcp" && mcp_args+=(--apply)
+    set +e
+    mcp_json="$(node ${mcp_args[@]+"${mcp_args[@]}"} 2>/dev/null)"; mcp_exit=$?
+    set -e
+    mcp_state="$(printf '%s' "$mcp_json" | sed -n 's/.*"mcp":"\([^"]*\)".*/\1/p')"
+    mcp_detail="$(printf '%s' "$mcp_json" | sed -n 's/.*"detail":"\([^"]*\)".*/\1/p')"
+    [[ -n "$mcp_state" ]] || mcp_state=MCP_BLOCKED
+    printf 'Afyx Graph MCP: %s — %s\n' "$mcp_state" "$mcp_detail"
+    if [[ "$configure_mcp" == true && "$mcp_exit" == 0 && "$mcp_state" == MCP_REACHABLE ]] && printf '%s' "$mcp_json" | grep -Eq '"changed":[[:space:]]*true'; then
+      printf 'Start a new Codex session to load the updated MCP configuration.\n'
+    fi
+    if [[ "$configure_mcp" != true && "$mcp_state" == MCP_NOT_CONFIGURED ]]; then
+      printf 'Registration available: rerun the selected Graph lifecycle with --configure-mcp (or use the main installer selection).\n'
+    fi
+    if "$configure_mcp" && { [[ "$mcp_exit" != 0 ]] || [[ "$mcp_state" != MCP_REACHABLE ]]; }; then
+      printf 'Requested Afyx Graph MCP registration did not verify.\n' >&2
+      exit 2
+    fi
+  fi
+
+}
+
 if [[ "$state" != 'NOT INSTALLED' && "$mode" == install ]]; then
+  if [[ "$state" == HEALTHY ]] && "$configure_mcp" && ! "$skip_mcp"; then
+    require_host_runtime
+    graph_owned || { printf 'Refusing MCP registration for an unverified Graph runtime.\n' >&2; exit 2; }
+    configure_installed_mcp
+    exit 0
+  fi
   printf 'Afyx Graph already exists at %s. Use --replace after inspecting it.\n' "$RUNTIME_ROOT" >&2
   exit 1
 fi
@@ -391,11 +427,6 @@ node "$PACKAGE_ROOT/afyx-graph/engine/scripts/distribution-contract.mjs" verify-
   exit 1
 }
 identity_json="$(node "$ARTIFACT_IDENTITY" inspect --metadata "$bundle/metadata.json" --requested-revision "$requested_revision")"
-identity_extraction="$(printf '%s' "$identity_json" | sed -n 's/.*"extractionVersion":\([0-9][0-9]*\).*/\1/p')"
-if [[ -n "$identity_extraction" ]]; then
-  compiled_extraction="$(node -e 'process.stdout.write(String(require(process.argv[1]).EXTRACTION_VERSION))' "$bundle/lib/dist/extraction/extraction-version.js")"
-  [[ "$compiled_extraction" == "$identity_extraction" ]] || { printf 'Installed artifact extraction identity mismatch: metadata %s, compiled runtime %s.\n' "$identity_extraction" "$compiled_extraction" >&2; exit 1; }
-fi
 release_manifest="$(dirname "$archive_path")/RELEASE-MANIFEST.json"
 manifest_status=MISSING
 publisher_authenticity=UNVERIFIED
@@ -411,7 +442,10 @@ elif [[ "$artifact_source" == github-release ]]; then
   exit 1
 fi
 attestation_mode="${AFYX_GRAPH_ATTESTATION_MODE:-}"
-if "$require_attestation" || [[ "$artifact_source" == github-release ]]; then attestation_mode=required; fi
+if "$require_attestation" || [[ "$artifact_source" == github-release ]] ||
+  [[ "$artifact_source" == local-release-cache && -e "$(dirname "$archive_path")/.afyx-remote-release-cache.json" ]]; then
+  attestation_mode=required
+fi
 if [[ -n "$attestation_mode" ]]; then
   attestation_manifest=
   [[ "$manifest_status" == VERIFIED ]] && attestation_manifest="$release_manifest"
@@ -421,6 +455,11 @@ if [[ -n "$attestation_mode" ]]; then
     publisher_authenticity=GITHUB_ATTESTED
     build_provenance=GITHUB_ATTESTED
   fi
+fi
+identity_extraction="$(printf '%s' "$identity_json" | sed -n 's/.*"extractionVersion":\([0-9][0-9]*\).*/\1/p')"
+if [[ -n "$identity_extraction" ]]; then
+  compiled_extraction="$(node "$ARTIFACT_IDENTITY" read-extraction-version --compiled "$bundle/lib/dist/extraction/extraction-version.js")"
+  [[ "$compiled_extraction" == "$identity_extraction" ]] || { printf 'Installed artifact extraction identity mismatch: metadata %s, compiled runtime %s.\n' "$identity_extraction" "$compiled_extraction" >&2; exit 1; }
 fi
 node "$ARTIFACT_IDENTITY" record-install --metadata "$bundle/metadata.json" --archive "$archive_path" --provenance "$artifact_source" --requested-revision "$requested_revision" --release-manifest-status "$manifest_status" --publisher-authenticity "$publisher_authenticity" --build-provenance "$build_provenance" >/dev/null
 mv "$bundle" "$transaction/prepared/current"
@@ -466,29 +505,6 @@ else
   ln -s "$RUNTIME_ROOT/current/bin/afyx-graph" "$destination"
 fi
 
-mcp_state=MCP_NOT_CONFIGURED
-if "$skip_mcp"; then
-  printf 'Afyx Graph MCP: skipped explicitly.\n'
-else
-  codex_home="${CODEX_HOME:-$HOME/.codex}"
-  mcp_args=("$PACKAGE_ROOT/scripts/afyx-mcp-integration.mjs" --node "$(command -v node)" --entry "$RUNTIME_ROOT/current/lib/dist/bin/afyx-graph.js" --codex-home "$codex_home")
-  if command -v codex >/dev/null 2>&1; then mcp_args+=(--codex "$(command -v codex)"); fi
-  "$configure_mcp" && mcp_args+=(--apply)
-  set +e
-  mcp_json="$(node ${mcp_args[@]+"${mcp_args[@]}"} 2>/dev/null)"; mcp_exit=$?
-  set -e
-  mcp_state="$(printf '%s' "$mcp_json" | sed -n 's/.*"mcp":"\([^"]*\)".*/\1/p')"
-  mcp_detail="$(printf '%s' "$mcp_json" | sed -n 's/.*"detail":"\([^"]*\)".*/\1/p')"
-  [[ -n "$mcp_state" ]] || mcp_state=MCP_BLOCKED
-  printf 'Afyx Graph MCP: %s â€” %s\n' "$mcp_state" "$mcp_detail"
-  if [[ "$configure_mcp" == true && "$mcp_exit" == 0 && "$mcp_state" == MCP_REACHABLE ]] && printf '%s' "$mcp_json" | grep -Eq '"changed":[[:space:]]*true'; then
-    printf 'Start a new Codex session to load the updated MCP configuration.\n'
-  fi
-  if [[ "$configure_mcp" != true && "$mcp_state" == MCP_NOT_CONFIGURED ]]; then
-    printf 'Registration available: rerun the selected Graph lifecycle with --configure-mcp (or use the main installer selection).\n'
-  fi
-  : "$mcp_exit"
-fi
-
+configure_installed_mcp
 printf 'Afyx Graph %s [%s]: installed at %s\nArtifact source: %s; source revision: %s\nCLI: %s/afyx-graph\n' "$VERSION" "$CHANNEL" "$RUNTIME_ROOT" "$artifact_source" "${source_revision:-UNKNOWN}" "$BIN_DIR"
 if "$skip_mcp"; then printf 'MCP configuration was not changed.\n'; fi

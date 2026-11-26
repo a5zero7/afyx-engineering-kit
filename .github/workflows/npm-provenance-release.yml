@@ -7,14 +7,13 @@ on:
 
 permissions:
   contents: read
-  id-token: write
 
 concurrency:
   group: npm-release-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
-  publish:
+  stage:
     runs-on: ubuntu-latest
     timeout-minutes: 55
     env:
@@ -32,7 +31,6 @@ jobs:
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 24
-          registry-url: https://registry.npmjs.org
       - name: Verify stable tag and promoted source
         run: |
           set -euo pipefail
@@ -67,17 +65,55 @@ jobs:
           set -euo pipefail
           node scripts/stage-npm-release.mjs --output-dir "$RUNNER_TEMP/afyx-npm-release" > "$RUNNER_TEMP/afyx-npm-release.json"
           node -e 'const receipt = require(process.argv[1]); if (receipt.dryRun || receipt.revision !== process.env.GITHUB_SHA || !receipt.candidate || !/^[0-9a-f]{64}$/.test(receipt.sha256)) process.exit(1)' "$RUNNER_TEMP/afyx-npm-release.json"
-      - name: Publish the verified tarball with provenance
+      - name: Upload staged tarball and receipt
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: afyx-npm-release-candidate
+          if-no-files-found: error
+          path: |
+            ${{ runner.temp }}/afyx-npm-release/*.tgz
+            ${{ runner.temp }}/afyx-npm-release.json
+  publish:
+    needs: stage
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: afyx-npm-release-candidate
+          path: ${{ runner.temp }}/afyx-publish-candidate
+      - name: Verify staged release and publish the exact tarball
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
           set -euo pipefail
           if [[ -z "$NODE_AUTH_TOKEN" ]]; then
-            echo "::notice::NPM_TOKEN is unavailable. The tarball was verified and publication was skipped."
-            exit 0
+            echo "::error::NPM_TOKEN is required for publication."
+            exit 1
           fi
-          receipt="$RUNNER_TEMP/afyx-npm-release.json"
-          package=$(node -p 'require(process.argv[1]).candidate' "$receipt")
-          digest=$(node -p 'require(process.argv[1]).sha256' "$receipt")
+          cd "$RUNNER_TEMP/afyx-publish-candidate"
+          read -r version digest digest512 < <(node -e '
+            const fs = require("node:fs");
+            const r = JSON.parse(fs.readFileSync("afyx-npm-release.json", "utf8"));
+            if (r.dryRun !== false || r.revision !== process.env.GITHUB_SHA ||
+                !/^[0-9]+\.[0-9]+\.[0-9]+$/.test(r.version) ||
+                !/^[a-f0-9]{64}$/.test(r.sha256) || !/^[a-f0-9]{128}$/.test(r.sha512)) process.exit(1);
+            console.log(r.version + " " + r.sha256 + " " + r.sha512);
+          ')
+          test "$GITHUB_REF" = "refs/tags/v$version"
+          package="afyx-npm-release/afyx-engineering-kit-$version.tgz"
           printf '%s  %s\n' "$digest" "$package" | sha256sum --check --strict
+          printf '%s  %s\n' "$digest512" "$package" | sha512sum --check --strict
+          test "$(tar -xOzf "$package" package/.afyx-source-revision)" = "$GITHUB_SHA"
+          tar -xOzf "$package" package/package.json | node -e '
+            const p = JSON.parse(require("node:fs").readFileSync(0, "utf8"));
+            if (p.name !== "afyx-engineering-kit" || p.version !== process.argv[1]) process.exit(1);
+          ' "$version"
           npm publish "$package" --provenance --access public

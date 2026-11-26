@@ -459,7 +459,7 @@ function Test-StagedRuntimeIdentity([string]$Path) {
     $identity = (& (Get-Command node).Source $artifactIdentityTool inspect --metadata $metadataPath 2>$null) -join '' | ConvertFrom-Json
     if ($identity.extractionVersion -eq $null) { return }
     $compiled = Join-Path $Path 'lib\dist\extraction\extraction-version.js'
-    $actual = (& (Get-Command node).Source -e "process.stdout.write(String(require(process.argv[1]).EXTRACTION_VERSION))" $compiled 2>$null) -join ''
+    $actual = (& (Get-Command node).Source $artifactIdentityTool read-extraction-version --compiled $compiled 2>$null) -join ''
     if ($LASTEXITCODE -ne 0 -or [int]$actual -ne [int]$identity.extractionVersion) {
         throw "Installed artifact extraction identity mismatch: metadata $($identity.extractionVersion), compiled runtime $actual."
     }
@@ -565,7 +565,6 @@ try {
     $bundle = Get-ChildItem -LiteralPath $extract -Directory | Where-Object Name -eq "afyx-graph-$target" | Select-Object -First 1
     if (-not $bundle) { throw "Archive does not contain afyx-graph-$target." }
     Test-StagedBundle -Path $bundle.FullName
-    Test-StagedRuntimeIdentity -Path $bundle.FullName
     $requestedRevision = Get-RequestedRevision
     $releaseManifest = Join-Path (Split-Path -Parent $archive) 'RELEASE-MANIFEST.json'
     $manifestStatus = 'MISSING'
@@ -580,7 +579,9 @@ try {
         throw 'GitHub release is missing RELEASE-MANIFEST.json.'
     }
     $attestationMode = $env:AFYX_GRAPH_ATTESTATION_MODE
-    if ($resolvedArchive.Source -eq 'github-release') { $attestationMode = 'required' }
+    $remoteCache = $resolvedArchive.Source -eq 'local-release-cache' -and
+            (Test-Path -LiteralPath (Join-Path (Split-Path -Parent $archive) '.afyx-remote-release-cache.json'))
+    if ($resolvedArchive.Source -eq 'github-release' -or $remoteCache) { $attestationMode = 'required' }
     if ($attestationMode) {
         $attestationArgs = @('verify-attestation', '--archive', $archive, '--metadata', (Join-Path $bundle.FullName 'metadata.json'),
             '--mode', $attestationMode, '--offline', ([string][bool]$Offline).ToLowerInvariant())
@@ -594,6 +595,7 @@ try {
         }
     }
     if ($resolvedArchive.Source -eq 'local-build' -and $resolvedArchive.PSObject.Properties['BuildProvenance'] -and $resolvedArchive.BuildProvenance) { $buildProvenance = $resolvedArchive.BuildProvenance }
+    Test-StagedRuntimeIdentity -Path $bundle.FullName
     & (Get-Command node).Source $artifactIdentityTool record-install --metadata (Join-Path $bundle.FullName 'metadata.json') --archive $archive --provenance $resolvedArchive.Source --requested-revision $(if ($requestedRevision) { $requestedRevision } else { 'UNKNOWN' }) --release-manifest-status $manifestStatus --publisher-authenticity $publisherAuthenticity --build-provenance $buildProvenance *> $null
     if ($LASTEXITCODE -ne 0) { throw 'Failed to record installed artifact provenance.' }
     Move-Item -LiteralPath $bundle.FullName -Destination (Join-Path $prepared 'current')

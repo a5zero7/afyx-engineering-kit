@@ -22,6 +22,7 @@ import {
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { tmpdir } from 'node:os';
+import { verifyArtifactAttestation } from './afyx-graph-artifact.mjs';
 import { graphArchiveIdentity, verifyGraphArchivePaths } from './verify-graph-archive.mjs';
 import { graphManifestTargets, graphArchiveName } from './afyx-graph-targets.mjs';
 
@@ -174,6 +175,7 @@ export async function resolveAndStageGitReleaseArtifacts(root, revision, options
     throw new Error(`Valid 40-character Git commit SHA is required (got: "${revision}")`);
   }
   const fetchArtifact = options.fetchBuffer || fetchBuffer;
+  const verifyAttestation = options.verifyAttestation ?? verifyArtifactAttestation;
   const apiBase = options.apiBase || GITHUB_API_BASE;
   const downloadBase = options.downloadBase || GITHUB_DOWNLOAD_BASE;
   const tagMatchesRevision = async (tag) => {
@@ -257,6 +259,7 @@ export async function resolveAndStageGitReleaseArtifacts(root, revision, options
     const expectedSums = validateReleaseChecksums(manifestObj, sumsContent, revision);
 
     // 4. Download and verify each required archive
+    const attested = {};
     const archivesToDownload = graphManifestTargets(manifestObj).map(graphArchiveName);
     for (const archiveName of archivesToDownload) {
       const archiveUrl = `${downloadBase}/${resolvedTag}/${archiveName}`;
@@ -282,10 +285,20 @@ export async function resolveAndStageGitReleaseArtifacts(root, revision, options
       }
 
       verifyGraphArchivePaths(archiveBuf, archiveName, graphArchiveIdentity(manifestObj, manifestEntry));
-      writeFileSync(join(tempStage, archiveName), archiveBuf);
+      const stagedArchive = join(tempStage, archiveName);
+      writeFileSync(stagedArchive, archiveBuf);
+      const result = verifyAttestation(stagedArchive, { sourceRevision: revision, archiveSha256: computedSha }, { mode: 'required' });
+      if (result?.status !== 'VERIFIED' || result.accepted !== true) {
+        throw new Error('Graph publisher attestation required for ' + archiveName);
+      }
+      attested[archiveName] = computedSha;
     }
 
-    // 5. Atomically stage all verified artifacts to releaseDir
+    // Keep a remote-origin marker even if a later copy is interrupted.
+    const originFile = '.afyx-remote-release-cache.json';
+    writeFileSync(join(tempStage, originFile), JSON.stringify({ sourceRevision: revision, artifacts: attested }));
+    copyFileSync(join(tempStage, originFile), join(releaseDir, originFile));
+    // Stage files only after every archive passed required attestation.
     for (const file of ['RELEASE-MANIFEST.json', 'SHA256SUMS', ...graphManifestTargets(manifestObj).map(graphArchiveName)]) {
       copyFileSync(join(tempStage, file), join(releaseDir, file));
     }

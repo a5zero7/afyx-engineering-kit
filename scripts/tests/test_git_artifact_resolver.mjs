@@ -106,11 +106,30 @@ function fixture(overrides = {}) {
   return { archives, manifest, sums, requests, fetchBuffer };
 }
 
+const verifiedAttestation = (_archive, _identity, policy) => {
+  assert.equal(policy.mode, 'required');
+  return { status: 'VERIFIED', accepted: true };
+};
+
+test('unverified publisher cannot stage a checksum-matched remote archive', async () => {
+  const root = mkdtempSync(join(tmpdir(), 'afyx-resolver-unverified-'));
+  try {
+    const sample = fixture();
+    await assert.rejects(resolveAndStageGitReleaseArtifacts(root, revision, {
+      fetchBuffer: sample.fetchBuffer,
+      verifyAttestation: () => ({ status: 'FAILED', accepted: false }),
+    }), /publisher attestation required/);
+    assert.throws(() => readFileSync(join(root, 'afyx-graph/engine/release', winName)), /ENOENT/);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test('verified tag, complete checksums, and safe archives stage together', async () => {
   const root = mkdtempSync(join(tmpdir(), 'afyx-resolver-positive-'));
   try {
     const sample = fixture();
-    const result = await resolveAndStageGitReleaseArtifacts(root, revision, { fetchBuffer: sample.fetchBuffer });
+    const result = await resolveAndStageGitReleaseArtifacts(root, revision, { fetchBuffer: sample.fetchBuffer, verifyAttestation: verifiedAttestation });
     assert.equal(result.revision, revision);
     assert.deepEqual(readFileSync(join(root, 'afyx-graph/engine/release', winName)), sample.archives[winName]);
     assert.ok(sample.requests.some((url) => url.includes('/commits/')));
@@ -133,7 +152,7 @@ test('tag target mismatch and interrupted download leave no staged archives', as
     const root = mkdtempSync(join(tmpdir(), 'afyx-resolver-negative-'));
     try {
       const sample = fixture(overrides);
-      await assert.rejects(resolveAndStageGitReleaseArtifacts(root, revision, { fetchBuffer: sample.fetchBuffer }),
+      await assert.rejects(resolveAndStageGitReleaseArtifacts(root, revision, { fetchBuffer: sample.fetchBuffer, verifyAttestation: verifiedAttestation }),
         /No official precompiled|Interrupted fixture download/);
       assert.throws(() => readFileSync(join(root, 'afyx-graph/engine/release', winName)), /ENOENT/);
     } finally { rmSync(root, { recursive: true, force: true }); }
@@ -155,7 +174,7 @@ test('corrupted archive download triggers SHA256SUMS mismatch fail-closed', asyn
       return buf;
     };
     await assert.rejects(
-      resolveAndStageGitReleaseArtifacts(root, revision, { fetchBuffer: tamperedFetch }),
+      resolveAndStageGitReleaseArtifacts(root, revision, { fetchBuffer: tamperedFetch, verifyAttestation: verifiedAttestation }),
       /SHA256SUMS mismatch|Checksum mismatch/
     );
   } finally {
@@ -234,6 +253,7 @@ for (const [name, override, invalidManifest] of [
       const destination = join(root, 'download');
       const remote = resolveAndStageGitReleaseArtifacts(destination, revision, {
         fetchBuffer: fixture({ archives, manifest, sums }).fetchBuffer,
+        verifyAttestation: verifiedAttestation,
       });
       if (good) assert.equal((await remote).success, true);
       else {

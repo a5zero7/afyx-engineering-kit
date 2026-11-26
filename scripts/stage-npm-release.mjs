@@ -98,6 +98,8 @@ if (!dryRun) {
   }
 }
 if (run('git', ['-C', root, 'status', '--porcelain']).trim()) throw new Error('Packaging mutated the source checkout');
-const digest = dryRun ? null : createHash('sha256').update(readFileSync(candidate)).digest('hex');
+const candidateBytes = dryRun ? null : readFileSync(candidate);
+const digest = candidateBytes && createHash('sha256').update(candidateBytes).digest('hex');
+const digestSha512 = candidateBytes && createHash('sha512').update(candidateBytes).digest('hex');
 process.stdout.write(JSON.stringify({ revision, version: pkg.version, dryRun, candidate: dryRun ? null : candidate,
-  sha256: digest, fileCount: pkg.files.length, stage }) + '\n');
+  sha256: digest, sha512: digestSha512, fileCount: pkg.files.length, stage }) + '\n');
