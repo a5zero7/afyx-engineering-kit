@@ -23,7 +23,7 @@ PRESETS = {"minimal", "recommended", "full", "custom"}
 PLATFORMS = {"all", "windows"}
 INSTALL_ROOTS = {"skills_root", "afyx_graph_root", "afyx_context_root", "afyx_forge_root", "codex_tools", ""}
 REQUIRED_KEYS = {"id", "name", "type", "tier", "ownership", "ownership_class", "presets", "platforms", "install_root", "install_path"}
-EXPECTED_IDS = ["afyx-efficient-coding", "afyx-odoo-engineering", "afyx-engineering-expert", "afyx-graph", "afyx-context", "afyx-forge", "afyx-usage-intelligence"]
+EXPECTED_IDS = ["afyx-efficient-coding", "afyx-odoo-engineering", "afyx-engineering-expert", "afyx-ui-architect", "afyx-graph", "afyx-context", "afyx-forge", "afyx-usage-intelligence"]
 LINE_RE = re.compile(r'^\s*"[a-z_]+":\s*"[^"\\]*",?\s*$')
 
 
@@ -116,7 +116,7 @@ for component in components:
 
 by_id = {component["id"]: component for component in components}
 expected_presets = {
-    "minimal": {"afyx-efficient-coding", "afyx-odoo-engineering"},
+    "minimal": {"afyx-efficient-coding"},
     "recommended": {"afyx-efficient-coding", "afyx-odoo-engineering", "afyx-engineering-expert"},
     "full": {"afyx-efficient-coding", "afyx-odoo-engineering", "afyx-engineering-expert", "afyx-graph", "afyx-context", "afyx-forge", "afyx-usage-intelligence"},
 }
@@ -126,7 +126,7 @@ for preset, expected in expected_presets.items():
         fail(f"{preset}: component membership mismatch")
 
 # Bundled skills must ship exactly what the contract requires.
-for cid in ("afyx-efficient-coding", "afyx-odoo-engineering", "afyx-engineering-expert"):
+for cid in ("afyx-efficient-coding", "afyx-odoo-engineering", "afyx-engineering-expert", "afyx-ui-architect"):
     component = by_id[cid]
     skill_dir = ROOT / "skills" / component["install_path"]
     for relative in component["required_files"].split(";"):
@@ -137,7 +137,7 @@ for cid in ("afyx-efficient-coding", "afyx-odoo-engineering", "afyx-engineering-
         fail(f"{cid}: SKILL.md name does not match the component id")
     if component["version_required"] == "true" and not re.search(r'(?ms)^metadata:\s*\n\s+version:\s*["\'][^"\']+["\']', manifest):
         fail(f"{cid}: SKILL.md metadata.version is required by the contract")
-    if cid == "afyx-engineering-expert":
+    if cid in {"afyx-engineering-expert", "afyx-ui-architect"}:
         if any(key.startswith("legacy_") for key in component):
             fail("afyx-engineering-expert: new skill must not claim legacy adoption evidence")
         continue

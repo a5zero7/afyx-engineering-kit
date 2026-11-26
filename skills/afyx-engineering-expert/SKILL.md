@@ -28,21 +28,7 @@ For cross-disciplinary Odoo/ERP work, Expert owns problem framing, process invar
 
 Composition with another skill does not justify broad Expert loading. Start with one primary Expert domain and at most two supporting domains; for a multistep ERP process review, load `workflows/ai-data-erp.md` when its decision gates are material. Expand only for a concrete dependency or risk, not merely because ERP touches many business functions.
 
-| Signal | Primary reference | Common supporting reference |
-|---|---|---|
-| Product outcome, roadmap, prioritization | `references/product-manager.md` | business-analyst, subject-matter-expert |
-| Business rules, requirements, process gaps | `references/business-analyst.md` | subject-matter-expert, system-analyst |
-| Domain-specific terms, operations, regulations | `references/subject-matter-expert.md` | business-analyst, relevant technical expert |
-| System requirements, interactions, data/API specifications | `references/system-analyst.md` | solutions-architect, qa-engineer |
-| Architecture, integration, tradeoffs, NFRs | `references/solutions-architect.md` | cybersecurity-devsecops, sre |
-| Interaction design, flows, accessibility | `references/ui-ux-designer.md` | product-manager, qa-engineer |
-| Application coding, debugging, refactoring | `references/software-engineer.md` | qa-engineer, relevant specialist |
-| Model/data pipelines, inference, evaluation | `references/ai-ml-engineer.md` | dba, cybersecurity-devsecops |
-| ERP modules, business flows, migrations | `references/erp-technical-specialist.md` | business-analyst, software-engineer |
-| Threats, permissions, CI/CD security, secrets | `references/cybersecurity-devsecops.md` | solutions-architect, software-engineer |
-| Availability, incident, performance, observability | `references/site-reliability-engineer.md` | solutions-architect, dba |
-| Schema, query, storage, backups, migrations | `references/database-administrator.md` | software-engineer, sre |
-| Test strategy, regression, acceptance evidence | `references/qa-engineer.md` | system-analyst, software-engineer |
+Use the [discipline routing table](references/specialists-index.md#core-disciplines) when the task needs specialist guidance.
 
 For deep specialization beyond the 13 core disciplines (e.g., clean code crafting, code review, BI analytics, data pipelines, systematic debugging, embedded firmware, laptop/hardware audit, electronic circuits, API integrations, legacy modernization, LLMOps/prompt architecture, cloud networking, performance profiling, internal developer platforms, agile project cadence, or technical writing), consult the supplemental specialist index at `references/specialists-index.md` on-demand. Do not load specialist references by default.
 

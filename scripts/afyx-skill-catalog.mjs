@@ -16,6 +16,10 @@ const allowed = (root, file) => {
 
 const METADATA_LIMIT = 8192;
 const FRONTMATTER = /^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/;
+export function readSkillFrontmatter(content) {
+  return FRONTMATTER.exec(content)?.[1];
+}
+
 const catalogIdentity = new WeakMap();
 const contextSessions = new WeakMap();
 
@@ -76,7 +80,7 @@ export function discoverSkillDescriptors({ roots = [], provider = 'codex', scope
           if (!stat.isFile() || stat.nlink > 1 || stat.size > maxManifestBytes) throw new Error('MANIFEST_LIMIT');
           const { prefix, identity, size } = readMetadata(manifest, maxManifestBytes);
           const text = new TextDecoder('utf-8', { fatal: true }).decode(prefix);
-          const front = text.match(FRONTMATTER)?.[1];
+          const front = readSkillFrontmatter(text);
           if (!front || /[!&*][A-Za-z_][\w-]*|!!|<<:/.test(front)) throw new Error('UNSUPPORTED_METADATA');
           const field = (key) => front.match(new RegExp(`^${key}:\\s*([^\\r\\n]*)`, 'm'))?.[1]?.trim().replace(/^['"]|['"]$/g, '') || '';
           const declared = field('name'); if (declared !== name) throw new Error('MANIFEST_NAME_MISMATCH');

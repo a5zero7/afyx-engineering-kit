@@ -135,7 +135,7 @@
       "tier": "core",
       "ownership": "afyx",
       "ownership_class": "AFYX",
-      "presets": "minimal;recommended;full",
+      "presets": "recommended;full",
       "platforms": "all",
       "install_root": "skills_root",
       "install_path": "afyx-odoo-engineering",
@@ -163,6 +163,23 @@
       "version_source": "SKILL.md#metadata.version",
       "version_required": "true",
       "required_files": "README.md;SKILL.md;assets/result-template.md;references/ai-ml-engineer.md;references/business-analyst.md;references/clean-code-engineer.md;references/code-reviewer.md;references/cybersecurity-devsecops.md;references/data-analyst-bi.md;references/data-engineer.md;references/database-administrator.md;references/debugging-specialist.md;references/embedded-iot-engineer.md;references/erp-technical-specialist.md;references/hardware-diagnostics-auditor.md;references/hardware-electronics-engineer.md;references/integration-engineer.md;references/legacy-modernization-engineer.md;references/llmops-prompt-engineer.md;references/network-engineer.md;references/performance-benchmark-engineer.md;references/platform-engineer.md;references/product-manager.md;references/qa-engineer.md;references/site-reliability-engineer.md;references/software-engineer.md;references/solutions-architect.md;references/specialists-index.md;references/subject-matter-expert.md;references/system-analyst.md;references/technical-project-manager.md;references/technical-writer.md;references/ui-ux-designer.md;workflows/ai-data-erp.md;workflows/debugging.md;workflows/discovery-design.md;workflows/implementation.md;workflows/incident-reliability.md;workflows/review-audit.md"
+    },
+    {
+      "id": "afyx-ui-architect",
+      "name": "Afyx UI Architect",
+      "display_name": "Afyx UI Architect",
+      "primary_capability": "ui-engineering",
+      "type": "skill",
+      "tier": "optional",
+      "ownership": "afyx",
+      "ownership_class": "AFYX",
+      "presets": "",
+      "platforms": "all",
+      "install_root": "skills_root",
+      "install_path": "afyx-ui-architect",
+      "version_source": "SKILL.md#metadata.version",
+      "version_required": "true",
+      "required_files": "SKILL.md"
     },
     {
       "id": "afyx-graph",

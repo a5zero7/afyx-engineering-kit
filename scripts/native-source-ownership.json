@@ -2,8 +2,14 @@
   "schema": 1,
   "baselineRevision": "c4e4d8e29de239a2fcbc0db8ac65eea2276e7b00",
   "scope": "AFYX-320 comprehensive production source inventory",
-  "totalProductionFiles": 529,
+  "totalProductionFiles": 530,
   "entries": [
+    {
+      "path": "afyx-context/src/privacy.js",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "7af5797c83c77bf0e2282aefe9f68e40382bf2d66ea61ca8cf6ef414082a9395",
+      "evidence": "AFYX-383: Native Context admission policy rejects credential-bearing segments from persistent storage."
+    },
     {
       "path": "scripts/afyx-context-source.mjs",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
@@ -25,7 +31,7 @@
     {
       "path": "afyx-context/src/cli-compactor.js",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "06465fdae40e5cf4ecb27f5257a018cbcc49154b6e2891dd570c5be39de4c77f",
+      "reviewedSha256": "eade213c6abb6f66e176bab587e596b29b00c5f946a03659ae83f6fb295f8a2f",
       "evidence": "Pure Node.js terminal output compactor with fail-closed secure private spill directories, true chunk streaming to disk, honest truncation flags, and spill recovery (AFYX-329)."
     },
     {
@@ -49,13 +55,13 @@
     {
       "path": "afyx-context/src/coordination.js",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "7cbeaab8f729cdc5bcc30db33b664c959dfec2f057a2f5104f46a0bbfa12c67c",
+      "reviewedSha256": "080481609739716349d2418f523e4dc5773df2bb5263ab9d87907d038b56d1f7",
       "evidence": "AFYX native source: authored from AFYX functional requirements; verified clean room implementation with zero third-party code import."
     },
     {
       "path": "afyx-context/src/db-inspector.js",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "5424fb72436e7ad06267ee309cd6971f3e01cd67b0f5c983a8e0a436a439e98d",
+      "reviewedSha256": "99978ee7deb6a8bfa1cf99f464d9d0986d35153fe7a485e524d97e393c51e121",
       "evidence": "Strictly read-only data and schema inspector for CSV, JSON, NDJSON, SQLite, and external catalogs with identifier escaping, SCHEMA_INSPECTED status separation, path containment, and SHA-256 invariance (AFYX-329)."
     },
     {
@@ -73,7 +79,7 @@
     {
       "path": "afyx-context/src/engine.js",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "34616ccd0e064e2d773caf71b49d5d948e0a02f610d851988d9ef354107d0667",
+      "reviewedSha256": "cdba8a3b5e6428e2a1120770c4fec8f13dda48dd5c10533280e102f095fd9edd",
       "evidence": "AFYX native source: authored from AFYX functional requirements; verified clean room implementation with zero third-party code import."
     },
     {
@@ -127,7 +133,7 @@
     {
       "path": "afyx-context/src/massive-context.js",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "4d09d48ae6abfe2a015648489a85517c7e3a7dd2a8eff49670b3a3e3d157240f",
+      "reviewedSha256": "c5a860ef28b5f8f9578f2c0226c108af8813cda55b09867c272b200e5f3a273d",
       "evidence": "Out-of-core massive context navigator with byte-accurate line offset tracking across CRLF/LF and multibyte UTF-8 boundaries, coarse metadata indexing, and path containment (AFYX-329)."
     },
     {
@@ -151,7 +157,7 @@
     {
       "path": "afyx-context/src/storage.js",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "fc94e4bee2d30f0fd3a86a8ecd68051d9a7f215e7178bf25a5da23a356e32f80",
+      "reviewedSha256": "23a8c27cc40a40f51f66720c198fc05d14ebd550f54a4fc3dfaaa9974e65b2e7",
       "evidence": "AFYX native source: authored from AFYX functional requirements; verified clean room implementation with zero third-party code import."
     },
     {
@@ -169,19 +175,19 @@
     {
       "path": "afyx-context/src/work-ledger.js",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "b56531131430600c188f3be415d546ebdf705d55e3336227fad36a34ea05d2f8",
+      "reviewedSha256": "c58f0478328cda7db32169b7ac573243ebd27f98a4b968bdd60ca787999d99f0",
       "evidence": "Universal AFYX task, decision, and evidence work ledger with deterministic receipt generation."
     },
     {
       "path": "afyx-forge/src/classifier.js",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "6ae0685caa88cc5adeec4431facb1b4019550d5c1a725d3700acd4256b4a950e",
+      "reviewedSha256": "eaf9ba8f192b021411767153301dd79818134e1419d261bc202d76b975af39be",
       "evidence": "AFYX native source: authored from AFYX functional requirements; verified clean room implementation with zero third-party code import."
     },
     {
       "path": "afyx-forge/src/cli.js",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "90736faf3085de681800e564ca17c2cfebf6750965f2f80f88e3a88ed08fa292",
+      "reviewedSha256": "bf11e96251b7c8d69802d7c493f64aa707812389ea4f690b436be4c5b2cfc6ed",
       "evidence": "MB12 review: authored from AFYX functional requirements and existing reviewed 251f73a contracts; no upstream implementation, prompts, assets or dependency imported. Trusted-host boundaries and negative/regression tests recorded in MB12-native-consolidation-20261114-r1."
     },
     {
@@ -1454,13 +1460,13 @@
     {
       "path": "afyx-graph/engine/src/mcp/explore-tool.ts",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "1cd9bbdbdfb2325a1cc548647c5af36345ba953eb6d1d0488440539721396731",
+      "reviewedSha256": "e7ea1124f8c2057d3c16c27036f197e5202cb7ef917781440834e457b3e60157",
       "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
     },
     {
       "path": "afyx-graph/engine/src/mcp/files-tool.ts",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "03f31e31fb6ff6f2923d9593b2e36597fc4e7cd112606188678d43be5fe4e479",
+      "reviewedSha256": "2b2eb15a59b9cb25b9d7669627ae03d109275658953b33522cebcda521e8cbc8",
       "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
     },
     {
@@ -1562,7 +1568,7 @@
     {
       "path": "afyx-graph/engine/src/mcp/session.ts",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "9debe0b8a16923e70ab312b68cf52df56b504420074f491b28cc6a771ce887ad",
+      "reviewedSha256": "b9311318cefc587f3dd7ef32763454757496b74e24d3026094e3ace22374db82",
       "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
     },
     {
@@ -2538,7 +2544,7 @@
     {
       "path": "afyx-graph/engine/src/utils.ts",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "4b0db15edda4e402f50bf2c94f904a1e480a20d9337ebfab25bb6c68752558d7",
+      "reviewedSha256": "296b9f0c6f0c25b8adc6ca3ee7b50d1fc738db5588f82ab51e4027e5822a8ed3",
       "evidence": "Independently authored AFYX native component implementing source-grounded graph analysis and runtime services."
     },
     {
@@ -2763,13 +2769,13 @@
     {
       "path": "install.sh",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "f562fcaa38cf8856d321fa5da949ff15da8812ed8aa58fcbed0e27a5da683d58",
+      "reviewedSha256": "4563a0f9ce1e6ece7acd7dfa7e54661cf729e507517c6699caee647273848899",
       "evidence": "AFYX POSIX kit installer with explicit platform, component, and provider skill-root lifecycle boundaries (AFYX-361, AFYX-362)."
     },
     {
       "path": "scripts/afyx-browser-devtools.mjs",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "a48b16dadd7c5bc21c583d466b6ce80356d3d0dd9789b0bb223e6ed38769da1c",
+      "reviewedSha256": "83c9dae03a02eb34b84d70e731f33925ba4152456697fb0468bc8d0864bcef8c",
       "evidence": "MB18.3 AFYX-190/AFYX-105: reviewed budget diagnostics tracking (startedAt, deadline, closureReason, interruptionSource), structured timeout error classification, and bounded session receipt."
     },
     {
@@ -2853,7 +2859,7 @@
     {
       "path": "scripts/afyx-graph-artifact.mjs",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "2783efb57f6883e73e3c1908158b438744f09ec6063cdd84b4d69cbf0f92e1d3",
+      "reviewedSha256": "d0a8ff5ca451ee34e85be2948db306400ade72b2e3c4703e762c2fb5179fe39a",
       "evidence": "MB12 review: authored from AFYX functional requirements and existing reviewed 251f73a contracts; no upstream implementation, prompts, assets or dependency imported. Trusted-host boundaries and negative/regression tests recorded in MB12-native-consolidation-20261114-r1."
     },
     {
@@ -2865,7 +2871,7 @@
     {
       "path": "scripts/afyx-host-adapters.mjs",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "e8e5a435ab7e2b61b0e0c08cc4935cece7001de5d84cb84c9419a68f9d16a75a",
+      "reviewedSha256": "b5f523ee5e2e68691393c112479aee9aabfaf5d3584e9da36aa3fb3d6643fd8f",
       "evidence": "MB16 AFYX-283: reviewed bounded Engineering Expert selection, lexical domain hints, and host ceiling consumption; no external logic imported."
     },
     {
@@ -2925,7 +2931,7 @@
     {
       "path": "scripts/afyx-mcp-integration.mjs",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "d92227a73ea3aaf909b1a2f1dd5e48ee0e041313e825173f190e1823ba7c64f7",
+      "reviewedSha256": "a8191c43a907db40804de33226b70515d688229d1d6359a1fb86307376a02ce8",
       "evidence": "AFYX native source: authored from AFYX functional requirements; verified clean room implementation with zero third-party code import. AFYX-77: bounded installer maintenance authored against existing AFYX contracts."
     },
     {
@@ -2967,7 +2973,7 @@
     {
       "path": "scripts/afyx-npm-installer.mjs",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "53a7b860e06566117f5c58a948dbd9f05731d73839f77d05cef6175201cda7fc",
+      "reviewedSha256": "8d2eb2695055e961de1b4d426af70da5d7ea57688ee4b6a2fd37221280625db3",
       "evidence": "Installer UX v2 with synchronized universal capability summaries, help text, and version 0.1.0-alpha.12 (AFYX-77)."
     },
     {
@@ -2985,13 +2991,13 @@
     {
       "path": "scripts/afyx-provider-backup.mjs",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "ac76e503bfce98ff66468f79d744d88101f14357de6f0ef7062c44d9e8324fe7",
+      "reviewedSha256": "47f8be21cb6842c73230bbf478b0ed459524e5b5e8ea60febeee82a5b3182f27",
       "evidence": "AFYX native source: authored from AFYX functional requirements; verified clean room implementation with zero third-party code import. AFYX-77: bounded installer maintenance authored against existing AFYX contracts."
     },
     {
       "path": "scripts/afyx-provider-integration.mjs",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "0cdf6b8355f84d818669994131592da2297ce9208a58ed9f7d833facd14f74b6",
+      "reviewedSha256": "9d51bb38ab96310749ee4f3253b419e9ce887d10f9c9344ce953b7fce402d57b",
       "evidence": "AFYX native source: authored from AFYX functional requirements; verified clean room implementation with zero third-party code import. AFYX-77: bounded installer maintenance authored against existing AFYX contracts. POSTV1-CI-AND-TRACKD-CERTIFICATION: koreksi AFYX berdasarkan log CI dan kontrak lifecycle native."
     },
     {
@@ -3003,19 +3009,19 @@
     {
       "path": "scripts/afyx-security-auditor.mjs",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "d12f8f0eaa5e0607bd5e513ed9e7f3afef6fb22610016a8a16c7922030c26ebc",
+      "reviewedSha256": "98648e9efff66154f48a70a206716d7e10f979d951d0d5df5e20ce64a175b5c1",
       "evidence": "MB12 review: authored from AFYX functional requirements and existing reviewed 251f73a contracts; no upstream implementation, prompts, assets or dependency imported. Trusted-host boundaries and negative/regression tests recorded in MB12-native-consolidation-20261114-r1."
     },
     {
       "path": "scripts/afyx-skill-catalog.mjs",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "99151d9dfa13a7af9dad7a45eb14777e1e2bc457cac533ba0c6c5e310f16d726",
+      "reviewedSha256": "5b29fc7573545564aa172ac3988b586d8c9b308c5a5361a8ddc6757172d040e1",
       "evidence": "MB12 review: authored from AFYX functional requirements and existing reviewed 251f73a contracts; no upstream implementation, prompts, assets or dependency imported. Trusted-host boundaries and negative/regression tests recorded in MB12-native-consolidation-20261114-r1."
     },
     {
       "path": "scripts/afyx-skill-engineering.mjs",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "6f4784b778bf775feb298be9cac7277f080e82e12df092129c3ffc571faebfc7",
+      "reviewedSha256": "ce02e9a2f60a4138c3e7cc63e1ed59e3798246988648b29d3d38434d450d0084",
       "evidence": "MB15 AFYX-313: independently reviewed authored UTF-8 resource validation, portable package paths and aggregate decoded-size bounds; no external implementation imported."
     },
     {
@@ -3057,13 +3063,13 @@
     {
       "path": "scripts/install-afyx-graph.ps1",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "6cf4552c0c362ec2cd0fbb552829f4cb6073581474f5f8f57459ea21f5ee8be8",
+      "reviewedSha256": "72d88bcad13a1b6ab09a65d18d7a13957d0b975c34a0661efa0fe6ec768ec895",
       "evidence": "AFYX post-v1 audit remediation: AFYX-owned installer and lifecycle implementation maintained in this repository."
     },
     {
       "path": "scripts/install-afyx-graph.sh",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "a75cd9c899f5c54848802f36c82797d4e49ae6dc9cf28084b88aeb6b4e877860",
+      "reviewedSha256": "e802e2074cd978d259fbf6e00f4881f56d716bd03bad40b3671e28f9344c53f4",
       "evidence": "AFYX post-v1 audit remediation: AFYX-owned installer and lifecycle implementation maintained in this repository."
     },
     {
@@ -3117,13 +3123,13 @@
     {
       "path": "scripts/resolve-git-release-artifacts.mjs",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "fde1df2756ebe53d6f4c00a21d89b04291a2893d2563eb49fffeeb8c137a8955",
+      "reviewedSha256": "f6d1c1ffee59c8d5a4f0d6ef62f00b89d3b43048151ec239efe4fb46dd869462",
       "evidence": "MB12 review: authored from AFYX functional requirements and existing reviewed 251f73a contracts; no upstream implementation, prompts, assets or dependency imported. Trusted-host boundaries and negative/regression tests recorded in MB12-native-consolidation-20261114-r1."
     },
     {
       "path": "scripts/stage-npm-release.mjs",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "e5901f8ff9ab038b0f0c6d6ea49a86ec0f94792f0ec59ce1509b0c82425bfd97",
+      "reviewedSha256": "3e810f4f43b9e1de984bb71e1d33ecdbff9f778d454f6309e7a67832f628dee3",
       "evidence": "MB12 review: authored from AFYX functional requirements and existing reviewed 251f73a contracts; no upstream implementation, prompts, assets or dependency imported. Trusted-host boundaries and negative/regression tests recorded in MB12-native-consolidation-20261114-r1."
     },
     {
@@ -3165,13 +3171,13 @@
     {
       "path": "uninstall.ps1",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "45c435ee652a561e136f3d6754dec7830b93f033f6633aa90c3db450a3612169",
+      "reviewedSha256": "5ddb6cbca2ca43ff1639f8a6fa1c733250537d3feb6e75bdfc8a8e97e1a7f105",
       "evidence": "AFYX native Kit lifecycle entrypoint maintained in this repository."
     },
     {
       "path": "uninstall.sh",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "50c6533a8618c349d16546ad9340d08eaa54cb06faf93d84308ddc7901783244",
+      "reviewedSha256": "50061249c47f3beedd204ab41eb4e2541755df59fd829991c13c1eabe911a07b",
       "evidence": "AFYX post-v1 audit remediation: AFYX-owned installer and lifecycle implementation maintained in this repository."
     },
     {

@@ -1,6 +1,8 @@
 ---
 name: afyx-ui-architect
 description: Review or implement user interfaces, design systems, responsive layouts, and accessibility. Activate for explicit UI engineering tasks or approved manual selection. Exclude backend-only, API, schema, infrastructure, and text-only edits.
+metadata:
+  version: "0.1.0"
 ---
 
 # Afyx UI Architect

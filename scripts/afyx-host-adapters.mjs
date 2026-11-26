@@ -512,38 +512,30 @@ export function createInstalledHostAdapters({
         };
       }
 
-      // Assistive guidance query
-      const runResult = spawnSync(nodePath, [forgeEntrypoint, 'doctor'], {
+      const taskText = request.payload?.taskText ?? request.intent;
+      if (typeof taskText !== 'string' || !taskText.trim() || taskText.length > 65536) {
+        return { status: 'FAILED', reason: 'FORGE_TASK_TEXT_REQUIRED', output: null };
+      }
+      const runResult = spawnSync(nodePath, [forgeEntrypoint, 'plan', '--stdin', '--format', 'json'], {
+        input: taskText,
         encoding: 'utf8',
         timeout: requestTimeout(request, 5_000),
+        maxBuffer: 1024 * 1024,
         windowsHide: true,
       });
-
       if (runResult.status !== 0 || runResult.error) {
-        return {
-          status: 'FAILED',
-          reason: `FORGE_EXECUTION_ERROR: ${runResult.error?.message || runResult.stderr?.trim() || `Exit code ${runResult.status}`}`,
-          output: null,
-        };
+        return { status: 'FAILED', reason: 'FORGE_EXECUTION_ERROR', output: null };
       }
-
-      let doctorPayload = null;
+      let plan;
       try {
-        doctorPayload = JSON.parse(runResult.stdout);
+        plan = JSON.parse(runResult.stdout);
       } catch {
-        doctorPayload = { rawOutput: runResult.stdout };
+        return { status: 'FAILED', reason: 'FORGE_PLAN_INVALID', output: null };
       }
-
-      return {
-        status: 'SUCCESS',
-        output: doctorPayload,
-        contextBytes: Buffer.byteLength(JSON.stringify(doctorPayload), 'utf8'),
-        evidence: [
-          { kind: 'forge-mode', value: 'ASSISTIVE_GUIDANCE_ONLY' },
-          { kind: 'forge-governance', value: doctorPayload.governance?.status || 'A8_GATED' },
-        ],
-        followUpRequests: [],
-      };
+      if (plan?.contract !== 'afyx-forge-plan/v1') {
+        return { status: 'FAILED', reason: 'FORGE_PLAN_INVALID', output: null };
+      }
+      return success(plan, 'adaptive-engineering-policy');
     },
 
     /**
@@ -669,7 +661,7 @@ export function createInstalledHostAdapters({
         contextBytes: 64,
         evidence: [
           { kind: 'telemetry-mode', value: 'PASSIVE_NON_BLOCKING' },
-          { kind: 'telemetry-gating', value: 'PERMISSION_VERIFIED' },
+          { kind: 'telemetry-tool', value: 'TOOL_PRESENT' },
         ],
         followUpRequests: [],
       };

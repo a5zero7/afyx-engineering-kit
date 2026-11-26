@@ -1,5 +1,6 @@
 /** AFYX-owned skill lifecycle. No provider profile is selected implicitly. */
 import { createHash } from 'node:crypto';
+import { readSkillFrontmatter } from './afyx-skill-catalog.mjs';
 import { createArtifactLineage, readStructuredDocument } from './afyx-context-source.mjs';
 import {
   existsSync, lstatSync, mkdirSync, readFileSync, readdirSync, renameSync,
@@ -93,10 +94,10 @@ function filesOf(source) {
   return files.sort((a, b) => a.path < b.path ? -1 : a.path > b.path ? 1 : 0);
 }
 function metadataOf(content) {
-  const match = /^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/.exec(content);
-  if (!match) fail('FRONTMATTER_REQUIRED');
+  const frontmatter = readSkillFrontmatter(content);
+  if (frontmatter === undefined) fail('FRONTMATTER_REQUIRED');
   const fields = new Map();
-  for (const line of match[1].split(/\r?\n/)) {
+  for (const line of frontmatter.split(/\r?\n/)) {
     if (!line.trim() || line.trimStart().startsWith('#')) continue;
     const item = /^([a-z][a-z0-9-]*):\s*(.*?)\s*$/.exec(line);
     if (!item) fail('FRONTMATTER_UNSUPPORTED');
@@ -378,10 +379,22 @@ export function applySkillInstall(packageBytes, preview, { authorize } = {}) {
   const root = preview.root;
   const target = preview.target;
   const stage = join(root, `.${payload.metadata.name}.afyx-stage`);
-  const backup = join(root, `.${payload.metadata.name}.afyx-rollback`);
-  if (itemAt(stage) || itemAt(backup)) fail('TRANSACTION_RECONCILIATION_REQUIRED');
+  const backup = join(root, "." + payload.metadata.name + ".afyx-rollback");
+  const retired = join(root, "." + payload.metadata.name + ".afyx-retired-rollback");
+  if (itemAt(stage) || itemAt(retired)) fail('TRANSACTION_RECONCILIATION_REQUIRED');
+  const rotate = Boolean(itemAt(backup));
+  if (rotate) {
+    if (preview.action !== 'UPDATE' || !itemAt(target)) fail('TRANSACTION_RECONCILIATION_REQUIRED');
+    const previous = validateSkill(backup, { allowDirectoryMismatch: true });
+    const markerPath = join(backup, '.afyx-skill-ownership.json');
+    ordinary(markerPath, false);
+    const marker = JSON.parse(readFileSync(markerPath, 'utf8'));
+    if (marker.contract !== SKILL_ENGINEERING_CONTRACT || marker.provider !== preview.provider ||
+        marker.digest !== previous.digest) fail('OWNERSHIP_DRIFT');
+  }
   mkdirSync(stage);
   let movedOld = false;
+  let rotated = false;
   try {
     for (const file of payload.files) {
       const destination = join(stage, ...file.path.split('/'));
@@ -391,12 +404,18 @@ export function applySkillInstall(packageBytes, preview, { authorize } = {}) {
     }
     if (validateSkill(stage, { allowDirectoryMismatch: true }).digest !== preview.digest) fail('PACKAGE_INTEGRITY_FAILED');
     writeFileSync(join(stage, '.afyx-skill-ownership.json'), `${JSON.stringify({ contract: SKILL_ENGINEERING_CONTRACT, provider: preview.provider, digest: preview.digest })}\n`, { flag: 'wx' });
+    if (rotate) {
+      renameSync(backup, retired);
+      rotated = true;
+    }
     if (itemAt(target)) { renameSync(target, backup); movedOld = true; }
     renameSync(stage, target);
     if (validateSkill(target).digest !== preview.digest) fail('INSTALL_VERIFY_FAILED');
+    if (rotated) rmSync(retired, { recursive: true });
     return { contract: SKILL_ENGINEERING_CONTRACT, status: 'VERIFIED', target, digest: preview.digest, rollbackAvailable: movedOld };
   } catch (error) {
     if (movedOld && !itemAt(target)) renameSync(backup, target);
+    if (rotated && !itemAt(backup)) renameSync(retired, backup);
     if (itemAt(stage)) rmSync(stage, { recursive: true });
     throw error;
   }

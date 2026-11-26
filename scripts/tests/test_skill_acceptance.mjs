@@ -43,8 +43,17 @@ test('review binds deterministic package inventory and exact preview before each
     const second = packageSkill(updatedSource), update = previewSkillInstall(second, { provider, skillsRoot });
     assert.equal(update.action, 'UPDATE');
     assert.equal(applySkillInstall(second, update, { authorize: () => true }).status, 'VERIFIED');
+    const secondDigest = inspectSkillPackage(second).metadata.digest;
+    reviseSkill(updatedSource, {
+      description: 'Review the latest fixture safely.',
+      triggers: ['review the latest fixture'],
+      body: 'Inspect current source and report evidence.',
+    }, { authorize: () => true });
+    const third = packageSkill(updatedSource);
+    const next = previewSkillInstall(third, { provider, skillsRoot });
+    assert.equal(applySkillInstall(third, next, { authorize: () => true }).rollbackAvailable, true);
     const rolled = rollbackSkillInstall({ provider, skillsRoot, name: 'afyx-acceptance' }, { authorize: () => true });
-    assert.equal(rolled.digest, digest);
+    assert.equal(rolled.digest, secondDigest);
     assert.equal(verifySkillInstall({ provider, skillsRoot, name: 'afyx-acceptance' }).status, 'VERIFIED');
     assert.equal(sha(readFileSync(foreign)), foreignSha);
     assert.ok(existsSync(rolled.displaced));

@@ -1,6 +1,6 @@
 ---
 name: afyx-forge
-description: Standalone Afyx Forge Core adaptive engineering policy and actionable guidance engine. Formulates structured investigation plans, tool recommendations, validation scopes, and completion criteria for ordinary engineering tasks.
+description: Standalone Afyx Forge Core adaptive engineering policy and actionable guidance engine. Formulates structured investigation plans, tool recommendations, validation scopes, and completion criteria for complex tasks that need structured planning. Skip routine edits, simple lookups, and tasks whose plan is already clear.
 metadata:
   version: "0.1.0"
 ---
@@ -37,7 +37,7 @@ afyx-forge plan --task-file ./task.md --format markdown --output ./plan.md
 
 1. **Proportional Execution:** Select between `DIRECT_MINIMAL`, `FOCUSED_INVESTIGATION`, `STRUCTURAL_GRAPH_AWARE`, `DOMAIN_SPECIALIST`, and `SECURITY_DEFENSE_IN_DEPTH`.
 2. **Graph-Aware Routing:** Use Afyx Graph only when cross-file relationships, inheritance, or impact analysis materially justify it. Fall back gracefully to direct-source tools when Graph is absent.
-3. **Context Engine Default Enabled:** A healthy installed Context Engine is available without an opt-in variable; use it only for substantial or repeated context, honor explicit `AFYX_CONTEXT_OPT_IN=0`, and never claim Graph MCP interception without runtime evidence.
+3. **Context Engine:** Use a healthy and authorized Context Engine only when it materially reduces large or repeated output. Honor `AFYX_CONTEXT_OPT_IN=0` and verify Graph MCP interception at runtime before reporting it.
 4. **Bounded Execution:** Forge operates in assistive guidance mode. Autonomous destructive operations, unapproved git push/commit, and secret leaks are strictly refused.
 5. **Governance Integrity:** The formal A8 benchmark campaign remains `EVALUATION_GATED`. Forge Core Alpha provides guidance for day-to-day engineering without executing unapproved benchmark models.
 

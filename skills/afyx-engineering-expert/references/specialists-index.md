@@ -31,3 +31,20 @@ This index provides selective routing for the 16 deep engineering specialists av
 | Sprint delivery cadence, capacity planning, risk tracking, agile sync | `references/technical-project-manager.md` | product-manager, solutions-architect |
 | Technical documentation, OpenAPI/Swagger specs, SOPs, release notes | `references/technical-writer.md` | software-engineer, product-manager |
 
+## Core disciplines
+
+| Signal | Primary reference | Common supporting reference |
+|---|---|---|
+| Product outcome, roadmap, prioritization | `references/product-manager.md` | business-analyst, subject-matter-expert |
+| Business rules, requirements, process gaps | `references/business-analyst.md` | subject-matter-expert, system-analyst |
+| Domain-specific terms, operations, regulations | `references/subject-matter-expert.md` | business-analyst, relevant technical expert |
+| System requirements, interactions, data/API specifications | `references/system-analyst.md` | solutions-architect, qa-engineer |
+| Architecture, integration, tradeoffs, NFRs | `references/solutions-architect.md` | cybersecurity-devsecops, sre |
+| Interaction design, flows, accessibility | `references/ui-ux-designer.md` | product-manager, qa-engineer |
+| Application coding, debugging, refactoring | `references/software-engineer.md` | qa-engineer, relevant specialist |
+| Model/data pipelines, inference, evaluation | `references/ai-ml-engineer.md` | dba, cybersecurity-devsecops |
+| ERP modules, business flows, migrations | `references/erp-technical-specialist.md` | business-analyst, software-engineer |
+| Threats, permissions, CI/CD security, secrets | `references/cybersecurity-devsecops.md` | solutions-architect, software-engineer |
+| Availability, incident, performance, observability | `references/site-reliability-engineer.md` | solutions-architect, dba |
+| Schema, query, storage, backups, migrations | `references/database-administrator.md` | software-engineer, sre |
+| Test strategy, regression, acceptance evidence | `references/qa-engineer.md` | system-analyst, software-engineer |

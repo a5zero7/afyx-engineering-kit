@@ -173,7 +173,7 @@ class ControlPlaneContractTests(unittest.TestCase):
         self.assertNotIn("headroom", by_id)
         self.assertEqual(
             {item["id"] for item in contract["components"] if "minimal" in item["presets"].split(";")},
-            {"afyx-efficient-coding", "afyx-odoo-engineering"},
+            {"afyx-efficient-coding"},
         )
         self.assertEqual(
             {item["id"] for item in contract["components"] if "recommended" in item["presets"].split(";")},
@@ -200,16 +200,16 @@ class ControlPlaneContractTests(unittest.TestCase):
 
     def test_minimal_install_verify_is_idempotent_and_preserves_config(self) -> None:
         first = self.install_preset()
-        self.assertIn("v1|minimal|codex|afyx-efficient-coding,afyx-odoo-engineering", first.stdout)
+        self.assertIn("v1|minimal|codex|afyx-efficient-coding", first.stdout)
         self.assertTrue((self.skills / "afyx-efficient-coding" / ".afyx-install.json").is_file())
-        self.assertTrue((self.skills / "afyx-odoo-engineering" / ".afyx-install.json").is_file())
+        self.assertFalse((self.skills / "afyx-odoo-engineering").exists())
         self.assertFalse((self.skills / "prompt-master").exists())
         first_digest = tree_digest(self.skills)
         second = self.install_preset()
         self.assertIn("IN_SYNC", second.stdout)
         self.assertEqual(tree_digest(self.skills), first_digest)
         updated = self.update_preset()
-        self.assertIn("v1|minimal|codex|afyx-efficient-coding,afyx-odoo-engineering", updated.stdout)
+        self.assertIn("v1|minimal|codex|afyx-efficient-coding", updated.stdout)
         self.assertEqual(tree_digest(self.skills), first_digest)
         verified = self.verify_preset()
         self.assertIn("Plan/afyx-efficient-coding", verified.stdout)

@@ -68,11 +68,11 @@ capability is selected only when relevant, healthy, and authorized.
 | Product | Core capability | Implementation and maturity |
 |---|---|---|
 | [**Afyx Graph**](afyx-graph/engine/README.md) | Local indexing, structural code intelligence, symbol/dependency navigation, impact and affected-test analysis, CLI and optional MCP. | **Standalone Node.js runtime · Technical Alpha**; static evidence requires runtime/test verification. |
-| [**Afyx Forge**](afyx-forge/README.md) | Deterministic task classification, engineering policies, bounded plans, and diagnostics through Forge Core; distinct evaluation infrastructure. | **Standalone Node.js CLI/API v0.1.0 · Technical Alpha**; bounded local assistive planning approved, not autonomous code changes; historical 36-cell evaluation remains `NOT_RUN`. |
+| [**Afyx Forge**](afyx-forge/README.md) | Deterministic task classification, engineering policies, bounded plans, and diagnostics through Forge Core; distinct evaluation infrastructure. | **Standalone Node.js CLI/API v0.1.0 · Technical Alpha**; bounded local assistive planning approved, not autonomous code changes; comparative evaluation is pending. |
 | [**Afyx Efficient Coding**](https://github.com/a5zero7/afyx-engineering-kit/blob/main/docs/tool-guides/AFYX_EFFICIENT_CODING.md) | Evidence-led coding, debugging, refactoring, focused validation, and engineering reporting. | **Standalone agent skill v1.2.2 · Implemented**; guidance, not an execution engine. |
 | [**Afyx Odoo Engineering**](https://github.com/a5zero7/afyx-engineering-kit/blob/main/docs/tool-guides/AFYX_ODOO_ENGINEERING.md) | Odoo-specific ORM, views, security, module development, migration, and troubleshooting. | **Standalone agent skill v1.2.0 · Implemented**; reference coverage Odoo 10–20, with target-version verification required. |
 | [**Afyx Context Engine (ACE)**](afyx-context/README.md) | Conservative context reduction, local storage, integrity checks, and exact-original recovery. | **Standalone Node.js runtime v0.1.0 · Technical Alpha**; explicit Kit selection, no universal savings guarantee. |
-| [**Afyx Engineering Expert**](skills/afyx-engineering-expert/README.md) | Adaptive engineering guidance across 13 disciplines and six optional workflows. | **Standalone agent skill v0.1.1 · Implemented**; final D.6 substantive acceptance remains pending. |
+| [**Afyx Engineering Expert**](skills/afyx-engineering-expert/README.md) | Adaptive engineering guidance across 13 disciplines and six optional workflows. | **Standalone agent skill v0.1.1 · Implemented**; full end-to-end validation is pending. |
 
 ### Platform services and supporting utilities
 
@@ -185,8 +185,7 @@ against an attestation for the specific artifact you install.
   runtime on supported installation paths. This is distinct from the formal Forge
   B0–B5 evaluator campaign: its 36 cells remain `NOT_RUN`; the Owner's A8 GO
   applies only to bounded local assistive planning, never autonomous execution.
-- Engineering Expert is usable as a skill, while final D.6 substantive review is
-  still outside the accepted claims.
+- Engineering Expert is usable as a skill. Full end-to-end validation is pending.
 
 
 See [Product Vision](https://github.com/a5zero7/afyx-engineering-kit/blob/main/docs/PRODUCT_VISION.md) for the maintained product contract
@@ -288,7 +287,7 @@ continuing.
 
 | Preset | Desired components |
 |---|---|
-| `minimal` | Efficient Coding, Odoo Engineering |
+| `minimal` | Efficient Coding |
 | `recommended` | Minimal + Afyx Engineering Expert |
 | `full` | Recommended + Afyx Graph, Context, Forge, and Windows-only Usage Tracking |
 | `custom` | Only components repeated with `CustomComponent` / `--custom-component` |
@@ -376,8 +375,8 @@ afyx-forge doctor
 afyx-forge plan --task "Trace a cross-module data consistency regression" --format markdown
 ```
 
-For source and full usage, see [Forge Core](afyx-forge/README.md). A planned
-validation checklist is **not** a completed validation or formal A8 verdict.
+For source and full usage, see [Forge Core](afyx-forge/README.md). Execute the planned
+checks to establish validation results.
 
 ### Ask for a cross-disciplinary review
 

@@ -106,10 +106,10 @@ class GlobalRoutingTests(unittest.TestCase):
     def test_owned_block_drifts_and_repair_is_scoped(self):
         self.run_tool("--apply")
         path = self.targets["codex"]
-        path.write_text(path.read_text().replace("Use the lowest-cost reliable", "Use the fastest available"))
+        path.write_text(path.read_text().replace("Start with direct source", "Start with guesswork"))
         self.assertEqual(self.run_tool("--verify")["providers"][0]["status"], "DRIFTED_OWNED")
         self.run_tool("--apply")
-        self.assertIn("Use the lowest-cost reliable", path.read_text())
+        self.assertIn("Start with direct source", path.read_text())
 
     def test_duplicate_marker_denied(self):
         self.run_tool("--apply")

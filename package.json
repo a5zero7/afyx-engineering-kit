@@ -13,8 +13,9 @@
   },
   "scripts": {
     "prepack": "node scripts/prepare-g6-package.mjs",
+    "test:hermetic": "node scripts/tests/run-hermetic.mjs",
     "test:pack-json": "node --test scripts/tests/test_pack_json.mjs",
-    "test": "node --test scripts/tests/test_npm_installer.mjs scripts/tests/test_macos_installer_parity.mjs scripts/tests/test_v101_regressions.mjs scripts/tests/test_v102_audit.mjs scripts/tests/test_b2_governance.mjs && python scripts/audit-legacy-identity.py"
+    "test": "npm run test:hermetic && python scripts/audit-legacy-identity.py"
   },
   "files": [
     ".afyx-source-revision",
