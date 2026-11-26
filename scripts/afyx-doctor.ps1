@@ -98,7 +98,8 @@ foreach ($id in @('afyx-odoo-engineering', 'afyx-context', 'afyx-forge')) {
         default { Write-Line 'WARN' $runtime.Name "$($runtime.State): $($runtime.Detail)" }
     }
 }
-$codexRoot = if ($env:CODEX_HOME) { $env:CODEX_HOME } else { Join-Path $env:USERPROFILE '.codex' }
+$userHome = if ($env:USERPROFILE) { $env:USERPROFILE } else { $HOME }
+$codexRoot = if ($env:CODEX_HOME) { $env:CODEX_HOME } else { Join-Path $userHome '.codex' }
 $mcpLock = Join-Path $codexRoot '.afyx-codex-mcp.lock'
 if ((Test-Path -LiteralPath $mcpLock -PathType Leaf) -or
     (Test-Path -LiteralPath (Join-Path $mcpLock '.ace-lock'))) {

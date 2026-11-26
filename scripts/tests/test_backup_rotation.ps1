@@ -1,4 +1,4 @@
-﻿# Strict test for AfyxSkillLifecycle backup retention and safe historical rotation
+# Strict test for AfyxSkillLifecycle backup retention and safe historical rotation
 [CmdletBinding()]
 param()
 

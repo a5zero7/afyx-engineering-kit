@@ -1,4 +1,4 @@
-﻿[CmdletBinding(SupportsShouldProcess)]
+[CmdletBinding(SupportsShouldProcess)]
 param(
     [string]$SkillsRoot = (Join-Path $(if ($env:USERPROFILE) { $env:USERPROFILE } else { $HOME }) '.agents\skills'),
     [switch]$SkipSelfUpdate,
