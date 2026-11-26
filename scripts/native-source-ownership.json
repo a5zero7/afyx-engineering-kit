@@ -2769,7 +2769,7 @@
     {
       "path": "install.sh",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "4b6d63e9768bf88bdf00462c02414c15413196fd69b041935227a064d34bf7dd",
+      "reviewedSha256": "bb5acb653e00536b542a811054b6c379cd6931ed1362ef83f1751c119b149750",
       "evidence": "AFYX POSIX kit installer with explicit platform, component, and provider skill-root lifecycle boundaries (AFYX-361, AFYX-362)."
     },
     {

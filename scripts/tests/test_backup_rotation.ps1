@@ -183,7 +183,7 @@ try {
     Write-Host "`nAll AfyxSkillLifecycle backup rotation tests PASSED successfully."
 } finally {
     $resolvedTemp = [IO.Path]::GetFullPath($testTemp)
-    $expectedParent = [IO.Path]::GetFullPath([IO.Path]::GetTempPath()).TrimEnd('\', '/')
+    $expectedParent = [IO.Path]::GetFullPath($baseTemp).TrimEnd('\', '/')
     if ((Split-Path -Parent $resolvedTemp).TrimEnd('\', '/') -ne $expectedParent -or (Split-Path -Leaf $resolvedTemp) -notlike 'afyx-test-backup-rot-*') {
         throw "Refusing cleanup outside owned test fixture: $resolvedTemp"
     }
