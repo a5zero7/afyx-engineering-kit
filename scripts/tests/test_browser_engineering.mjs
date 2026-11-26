@@ -240,8 +240,10 @@ test('real owned Chrome: pages, DOM, interaction, diagnostics, trace, export and
     await new Promise((done) => setTimeout(done, 100));
     assert.equal(forbiddenHits, 0, 'subresource and redirect requests must fail before reaching untrusted origin');
   } finally {
-    try { await session.close(); }
-    finally {
+    try {
+      const receipts = await Promise.all([session.close(), session.close()]);
+      assert.ok(receipts.every((receipt) => receipt.processExited && receipt.profileRemoved));
+    } finally {
       server.closeAllConnections(); forbidden.closeAllConnections();
       await Promise.all([new Promise((done) => server.close(done)), new Promise((done) => forbidden.close(done))]);
       assert.equal(dirname(directory), realpathSync(tmpdir())); assert.equal(lstatSync(directory).isSymbolicLink(), false);

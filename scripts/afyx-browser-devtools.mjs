@@ -117,6 +117,8 @@ function scopedPath(root, target, mustExist = true) {
 /** One owned CDP session manager. Constructor options are trusted host policy,
  * never options taken from model-supplied command JSON. No attach API exists. */
 export class AfyxBrowserSession {
+  #closing = null;
+
   constructor(options = {}) {
     this.chromePath = options.chromePath || findChromeBinary();
     this.headless = options.headless !== false;
@@ -164,7 +166,7 @@ export class AfyxBrowserSession {
   }
 
   async launch() {
-    if (this.process) throw new Error('BROWSER_ALREADY_RUNNING');
+    if (this.process || this.#closing) throw new Error('BROWSER_ALREADY_RUNNING');
     if (!this.chromePath) throw new Error('BROWSER_EXECUTABLE_NOT_FOUND');
     this.commandCount = 0; this.consoleLogs = []; this.networkRequests = []; this.dialog = null; this.trace = null;
     this.interceptionDiagnostics = { staleRequests: 0, closedPageSessions: 0, fatalErrors: 0 };
@@ -567,7 +569,14 @@ export class AfyxBrowserSession {
     const body = JSON.stringify({ traceEvents: this.trace.events, truncated: this.trace.truncated });
     writeFileSync(file, body, { flag: 'wx', mode: 0o600 }); return { path: file, bytes: Buffer.byteLength(body) };
   }
-  async _close() {
+  _close() {
+    this.#closing ??= Promise.resolve().then(() => this.#release()).finally(() => {
+      this.#closing = null;
+    });
+    return this.#closing;
+  }
+
+  async #release() {
     clearTimeout(this._expiry); clearTimeout(this._traceExpiry);
     if (this._exitCleanup) process.removeListener('exit', this._exitCleanup);
     if (!this.budgetDiagnostics.closureReason) {
@@ -575,10 +584,23 @@ export class AfyxBrowserSession {
       this.budgetDiagnostics.interruptionSource = 'HOST_REQUEST';
     }
     diagnosticSessions.delete(this);
-    const child = this.process; this.process = null;
+    const child = this.process;
+    // Let Chromium close its helper processes and flush the owned profile before
+    // deleting it. The fallback only signals the child launched by this session.
+    if (child && child.exitCode === null && child.signalCode === null && this.isAttached) {
+      await Promise.race([this.send('Browser.close').catch(() => {}), this._processExited, delay(500)]);
+      await Promise.race([this._processExited, delay(1500)]);
+    }
+    this.process = null;
     this.ws?.close(); this.ws = null; this.isAttached = false; this._rejectPending('BROWSER_SESSION_CLOSED');
-    if (child && child.exitCode === null) { child.kill(); await Promise.race([this._processExited, delay(3000)]);
-      if (child.exitCode === null) { child.kill('SIGKILL'); await Promise.race([this._processExited, delay(2000)]); } }
+    if (child && child.exitCode === null && child.signalCode === null) {
+      child.kill();
+      await Promise.race([this._processExited, delay(3000)]);
+      if (child.exitCode === null && child.signalCode === null) {
+        child.kill('SIGKILL');
+        await Promise.race([this._processExited, delay(2000)]);
+      }
+    }
     if (child && child.exitCode === null && child.signalCode === null) { this.process = child; throw new Error('BROWSER_PROCESS_STOP_FAILED'); }
     if (this.userDataDir) {
       const owned = this.userDataDir;

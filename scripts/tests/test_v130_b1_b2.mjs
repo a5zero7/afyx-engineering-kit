@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, mkdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -22,7 +22,7 @@ const repo = fileURLToPath(new URL('../../', import.meta.url));
 const authorize = () => true;
 
 function fixture(t) {
-  const root = mkdtempSync(join(tmpdir(), 'afyx-b12-test-'));
+  const root = realpathSync(mkdtempSync(join(tmpdir(), 'afyx-b12-test-')));
   t.after(() => rmSync(root, { recursive: true, force: true }));
   return root;
 }

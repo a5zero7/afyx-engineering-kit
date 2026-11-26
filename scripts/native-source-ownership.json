@@ -2769,7 +2769,7 @@
     {
       "path": "scripts/afyx-browser-devtools.mjs",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "d95648e6dbb0ff66e3c9bd409fa2b6b88fa54980d173b77f255a29f2160268e6",
+      "reviewedSha256": "a48b16dadd7c5bc21c583d466b6ce80356d3d0dd9789b0bb223e6ed38769da1c",
       "evidence": "MB18.3 AFYX-190/AFYX-105: reviewed budget diagnostics tracking (startedAt, deadline, closureReason, interruptionSource), structured timeout error classification, and bounded session receipt."
     },
     {
