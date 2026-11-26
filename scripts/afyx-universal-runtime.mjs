@@ -29,6 +29,7 @@ import {
 } from './afyx-capability-orchestrator.mjs';
 import { createInstalledHostAdapters } from './afyx-host-adapters.mjs';
 import { createNativeSkillHostAdapter } from './afyx-native-skill-host.mjs';
+import { discoverSkillDescriptors } from './afyx-skill-catalog.mjs';
 import { ACCEPTED_PROVIDERS } from './afyx-modular-runtime.mjs';
 
 export const AFYX_UNIVERSAL_RUNTIME_CONTRACT = 'AfyxUniversalRuntime/v1';
@@ -520,6 +521,23 @@ export function createInstalledAfyxRuntime({
     installed: true, enabled: componentEnabled(id, componentSettings?.[id], environment), healthy: true, compatible: true,
     authorized: authorizations[id] === true, sourceIdentity: sha256File(fileURLToPath(new URL(`./${id}.mjs`, import.meta.url))), observationSource: 'BUNDLED_HOST_CAPABILITY',
   }]));
+  const uiSkillId = 'afyx-ui-architect';
+  const uiHost = trustedCapabilities.ui;
+  if (typeof uiHost?.authorize === 'function' && authorizations[uiSkillId] === true &&
+      componentEnabled(uiSkillId, componentSettings?.[uiSkillId], environment)) {
+    const descriptor = discoverSkillDescriptors({
+      ...trustedCapabilities.skills,
+      roots: [join(resolvedInstallRoot, 'skills')],
+      provider: provider ?? 'codex',
+    }).items.find(({ id }) => id === uiSkillId);
+    if (descriptor) {
+      bundledStates[uiSkillId] = {
+        installed: true, enabled: true, healthy: true, compatible: true, authorized: true,
+        capability: 'ui-engineering', sourceIdentity: descriptor.metadataSha256,
+        observationSource: 'TRUSTED_HOST_ADAPTER',
+      };
+    }
+  }
   const adapterOptions = {
       installRoot: resolvedInstallRoot,
       projectRoot: resolvedProjectRoot,

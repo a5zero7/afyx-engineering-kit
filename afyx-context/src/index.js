@@ -37,4 +37,4 @@ export { ImpactSimulator, IMPACT_SIMULATION_CONTRACT } from './impact-simulator.
 export { DbInspector, DB_INSPECTION_CONTRACT } from './db-inspector.js';
 export { EnvPreflight, ENV_PREFLIGHT_CONTRACT } from './env-preflight.js';
 export { CliCompactor, CLI_COMPACTOR_CONTRACT, COMPACTED_OUTPUT_MARKER } from './cli-compactor.js';
-export { MassiveContextNavigator, MASSIVE_CONTEXT_CONTRACT } from './massive-context.js';
+export { MassiveContextNavigator, MASSIVE_CONTEXT_CONTRACT, readStructuredDocument } from './massive-context.js';

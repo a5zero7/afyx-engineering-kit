@@ -1,3 +1,4 @@
+import { parseDelimitedRows } from './afyx-context-source.mjs';
 import { readArchive } from './afyx-document-archive.mjs';
 import { readXml, children, descendants, localName, textOf } from './afyx-document-xml.mjs';
 
@@ -39,26 +40,6 @@ function table(rows) {
   if (width > 256) throw new Error('DOCUMENT_TABLE_COLUMN_LIMIT');
   const render = (r) => `| ${Array.from({ length: width }, (_, i) => cell(r[i] ?? '')).join(' | ')} |`;
   return [render(rows[0]), render(Array(width).fill('---')), ...rows.slice(1).map(render)].join('\n');
-}
-function csvRows(text, check) {
-  const rows = []; let row = []; let value = ''; let quoted = false; let closed = false;
-  for (let i = 0; i < text.length; i++) {
-    check(); const ch = text[i];
-    if (quoted) {
-      if (ch === '"' && text[i + 1] === '"') { value += '"'; i++; }
-      else if (ch === '"') { quoted = false; closed = true; }
-      else value += ch;
-    } else if (ch === '"' && !value && !closed) quoted = true;
-    else if (ch === ',' || ch === '\n') {
-      row.push(value); value = ''; closed = false;
-      if (row.length > 256) throw new Error('DOCUMENT_TABLE_COLUMN_LIMIT');
-      if (ch === '\n') { rows.push(row); row = []; }
-    } else { if (closed || ch === '"') throw new Error('CSV_MALFORMED'); value += ch; }
-    if (rows.length > 50_000) throw new Error('DOCUMENT_TABLE_ROW_LIMIT');
-  }
-  if (quoted) throw new Error('CSV_UNCLOSED_QUOTE');
-  if (value || row.length || closed) { row.push(value); rows.push(row); }
-  return rows;
 }
 function html(text, check) {
   // HTML is interpreted only as inert text tokens. No browser, network or scripts.
@@ -242,7 +223,7 @@ export function convertBytes(bytes, format, limits, check) {
   const references = [{ kind: 'lines', start: 1, end: text ? text.split('\n').length : 0 }];
   if (format === 'txt' || format === 'md') return { markdown: text, references };
   if (format === 'html') return { markdown: html(text, check), references };
-  if (format === 'csv') return { markdown: table(csvRows(text, check)), references };
+  if (format === 'csv') return { markdown: table(parseDelimitedRows(text, ',', check)), references };
   if (format === 'json') return { markdown: `\`\`\`json\n${JSON.stringify(JSON.parse(text), null, 2)}\n\`\`\``, references };
   if (format === 'xml') {
     readXml(text, check);

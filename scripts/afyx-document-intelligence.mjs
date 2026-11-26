@@ -2,7 +2,7 @@
 /** Standalone, optional document conversion. Input text remains untrusted data. */
 import { constants, closeSync, fstatSync, lstatSync, openSync, readSync, realpathSync } from 'node:fs';
 import { basename, dirname, isAbsolute, relative, resolve } from 'node:path';
-import { createHash } from 'node:crypto';
+import { createArtifactLineage, sha256Bytes as hex } from './afyx-context-source.mjs';
 import { fileURLToPath } from 'node:url';
 import { Worker } from 'node:worker_threads';
 import { formatNames } from './afyx-document-formats.mjs';
@@ -11,7 +11,6 @@ export const DOCUMENT_CONTRACT = 'AfyxDocument/v1';
 export const DOCUMENT_LIMITS = Object.freeze({ maxInputBytes: 8 * 1024 * 1024, maxInflatedBytes: 32 * 1024 * 1024,
   maxEntryBytes: 8 * 1024 * 1024, maxEntries: 128, maxOutputBytes: 2 * 1024 * 1024,
   maxTimeMs: 3000, maxMemoryMb: 96 });
-const hex = (bytes) => createHash('sha256').update(bytes).digest('hex');
 function diagnosticCode(error) {
   const message = String(error.message || error);
   if (error.code?.startsWith('E')) return `DOCUMENT_FILESYSTEM_${error.code}`;
@@ -153,7 +152,9 @@ export async function convertDocument(input, policy = {}) {
       return errorResult(error, source);
     }
     return { contract: DOCUMENT_CONTRACT, status: 'SUCCEEDED', format: result.format, source,
-      markdown: result.markdown, metadata: { converter: 'AFYX-native', network: false, macrosExecuted: false,
+      markdown: result.markdown,
+      provenance: createArtifactLineage(admission.bytes, result.markdown, 'document-' + result.format),
+      metadata: { converter: 'AFYX-native', network: false, macrosExecuted: false,
         ...result.metadata }, references: result.references.map((ref) => ({ ...ref, sourceSha256: source.sha256 })),
       untrusted: true, diagnostics: [] };
   } catch (error) { return errorResult(error, source); }

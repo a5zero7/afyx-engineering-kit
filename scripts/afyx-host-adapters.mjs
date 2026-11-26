@@ -203,6 +203,9 @@ export function createInstalledHostAdapters({
   const contextCliEntrypoint = join(resolvedInstallRoot, 'context', 'current', 'dist', 'cli.js');
   const forgeEntrypoint = join(resolvedInstallRoot, 'forge', 'current', 'bin', 'afyx-forge.js');
   const odooSkillDir = skillRoots['odoo-engineering'] ?? skillRoots['afyx-odoo-engineering'] ?? (existsSync(join(resolvedInstallRoot, 'skills', 'afyx-odoo-engineering')) ? join(resolvedInstallRoot, 'skills', 'afyx-odoo-engineering') : join(resolvedInstallRoot, 'skills', 'odoo-engineering'));
+  const uiSkillDir = skillRoots['afyx-ui-architect'] ?? join(resolvedInstallRoot, 'skills', 'afyx-ui-architect');
+  let uiContextSession;
+  let uiDescriptor;
   const expertSkillDir = skillRoots['afyx-engineering-expert'] ?? join(resolvedInstallRoot, 'skills', 'afyx-engineering-expert');
   const efficientSkillDir = skillRoots['efficient-coding'] ?? skillRoots['afyx-efficient-coding'] ?? (existsSync(join(resolvedInstallRoot, 'skills', 'afyx-efficient-coding')) ? join(resolvedInstallRoot, 'skills', 'afyx-efficient-coding') : join(resolvedInstallRoot, 'skills', 'efficient-coding'));
   const codexToolFile = codexToolsRoot ? join(resolve(codexToolsRoot), 'CodexUsage.psm1') : null;
@@ -585,6 +588,25 @@ export function createInstalledHostAdapters({
     /**
      * Real host adapter for Afyx Engineering Expert (Skill)
      */
+    'afyx-ui-architect': async (request) => {
+      const authorize = trustedCapabilities.ui?.authorize;
+      if (trustedCapabilities.skills?.disabled?.includes('afyx-ui-architect')) {
+        return { status: 'FAILED', reason: 'UI_SKILL_DISABLED', output: null };
+      }
+      if (request.permissions?.authorized !== true || typeof authorize !== 'function') {
+        return { status: 'FAILED', reason: 'UI_SKILL_HOST_AUTHORIZATION_REQUIRED', output: null };
+      }
+      const catalog = await import('./afyx-skill-catalog.mjs');
+      uiContextSession ??= catalog.createSkillContextSession();
+      uiDescriptor ??= catalog.discoverSkillDescriptors({
+        ...trustedCapabilities.skills, roots: [resolve(uiSkillDir, '..')],
+      }).items.find((item) => item.manifest === join(uiSkillDir, 'SKILL.md'));
+      if (!uiDescriptor || uiDescriptor.metadataSha256 !== request.sourceIdentity) {
+        return { status: 'FAILED', reason: 'UI_SKILL_UNAVAILABLE', output: null };
+      }
+      return success(catalog.loadSkillContext(uiDescriptor, { authorize, session: uiContextSession }), 'ui-engineering');
+    },
+
     'afyx-engineering-expert': async (request) => {
       if (['skill-discovery', 'skill-refinement', 'skill-composition'].includes(request.taskType)) {
         const catalog = await import('./afyx-skill-catalog.mjs');

@@ -15,10 +15,12 @@
  * - Clean-room original AFYX-native JavaScript implementation
  */
 
-import { createHash } from 'node:crypto';
+import { createArtifactLineage, sha256Bytes as sha256 } from './artifact-lineage.js';
 import {
   closeSync,
+  constants,
   existsSync,
+  fstatSync,
   openSync,
   readdirSync,
   readSync,
@@ -34,8 +36,125 @@ const BINARY_EXTENSIONS = new Set([
   '.exe', '.dll', '.so', '.dylib', '.bin', '.iso', '.woff', '.woff2', '.ttf'
 ]);
 
-function sha256(data) {
-  return createHash('sha256').update(data).digest('hex');
+
+const DOCUMENT_FORMATS = new Map([
+  ['.md', 'markdown'], ['.markdown', 'markdown'], ['.txt', 'text'],
+  ['.json', 'json'], ['.csv', 'csv'], ['.tsv', 'tsv'],
+]);
+const OPTIONAL_DOCUMENT_FORMATS = new Set(['.pdf', '.docx', '.xlsx', '.pptx']);
+const MAX_DOCUMENT_BYTES = 1024 * 1024;
+
+function fencedDocument(text, language) {
+  const runs = text.match(new RegExp('\u0060+', 'g')) || [];
+  const longest = runs.reduce((size, run) => Math.max(size, run.length), 2);
+  const fence = '\u0060'.repeat(longest + 1);
+  return fence + language + '\n' + text + '\n' + fence + '\n';
+}
+
+export function parseDelimitedRows(text, delimiter, check = () => {}) {
+  const rows = []; let row = []; let value = ''; let quoted = false; let closed = false;
+  for (let i = 0; i < text.length; i++) {
+    check(); const ch = text[i];
+    if (quoted) {
+      if (ch === '"' && text[i + 1] === '"') { value += '"'; i++; }
+      else if (ch === '"') { quoted = false; closed = true; }
+      else value += ch;
+    } else if (ch === '"' && !value && !closed) quoted = true;
+    else if (ch === delimiter || ch === '\n') {
+      row.push(value); value = ''; closed = false;
+      if (row.length > 256) throw new Error('DOCUMENT_TABLE_COLUMN_LIMIT');
+      if (ch === '\n') { rows.push(row); row = []; }
+    } else { if (closed || ch === '"') throw new Error('CSV_MALFORMED'); value += ch; }
+    if (rows.length > 50_000) throw new Error('DOCUMENT_TABLE_ROW_LIMIT');
+  }
+  if (quoted) throw new Error('CSV_UNCLOSED_QUOTE');
+  if (value || row.length || closed) { row.push(value); rows.push(row); }
+  return rows;
+}
+
+function delimitedDocument(text, delimiter, maxOutputBytes) {
+  const rows = parseDelimitedRows(text.replace(/\r\n?/g, '\n'), delimiter);
+  const width = rows[0]?.length;
+  if (!width || rows.some((row) => row.length !== width)) throw new SyntaxError('INVALID_DOCUMENT');
+  rows.splice(1, 0, Array(width).fill('---'));
+  const lines = [];
+  let size = 0;
+  for (const row of rows) {
+    const cells = row.map((cell) => cell
+      .replace(/[&\\|<>\[\]!\u0060]/g, (character) => '&#' + character.charCodeAt(0) + ';')
+      .replace(/\n/g, '<br>'));
+    size += cells.reduce((total, cell) => total + Buffer.byteLength(cell), 0) + (cells.length - 1) * 3 + 5;
+    if (size > maxOutputBytes) throw new RangeError('RESOURCE_LIMIT_EXCEEDED');
+    lines.push('| ' + cells.join(' | ') + ' |\n');
+  }
+  return lines.join('');
+}
+
+/** Reads authorized local data. The returned Markdown remains untrusted content. */
+export function readStructuredDocument(workspaceRoot, file, {
+  enabled = false,
+  maxInputBytes = MAX_DOCUMENT_BYTES,
+  maxOutputBytes = MAX_DOCUMENT_BYTES,
+  sourceRevision = 'UNKNOWN',
+} = {}) {
+  if (enabled !== true) return { status: 'ACCESS_DENIED', reason: 'DISABLED' };
+  if (![maxInputBytes, maxOutputBytes].every(
+    (limit) => Number.isSafeInteger(limit) && limit > 0 && limit <= MAX_DOCUMENT_BYTES
+  )) return { status: 'RESOURCE_LIMIT_EXCEEDED' };
+  const path = checkPathContainment(file, workspaceRoot, { expectFile: true, mustExist: true });
+  if (!path.contained) {
+    return { status: path.reason === 'TARGET_NOT_FOUND' ? 'INVALID_DOCUMENT' : 'ACCESS_DENIED' };
+  }
+  const extension = extname(path.canonicalPath).toLowerCase();
+  const format = DOCUMENT_FORMATS.get(extension);
+  if (!format) {
+    return { status: OPTIONAL_DOCUMENT_FORMATS.has(extension) ? 'NOT_AVAILABLE' : 'UNSUPPORTED_FORMAT' };
+  }
+  let descriptor;
+  try {
+    const before = statSync(path.canonicalPath);
+    descriptor = openSync(path.canonicalPath, constants.O_RDONLY | (constants.O_NOFOLLOW || 0));
+    const opened = fstatSync(descriptor);
+    if (!opened.isFile() || opened.nlink !== 1 || before.ino !== opened.ino || before.dev !== opened.dev) {
+      return { status: 'ACCESS_DENIED' };
+    }
+    if (opened.size > maxInputBytes) return { status: 'RESOURCE_LIMIT_EXCEEDED' };
+    const buffer = Buffer.alloc(opened.size + 1);
+    let count = 0;
+    while (count < buffer.length) {
+      const read = readSync(descriptor, buffer, count, buffer.length - count, count);
+      if (!read) break;
+      count += read;
+    }
+    const current = checkPathContainment(file, workspaceRoot, { expectFile: true, mustExist: true });
+    if (!current.contained || current.canonicalPath !== path.canonicalPath) return { status: 'ACCESS_DENIED' };
+    const after = fstatSync(descriptor);
+    if (count > maxInputBytes) return { status: 'RESOURCE_LIMIT_EXCEEDED' };
+    if (count !== opened.size || after.mtimeMs !== opened.mtimeMs || after.ctimeMs !== opened.ctimeMs) {
+      return { status: 'INVALID_DOCUMENT' };
+    }
+    const source = buffer.subarray(0, count);
+    const text = new TextDecoder('utf-8', { fatal: true }).decode(source);
+    if (!text.trim() || text.includes('\0')) return { status: 'INVALID_DOCUMENT' };
+    let markdown = text;
+    if (format === 'json') {
+      JSON.parse(text);
+      markdown = fencedDocument(text.trim(), 'json');
+    } else if (format === 'csv' || format === 'tsv') {
+      markdown = delimitedDocument(text, format === 'csv' ? ',' : '\t', maxOutputBytes);
+    } else if (format === 'text') {
+      markdown = fencedDocument(text.trimEnd(), 'text');
+    }
+    if (Buffer.byteLength(markdown) > maxOutputBytes) return { status: 'RESOURCE_LIMIT_EXCEEDED' };
+    const provenance = createArtifactLineage(source, markdown, 'document-' + format, { sourceRevision });
+    return { status: 'SUCCESS', format, markdown, provenance, untrusted: true, inputBytes: count, outputBytes: Buffer.byteLength(markdown) };
+  } catch (error) {
+    if (['RESOURCE_LIMIT_EXCEEDED', 'DOCUMENT_TABLE_ROW_LIMIT', 'DOCUMENT_TABLE_COLUMN_LIMIT'].includes(error.message)) return { status: 'RESOURCE_LIMIT_EXCEEDED' };
+    if (error.code === 'EACCES' || error.code === 'EPERM') return { status: 'ACCESS_DENIED' };
+    return { status: 'INVALID_DOCUMENT' };
+  } finally {
+    if (descriptor !== undefined) closeSync(descriptor);
+  }
 }
 
 export class MassiveContextNavigator {

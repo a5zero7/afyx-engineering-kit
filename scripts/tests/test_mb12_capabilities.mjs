@@ -1,4 +1,5 @@
 import test from 'node:test';
+import './test_v130_b1_b2.mjs';
 import assert from 'node:assert/strict';
 import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, symlinkSync, cpSync } from 'node:fs';
 import { tmpdir } from 'node:os';

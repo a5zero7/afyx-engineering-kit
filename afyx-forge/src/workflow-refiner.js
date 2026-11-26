@@ -203,28 +203,77 @@ export function stripPromotionalSlop(text) {
  * Refines documentation quality: removes slop, strips duplicated boilerplate,
  * and preserves technical facts, evidence indicators, and uncertainty labels.
  */
-export function refineDocumentationQuality(text) {
-  if (!text || typeof text !== 'string') return '';
-  const withoutHype = stripPromotionalSlop(text);
-  const lines = withoutHype.split(/\r?\n/);
-  const seenLines = new Set();
-  const refinedLines = [];
-
-  for (const line of lines) {
-    const trimmed = line.trim();
-    // Preserve empty lines and markdown structural headers
-    if (!trimmed || /^#{1,6}\s+/.test(trimmed) || /^[-*|]/.test(trimmed)) {
-      refinedLines.push(line);
-      continue;
-    }
-    // Deduplicate non-structural verbatim repeated sentences
-    if (seenLines.has(trimmed)) {
-      continue;
-    }
-    seenLines.add(trimmed);
-    refinedLines.push(line);
-  }
-
-  return refinedLines.join('\n');
+export function refineDocumentationQuality(text, options = {}) {
+  return reviewTechnicalProse(text, options).content;
 }
 
+/**
+ * Applies local edits to explicitly authorized prose. Semantic edits are suggestions.
+ */
+export function reviewTechnicalProse(text, { enabled = false, terminology = {} } = {}) {
+  if (typeof text !== 'string') return { status: 'INVALID_DOCUMENT', content: '', suggestions: [], edits: 0 };
+  if (enabled !== true) return { status: 'DISABLED', content: text, suggestions: [], edits: 0 };
+  const fragments = text.split(/(\r?\n)/);
+  const suggestions = [];
+  const editRules = [
+    [/^It is important to note that ([a-z])/, (_, initial) => initial.toUpperCase()],
+    [/\bin order to\b/g, 'to'],
+    [/\b(?:at this point in time|at the present time)\b/g, 'now'],
+  ];
+  const protectedText = /[0-9_/.@\[\]{}<>\u0060\\]|^[\s#>*|~+-]|^(?:warning|note|caution|important|tip)\b|\b(?:must|required|shall|copyright|license|warranty|deprecated|security|do not|never|always)\b/i;
+  let fence;
+  let protectedDepth = 0;
+  let frontmatter = fragments[0] === '---';
+  const seenProse = new Set();
+  let edits = 0;
+  for (let index = 0; index < fragments.length; index += 2) {
+    const line = fragments[index];
+    if (frontmatter) {
+      if (index > 0 && /^(?:---|\.\.\.)\s*$/.test(line)) frontmatter = false;
+      continue;
+    }
+    const marker = /^\s{0,3}(\u0060{3,}|~{3,})/.exec(line)?.[1];
+    if (fence) {
+      if (marker?.[0] === fence[0] && marker.length >= fence.length &&
+          line.trim() === marker) fence = undefined;
+      continue;
+    }
+    if (marker) {
+      fence = marker;
+      seenProse.clear();
+      continue;
+    }
+    const heading = /^(#{1,6})\s/.exec(line);
+    if (heading) {
+      const depth = heading[1].length;
+      if (protectedDepth && depth <= protectedDepth) protectedDepth = 0;
+      if (!protectedDepth && /\b(?:change\s?log|release history|licen[sc]e|notices?|requirements|warnings)\b/i.test(line)) {
+        protectedDepth = depth;
+      }
+      seenProse.clear();
+      continue;
+    }
+    // Conservatively retain complete technical lines, including sentences with numbers.
+    const prose = line.replace(/\.(?= |$)/g, '');
+    if (!line.trim() || protectedDepth || protectedText.test(prose)) {
+      continue;
+    }
+    let edited = line;
+    for (const [pattern, replacement] of editRules) {
+      edited = edited.replace(pattern, replacement);
+    }
+    if (edited !== line) {
+      fragments[index] = edited;
+      edits++;
+    }
+    if (seenProse.has(edited)) suggestions.push({ line: index / 2 + 1, reason: 'REPEATED_PROSE' });
+    if (edited.length > 240) suggestions.push({ line: index / 2 + 1, reason: 'REVIEW_SENTENCE_STRUCTURE' });
+    for (const [term, preferred] of Object.entries(terminology)) {
+      if (term && typeof preferred === 'string' && term !== preferred && edited.includes(term)) {
+        suggestions.push({ line: index / 2 + 1, reason: 'REVIEW_TERMINOLOGY', term, preferred });
+      }
+    }
+    seenProse.add(edited);
+  }
+  return { status: 'REVIEWED', content: fragments.join(''), suggestions, edits };
+}

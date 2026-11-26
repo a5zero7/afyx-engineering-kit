@@ -11,7 +11,7 @@ import { fileURLToPath } from 'node:url';
 
 export const AFYX_HOST_BRIDGE_PRODUCT = 'Afyx Universal Host Bridge';
 export const AFYX_HOST_BRIDGE_CONTRACT = 'AfyxHostBridge/v1';
-export const HOST_BRIDGE_FILES = Object.freeze([
+const LEGACY_HOST_BRIDGE_FILES = Object.freeze([
   'afyx-host-bridge.mjs',
   'afyx-optional-capabilities.mjs',
   'afyx-browser-devtools.mjs',
@@ -36,6 +36,23 @@ export const HOST_BRIDGE_FILES = Object.freeze([
   'afyx-security-auditor.mjs',
   'components.json',
 ]);
+
+const CONTEXT_FILES = Object.freeze([
+  'afyx-context/package.json',
+  'afyx-context/src/artifact-lineage.js',
+  'afyx-context/src/massive-context.js',
+  'afyx-context/src/path-containment.js',
+]);
+
+export const HOST_BRIDGE_FILES = Object.freeze([
+  ...LEGACY_HOST_BRIDGE_FILES,
+  'afyx-context-source.mjs',
+  ...CONTEXT_FILES,
+]);
+
+function sourceFile(source, file) {
+  return CONTEXT_FILES.includes(file) ? join(source, '..', file) : join(source, file);
+}
 
 function sha256(file) {
   return createHash('sha256').update(readFileSync(file)).digest('hex');
@@ -74,10 +91,14 @@ export function verifyHostBridge(runtimeRoot) {
     return { status: 'NOT_INSTALLED', runtimeRoot: root, entry: join(root, 'current', 'afyx-host-bridge.mjs') };
   }
   const integrity = json(join(root, 'integrity.json'));
-  if (!integrity?.files || typeof integrity.files !== 'object') {
+  if (![1, 2].includes(integrity?.schema_version) || !integrity.files || typeof integrity.files !== 'object') {
     return { status: 'BROKEN', runtimeRoot: root, reason: 'INTEGRITY_MISSING' };
   }
-  for (const file of HOST_BRIDGE_FILES) {
+  const expected = integrity.schema_version === 1 ? LEGACY_HOST_BRIDGE_FILES : HOST_BRIDGE_FILES;
+  if (integrity.schema_version === 1 && existsSync(join(root, 'current', 'afyx-context-source.mjs'))) {
+    return { status: 'BROKEN', runtimeRoot: root, reason: 'INTEGRITY_SCHEMA_MISMATCH' };
+  }
+  for (const file of expected) {
     const target = join(root, 'current', file);
     if (!existsSync(target) || sha256(target) !== integrity.files[file]) {
       return { status: 'BROKEN', runtimeRoot: root, reason: 'INTEGRITY_MISMATCH', file };
@@ -100,14 +121,14 @@ export function installHostBridge({ sourceRoot, runtimeRoot, sourceRevision = 'U
     throw new Error(`HOST_BRIDGE_FOREIGN_RUNTIME: ${root}`);
   }
   for (const file of HOST_BRIDGE_FILES) {
-    if (!existsSync(join(source, file))) throw new Error(`HOST_BRIDGE_SOURCE_MISSING: ${file}`);
+    if (!existsSync(sourceFile(source, file))) throw new Error(`HOST_BRIDGE_SOURCE_MISSING: ${file}`);
   }
 
   const current = join(root, 'current');
   if (existsSync(current)) ensureOrdinaryDirectory(current);
   const verified = verifyHostBridge(root);
   if (verified.status === 'READY' && verified.sourceRevision === sourceRevision
-      && HOST_BRIDGE_FILES.every((file) => sha256(join(source, file)) === sha256(join(current, file)))) {
+      && HOST_BRIDGE_FILES.every((file) => existsSync(join(current, file)) && sha256(sourceFile(source, file)) === sha256(join(current, file)))) {
     return { ...verified, changed: false };
   }
   mkdirSync(root, { recursive: true });
@@ -119,7 +140,8 @@ export function installHostBridge({ sourceRoot, runtimeRoot, sourceRevision = 'U
     const hashes = {};
     for (const file of HOST_BRIDGE_FILES) {
       const target = join(stage, file);
-      copyFileSync(join(source, file), target);
+      mkdirSync(dirname(target), { recursive: true });
+      copyFileSync(sourceFile(source, file), target);
       hashes[file] = sha256(target);
     }
     if (existsSync(current)) {
@@ -128,7 +150,7 @@ export function installHostBridge({ sourceRoot, runtimeRoot, sourceRevision = 'U
       movedCurrent = true;
     }
     renameSync(stage, current);
-    atomicJson(join(root, 'integrity.json'), { schema_version: 1, files: hashes });
+    atomicJson(join(root, 'integrity.json'), { schema_version: 2, files: hashes });
     atomicJson(join(root, 'metadata.json'), {
       schema_version: 1,
       product_name: AFYX_HOST_BRIDGE_PRODUCT,

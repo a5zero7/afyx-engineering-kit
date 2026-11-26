@@ -83,6 +83,7 @@ export function findChromeBinary(platform = process.platform, env = process.env)
 const delay = (ms) => new Promise((done) => setTimeout(done, ms));
 export const AFYX_BROWSER_CONTRACT = 'AfyxBrowser/v1';
 const LIMIT = 256;
+const diagnosticSessions = new WeakMap();
 const sensitive = /(?:authorization|cookie|password|passwd|secret|token|api.?key|credential)/i;
 function redact(value) {
   return String(value ?? '').replace(/\b(?:Bearer|Basic)\s+[^\s,;]+/gi, '[REDACTED]')
@@ -226,6 +227,7 @@ export class AfyxBrowserSession {
       }, this.policy.sessionTimeoutMs); this._expiry.unref();
       this._exitCleanup = () => { this.process?.kill(); };
       process.once('exit', this._exitCleanup);
+      diagnosticSessions.set(this, { child: this.process, socket: this.ws, profile: this.userDataDir });
       return { port: this.port, wsUrl: this.wsUrl, browser: version.product, protocolVersion: version.protocolVersion,
         pageId: this.selectedPage, profile: 'ISOLATED_EPHEMERAL',
         budget: { sessionTimeoutMs: this.policy.sessionTimeoutMs, maxCommands: this.policy.maxCommands } };
@@ -496,6 +498,26 @@ export class AfyxBrowserSession {
       if (!response.data || response.data.length > 4_000_000) throw new Error('BROWSER_SCREENSHOT_BUDGET_EXCEEDED'); return response.data;
     } finally { await this._eval(`document.getElementById(${JSON.stringify(styleId)})?.remove()`); }
   }
+  async readDiagnostics({ relevant = false, optIn = false, authorize, limit = 25 } = {}) {
+    if (relevant !== true || optIn !== true || typeof authorize !== 'function' ||
+        authorize(Object.freeze({ action: 'READ_BROWSER_DIAGNOSTICS' })) !== true) {
+      return { status: 'DENIED', reason: 'BROWSER_DIAGNOSTICS_OPT_IN_REQUIRED' };
+    }
+    if (!this.chromePath) return { status: 'NOT_AVAILABLE' };
+    const owned = diagnosticSessions.get(this);
+    if (!owned || !this.isAttached || owned.child !== this.process ||
+        owned.socket !== this.ws || owned.profile !== this.userDataDir || !this.selectedPage) {
+      return { status: 'DENIED', reason: 'ISOLATED_BROWSER_SESSION_REQUIRED' };
+    }
+    integer(limit, 25, LIMIT);
+    return {
+      status: 'SUCCESS',
+      dom: await this.snapshot({ limit }),
+      console: this.getConsoleMessages({ limit }),
+      network: this.getNetworkRequests({ limit }),
+    };
+  }
+
   getConsoleMessages({ limit = 100 } = {}) { integer(limit, 100, LIMIT); return this.consoleLogs.slice(-limit).map((item) => ({ ...item })); }
   getNetworkRequests({ limit = 100, filter = '', failedOnly = false } = {}) {
     integer(limit, 100, LIMIT); if (typeof filter !== 'string' || filter.length > 256) throw new Error('BROWSER_INVALID_FILTER');
@@ -552,6 +574,7 @@ export class AfyxBrowserSession {
       this.budgetDiagnostics.closureReason = 'CLOSED';
       this.budgetDiagnostics.interruptionSource = 'HOST_REQUEST';
     }
+    diagnosticSessions.delete(this);
     const child = this.process; this.process = null;
     this.ws?.close(); this.ws = null; this.isAttached = false; this._rejectPending('BROWSER_SESSION_CLOSED');
     if (child && child.exitCode === null) { child.kill(); await Promise.race([this._processExited, delay(3000)]);

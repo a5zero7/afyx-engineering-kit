@@ -311,7 +311,7 @@ export function classifyTaskIntent(task = {}, hostMetadata = {}) {
   // Host observations are routing hints, never authorization grants. Task JSON
   // cannot supply the in-process hostMetadata or a schema loader.
   const domain = String(task.domain ?? hostMetadata.domain ?? '').toLowerCase();
-  const knownDomains = new Set(['odoo', 'github', 'documentation', 'local-cli', 'engineering', 'security']);
+  const knownDomains = new Set(['odoo', 'github', 'documentation', 'local-cli', 'engineering', 'security', 'ui']);
   const unknownDomain = Boolean(domain && !knownDomains.has(domain));
   const framework = task.project?.framework ?? task.framework ?? hostMetadata.project?.framework ?? hostMetadata.file?.framework;
   const intentText = `${task.intent ?? ''} ${task.operation ?? ''}`.toLowerCase();
@@ -374,10 +374,15 @@ export function classifyTaskIntent(task = {}, hostMetadata = {}) {
   const nativeExecution = taskType === 'cli-automation' || domain === 'local-cli';
   const securityAudit = taskType === 'security-audit';
   const manualSelection = Array.isArray(task.manualSelection) ? task.manualSelection.filter((id) => typeof id === 'string').slice(0, 4) : [];
+  const frontendFile = /\.(?:css|scss|html|jsx|tsx|vue|svelte)$/i.test(
+    String(task.filePath ?? hostMetadata.file?.path ?? '')
+  );
+  const ui = domain === 'ui' || taskType === 'ui-review' ||
+    (!domain && !specifiedType && frontendFile && /\b(?:accessibility|responsive|frontend|design system|ui|ux|layout)\b/.test(intentText));
   const customCapability = task.needsCustomCapability ?? task.customCapability ?? null;
   const customComponentId = task.customComponentId ?? null;
   const explicitSharedNeed = task.needsRelationalEvidence === true || task.needsContextOptimization === true || hasUniversalContext;
-  const explicitCapabilityType = graphRelationshipTask || taskType.startsWith('odoo-') || specializedType || securityAudit || architecture ||
+  const explicitCapabilityType = ui || graphRelationshipTask || taskType.startsWith('odoo-') || specializedType || securityAudit || architecture ||
     ['large-context', 'usage-telemetry', 'usage-analytics', 'impact-analysis', 'cross-asset', 'relationship-analysis', 'db-inspection', 'cli-compaction', 'massive-context', 'contract-validation', 'migration-planning', 'work-ledger', 'impact-simulation', 'env-preflight'].includes(taskType);
   const explicitTelemetry = task.needsTelemetry === true || task.telemetry === true || task.trackUsage === true;
   const directSource = directSourceCandidate && !explicitSharedNeed && !explicitCapabilityType && !manualSelection.length &&
@@ -395,7 +400,7 @@ export function classifyTaskIntent(task = {}, hostMetadata = {}) {
     telemetry,
     customCapability,
     customComponentId, documentation, usageAnalytics, github, nativeExecution, securityAudit, manualSelection,
-    unknownDomain, ambiguousDomain,
+    unknownDomain, ambiguousDomain, ui,
   });
 }
 
@@ -485,6 +490,7 @@ function selectionCandidates(task, classification, modularRuntimePlan, discovery
   if (classification.telemetry) {
     selectedByPlanner.add(pickCandidate('afyx-usage-intelligence', 'codex-usage-tracking', discovery, modularRuntimePlan));
   }
+  if (classification.ui) selectedByPlanner.add('afyx-ui-architect');
   if (classification.customComponentId) {
     selectedByPlanner.add(classification.customComponentId);
   }
@@ -502,6 +508,7 @@ function selectionCandidates(task, classification, modularRuntimePlan, discovery
     ...(classification.nativeExecution ? ['afyx-native-execution'] : []),
     ...(classification.securityAudit ? ['afyx-security-auditor'] : []),
     ...(classification.peerImpact ? ['afyx-graph'] : []),
+    ...(classification.ui ? ['afyx-ui-architect'] : []),
     ...classification.manualSelection,
     ...(classification.odoo ? ['afyx-odoo-engineering', 'odoo-engineering'] : []),
     ...(classification.architecture ? ['afyx-engineering-expert'] : []),

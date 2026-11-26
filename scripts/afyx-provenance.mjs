@@ -12,18 +12,16 @@
  * - Fails closed on file drift, truncation, or unexpected mutation.
  */
 
-import { createHash } from 'node:crypto';
+import { sha256Bytes } from '../afyx-context/src/artifact-lineage.js';
+import { checkPathContainment } from '../afyx-context/src/path-containment.js';
+export { createArtifactLineage, verifyArtifactLineage } from '../afyx-context/src/artifact-lineage.js';
 import { existsSync, lstatSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { isAbsolute, join, normalize, relative, resolve } from 'node:path';
 
 export const AFYX_PROVENANCE_CONTRACT = 'AfyxProvenance/v1';
 
-function sha256Bytes(buffer) {
-  return createHash('sha256').update(buffer).digest('hex');
-}
-
 function sha256String(text) {
-  return createHash('sha256').update(Buffer.from(text, 'utf8')).digest('hex');
+  return sha256Bytes(Buffer.from(text, 'utf8'));
 }
 
 /**
@@ -112,23 +110,39 @@ export function createArtifactManifest(directoryPath, options = {}) {
  * Verifies a directory against an existing manifest, detecting any tampering or drift.
  */
 export function verifyArtifactManifest(manifest, targetDirectory) {
-  if (!manifest || manifest.contract !== AFYX_PROVENANCE_CONTRACT) {
+  if (!manifest || manifest.contract !== AFYX_PROVENANCE_CONTRACT || !Array.isArray(manifest.files)) {
     return { verified: false, reason: 'INVALID_MANIFEST_CONTRACT', modified: [], missing: [], untracked: [] };
   }
 
-  const expectedMap = new Map(manifest.files.map((f) => [f.path, f]));
+  const invalid = { verified: false, reason: 'INVALID_MANIFEST_ENTRIES', modified: [], missing: [], untracked: [] };
+  const expectedMap = new Map();
+  for (const entry of manifest.files) {
+    const path = entry?.path;
+    if (typeof path !== 'string' || !path || isAbsolute(path) ||
+        path.includes('\\') || path.includes(':') ||
+        path.split('/').some((part) => !part || part === '..' || part === '.') ||
+        expectedMap.has(path) || !/^[a-f0-9]{64}$/.test(entry.sha256)) {
+      return invalid;
+    }
+    expectedMap.set(path, entry);
+  }
+  if (sha256String(manifest.files.map((entry) => entry.sha256 + '  ' + entry.path).join('\n')) !== manifest.compositeSha256) {
+    return invalid;
+  }
   const modified = [];
   const missing = [];
   const verifiedFiles = [];
 
   for (const [relPath, expected] of expectedMap.entries()) {
-    const fullPath = join(targetDirectory, relPath);
-    if (!existsSync(fullPath)) {
-      missing.push(relPath);
+    const target = checkPathContainment(relPath, targetDirectory, { mustExist: true, expectFile: true });
+    if (!target.contained) {
+      if (target.reason === 'TARGET_NOT_FOUND') missing.push(relPath);
+      else modified.push({ path: relPath, expected: expected.sha256, actual: 'UNREADABLE' });
       continue;
     }
+
     try {
-      const current = hashFile(fullPath);
+      const current = hashFile(target.canonicalPath);
       if (current.sha256 !== expected.sha256) {
         modified.push({ path: relPath, expected: expected.sha256, actual: current.sha256 });
       } else {

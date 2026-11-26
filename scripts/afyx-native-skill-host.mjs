@@ -7,7 +7,7 @@ import { createHash } from 'node:crypto';
 import { existsSync, lstatSync, readFileSync, realpathSync } from 'node:fs';
 import { isAbsolute, join, relative, resolve, sep } from 'node:path';
 import {
-  createSkill, packageSkill, previewSkillInstall, applySkillInstall,
+  createSkill, distillSkillFromDocument, packageSkill, previewSkillInstall, applySkillInstall,
   verifySkillInstall, negotiateSkillProvider,
 } from './afyx-skill-engineering.mjs';
 
@@ -42,12 +42,12 @@ function trustedRoot(path) {
  */
 export function createNativeSkillHostAdapter(config = {}) {
   const { provider, scope = 'workspace', draftsRoot, skillsRoot, spec,
-    peerRoots = [], authorize } = config;
+    peerRoots = [], authorize, distillation = null } = config;
   if (negotiateSkillProvider(provider, scope).status !== 'SUPPORTED'
       || typeof authorize !== 'function'
       || !spec || typeof spec !== 'object' || typeof spec.name !== 'string' || !NAME.test(spec.name)
       || typeof spec.description !== 'string'
-      || typeof spec.body !== 'string'
+      || (distillation === null && typeof spec.body !== 'string')
       || !Array.isArray(spec.triggers)
       || spec.triggers.some((trigger) => typeof trigger !== 'string')
       || (spec.resources !== undefined && (!spec.resources || typeof spec.resources !== 'object'
@@ -66,7 +66,15 @@ export function createNativeSkillHostAdapter(config = {}) {
     triggers: Object.freeze([...spec.triggers]), body: spec.body,
     resources: Object.freeze({ ...(spec.resources ?? {}) }),
   });
-  const planDigest = digest(JSON.stringify(skillSpec));
+  const document = distillation === null ? null : Object.freeze({
+    sourceRoot: trustedRoot(distillation.sourceRoot),
+    source: distillation.source,
+    sourceRevision: distillation.sourceRevision ?? 'UNKNOWN',
+  });
+  if (document && (typeof document.source !== 'string' || !document.source.trim())) {
+    throw new Error('TRUSTED_DOCUMENT_CONFIG_INVALID');
+  }
+  const planDigest = digest(JSON.stringify(document ? { skillSpec, document } : skillSpec));
   const sourceIdentity = 'sha256:' + digest(Buffer.concat([
     readFileSync(new URL(import.meta.url)),
     readFileSync(new URL('./afyx-skill-engineering.mjs', import.meta.url)),
@@ -90,12 +98,26 @@ export function createNativeSkillHostAdapter(config = {}) {
 
     const proposal = Object.freeze({
       contract: AFYX_NATIVE_SKILL_HOST_CONTRACT,
-      action: 'CREATE_DRAFT',
+      action: document ? 'DISTILL_SKILL_DRAFT' : 'CREATE_DRAFT',
       provider, scope, skillName: skillSpec.name, planDigest,
       draftsRoot: draftRoot, skillsRoot: installRoot,
     });
     try {
       if (authorize(proposal) !== true) return denied('HOST_APPROVAL_REQUIRED');
+      if (document) {
+        const draft = distillSkillFromDocument({
+          ...document, draftsRoot: draftRoot, name: skillSpec.name,
+          description: skillSpec.description, triggers: skillSpec.triggers,
+        }, { authorize: () => true });
+        return {
+          status: 'SUCCESS',
+          output: Object.freeze({
+            contract: AFYX_NATIVE_SKILL_HOST_CONTRACT, provider, scope, name: skillSpec.name,
+            digest: draft.digest, status: draft.status, activationPerformed: false,
+          }),
+          evidence: Object.freeze([{ kind: 'native-skill-draft', digest: draft.digest }]),
+        };
+      }
       const draft = join(draftRoot, skillSpec.name);
       createSkill(draft, skillSpec);
       const packageBytes = packageSkill(draft);

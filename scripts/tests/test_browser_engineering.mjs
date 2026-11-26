@@ -192,6 +192,12 @@ test('real owned Chrome: pages, DOM, interaction, diagnostics, trace, export and
     await session.pressKey('Tab');
     await session.click('#submit');
     assert.equal(await session.evaluate('document.querySelector("#result").textContent'), 'native AFYX');
+    const bridge = await session.readDiagnostics({ relevant: true, optIn: true, authorize: () => true });
+    assert.equal(bridge.status, 'SUCCESS');
+    assert.ok(bridge.dom.nodes.some((node) => node.name === 'Browser acceptance'));
+    assert.ok(bridge.console.some((entry) => entry.text.includes('fixture-ready')));
+    assert.ok(bridge.network.some((entry) => entry.url.endsWith('/data')));
+    assert.ok(!JSON.stringify(bridge).includes('token=secret'));
     const snapshot = await session.snapshot();
     assert.ok(snapshot.nodes.some((node) => node.name === 'Browser acceptance'));
     assert.ok(!JSON.stringify(snapshot).includes('private-password'));
