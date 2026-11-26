@@ -20,14 +20,14 @@ param(
     [string[]]$Provider = @(),
     [ValidateSet('global', 'workspace')][string]$ProviderScope = 'global',
     [string]$WorkspaceRoot = (Get-Location).Path,
-    [string]$GeminiHome = $(if ($env:AFYX_GEMINI_HOME) { $env:AFYX_GEMINI_HOME } else { Join-Path $env:USERPROFILE '.gemini' }),
-    [string]$ClaudeHome = $(if ($env:CLAUDE_CONFIG_DIR) { $env:CLAUDE_CONFIG_DIR } else { Join-Path $env:USERPROFILE '.claude' }),
+    [string]$GeminiHome = $(if ($env:AFYX_GEMINI_HOME) { $env:AFYX_GEMINI_HOME } else { Join-Path $(if ($env:USERPROFILE) { $env:USERPROFILE } else { $HOME }) '.gemini' }),
+    [string]$ClaudeHome = $(if ($env:CLAUDE_CONFIG_DIR) { $env:CLAUDE_CONFIG_DIR } else { Join-Path $(if ($env:USERPROFILE) { $env:USERPROFILE } else { $HOME }) '.claude' }),
     [string]$ClaudeConfigDir = $(if ($env:CLAUDE_CONFIG_DIR) { $env:CLAUDE_CONFIG_DIR } else { '' }),
     [switch]$SkipProviderConfiguration,
-    [string]$ContextRuntimeRoot = $(if ($env:AFYX_CONTEXT_RUNTIME_ROOT) { $env:AFYX_CONTEXT_RUNTIME_ROOT } else { Join-Path $env:USERPROFILE '.afyx\context' }),
-    [string]$ForgeRuntimeRoot = $(if ($env:AFYX_FORGE_RUNTIME_ROOT) { $env:AFYX_FORGE_RUNTIME_ROOT } else { Join-Path $env:USERPROFILE '.afyx\forge' }),
-    [string]$AfyxInstallRoot = $(if ($env:AFYX_INSTALL_ROOT) { $env:AFYX_INSTALL_ROOT } else { Join-Path $env:USERPROFILE '.afyx' }),
-    [string]$HostBridgeRuntimeRoot = $(if ($env:AFYX_HOST_BRIDGE_RUNTIME_ROOT) { $env:AFYX_HOST_BRIDGE_RUNTIME_ROOT } else { Join-Path $env:USERPROFILE '.afyx\host-bridge' })
+    [string]$ContextRuntimeRoot = $(if ($env:AFYX_CONTEXT_RUNTIME_ROOT) { $env:AFYX_CONTEXT_RUNTIME_ROOT } else { Join-Path $(if ($env:USERPROFILE) { $env:USERPROFILE } else { $HOME }) '.afyx\context' }),
+    [string]$ForgeRuntimeRoot = $(if ($env:AFYX_FORGE_RUNTIME_ROOT) { $env:AFYX_FORGE_RUNTIME_ROOT } else { Join-Path $(if ($env:USERPROFILE) { $env:USERPROFILE } else { $HOME }) '.afyx\forge' }),
+    [string]$AfyxInstallRoot = $(if ($env:AFYX_INSTALL_ROOT) { $env:AFYX_INSTALL_ROOT } else { Join-Path $(if ($env:USERPROFILE) { $env:USERPROFILE } else { $HOME }) '.afyx' }),
+    [string]$HostBridgeRuntimeRoot = $(if ($env:AFYX_HOST_BRIDGE_RUNTIME_ROOT) { $env:AFYX_HOST_BRIDGE_RUNTIME_ROOT } else { Join-Path $(if ($env:USERPROFILE) { $env:USERPROFILE } else { $HOME }) '.afyx\host-bridge' })
 )
 
 Set-StrictMode -Version Latest

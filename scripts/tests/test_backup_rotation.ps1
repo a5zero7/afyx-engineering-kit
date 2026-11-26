@@ -7,7 +7,12 @@ $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $modulePath = Join-Path (Join-Path (Split-Path -Parent $scriptDir) 'lib') 'AfyxSkillLifecycle.psm1'
 Import-Module $modulePath -Force
 
-$testTemp = Join-Path ([System.IO.Path]::GetTempPath()) "afyx-test-backup-rot-$([guid]::NewGuid().ToString('N'))"
+$baseTemp = [System.IO.Path]::GetTempPath()
+if (Get-Command realpath -ErrorAction SilentlyContinue) {
+    $resolvedTemp = (& realpath $baseTemp 2>$null)
+    if ($LASTEXITCODE -eq 0 -and $resolvedTemp) { $baseTemp = $resolvedTemp }
+}
+$testTemp = Join-Path $baseTemp "afyx-test-backup-rot-$([guid]::NewGuid().ToString('N'))"
 New-Item -ItemType Directory -Force -Path $testTemp | Out-Null
 
 try {

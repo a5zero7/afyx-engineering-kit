@@ -1,7 +1,7 @@
 import test, { describe, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { cpSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { randomBytes, createHash } from 'node:crypto';
@@ -22,7 +22,7 @@ describe('AFYX-72: Downgrade, Recovery & Rollback Lifecycle Suite', () => {
   let isolatedEnv;
 
   before(() => {
-    tempRoot = join(tmpdir(), 'afyx-downgrade-test-' + randomBytes(4).toString('hex'));
+    tempRoot = join(realpathSync(tmpdir()), 'afyx-downgrade-test-' + randomBytes(4).toString('hex'));
     mkdirSync(tempRoot, { recursive: true });
 
     testSkillsRoot = join(tempRoot, 'skills');
@@ -74,13 +74,19 @@ describe('AFYX-72: Downgrade, Recovery & Rollback Lifecycle Suite', () => {
     skillMd = skillMd.replace(/version:\s*["']?[^"'\r\n]+["']?/, 'version: "2.0.0"');
     writeFileSync(skillMdPath, skillMd, 'utf8');
 
-    // Generate valid receipt marker using AfyxSkillLifecycle module
-    const pwshCmd = `
-      Import-Module "${join(REPO_ROOT, 'scripts', 'lib', 'AfyxSkillLifecycle.psm1')}" -Force
-      Write-AfyxSkillMarker -Target "${highSkill}" -Component "afyx-efficient-coding" -Owner "afyx" -Version "2.0.0"
-    `;
-    const res = spawnSync('pwsh', ['-NoProfile', '-Command', pwshCmd], { encoding: 'utf8' });
-    assert.equal(res.status, 0, `Write-AfyxSkillMarker must succeed: ${res.stderr || res.stdout}`);
+    // Generate valid receipt marker using the platform's native lifecycle module
+    if (process.platform === 'win32') {
+      const pwshCmd = `
+        Import-Module "${join(REPO_ROOT, 'scripts', 'lib', 'AfyxSkillLifecycle.psm1')}" -Force
+        Write-AfyxSkillMarker -Target "${highSkill}" -Component "afyx-efficient-coding" -Owner "afyx" -Version "2.0.0"
+      `;
+      const res = spawnSync('pwsh', ['-NoProfile', '-Command', pwshCmd], { encoding: 'utf8' });
+      assert.equal(res.status, 0, `Write-AfyxSkillMarker must succeed: ${res.stderr || res.stdout}`);
+    } else {
+      const bashCmd = `. "${join(REPO_ROOT, 'scripts', 'lib', 'afyx-skill-lifecycle.sh')}"; afyx_write_skill_marker "${highSkill}" "afyx-efficient-coding" "afyx" "2.0.0"`;
+      const res = spawnSync('bash', ['-eu', '-c', bashCmd], { encoding: 'utf8' });
+      assert.equal(res.status, 0, `afyx_write_skill_marker must succeed: ${res.stderr || res.stdout}`);
+    }
 
     assert.ok(existsSync(join(highSkill, 'SKILL.md')), 'Higher-version skill fixture must exist');
     assert.ok(existsSync(join(highSkill, '.afyx-install.json')), 'Higher-version receipt must exist');
