@@ -438,8 +438,23 @@ export function createInstalledHostAdapters({
         Boolean(request.task?.diagnosticContent) ||
         source?.evidence?.some((e) => e.kind === 'diagnostic');
       const segmentClassification = isSecurity ? 'security' : (isDiagnostic ? 'diagnostic' : 'normal');
+      if (isSecurity || isDiagnostic || sourceBytes <= 160) {
+        return {
+          status: 'SUCCESS',
+          output: {
+            mode: 'passthrough',
+            reason: isSecurity || isDiagnostic ? 'protected-content-passthrough' : 'no-net-reduction',
+            renderedContext: contentToReduce,
+            metrics: { rawChars: contentToReduce.length, outputChars: contentToReduce.length, savedChars: 0, reductionRatio: 0 },
+          },
+          contextBytes: sourceBytes,
+          evidence: [{ kind: 'graph-result-digest', value: digest }, { kind: 'context-mode', value: 'passthrough' }],
+          followUpRequests: [],
+        };
+      }
 
       const input = JSON.stringify({
+        benefitAware: true,
         budgetChars: Math.max(1_024, Math.min(16_000, Math.ceil(contentToReduce.length / 2))),
         segments: [{
           id: 'graph-structure', content: contentToReduce,

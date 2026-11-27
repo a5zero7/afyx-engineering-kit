@@ -328,8 +328,8 @@ export function classifyTaskIntent(task = {}, hostMetadata = {}) {
     /\b(?:small\s+deterministic\s+refactor|local\s+refactor|rename\s+local\s+var)\b/i,
   ];
   const isFastPath = fastPathPatterns.some((pattern) => pattern.test(intentText)) ||
-    ['simple-edit', 'formatting', 'config-lookup', 'explanation', 'trivial-refactor'].includes(taskType);
-  const directSourceCandidate = task.exactKnownSource === true || task.knownFile === true || isFastPath ||
+    ['simple-edit', 'localized-edit', 'formatting', 'config-lookup', 'explanation', 'trivial-refactor'].includes(taskType);
+  const directSourceCandidate = task.exactKnownSource === true || task.knownFile === true || task.localizedDeterministic === true || isFastPath ||
     ['known-file', 'string-replacement', 'exact-source'].includes(taskType) ||
     /\b(exact source|known file|string replacement)\b/.test(intentText);
   const specializedType = ['github-operation', 'documentation-search', 'documentation-research', 'multi-agent-workflow', 'workflow-execution', 'cli-automation'].includes(taskType);
@@ -385,7 +385,7 @@ export function classifyTaskIntent(task = {}, hostMetadata = {}) {
   const explicitCapabilityType = ui || graphRelationshipTask || taskType.startsWith('odoo-') || specializedType || securityAudit || architecture ||
     ['large-context', 'usage-telemetry', 'usage-analytics', 'impact-analysis', 'cross-asset', 'relationship-analysis', 'db-inspection', 'cli-compaction', 'massive-context', 'contract-validation', 'migration-planning', 'work-ledger', 'impact-simulation', 'env-preflight'].includes(taskType);
   const explicitTelemetry = task.needsTelemetry === true || task.telemetry === true || task.trackUsage === true;
-  const directSource = directSourceCandidate && !explicitSharedNeed && !explicitCapabilityType && !manualSelection.length &&
+  const directSource = directSourceCandidate && !securityAudit && !ui && !explicitSharedNeed && !explicitCapabilityType && !manualSelection.length &&
     !forgeAdvice && !forgeAutonomous && !explicitTelemetry && !customCapability && !customComponentId && !hasUniversalContext && !hasUniversalForge;
 
   return Object.freeze({
