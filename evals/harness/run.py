@@ -292,7 +292,12 @@ def isolated_capability_env(
     return env
 
 
-def capability_mcp_overrides(capabilities: dict | None = None, repo_root: Path = REPO_ROOT) -> list[str]:
+def capability_mcp_overrides(
+    capabilities: dict | None = None,
+    *,
+    work: Path | None = None,
+    repo_root: Path = REPO_ROOT,
+) -> list[str]:
     """Return explicit Codex -c mcp_servers overrides provisioning only authorized candidate tools."""
     if capabilities is None:
         return []
@@ -307,9 +312,13 @@ def capability_mcp_overrides(capabilities: dict | None = None, repo_root: Path =
         ])
     if capabilities.get("ace") or capabilities.get("forge"):
         runtime_cli = repo_root / "scripts" / "afyx-universal-runtime.mjs"
+        proj_arg = (work or repo_root).as_posix()
         overrides.extend([
             "-c",
-            f'mcp_servers.afyx_workflow={{command="node",args=["{runtime_cli.as_posix()}","serve","--mcp"]}}',
+            (
+                'mcp_servers.afyx_workflow={command="node",'
+                f'args=["{runtime_cli.as_posix()}","serve","--mcp","--install-root","{repo_root.as_posix()}","--project-root","{proj_arg}","--provider","codex"]}}'
+            ),
         ])
     return overrides
 
@@ -320,22 +329,24 @@ def codex_command(
     *,
     include_skills: bool = True,
     capabilities: dict | None = None,
+    model: str = "gpt-5.6-sol",
+    reasoning_effort: str = "medium",
 ) -> list[str]:
     command = [
         "codex", "exec", "--ephemeral", "--ignore-user-config",
         "--skip-git-repo-check", "--json", "-C", str(work),
-        "-m", "gpt-5.6-sol",
+        "-m", model,
         "-c", f'default_permissions="{EVALUATION_PERMISSION_PROFILE}"',
         "-c", evaluation_permissions_override(),
         "-c", 'approval_policy="never"',
         "-c", 'model_provider="openai"',
-        "-c", 'model_reasoning_effort="medium"',
+        "-c", f'model_reasoning_effort="{reasoning_effort}"',
     ]
     if os.name == "nt":
         command.extend(["-c", 'windows.sandbox="mxc"'])
     if include_skills:
         command.extend(["-c", skills_override()])
-    command.extend(capability_mcp_overrides(capabilities))
+    command.extend(capability_mcp_overrides(capabilities, work=work))
     command.append(prompt)
     return command
 
@@ -818,17 +829,57 @@ def resolve_campaign_a_configuration(manifest: dict, name: str) -> tuple[str, li
     return canonical, skills, {"graph": False, "ace": False, "forge": False}
 
 
-def compute_campaign_fingerprint(manifest: dict, environment: dict, plan: dict, mode: str) -> str:
+def _file_sha256_or_missing(path: Path) -> str:
+    return hashlib.sha256(path.read_bytes()).hexdigest() if path.is_file() else "MISSING"
+
+
+def compute_campaign_fingerprint(
+    manifest: dict,
+    environment: dict,
+    plan: dict,
+    mode: str,
+    seed: int | None = None,
+) -> str:
+    head_proc = subprocess.run(
+        ["git", "-C", str(REPO_ROOT), "rev-parse", "HEAD"],
+        text=True, encoding="utf-8", errors="replace", capture_output=True,
+    )
+    source_rev = head_proc.stdout.strip() if head_proc.returncode == 0 else "UNKNOWN"
+    graph_bin = REPO_ROOT / "afyx-graph" / "engine" / "dist" / "bin" / "afyx-graph.js"
+    context_bin = REPO_ROOT / "afyx-context" / "dist" / "index.js"
     payload = {
         "mode": mode,
-        "model": environment.get("runtime", {}).get("model"),
-        "provider": environment.get("runtime", {}).get("provider"),
+        "source_revision": source_rev,
+        "built_artifacts": {
+            "afyx_graph_js": _file_sha256_or_missing(graph_bin),
+            "afyx_context_index_js": _file_sha256_or_missing(context_bin),
+        },
+        "components": environment.get("components"),
+        "runtime": environment.get("runtime"),
+        "execution": environment.get("execution"),
         "skills": environment.get("skills"),
+        "manifest_sha256": _file_sha256_or_missing(MANIFEST_PATH),
         "fixtures_sha256": environment.get("fixtures_sha256"),
+        "random_seed": seed if seed is not None else manifest.get("random_seed"),
         "configs": plan.get("configurations"),
         "cells": [f"{s['scenario_id']}::{c}::r{r}" for s, c, r in plan.get("discovery_cells", [])],
     }
     return hashlib.sha256(json.dumps(payload, sort_keys=True).encode("utf-8")).hexdigest()
+
+
+def _pid_is_dead(pid: int) -> bool:
+    if pid < 1:
+        return True
+    try:
+        os.kill(pid, 0)
+        return False
+    except ProcessLookupError:
+        return True
+    except PermissionError:
+        return False
+    except OSError as err:
+        # Windows WinError 87 (ERROR_INVALID_PARAMETER) when PID does not exist
+        return getattr(err, "winerror", None) == 87
 
 
 @contextmanager
@@ -846,19 +897,21 @@ def campaign_execution_lock(lock_path: Path):
     except FileExistsError:
         try:
             existing = load_json(lock_path)
-            owner_pid = int(existing.get("pid", -1))
-            os.kill(owner_pid, 0)
+            owner_pid = int(existing["pid"])
+        except (OSError, ValueError, KeyError, TypeError, json.JSONDecodeError) as err:
+            raise RuntimeError(f"Campaign A lock at {lock_path} is unreadable or held by unknown owner: {err}") from err
+        if not _pid_is_dead(owner_pid):
             raise RuntimeError(f"Campaign A runner already active (pid={owner_pid})")
-        except (OSError, ValueError, json.JSONDecodeError) as err:
-            if isinstance(err, RuntimeError):
-                raise
-            # Dead owner: reclaim safely
-            lock_path.unlink(missing_ok=True)
-            fd = os.open(str(lock_path), os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
-            try:
-                os.write(fd, payload.encode("utf-8"))
-            finally:
-                os.close(fd)
+        abandoned = lock_path.with_name(f"{lock_path.name}.abandoned.{uuid.uuid4().hex[:8]}")
+        try:
+            os.replace(lock_path, abandoned)
+        finally:
+            abandoned.unlink(missing_ok=True)
+        fd = os.open(str(lock_path), os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
+        try:
+            os.write(fd, payload.encode("utf-8"))
+        finally:
+            os.close(fd)
     try:
         yield
     finally:
@@ -1281,7 +1334,11 @@ def run_cell(
             name for name, item in activation.items()
             if item["successful_skill_md_read"]
         )
-    required_skill_reads = scenario["required_skill_reads"]
+    required_skill_reads = (
+        [s for s in scenario["required_skill_reads"] if s in active_skills]
+        if mode == "campaign-a"
+        else scenario["required_skill_reads"]
+    )
     forbidden_skill_reads = scenario["forbidden_skill_reads"]
     observed_set = set(observed_skill_reads)
     assertions.extend([
@@ -1839,7 +1896,10 @@ def main() -> int:
 
             correlation = (
                 {"result": "VERIFIED", "reason": None, "record_indexes": []}
-                if (ledger and args.resume)
+                if (ledger and args.resume and all(
+                    isinstance(r.get("evaluation_run_id"), str) and bool(r.get("evaluation_run_id"))
+                    for r in [health, canary, *records]
+                ))
                 else correlation_status(provenance["evaluation_run_id"], [health, canary, *records])
             )
             if correlation["result"] == "VERIFIED":
