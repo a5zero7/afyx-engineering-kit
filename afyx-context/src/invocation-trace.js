@@ -1,16 +1,47 @@
 /** Copyright (c) 2026 Afyx */
-import { appendFileSync, existsSync, mkdirSync, openSync, closeSync, readFileSync, renameSync, statSync, unlinkSync, writeFileSync } from 'node:fs';
+import {
+  closeSync,
+  existsSync,
+  fsyncSync,
+  lstatSync,
+  mkdirSync,
+  openSync,
+  readFileSync,
+  renameSync,
+  rmSync,
+  unlinkSync,
+  writeFileSync,
+} from 'node:fs';
 import { randomUUID } from 'node:crypto';
-import { homedir } from 'node:os';
+import { homedir, hostname } from 'node:os';
 import { basename, dirname, join } from 'node:path';
 import { redactSensitiveText } from './privacy.js';
 
 export const TRACE_CONTRACT = 'afyx-trace/v1';
+const LOCK_FORMAT = 'afyx.trace-lock/v1';
 const DEFAULT_MAX_BYTES = 2 * 1024 * 1024;
 const DEFAULT_MAX_RECORDS = 5000;
-const LOCK_STALE_MS = 10_000;
+const DEFAULT_LOCK_TIMEOUT_MS = 2000;
+const DEFAULT_LOCK_RETRY_MS = 15;
 const VALID_STATUS = new Set(['success', 'failure', 'timeout', 'unavailable']);
-const VALID_CACHE = new Set(['hit', 'miss', 'unavailable']);
+const VALID_CACHE = new Set(['hit', 'miss', 'bypass', 'partial', 'unavailable']);
+const VALID_ROLES = new Set(['primary', 'component']);
+const sleeper = new Int32Array(new SharedArrayBuffer(4));
+
+function sleepMs(ms) {
+  Atomics.wait(sleeper, 0, 0, ms);
+}
+
+function processPresence(pid) {
+  if (!Number.isSafeInteger(pid) || pid < 1) return 'unknown';
+  try {
+    process.kill(pid, 0);
+    return 'present';
+  } catch (error) {
+    if (error?.code === 'ESRCH') return 'absent';
+    return 'unknown';
+  }
+}
 
 function userHome() {
   return process.env.USERPROFILE || process.env.HOME || homedir();
@@ -58,10 +89,13 @@ function safeTokenBlock(block, includeMethod = false) {
 function normalizeTraceEntry(entry = {}) {
   const status = VALID_STATUS.has(entry.status) ? entry.status : 'unavailable';
   const cache = VALID_CACHE.has(entry.cache) ? entry.cache : 'unavailable';
+  const aggregationRole = VALID_ROLES.has(entry.aggregationRole) ? entry.aggregationRole : 'primary';
   const aceCost = entry.aceCost && typeof entry.aceCost === 'object'
     ? {
         retrievedBytes: safeMetricInt(entry.aceCost.retrievedBytes),
-        reducedBytes: safeMetricInt(entry.aceCost.reducedBytes),
+        originalBytes: safeMetricInt(entry.aceCost.originalBytes),
+        renderedBytes: safeMetricInt(entry.aceCost.renderedBytes),
+        savedBytes: safeMetricInt(entry.aceCost.savedBytes ?? entry.aceCost.reducedBytes),
         durationMs: safeMetricNum(entry.aceCost.durationMs),
       }
     : null;
@@ -77,6 +111,10 @@ function normalizeTraceEntry(entry = {}) {
     invocationId: typeof entry.invocationId === 'string' && entry.invocationId.length > 0 && entry.invocationId.length <= 128
       ? safeLabel(entry.invocationId, 128)
       : randomUUID(),
+    parentInvocationId: typeof entry.parentInvocationId === 'string' && entry.parentInvocationId.length > 0 && entry.parentInvocationId.length <= 128
+      ? safeLabel(entry.parentInvocationId, 128)
+      : null,
+    aggregationRole,
     timestamp: typeof entry.timestamp === 'string' && !Number.isNaN(Date.parse(entry.timestamp))
       ? entry.timestamp
       : new Date().toISOString(),
@@ -86,6 +124,7 @@ function normalizeTraceEntry(entry = {}) {
     durationMs: safeMetricNum(entry.durationMs),
     inputBytes: safeMetricInt(entry.inputBytes),
     outputBytes: safeMetricInt(entry.outputBytes),
+    payloadBytes: safeMetricInt(entry.payloadBytes),
     actualTokens: safeTokenBlock(entry.actualTokens, false),
     estimatedTokens: safeTokenBlock(entry.estimatedTokens, true),
     cache,
@@ -95,51 +134,98 @@ function normalizeTraceEntry(entry = {}) {
   };
 }
 
-function withTraceLock(lockPath, fn) {
-  let acquired = false;
+function atomicWriteTrace(traceFile, content) {
+  const tmpFile = `${traceFile}.${process.pid}.${randomUUID()}.tmp`;
+  let handle;
   try {
-    try {
-      const fd = openSync(lockPath, 'wx');
-      closeSync(fd);
-      acquired = true;
-    } catch {
-      try {
-        const st = statSync(lockPath);
-        if (Date.now() - st.mtimeMs > LOCK_STALE_MS) {
-          unlinkSync(lockPath);
-          const fd = openSync(lockPath, 'wx');
-          closeSync(fd);
-          acquired = true;
-        }
-      } catch {
-        // Lock contention or unavailable
-      }
-    }
-    if (!acquired) return false;
-    fn();
-    return true;
+    handle = openSync(tmpFile, 'wx', 0o600);
+    writeFileSync(handle, content, { encoding: 'utf8' });
+    fsyncSync(handle);
+    closeSync(handle);
+    handle = undefined;
+    renameSync(tmpFile, traceFile);
   } finally {
-    if (acquired) {
-      try { unlinkSync(lockPath); } catch {}
+    if (handle !== undefined) {
+      try { closeSync(handle); } catch {}
     }
+    rmSync(tmpFile, { force: true });
   }
 }
 
-function enforceRetention(traceFile, maxBytes, maxRecords) {
-  if (!existsSync(traceFile)) return;
-  const st = statSync(traceFile);
-  if (st.size <= maxBytes) return;
+function tryReclaimDeadLock(lockPath, currentHost) {
+  try {
+    const stat = lstatSync(lockPath);
+    if (stat.isSymbolicLink() || !stat.isFile() || stat.size > 16_384) {
+      return false;
+    }
+    const owner = JSON.parse(readFileSync(lockPath, 'utf8'));
+    if (owner?.format !== LOCK_FORMAT || typeof owner.pid !== 'number' || typeof owner.host !== 'string') {
+      return false;
+    }
+    // Never reclaim while the owner process is alive on this host or host is foreign
+    if (owner.host !== currentHost) return false;
+    if (processPresence(owner.pid) !== 'absent') return false;
+    const abandoned = `${lockPath}.abandoned.${randomUUID()}`;
+    renameSync(lockPath, abandoned);
+    rmSync(abandoned, { force: true });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function withVerifiedLock(traceFile, fn, { lockTimeoutMs = DEFAULT_LOCK_TIMEOUT_MS, lockRetryMs = DEFAULT_LOCK_RETRY_MS } = {}) {
   const lockPath = `${traceFile}.lock`;
-  withTraceLock(lockPath, () => {
-    if (!existsSync(traceFile)) return;
-    const raw = readFileSync(traceFile, 'utf8');
-    const lines = raw.split(/\r?\n/).filter(Boolean);
-    const keepCount = Math.max(1, Math.min(lines.length, Math.floor(maxRecords / 2)));
-    const kept = lines.slice(-keepCount).join('\n') + '\n';
-    const tmpFile = `${traceFile}.tmp-${process.pid}-${Date.now()}`;
-    writeFileSync(tmpFile, kept, { encoding: 'utf8', mode: 0o600 });
-    renameSync(tmpFile, traceFile);
+  const currentHost = hostname();
+  const token = randomUUID();
+  const ownerPayload = JSON.stringify({
+    format: LOCK_FORMAT,
+    token,
+    pid: process.pid,
+    host: currentHost,
+    createdAt: new Date().toISOString(),
   });
+  const deadline = Date.now() + lockTimeoutMs;
+  let acquired = false;
+
+  while (!acquired) {
+    let fd;
+    try {
+      fd = openSync(lockPath, 'wx', 0o600);
+      writeFileSync(fd, ownerPayload, { encoding: 'utf8' });
+      fsyncSync(fd);
+      closeSync(fd);
+      fd = undefined;
+      acquired = true;
+    } catch (error) {
+      if (fd !== undefined) {
+        try { closeSync(fd); } catch {}
+      }
+      if (error?.code !== 'EEXIST') {
+        return { acquired: false, reason: error?.code || 'LOCK_ERROR' };
+      }
+      if (tryReclaimDeadLock(lockPath, currentHost)) {
+        continue;
+      }
+      if (Date.now() >= deadline) {
+        return { acquired: false, reason: 'LOCK_CONTENTION' };
+      }
+      sleepMs(lockRetryMs);
+    }
+  }
+
+  try {
+    return { acquired: true, result: fn() };
+  } finally {
+    try {
+      const current = JSON.parse(readFileSync(lockPath, 'utf8'));
+      if (current?.token === token) {
+        unlinkSync(lockPath);
+      }
+    } catch {
+      // Lock already removed or unreadable
+    }
+  }
 }
 
 export function recordInvocationTrace(entry = {}, options = {}) {
@@ -152,12 +238,54 @@ export function recordInvocationTrace(entry = {}, options = {}) {
 
   try {
     const record = normalizeTraceEntry(entry);
+    const line = JSON.stringify(record) + '\n';
+    const lineBytes = Buffer.byteLength(line, 'utf8');
+    if (lineBytes > maxBytes) {
+      return {
+        contract: TRACE_CONTRACT,
+        status: 'RECORD_TOO_LARGE',
+        recorded: false,
+        recordBytes: lineBytes,
+        maxBytes,
+      };
+    }
+
     const dir = dirname(traceFile);
     if (!existsSync(dir)) {
       mkdirSync(dir, { recursive: true, mode: 0o700 });
     }
-    appendFileSync(traceFile, JSON.stringify(record) + '\n', { encoding: 'utf8', mode: 0o600 });
-    enforceRetention(traceFile, maxBytes, maxRecords);
+
+    const locked = withVerifiedLock(traceFile, () => {
+      const existingLines = existsSync(traceFile)
+        ? readFileSync(traceFile, 'utf8').split(/\r?\n/).filter(Boolean).map((l) => l + '\n')
+        : [];
+      existingLines.push(line);
+
+      // Enforce record count and byte limits independently
+      while (existingLines.length > maxRecords) {
+        existingLines.shift();
+      }
+      let totalBytes = existingLines.reduce((sum, l) => sum + Buffer.byteLength(l, 'utf8'), 0);
+      while (totalBytes > maxBytes && existingLines.length > 1) {
+        const removed = existingLines.shift();
+        totalBytes -= Buffer.byteLength(removed, 'utf8');
+      }
+
+      atomicWriteTrace(traceFile, existingLines.join(''));
+    }, {
+      lockTimeoutMs: options.lockTimeoutMs ?? DEFAULT_LOCK_TIMEOUT_MS,
+      lockRetryMs: options.lockRetryMs ?? DEFAULT_LOCK_RETRY_MS,
+    });
+
+    if (!locked.acquired) {
+      return {
+        contract: TRACE_CONTRACT,
+        status: locked.reason === 'LOCK_CONTENTION' ? 'LOCK_CONTENTION' : 'ERROR',
+        recorded: false,
+        reason: locked.reason,
+      };
+    }
+
     return { contract: TRACE_CONTRACT, status: 'OK', recorded: true, invocationId: record.invocationId };
   } catch (err) {
     return {
@@ -232,7 +360,7 @@ export function summarizeInvocationTraces(options = {}) {
       malformed: read.malformed,
       byComponent: {},
       byStatus: {},
-      cache: { hit: 0, miss: 0, unavailable: 0 },
+      cache: { hit: 0, miss: 0, bypass: 0, partial: 0, unavailable: 0 },
       durationMs: { p50: null, p95: null, min: null, max: null },
       inputBytesTotal: null,
       outputBytesTotal: null,
@@ -241,9 +369,14 @@ export function summarizeInvocationTraces(options = {}) {
     };
   }
 
+  const primaryIds = new Set(
+    read.records
+      .filter((r) => r.aggregationRole !== 'component' && r.invocationId)
+      .map((r) => r.invocationId),
+  );
   const byComponent = {};
   const byStatus = {};
-  const cache = { hit: 0, miss: 0, unavailable: 0 };
+  const cache = { hit: 0, miss: 0, bypass: 0, partial: 0, unavailable: 0 };
   const durations = [];
   let inputBytesTotal = null;
   let outputBytesTotal = null;
@@ -255,9 +388,12 @@ export function summarizeInvocationTraces(options = {}) {
     byComponent[comp] = (byComponent[comp] || 0) + 1;
     const st = r.status || 'unavailable';
     byStatus[st] = (byStatus[st] || 0) + 1;
-    if (r.cache === 'hit') cache.hit++;
-    else if (r.cache === 'miss') cache.miss++;
+    if (Object.hasOwn(cache, r.cache)) cache[r.cache]++;
     else cache.unavailable++;
+
+    // Prevent double counting when component sub-spans share a parent primary invocation
+    const isSubspanOfPrimary = r.aggregationRole === 'component' && r.parentInvocationId && primaryIds.has(r.parentInvocationId);
+    if (isSubspanOfPrimary) continue;
 
     if (typeof r.durationMs === 'number' && Number.isFinite(r.durationMs)) durations.push(r.durationMs);
     if (Number.isSafeInteger(r.inputBytes)) inputBytesTotal = (inputBytesTotal ?? 0) + r.inputBytes;

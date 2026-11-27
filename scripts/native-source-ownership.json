@@ -79,7 +79,7 @@
     {
       "path": "afyx-context/src/engine.js",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "843630ab1b56a87428335ee12f07c8b7b63694a102b89024110609fe143b5ccc",
+      "reviewedSha256": "7dd447c4cfb3c929a23e4a95bfa4a2ef98a27baae6ac5378f1a06afb86eff947",
       "evidence": "AFYX native source: authored from AFYX functional requirements; verified clean room implementation with zero third-party code import."
     },
     {
@@ -3033,7 +3033,7 @@
     {
       "path": "scripts/afyx-universal-runtime.mjs",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "ffc2300ee19acfcfe673926f38855eebf964e8885cba0fe5a00a32d8d34611ed",
+      "reviewedSha256": "f19830a5467d62b67468f5d1ca602e39231883bd835d05acf62142b17fe90453",
       "evidence": "MB12 review: authored from AFYX functional requirements and existing reviewed 251f73a contracts; no upstream implementation, prompts, assets or dependency imported. Trusted-host boundaries and negative/regression tests recorded in MB12-native-consolidation-20261114-r1."
     },
     {
@@ -3195,7 +3195,7 @@
     {
       "path": "afyx-context/src/invocation-trace.js",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "9a66a7fb6b94c235a26d4f137944d8db74bf1342975f464c1c94e8df46f894f9",
+      "reviewedSha256": "098ab9718a4b157d5e4357c071e6e314df2967da2b042eb4d861343a6a2740dd",
       "evidence": "AFYX-375 (V1.3.0-B4): Lightweight opt-in local invocation trace with bounded retention and privacy redaction."
     }
   ]

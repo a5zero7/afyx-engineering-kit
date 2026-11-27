@@ -2,7 +2,7 @@
 
 /** Native installed-component discovery and execution for AfyxUniversalInterop/v1. */
 
-import { createHash } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { performance } from 'node:perf_hooks';
 import { spawnSync } from 'node:child_process';
 import {
@@ -700,13 +700,63 @@ export async function runInstalledAfyxWorkflow(options = {}) {
       preparationElapsedMs: performance.now() - startedAt,
     });
     const incomplete = cold && !result.results.some((item) => item.componentId === 'afyx-graph' && item.executionStatus === 'EXECUTED');
+    const requestElapsedMs = performance.now() - startedAt;
+    const traceEnv = String(process.env.AFYX_TRACE_ENABLED || '').trim().toLowerCase();
+    if (traceEnv === '1' || traceEnv === 'true' || traceEnv === 'yes' || traceEnv === 'on') {
+      try {
+        const { recordInvocationTrace } = await import('../afyx-context/src/invocation-trace.js');
+        const rootId = randomUUID();
+        const graphResult = result.results.find((item) => item.componentId === 'afyx-graph');
+        const graphEvidence = graphResult ? {
+          freshness: String(graphResult.freshness ?? graphResult.status ?? 'unavailable'),
+          extractionCapability: String(graphResult.capability ?? 'repository-graph-evidence'),
+        } : null;
+        const usageResult = result.results.find((item) => item.componentId === 'afyx-usage-intelligence');
+        const actualTokens = usageResult?.totals && Number.isSafeInteger(usageResult.totals.totalTokens) ? {
+          input: usageResult.totals.inputTokens ?? null,
+          output: usageResult.totals.outputTokens ?? null,
+          cached: usageResult.totals.cachedInputTokens ?? null,
+          total: usageResult.totals.totalTokens,
+        } : null;
+        const totalOutBytes = result.results.reduce((acc, item) => (
+          typeof item.output === 'string' ? acc + Buffer.byteLength(item.output, 'utf8') : acc
+        ), 0);
+        recordInvocationTrace({
+          invocationId: rootId,
+          aggregationRole: 'primary',
+          component: 'afyx-runtime',
+          operation: 'workflow',
+          status: result.status === 'OK' ? 'success' : (result.status === 'BLOCKED' ? 'unavailable' : 'failure'),
+          durationMs: requestElapsedMs,
+          runtimePrepMs: discoveryMs,
+          outputBytes: totalOutBytes || null,
+          actualTokens,
+          graphEvidence,
+        });
+        for (const item of result.results) {
+          recordInvocationTrace({
+            parentInvocationId: rootId,
+            aggregationRole: 'component',
+            component: item.componentId,
+            operation: item.capability || 'execute',
+            status: item.executionStatus === 'EXECUTED' ? 'success' : (item.executionStatus === 'SKIPPED' ? 'unavailable' : 'failure'),
+            durationMs: typeof item.durationMs === 'number' ? item.durationMs : null,
+            outputBytes: typeof item.output === 'string' ? Buffer.byteLength(item.output, 'utf8') : null,
+            cache: item.cacheHit === true ? 'hit' : (item.cacheHit === false ? 'miss' : 'unavailable'),
+            graphEvidence: item.componentId === 'afyx-graph' ? graphEvidence : null,
+          });
+        }
+      } catch {
+        // Optional telemetry must never break isolated host bundles where source tree is absent
+      }
+    }
     return { ...result,
       ...(incomplete ? { completionStatus: 'DEFERRED', diagnostics: [...result.diagnostics, {
         code: 'GRAPH_COLD_START_INCOMPLETE', severity: 'WARNING',
         detail: runtime.preparationError ?? 'Graph initialization/query did not complete within the authorized deadline; no query success is claimed.',
       }] } : {}),
       metrics: { ...result.metrics, runtimeDiscoveryMs: discoveryMs, graphPreparationTimings: runtime.preparationTimings,
-      requestElapsedMs: performance.now() - startedAt, runtimeDiscoveryToolCalls: runtime.preparationEvents.length,
+      requestElapsedMs, runtimeDiscoveryToolCalls: runtime.preparationEvents.length,
       runtimeDiscoveryInvocations: [...runtime.preparationEvents] } };
   } finally {
     runtime.dispose();

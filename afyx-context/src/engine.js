@@ -140,14 +140,19 @@ export class AfyxContextEngine {
       if (mandatoryChars > budgetChars) {
         const out = passthrough(normalized, 'protected-content-exceeds-budget');
         if (tracing) {
+          const origBytes = Buffer.byteLength(out.renderedContext, 'utf8');
+          const payBytes = Buffer.byteLength(JSON.stringify(out), 'utf8');
+          const dur = performance.now() - startMs;
           recordInvocationTrace({
             component: 'afyx-context',
             operation: 'reduce',
             status: 'success',
-            durationMs: performance.now() - startMs,
-            inputBytes: out.metrics.rawChars,
-            outputBytes: out.metrics.outputChars,
-            aceCost: { retrievedBytes: 0, reducedBytes: out.metrics.savedChars, durationMs: performance.now() - startMs },
+            durationMs: dur,
+            inputBytes: origBytes,
+            outputBytes: origBytes,
+            payloadBytes: payBytes,
+            cache: 'bypass',
+            aceCost: { retrievedBytes: 0, originalBytes: origBytes, renderedBytes: origBytes, savedBytes: 0, durationMs: dur },
           });
         }
         return out;
@@ -175,14 +180,19 @@ export class AfyxContextEngine {
         if (used + separator + selected.length + reservedLater > budgetChars) {
           const out = passthrough(normalized, 'safe-budget-fallback');
           if (tracing) {
+            const origBytes = Buffer.byteLength(out.renderedContext, 'utf8');
+            const payBytes = Buffer.byteLength(JSON.stringify(out), 'utf8');
+            const dur = performance.now() - startMs;
             recordInvocationTrace({
               component: 'afyx-context',
               operation: 'reduce',
               status: 'success',
-              durationMs: performance.now() - startMs,
-              inputBytes: out.metrics.rawChars,
-              outputBytes: out.metrics.outputChars,
-              aceCost: { retrievedBytes: 0, reducedBytes: out.metrics.savedChars, durationMs: performance.now() - startMs },
+              durationMs: dur,
+              inputBytes: origBytes,
+              outputBytes: origBytes,
+              payloadBytes: payBytes,
+              cache: 'bypass',
+              aceCost: { retrievedBytes: 0, originalBytes: origBytes, renderedBytes: origBytes, savedBytes: 0, durationMs: dur },
             });
           }
           return out;
@@ -217,15 +227,29 @@ export class AfyxContextEngine {
       };
       if (tracing) {
         const dur = performance.now() - startMs;
+        const origBytes = Buffer.byteLength(rawContext, 'utf8');
+        const rendBytes = Buffer.byteLength(renderedContext, 'utf8');
+        const payBytes = Buffer.byteLength(JSON.stringify(out), 'utf8');
+        const repeatedRefs = items.filter((i) => i.disposition === 'reference' && i.reason === 'repeated').length;
+        const budgetedRefs = items.filter((i) => i.disposition === 'reference' && i.reason === 'budgeted').length;
+        const cacheState = repeatedRefs > 0 && budgetedRefs === 0 ? 'hit'
+          : (repeatedRefs > 0 ? 'partial' : 'miss');
         recordInvocationTrace({
           component: 'afyx-context',
           operation: 'reduce',
           status: 'success',
           durationMs: dur,
-          inputBytes: out.metrics.rawChars,
-          outputBytes: out.metrics.outputChars,
-          cache: knownBefore.size > 0 ? 'hit' : 'miss',
-          aceCost: { retrievedBytes: 0, reducedBytes: out.metrics.savedChars, durationMs: dur },
+          inputBytes: origBytes,
+          outputBytes: rendBytes,
+          payloadBytes: payBytes,
+          cache: cacheState,
+          aceCost: {
+            retrievedBytes: 0,
+            originalBytes: origBytes,
+            renderedBytes: rendBytes,
+            savedBytes: origBytes - rendBytes,
+            durationMs: dur,
+          },
         });
       }
       return out;
@@ -259,9 +283,10 @@ export class AfyxContextEngine {
           operation: 'retrieve',
           status: 'success',
           durationMs: dur,
+          inputBytes: null,
           outputBytes: outBytes,
           cache: 'hit',
-          aceCost: { retrievedBytes: outBytes, reducedBytes: 0, durationMs: dur },
+          aceCost: { retrievedBytes: outBytes, originalBytes: null, renderedBytes: outBytes, savedBytes: 0, durationMs: dur },
         });
       }
       return result;
