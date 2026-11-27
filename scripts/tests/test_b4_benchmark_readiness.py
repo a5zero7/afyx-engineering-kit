@@ -91,21 +91,37 @@ class BenchmarkReadinessTests(unittest.TestCase):
 
             cmd_n = run.codex_command(Path("."), "test", capabilities=n_caps)
             cmd_g = run.codex_command(Path("."), "test", capabilities=g_caps)
+            cmd_f = run.codex_command(Path("."), "test", capabilities=f_caps)
             self.assertIn("mcp_servers={}", cmd_n)
-            self.assertNotIn("mcp_servers={}", cmd_g)
+            self.assertFalse(any("mcp_servers.afyx_graph=" in item for item in cmd_n))
+            self.assertTrue(any("mcp_servers.afyx_graph=" in item for item in cmd_g))
+            self.assertFalse(any("mcp_servers.afyx_workflow=" in item for item in cmd_g))
+            self.assertTrue(any("mcp_servers.afyx_graph=" in item for item in cmd_f))
+            self.assertTrue(any("mcp_servers.afyx_workflow=" in item for item in cmd_f))
 
     def test_budget_enforcement_and_interrupted_resume(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             ledger_path = Path(tmp) / "campaign-a-budget.json"
-            ledger = run.CampaignBudgetLedger(ledger_path, max_invocations=4)
+            ledger = run.CampaignBudgetLedger(ledger_path, max_invocations=4, campaign_fingerprint="fp-1")
             id1 = ledger.reserve("child_health")
             ledger.finalize(id1, "COMPLETED")
             id2 = ledger.reserve("discovery", "s1::N::r1")
             ledger.finalize(id2, "INTERRUPTED", "s1::N::r1")
             id3 = ledger.reserve("discovery", "s1::S::r1")
-            ledger.finalize(id3, "COMPLETED", "s1::S::r1", "run-s1-S")
+            rpath = Path(tmp) / "run-s1-S" / "result.json"
+            rpath.parent.mkdir(parents=True, exist_ok=True)
+            rpath.write_text(json.dumps({"run_id": "run-s1-S", "result": "PASS"}), encoding="utf-8")
+            ledger.finalize(id3, "COMPLETED", "s1::S::r1", "run-s1-S", rpath)
             id4 = ledger.reserve("discovery", "s1::G::r1")
             ledger.finalize(id4, "FAILED", "s1::G::r1")
+
+            # Omitting --resume MUST fail closed instead of silently deleting existing ledger
+            with self.assertRaisesRegex(RuntimeError, "pass --resume"):
+                run.CampaignBudgetLedger(ledger_path, max_invocations=4, resume=False, campaign_fingerprint="fp-1")
+
+            # Drifted fingerprint on --resume MUST fail closed
+            with self.assertRaisesRegex(RuntimeError, "fingerprint mismatch"):
+                run.CampaignBudgetLedger(ledger_path, max_invocations=4, resume=True, campaign_fingerprint="fp-OTHER")
 
             # Interrupted/failed invocations do NOT restore budget
             self.assertEqual(ledger.reserved_count, 4)
@@ -113,11 +129,25 @@ class BenchmarkReadinessTests(unittest.TestCase):
             with self.assertRaises(run.BudgetExhaustedError):
                 ledger.reserve("discovery", "s1::F::r1")
 
-            # Reloading on resume preserves completed cells and exhausted budget
-            resumed = run.CampaignBudgetLedger(ledger_path, max_invocations=4)
+            # Reloading on resume reconstructs completed records
+            resumed = run.CampaignBudgetLedger(ledger_path, max_invocations=4, resume=True, campaign_fingerprint="fp-1")
             self.assertTrue(resumed.is_cell_completed("s1::S::r1"))
             self.assertFalse(resumed.is_cell_completed("s1::N::r1"))
-            self.assertEqual(resumed.remaining, 0)
+            recs, corrupt = resumed.reconstruct_completed_records()
+            self.assertEqual(len(recs), 1)
+            self.assertEqual(corrupt, [])
+
+            # Missing result.json on resume is caught
+            rpath.unlink()
+            recs2, corrupt2 = resumed.reconstruct_completed_records()
+            self.assertEqual(corrupt2, ["s1::S::r1"])
+
+            # Concurrent lock blocks second active runner
+            lock_path = Path(tmp) / "campaign-a.lock"
+            with run.campaign_execution_lock(lock_path):
+                with self.assertRaisesRegex(RuntimeError, "already active"):
+                    with run.campaign_execution_lock(lock_path):
+                        pass
 
     def test_end_to_end_offline_campaign_a_execution(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

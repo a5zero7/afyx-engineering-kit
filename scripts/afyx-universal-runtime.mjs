@@ -20,7 +20,7 @@ import {
   relative,
   resolve,
 } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import {
   classifyTaskIntent,
@@ -704,50 +704,64 @@ export async function runInstalledAfyxWorkflow(options = {}) {
     const traceEnv = String(process.env.AFYX_TRACE_ENABLED || '').trim().toLowerCase();
     if (traceEnv === '1' || traceEnv === 'true' || traceEnv === 'yes' || traceEnv === 'on') {
       try {
-        const { recordInvocationTrace } = await import('../afyx-context/src/invocation-trace.js');
-        const rootId = randomUUID();
-        const graphResult = result.results.find((item) => item.componentId === 'afyx-graph');
-        const graphEvidence = graphResult ? {
-          freshness: String(graphResult.freshness ?? graphResult.status ?? 'unavailable'),
-          extractionCapability: String(graphResult.capability ?? 'repository-graph-evidence'),
-        } : null;
-        const usageResult = result.results.find((item) => item.componentId === 'afyx-usage-intelligence');
-        const actualTokens = usageResult?.totals && Number.isSafeInteger(usageResult.totals.totalTokens) ? {
-          input: usageResult.totals.inputTokens ?? null,
-          output: usageResult.totals.outputTokens ?? null,
-          cached: usageResult.totals.cachedInputTokens ?? null,
-          total: usageResult.totals.totalTokens,
-        } : null;
-        const totalOutBytes = result.results.reduce((acc, item) => (
-          typeof item.output === 'string' ? acc + Buffer.byteLength(item.output, 'utf8') : acc
-        ), 0);
-        recordInvocationTrace({
-          invocationId: rootId,
-          aggregationRole: 'primary',
-          component: 'afyx-runtime',
-          operation: 'workflow',
-          status: result.status === 'OK' ? 'success' : (result.status === 'BLOCKED' ? 'unavailable' : 'failure'),
-          durationMs: requestElapsedMs,
-          runtimePrepMs: discoveryMs,
-          outputBytes: totalOutBytes || null,
-          actualTokens,
-          graphEvidence,
-        });
-        for (const item of result.results) {
+        const hereDir = dirname(fileURLToPath(import.meta.url));
+        const traceCandidates = [
+          resolve(hereDir, '../afyx-context/src/invocation-trace.js'),
+          options.contextRuntimeRoot ? join(options.contextRuntimeRoot, 'current', 'dist', 'invocation-trace.js') : null,
+          process.env.AFYX_CONTEXT_RUNTIME_ROOT ? join(process.env.AFYX_CONTEXT_RUNTIME_ROOT, 'current', 'dist', 'invocation-trace.js') : null,
+          options.installRoot ? join(options.installRoot, '..', 'afyx-context', 'current', 'dist', 'invocation-trace.js') : null,
+          join(homedir(), '.afyx', 'context', 'current', 'dist', 'invocation-trace.js'),
+        ].filter((p) => p && existsSync(p));
+        if (traceCandidates.length > 0) {
+          const { recordInvocationTrace } = await import(pathToFileURL(traceCandidates[0]).href);
+          const rootId = randomUUID();
+          const graphResult = result.results.find((item) => item.componentId === 'afyx-graph');
+          const graphEvidence = graphResult ? {
+            freshness: String(graphResult.freshness ?? graphResult.status ?? 'unavailable'),
+            extractionCapability: String(graphResult.capability ?? 'repository-graph-evidence'),
+          } : null;
+          const usageResult = result.results.find((item) => item.componentId === 'afyx-usage-intelligence');
+          const actualTokens = usageResult?.totals && Number.isSafeInteger(usageResult.totals.totalTokens) ? {
+            input: usageResult.totals.inputTokens ?? null,
+            output: usageResult.totals.outputTokens ?? null,
+            cached: usageResult.totals.cachedInputTokens ?? null,
+            total: usageResult.totals.totalTokens,
+          } : null;
+          const itemBytes = (val) => {
+            if (typeof val === 'string') return Buffer.byteLength(val, 'utf8');
+            if (val && typeof val === 'object') return Buffer.byteLength(JSON.stringify(val), 'utf8');
+            return 0;
+          };
+          const totalOutBytes = result.results.reduce((acc, item) => acc + itemBytes(item.output), 0);
           recordInvocationTrace({
-            parentInvocationId: rootId,
-            aggregationRole: 'component',
-            component: item.componentId,
-            operation: item.capability || 'execute',
-            status: item.executionStatus === 'EXECUTED' ? 'success' : (item.executionStatus === 'SKIPPED' ? 'unavailable' : 'failure'),
-            durationMs: typeof item.durationMs === 'number' ? item.durationMs : null,
-            outputBytes: typeof item.output === 'string' ? Buffer.byteLength(item.output, 'utf8') : null,
-            cache: item.cacheHit === true ? 'hit' : (item.cacheHit === false ? 'miss' : 'unavailable'),
-            graphEvidence: item.componentId === 'afyx-graph' ? graphEvidence : null,
+            invocationId: rootId,
+            aggregationRole: 'primary',
+            component: 'afyx-runtime',
+            operation: 'workflow',
+            status: result.status === 'OK' ? 'success' : (result.status === 'BLOCKED' ? 'unavailable' : 'failure'),
+            durationMs: requestElapsedMs,
+            runtimePrepMs: discoveryMs,
+            outputBytes: totalOutBytes || null,
+            actualTokens,
+            graphEvidence,
           });
+          for (const item of result.results) {
+            const outB = itemBytes(item.output);
+            recordInvocationTrace({
+              parentInvocationId: rootId,
+              aggregationRole: 'component',
+              component: item.componentId,
+              operation: item.capability || 'execute',
+              status: item.executionStatus === 'EXECUTED' ? 'success' : (item.executionStatus === 'SKIPPED' ? 'unavailable' : 'failure'),
+              durationMs: typeof item.durationMs === 'number' ? item.durationMs : null,
+              outputBytes: outB || null,
+              cache: item.cacheHit === true ? 'hit' : (item.cacheHit === false ? 'miss' : 'unavailable'),
+              graphEvidence: item.componentId === 'afyx-graph' ? graphEvidence : null,
+            });
+          }
         }
       } catch {
-        // Optional telemetry must never break isolated host bundles where source tree is absent
+        // Optional telemetry must never break isolated host bundles
       }
     }
     return { ...result,

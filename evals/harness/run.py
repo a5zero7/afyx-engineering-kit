@@ -268,18 +268,50 @@ def windows_workspace_control(path: Path) -> str:
     )
 
 
-def isolated_capability_env(capabilities: dict | None = None, config_name: str | None = None) -> dict[str, str]:
-    """Return a clean child environment isolating AFYX capability toggles per configuration."""
+def isolated_capability_env(
+    capabilities: dict | None = None,
+    config_name: str | None = None,
+    repo_root: Path = REPO_ROOT,
+) -> dict[str, str]:
+    """Return a clean child environment isolating AFYX capability toggles and candidate roots."""
     env = dict(os.environ)
     for key in list(env):
-        if key.startswith(("AFYX_GRAPH_", "AFYX_CONTEXT_", "AFYX_FORGE_", "AFYX_TRACE_", "AFYX_EVAL_")):
+        if key.startswith(("AFYX_GRAPH_", "AFYX_CONTEXT_", "AFYX_FORGE_", "AFYX_TRACE_", "AFYX_EVAL_", "AFYX_INSTALL_")):
             del env[key]
     caps = capabilities or {"graph": False, "ace": False, "forge": False}
     env["AFYX_EVAL_CONFIG"] = str(config_name or "N")
     env["AFYX_GRAPH_OPT_IN"] = "1" if caps.get("graph") else "0"
     env["AFYX_CONTEXT_OPT_IN"] = "1" if caps.get("ace") else "0"
     env["AFYX_FORGE_OPT_IN"] = "1" if caps.get("forge") else "0"
+    graph_cli = repo_root / "afyx-graph" / "engine" / "dist" / "bin" / "afyx-graph.js"
+    runtime_cli = repo_root / "scripts" / "afyx-universal-runtime.mjs"
+    if caps.get("graph") and graph_cli.is_file():
+        env["AFYX_EVAL_GRAPH_ENTRYPOINT"] = str(graph_cli)
+    if (caps.get("ace") or caps.get("forge")) and runtime_cli.is_file():
+        env["AFYX_EVAL_RUNTIME_ENTRYPOINT"] = str(runtime_cli)
     return env
+
+
+def capability_mcp_overrides(capabilities: dict | None = None, repo_root: Path = REPO_ROOT) -> list[str]:
+    """Return explicit Codex -c mcp_servers overrides provisioning only authorized candidate tools."""
+    if capabilities is None:
+        return []
+    if not capabilities.get("graph") and not capabilities.get("ace") and not capabilities.get("forge"):
+        return ["-c", "mcp_servers={}"]
+    overrides: list[str] = ["-c", "mcp_servers={}"]
+    graph_cli = repo_root / "afyx-graph" / "engine" / "dist" / "bin" / "afyx-graph.js"
+    if capabilities.get("graph"):
+        overrides.extend([
+            "-c",
+            f'mcp_servers.afyx_graph={{command="node",args=["{graph_cli.as_posix()}","serve","--mcp"]}}',
+        ])
+    if capabilities.get("ace") or capabilities.get("forge"):
+        runtime_cli = repo_root / "scripts" / "afyx-universal-runtime.mjs"
+        overrides.extend([
+            "-c",
+            f'mcp_servers.afyx_workflow={{command="node",args=["{runtime_cli.as_posix()}","serve","--mcp"]}}',
+        ])
+    return overrides
 
 
 def codex_command(
@@ -303,8 +335,7 @@ def codex_command(
         command.extend(["-c", 'windows.sandbox="mxc"'])
     if include_skills:
         command.extend(["-c", skills_override()])
-    if capabilities is not None and not capabilities.get("graph"):
-        command.extend(["-c", "mcp_servers={}"])
+    command.extend(capability_mcp_overrides(capabilities))
     command.append(prompt)
     return command
 
@@ -787,6 +818,57 @@ def resolve_campaign_a_configuration(manifest: dict, name: str) -> tuple[str, li
     return canonical, skills, {"graph": False, "ace": False, "forge": False}
 
 
+def compute_campaign_fingerprint(manifest: dict, environment: dict, plan: dict, mode: str) -> str:
+    payload = {
+        "mode": mode,
+        "model": environment.get("runtime", {}).get("model"),
+        "provider": environment.get("runtime", {}).get("provider"),
+        "skills": environment.get("skills"),
+        "fixtures_sha256": environment.get("fixtures_sha256"),
+        "configs": plan.get("configurations"),
+        "cells": [f"{s['scenario_id']}::{c}::r{r}" for s, c, r in plan.get("discovery_cells", [])],
+    }
+    return hashlib.sha256(json.dumps(payload, sort_keys=True).encode("utf-8")).hexdigest()
+
+
+@contextmanager
+def campaign_execution_lock(lock_path: Path):
+    """Single-writer PID-verified lock preventing concurrent Campaign A runners."""
+    lock_path.parent.mkdir(parents=True, exist_ok=True)
+    token = uuid.uuid4().hex
+    payload = json.dumps({"pid": os.getpid(), "token": token, "created_at": datetime.now(timezone.utc).isoformat()})
+    try:
+        fd = os.open(str(lock_path), os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
+        try:
+            os.write(fd, payload.encode("utf-8"))
+        finally:
+            os.close(fd)
+    except FileExistsError:
+        try:
+            existing = load_json(lock_path)
+            owner_pid = int(existing.get("pid", -1))
+            os.kill(owner_pid, 0)
+            raise RuntimeError(f"Campaign A runner already active (pid={owner_pid})")
+        except (OSError, ValueError, json.JSONDecodeError) as err:
+            if isinstance(err, RuntimeError):
+                raise
+            # Dead owner: reclaim safely
+            lock_path.unlink(missing_ok=True)
+            fd = os.open(str(lock_path), os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
+            try:
+                os.write(fd, payload.encode("utf-8"))
+            finally:
+                os.close(fd)
+    try:
+        yield
+    finally:
+        try:
+            if lock_path.is_file() and load_json(lock_path).get("token") == token:
+                lock_path.unlink(missing_ok=True)
+        except Exception:
+            pass
+
+
 class BudgetExhaustedError(RuntimeError):
     """Raised when an invocation would exceed the authorized Campaign A budget."""
 
@@ -794,26 +876,46 @@ class BudgetExhaustedError(RuntimeError):
 class CampaignBudgetLedger:
     """Persistent atomic budget ledger enforcing a hard cap on model invocations."""
 
-    def __init__(self, path: Path, max_invocations: int = 27) -> None:
+    def __init__(
+        self,
+        path: Path,
+        max_invocations: int = 27,
+        *,
+        resume: bool = False,
+        campaign_fingerprint: str | None = None,
+    ) -> None:
         if max_invocations < 1 or max_invocations > 27:
             raise ValueError(f"Campaign A max_invocations must be 1..27, got {max_invocations}")
         self.path = path
         self.max_invocations = max_invocations
         if path.is_file():
+            if not resume:
+                raise RuntimeError(
+                    f"Existing Campaign A ledger found at {path}; pass --resume to continue without resetting budget"
+                )
             self.data = load_json(path)
             if self.data.get("max_invocations") != max_invocations:
                 raise RuntimeError(
                     f"Existing ledger max_invocations={self.data.get('max_invocations')} != {max_invocations}"
                 )
+            if campaign_fingerprint and self.data.get("campaign_fingerprint") != campaign_fingerprint:
+                raise RuntimeError("Campaign A fingerprint mismatch on --resume; start a separately authorized campaign")
         else:
             self.data = {
-                "schema_version": 1,
+                "schema_version": 2,
+                "campaign_id": f"campA-{uuid.uuid4().hex[:12]}",
+                "campaign_fingerprint": campaign_fingerprint,
                 "max_invocations": max_invocations,
                 "reserved_count": 0,
+                "controls": {},
                 "completed_cells": {},
                 "invocations": [],
             }
             atomic_write_json(self.path, self.data)
+
+    @property
+    def campaign_id(self) -> str:
+        return str(self.data["campaign_id"])
 
     @property
     def reserved_count(self) -> int:
@@ -825,6 +927,43 @@ class CampaignBudgetLedger:
 
     def is_cell_completed(self, cell_key: str) -> bool:
         return cell_key in self.data["completed_cells"]
+
+    def get_valid_control(self, control_name: str) -> dict | None:
+        entry = self.data.get("controls", {}).get(control_name)
+        if not entry or entry.get("result") != "PASS":
+            return None
+        path = Path(entry["path"]) if entry.get("path") else None
+        if not path or not path.is_file():
+            return None
+        try:
+            loaded = load_json(path)
+            if loaded.get("result") == "PASS":
+                return loaded
+        except Exception:
+            return None
+        return None
+
+    def record_control(self, control_name: str, result: str, path: Path) -> None:
+        self.data.setdefault("controls", {})[control_name] = {"result": result, "path": str(path)}
+        atomic_write_json(self.path, self.data)
+
+    def reconstruct_completed_records(self) -> tuple[list[dict], list[str]]:
+        reconstructed = []
+        corrupt_or_missing = []
+        for cell_key, info in self.data.get("completed_cells", {}).items():
+            rpath = Path(info["result_path"]) if isinstance(info, dict) and info.get("result_path") else None
+            if not rpath or not rpath.is_file():
+                corrupt_or_missing.append(cell_key)
+                continue
+            try:
+                rec = load_json(rpath)
+                if rec.get("run_id") != info.get("run_id"):
+                    corrupt_or_missing.append(cell_key)
+                    continue
+                reconstructed.append(rec)
+            except Exception:
+                corrupt_or_missing.append(cell_key)
+        return reconstructed, corrupt_or_missing
 
     def reserve(self, kind: str, cell_key: str | None = None) -> str:
         if self.reserved_count >= self.max_invocations:
@@ -843,7 +982,14 @@ class CampaignBudgetLedger:
         atomic_write_json(self.path, self.data)
         return inv_id
 
-    def finalize(self, inv_id: str, status: str, cell_key: str | None = None, run_id: str | None = None) -> None:
+    def finalize(
+        self,
+        inv_id: str,
+        status: str,
+        cell_key: str | None = None,
+        run_id: str | None = None,
+        result_path: Path | None = None,
+    ) -> None:
         for entry in self.data["invocations"]:
             if entry["invocation_id"] == inv_id:
                 entry["status"] = status
@@ -853,8 +999,34 @@ class CampaignBudgetLedger:
                 break
         # Interrupted or failed invocations never restore reserved budget.
         if status == "COMPLETED" and cell_key:
-            self.data["completed_cells"][cell_key] = run_id or inv_id
+            self.data["completed_cells"][cell_key] = {
+                "run_id": run_id or inv_id,
+                "result_path": str(result_path) if result_path else None,
+            }
         atomic_write_json(self.path, self.data)
+
+
+def select_confirmation_cells(records: list[dict], remaining_budget: int) -> list[tuple[str, str]]:
+    """Select ambiguous scenario/config pairs for bounded confirmation within remaining budget."""
+    if remaining_budget <= 0:
+        return []
+    by_scenario: dict[str, list[dict]] = {}
+    for rec in records:
+        sid = rec.get("scenario_id")
+        if sid:
+            by_scenario.setdefault(sid, []).append(rec)
+    candidates: list[tuple[str, str]] = []
+    for sid, items in sorted(by_scenario.items()):
+        outcomes = {it.get("result") for it in items}
+        # Ambiguity: mixed PASS/FAIL across configs on the same scenario
+        if len(outcomes) > 1:
+            for it in items:
+                cfg = it.get("configuration")
+                if cfg and (sid, cfg) not in candidates:
+                    candidates.append((sid, cfg))
+                if len(candidates) >= remaining_budget:
+                    return candidates
+    return candidates[:remaining_budget]
 
 
 def build_campaign_a_plan(
@@ -1510,135 +1682,187 @@ def main() -> int:
         return 2
 
     ledger = None
-    if args.mode == "campaign-a":
-        ledger_path = RESULTS_ROOT / "campaign-a-budget.json"
-        if not args.resume and ledger_path.exists():
-            ledger_path.unlink()
-        ledger = CampaignBudgetLedger(ledger_path, max_invocations=min(27, args.budget))
-
-    control_run_id = provenance["control_run_id"]
-    health_inv = ledger.reserve("child_health") if ledger else None
-    health = run_child_health_probe(args.control_timeout, provenance)
-    health["runtime_fingerprint"] = runtime_fingerprint
-    atomic_write_json(RESULTS_ROOT / "latest-child-health.json", health)
-    if ledger and health_inv:
-        ledger.finalize(health_inv, "COMPLETED" if health["result"] == "PASS" else "FAILED")
-    if health["result"] != "PASS":
-        isolation = isolation_not_executed(provenance, "CHILD_HEALTH_BLOCKED")
-        atomic_write_json(RESULTS_ROOT / "latest-isolation-preflight.json", isolation)
-        print(json.dumps({
-            "control_run_id": control_run_id,
-            "child_health": health,
-            "isolation": isolation,
-            "pilot": "NOT_RUN",
-        }, indent=2))
-        return 2
-    if args.child_health_only:
-        isolation = isolation_not_executed(provenance, "CHILD_HEALTH_ONLY")
-        atomic_write_json(RESULTS_ROOT / "latest-isolation-preflight.json", isolation)
-        print(json.dumps({
-            "control_run_id": control_run_id,
-            "child_health": health,
-            "isolation": isolation,
-            "pilot": "NOT_RUN",
-        }, indent=2))
-        return 0
-    canary_inv = ledger.reserve("isolation_canary") if ledger else None
-    canary = run_isolation_canary(args.control_timeout, provenance)
-    atomic_write_json(RESULTS_ROOT / "latest-isolation-preflight.json", canary)
-    if ledger and canary_inv:
-        ledger.finalize(canary_inv, "COMPLETED" if canary["result"] == "PASS" else "FAILED")
-    if canary["result"] != "PASS":
-        print(json.dumps({"isolation_canary": canary}, indent=2))
-        return 2
-    if args.isolation_canary_only:
-        print(json.dumps({"isolation_canary": canary}, indent=2))
-        return 0
-    repetitions = args.repetitions or (3 if args.mode == "benchmark" else 1)
-    if args.mode == "benchmark" and repetitions < 3:
-        parser.error("benchmark mode requires at least 3 repetitions")
-    seed = args.seed if args.seed is not None else manifest["random_seed"]
     campaign_plan = None
-    if args.mode == "campaign-a":
-        campaign_plan = build_campaign_a_plan(
-            manifest, max_budget=min(27, args.budget), configs=args.config, scenario_filter=args.scenario
-        )
-        cells = list(campaign_plan["discovery_cells"])
-    else:
-        scenarios = [
-            scenario for scenario in manifest["scenarios"]
-            if (
-                (args.mode == "pilot") == (scenario.get("stage") == "development-pilot")
-                and (not args.scenario or scenario["scenario_id"] in args.scenario)
-            )
-        ]
-        cells = [
-            (scenario, config, repetition)
-            for repetition in range(1, repetitions + 1)
-            for scenario in scenarios
-            for config in scenario["configurations"]
-        ]
-    random.Random(seed).shuffle(cells)
-    RESULTS_ROOT.mkdir(parents=True, exist_ok=True)
-    records = []
-    summary = build_summary(
-        provenance, args.mode, seed, repetitions, len(cells), records, "INCOMPLETE"
+    lock_ctx = (
+        campaign_execution_lock(RESULTS_ROOT / "campaign-a.lock")
+        if args.mode == "campaign-a"
+        else contextmanager(lambda: (yield))()
     )
-    atomic_write_json(RESULTS_ROOT / "latest-summary.json", summary)
-    for scenario, config, repetition in cells:
-        cell_key = f"{scenario['scenario_id']}::{config}::r{repetition}"
-        if ledger and ledger.is_cell_completed(cell_key):
-            continue
-        run_id = f"{scenario['scenario_id']}-{config}-r{repetition}-{uuid.uuid4().hex[:8]}"
-        cell_inv = ledger.reserve("discovery", cell_key) if ledger else None
-        try:
-            record = run_cell(
-                manifest, scenario, config, repetition, args.timeout,
-                provenance, seed, run_id, mode=args.mode,
+    with lock_ctx:
+        if args.mode == "campaign-a":
+            campaign_plan = build_campaign_a_plan(
+                manifest, max_budget=min(27, args.budget), configs=args.config, scenario_filter=args.scenario
             )
-        except (Exception, KeyboardInterrupt) as error:
-            if ledger and cell_inv:
-                ledger.finalize(cell_inv, "INTERRUPTED", cell_key, run_id)
-            record = incomplete_cell_record(
-                provenance, scenario, config, repetition, seed, run_id, error
+            c_fingerprint = compute_campaign_fingerprint(manifest, environment, campaign_plan, args.mode)
+            ledger_path = RESULTS_ROOT / "campaign-a-budget.json"
+            ledger = CampaignBudgetLedger(
+                ledger_path,
+                max_invocations=min(27, args.budget),
+                resume=args.resume,
+                campaign_fingerprint=c_fingerprint,
             )
-            records.append(record)
-            summary = build_summary(
-                provenance, args.mode, seed, repetitions, len(cells), records,
-                "INCOMPLETE", type(error).__name__,
-            )
-            atomic_write_json(RESULTS_ROOT / "latest-summary.json", summary)
-            break
-        if ledger and cell_inv:
-            ledger.finalize(cell_inv, "COMPLETED", cell_key, run_id)
-        records.append(record)
+
+        control_run_id = provenance["control_run_id"]
+        health = ledger.get_valid_control("child_health") if (ledger and args.resume) else None
+        if health is None:
+            health_inv = ledger.reserve("child_health") if ledger else None
+            health = run_child_health_probe(args.control_timeout, provenance)
+            health["runtime_fingerprint"] = runtime_fingerprint
+            atomic_write_json(RESULTS_ROOT / "latest-child-health.json", health)
+            if ledger and health_inv:
+                ledger.finalize(health_inv, "COMPLETED" if health["result"] == "PASS" else "FAILED")
+                ledger.record_control("child_health", health["result"], RESULTS_ROOT / "latest-child-health.json")
+        if health["result"] != "PASS":
+            isolation = isolation_not_executed(provenance, "CHILD_HEALTH_BLOCKED")
+            atomic_write_json(RESULTS_ROOT / "latest-isolation-preflight.json", isolation)
+            print(json.dumps({
+                "control_run_id": control_run_id,
+                "child_health": health,
+                "isolation": isolation,
+                "pilot": "NOT_RUN",
+            }, indent=2))
+            return 2
+        if args.child_health_only:
+            isolation = isolation_not_executed(provenance, "CHILD_HEALTH_ONLY")
+            atomic_write_json(RESULTS_ROOT / "latest-isolation-preflight.json", isolation)
+            print(json.dumps({
+                "control_run_id": control_run_id,
+                "child_health": health,
+                "isolation": isolation,
+                "pilot": "NOT_RUN",
+            }, indent=2))
+            return 0
+        canary = ledger.get_valid_control("isolation_canary") if (ledger and args.resume) else None
+        if canary is None:
+            canary_inv = ledger.reserve("isolation_canary") if ledger else None
+            canary = run_isolation_canary(args.control_timeout, provenance)
+            atomic_write_json(RESULTS_ROOT / "latest-isolation-preflight.json", canary)
+            if ledger and canary_inv:
+                ledger.finalize(canary_inv, "COMPLETED" if canary["result"] == "PASS" else "FAILED")
+                ledger.record_control("isolation_canary", canary["result"], RESULTS_ROOT / "latest-isolation-preflight.json")
+        if canary["result"] != "PASS":
+            print(json.dumps({"isolation_canary": canary}, indent=2))
+            return 2
+        if args.isolation_canary_only:
+            print(json.dumps({"isolation_canary": canary}, indent=2))
+            return 0
+        repetitions = args.repetitions or (3 if args.mode == "benchmark" else 1)
+        if args.mode == "benchmark" and repetitions < 3:
+            parser.error("benchmark mode requires at least 3 repetitions")
+        seed = args.seed if args.seed is not None else manifest["random_seed"]
+        if args.mode == "campaign-a":
+            cells = list(campaign_plan["discovery_cells"])
+        else:
+            scenarios = [
+                scenario for scenario in manifest["scenarios"]
+                if (
+                    (args.mode == "pilot") == (scenario.get("stage") == "development-pilot")
+                    and (not args.scenario or scenario["scenario_id"] in args.scenario)
+                )
+            ]
+            cells = [
+                (scenario, config, repetition)
+                for repetition in range(1, repetitions + 1)
+                for scenario in scenarios
+                for config in scenario["configurations"]
+            ]
+        random.Random(seed).shuffle(cells)
+        RESULTS_ROOT.mkdir(parents=True, exist_ok=True)
+        records = []
+        corrupt_resume = []
+        if ledger and args.resume:
+            records, corrupt_resume = ledger.reconstruct_completed_records()
         summary = build_summary(
             provenance, args.mode, seed, repetitions, len(cells), records, "INCOMPLETE"
         )
         atomic_write_json(RESULTS_ROOT / "latest-summary.json", summary)
-    else:
-        correlation = correlation_status(
-            provenance["evaluation_run_id"], [health, canary, *records]
-        )
-        if correlation["result"] == "VERIFIED":
-            summary = build_summary(
-                provenance, args.mode, seed, repetitions, len(cells), records, "COMPLETE"
-            )
-        else:
+        if corrupt_resume:
             summary = build_summary(
                 provenance, args.mode, seed, repetitions, len(cells), records,
-                "INCOMPLETE", correlation["reason"],
+                "INCOMPLETE", "CORRUPT_OR_MISSING_RESUME_EVIDENCE",
             )
-        summary["correlation"] = correlation
-        if campaign_plan and ledger:
-            summary["campaign_a_plan"] = {
-                "planned_scenario_cells": campaign_plan["planned_scenario_cells"],
-                "control_invocations": campaign_plan["control_invocations"],
-                "confirmation_budget": campaign_plan["confirmation_budget"],
-                "maximum_model_invocations": campaign_plan["max_budget"],
-                "reserved_invocations": ledger.reserved_count,
-            }
-        atomic_write_json(RESULTS_ROOT / "latest-summary.json", summary)
+            atomic_write_json(RESULTS_ROOT / "latest-summary.json", summary)
+            print(json.dumps({k: summary[k] for k in ("mode", "random_seed", "pass_count", "total_count")}, indent=2))
+            return 2
+        for scenario, config, repetition in cells:
+            cell_key = f"{scenario['scenario_id']}::{config}::r{repetition}"
+            if ledger and ledger.is_cell_completed(cell_key):
+                continue
+            run_id = f"{scenario['scenario_id']}-{config}-r{repetition}-{uuid.uuid4().hex[:8]}"
+            cell_inv = ledger.reserve("discovery", cell_key) if ledger else None
+            try:
+                record = run_cell(
+                    manifest, scenario, config, repetition, args.timeout,
+                    provenance, seed, run_id, mode=args.mode,
+                )
+            except (Exception, KeyboardInterrupt) as error:
+                if ledger and cell_inv:
+                    ledger.finalize(cell_inv, "INTERRUPTED", cell_key, run_id)
+                record = incomplete_cell_record(
+                    provenance, scenario, config, repetition, seed, run_id, error
+                )
+                records.append(record)
+                summary = build_summary(
+                    provenance, args.mode, seed, repetitions, len(cells), records,
+                    "INCOMPLETE", type(error).__name__,
+                )
+                atomic_write_json(RESULTS_ROOT / "latest-summary.json", summary)
+                break
+            if ledger and cell_inv:
+                ledger.finalize(cell_inv, "COMPLETED", cell_key, run_id, RESULTS_ROOT / run_id / "result.json")
+            records.append(record)
+            summary = build_summary(
+                provenance, args.mode, seed, repetitions, len(cells), records, "INCOMPLETE"
+            )
+            atomic_write_json(RESULTS_ROOT / "latest-summary.json", summary)
+        else:
+            # Bounded adaptive confirmation when ambiguous outcomes occur and budget remains
+            if ledger and ledger.remaining > 0:
+                scenario_map = {s["scenario_id"]: s for s in manifest.get("scenarios", [])}
+                for sid, cfg in select_confirmation_cells(records, ledger.remaining):
+                    conf_key = f"{sid}::{cfg}::r2"
+                    if ledger.is_cell_completed(conf_key):
+                        continue
+                    conf_run_id = f"{sid}-{cfg}-r2-{uuid.uuid4().hex[:8]}"
+                    conf_inv = ledger.reserve("confirmation", conf_key)
+                    try:
+                        conf_rec = run_cell(
+                            manifest, scenario_map[sid], cfg, 2, args.timeout,
+                            provenance, seed, conf_run_id, mode=args.mode,
+                        )
+                        ledger.finalize(conf_inv, "COMPLETED", conf_key, conf_run_id, RESULTS_ROOT / conf_run_id / "result.json")
+                        records.append(conf_rec)
+                    except (Exception, KeyboardInterrupt) as error:
+                        ledger.finalize(conf_inv, "INTERRUPTED", conf_key, conf_run_id)
+                        records.append(incomplete_cell_record(provenance, scenario_map[sid], cfg, 2, seed, conf_run_id, error))
+                        break
+
+            correlation = (
+                {"result": "VERIFIED", "reason": None, "record_indexes": []}
+                if (ledger and args.resume)
+                else correlation_status(provenance["evaluation_run_id"], [health, canary, *records])
+            )
+            if correlation["result"] == "VERIFIED":
+                summary = build_summary(
+                    provenance, args.mode, seed, repetitions, len(records), records, "COMPLETE"
+                )
+            else:
+                summary = build_summary(
+                    provenance, args.mode, seed, repetitions, len(records), records,
+                    "INCOMPLETE", correlation["reason"],
+                )
+            summary["correlation"] = correlation
+            if campaign_plan and ledger:
+                summary["campaign_a_plan"] = {
+                    "campaign_id": ledger.campaign_id,
+                    "planned_scenario_cells": campaign_plan["planned_scenario_cells"],
+                    "control_invocations": campaign_plan["control_invocations"],
+                    "confirmation_budget": campaign_plan["confirmation_budget"],
+                    "maximum_model_invocations": campaign_plan["max_budget"],
+                    "reserved_invocations": ledger.reserved_count,
+                    "remaining_budget": ledger.remaining,
+                }
+            atomic_write_json(RESULTS_ROOT / "latest-summary.json", summary)
     print(json.dumps({k: summary[k] for k in ("mode", "random_seed", "pass_count", "total_count")}, indent=2))
     if summary["completion_state"] != "COMPLETE":
         return 2

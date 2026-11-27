@@ -3033,7 +3033,7 @@
     {
       "path": "scripts/afyx-universal-runtime.mjs",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "f19830a5467d62b67468f5d1ca602e39231883bd835d05acf62142b17fe90453",
+      "reviewedSha256": "c58ce8a8ada59f3e626c1afe22e44a6b026d9f1749e4f5055719ec48b77188a7",
       "evidence": "MB12 review: authored from AFYX functional requirements and existing reviewed 251f73a contracts; no upstream implementation, prompts, assets or dependency imported. Trusted-host boundaries and negative/regression tests recorded in MB12-native-consolidation-20261114-r1."
     },
     {
