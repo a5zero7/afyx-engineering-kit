@@ -72,9 +72,11 @@ empty hierarchy speculatively.
 
 ## Mandatory workspace hygiene & artifact placement policies
 
-1. **Development worktrees**: Every new development worktree must be created via
-   `git -C <REPO_ROOT> worktree add`
-   inside `<WORKSPACE_ROOT>\progres\<worktree-name>`.
+1. **Canonical development branch & worktrees**: Active development and commits
+   must execute directly on the canonical `dev` branch inside `afyx-engineering-kit`.
+   Do not create feature, fix, chore, or temporary branches, and do not create new
+   worktrees. Any explicitly authorized legacy or exception worktree must be
+   registered via `git -C <REPO_ROOT> worktree add` inside `<WORKSPACE_ROOT>\progres\<worktree-name>`.
 2. **Smoke test outputs**: All retained smoke test fixtures, logs, and outputs must
    be placed under `<WORKSPACE_ROOT>\testing\smoke\`.
 3. **Regression test outputs**: All retained regression test fixtures and outputs must
@@ -107,7 +109,9 @@ empty hierarchy speculatively.
 
 ## Worktree rules
 
-1. Create linked worktrees through `git worktree add`; never copy a worktree.
+1. Do not create new linked worktrees for routine development; use canonical `dev`
+   directly. For explicitly authorized exception worktrees, use `git worktree add`
+   and never copy a worktree.
 2. Use `git worktree move` for relocation and `git worktree repair` after the main
    repository or common directory moves.
 3. On Windows, inspect and re-target any internal NTFS junctions (`ReparsePoint`)

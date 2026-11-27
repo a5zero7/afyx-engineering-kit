@@ -1,9 +1,10 @@
 # Contributing to AFYX Engineering Kit
 
-Develop on `dev`. Use a branch based on `origin/dev` when a change needs
-review. Keep `main` for verified releases and follow the release gates before
-promotion. Keep one coherent change per commit, with a concise conventional or
-bracketed subject and no AI attribution trailers.
+Develop directly on the canonical `dev` branch. Do not create feature, fix,
+chore, or temporary branches, and do not create new worktrees. Keep `main` for
+verified releases and follow the release gates before promotion. Keep one
+coherent change per commit, with a concise conventional or bracketed subject
+and no AI attribution trailers.
 
 ## Source and distribution
 
