@@ -42,4 +42,16 @@ This adaptive policy controls evidence collection; it does not change assertions
 
 ## Results
 
-### Campaign A: pending
+### Campaign A: Exploratory Partial Baseline (`campA-9da5e996dfa1`)
+
+- **Provenance & Subjek Uji:** `benchmark_subject_commit` `c48129ec16af6d70072a11d900f025bdd6d85644` dengan harness/environment revision `1bde4df8f790ac8bcdfb492d3e07d4d5903d7d7b` (melanjutkan perbaikan harness `b96a36c`, `ca02136`). Seluruh 27 otorisasi invocation asli telah terpakai (`2` kontrol Windows gagal + `2` kontrol WSL2 lulus + `20` discovery + `3` konfirmasi).
+- **Lingkungan Eksekusi & Fallback WSL2:** Pada Windows 11 Build 26300, backend `windows.sandbox="mxc"` pada `codex-cli 0.167.0` gagal deterministik (`0xc0000142` saat meluncurkan biner runtime). Seluruh eksekusi live Campaign A dijalankan secara konsisten pada **WSL2 Ubuntu Linux** (`bwrap`/`landlock`, `afyx-evaluation` profile, `network.enabled=false`) yang lulus 7/7 kontrol isolasi non-model.
+- **Ringkasan Observasi:** `17/17` sel yang menerima respons model lulus validasi fungsional/oracle, `14/23` lulus assertion ketat (`3` sel `smoke-odoo-001` `S/G/F` lulus fungsional namun gagal `required_skill_reads`, `6` sel akhir terkena batas kuota provider dengan `0` token), serta `0` panggilan MCP pada fixture mikro 1–3 file.
+
+### Rencana Konfirmasi Terarah Berikutnya (B7, Belum Dieksekusi)
+
+1. Pasangan micro-task setara (`N/S/G/F`) untuk memverifikasi pengurangan overhead aktivasi pasca-B6.
+2. Repositori multi-modul skala menengah (>=20 file dengan ketergantungan lintas-file nyata) dan oracle unittest independen.
+3. Beban kerja bukti struktural (analisis caller/callees/impact lintas-modul).
+4. Beban kerja diagnostik/konteks berulang untuk mengukur net reduction ACE pasca-D2.
+5. Tugas Odoo engineering dengan oracle kompatibilitas versi yang dapat diverifikasi.

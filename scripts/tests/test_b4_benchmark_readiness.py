@@ -236,6 +236,91 @@ class BenchmarkReadinessTests(unittest.TestCase):
         )
         self.assertEqual(diag.returncode, 0)
 
+    def test_quota_exhaustion_stops_immediately_and_preserves_null_tokens(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_results = Path(tmp) / "results"
+            launch_count = {"calls": 0}
+
+            def fake_bounded(command, cwd, timeout, env=None):
+                launch_count["calls"] += 1
+                out = "\n".join([
+                    json.dumps({"type": "thread.started", "thread_id": "t-quota"}),
+                    json.dumps({"type": "turn.started"}),
+                    json.dumps({"type": "turn.failed", "error": {"message": "You've hit your usage limit. Try again later."}}),
+                ])
+                return {
+                    "started": True, "pid": 1, "returncode": 1,
+                    "stdout": out, "stderr": "", "timed_out": False,
+                    "cleanup_required": False, "cleanup_succeeded": True,
+                    "cleanup_method": "none", "elapsed_seconds": 0.05,
+                    "executable": "codex", "launcher_kind": "mock",
+                }
+
+            def fake_health(timeout, provenance):
+                return {**provenance, "result": "PASS", "classification": "PASS", "elapsed_seconds": 0.01}
+
+            def fake_canary(timeout, provenance):
+                return {**provenance, "result": "PASS", "canary_exposed": False, "external_read_succeeded": False, "elapsed_seconds": 0.01}
+
+            with mock.patch.object(run, "RESULTS_ROOT", tmp_results), \
+                 mock.patch.object(run, "verify_runtime_fingerprint", return_value={"codex_cli": "0.167.0"}), \
+                 mock.patch.object(run, "run_child_health_probe", side_effect=fake_health), \
+                 mock.patch.object(run, "run_isolation_canary", side_effect=fake_canary), \
+                 mock.patch.object(run, "bounded_process", side_effect=fake_bounded), \
+                 mock.patch.object(sys, "argv", [
+                     "run.py", "--mode", "campaign-a",
+                     "--scenario", "campaign-a-validation-plan-001",
+                     "--config", "N", "--config", "S", "--config", "G", "--config", "F",
+                     "--budget", "6",
+                 ]):
+                rc = run.main()
+
+            self.assertEqual(rc, 2)
+            # Only 1 cell may be launched before immediate stop; no confirmation runs allowed.
+            self.assertEqual(launch_count["calls"], 1)
+            summary = json.loads((tmp_results / "latest-summary.json").read_text(encoding="utf-8"))
+            self.assertEqual(summary["completion_state"], "INCOMPLETE")
+            self.assertEqual(summary["error_classification"], "PROVIDER_QUOTA_EXHAUSTED")
+            self.assertEqual(len(summary["results"]), 1)
+            rec = summary["results"][0]
+            self.assertEqual(rec["provider_execution_status"], "QUOTA_EXHAUSTED")
+            self.assertEqual(rec["measurement_coverage"], "NOT_EXECUTED")
+            self.assertIsNone(rec["input_tokens"])
+            self.assertIsNone(rec["output_tokens"])
+            self.assertEqual(len(summary["not_run_cells"]), 3)
+            self.assertTrue(all(v == "NOT_RUN_PROVIDER_LIMIT" for v in summary["not_run_cells"].values()))
+
+    def test_functional_correctness_separated_from_skill_read_compliance(self) -> None:
+        manifest = json.loads((EVAL_ROOT / "manifest.json").read_text(encoding="utf-8"))
+        scenario = next(s for s in manifest["scenarios"] if s["scenario_id"] == "campaign-a-validation-plan-001")
+        scenario = copy.deepcopy(scenario)
+        scenario["required_skill_reads"] = ["afyx-engineering-expert"]
+
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_results = Path(tmp) / "results"
+            def fake_bounded(command, cwd, timeout, env=None):
+                out = "\n".join([
+                    json.dumps({"type": "item.completed", "item": {"type": "agent_message", "text": "contract and rollback plan"}}),
+                    json.dumps({"type": "turn.completed", "usage": {"input_tokens": 50, "cached_input_tokens": 10, "output_tokens": 20}}),
+                ])
+                return {
+                    "started": True, "pid": 1, "returncode": 0,
+                    "stdout": out, "stderr": "", "timed_out": False,
+                    "cleanup_required": False, "cleanup_succeeded": True,
+                    "cleanup_method": "none", "elapsed_seconds": 0.01,
+                    "executable": "codex", "launcher_kind": "mock",
+                }
+
+            with mock.patch.object(run, "RESULTS_ROOT", tmp_results), \
+                 mock.patch.object(run, "bounded_process", side_effect=fake_bounded):
+                rec = run.run_cell(manifest, scenario, "S", 1, 30, mode="campaign-a")
+
+            self.assertEqual(rec["functional_correctness"], "PASS")
+            self.assertEqual(rec["skill_read_compliance"], "FAIL")
+            self.assertEqual(rec["overall_acceptance"], "FAIL")
+            self.assertEqual(rec["result"], "FAIL")
+            self.assertEqual(rec["measurement_coverage"], "COMPLETE")
+
 
 if __name__ == "__main__":
     unittest.main()

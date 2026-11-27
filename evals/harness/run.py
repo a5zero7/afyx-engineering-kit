@@ -1202,6 +1202,27 @@ def check_assertions(
     return checks
 
 
+def detect_provider_quota_exhaustion(stdout: str, stderr: str) -> str | None:
+    """Detect structured provider usage-limit or quota exhaustion errors."""
+    quota_pattern = re.compile(
+        r"hit your usage limit|usage limit|quota exceeded|insufficient_quota|rate_limit_exceeded",
+        re.I,
+    )
+    for line in stdout.splitlines():
+        try:
+            event = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if event.get("type") in {"turn.failed", "error"}:
+            err = event.get("error")
+            msg = err.get("message", "") if isinstance(err, dict) else str(err or event.get("message") or "")
+            if msg and quota_pattern.search(msg):
+                return sanitize_diagnostic(msg, limit=500)
+    if stderr and quota_pattern.search(stderr):
+        return sanitize_diagnostic(stderr, limit=500)
+    return None
+
+
 def python_list_reversal_is_correct(output: str) -> bool:
     """Execute only a tiny safe Python subset and verify reversal semantics."""
     snippets = re.findall(r"```(?:python)?\s*\n(.*?)```", output, re.I | re.S)
@@ -1406,10 +1427,50 @@ def run_cell(
         and not process["timed_out"]
         and all(item["passed"] for item in assertions)
     )
+    quota_error = detect_provider_quota_exhaustion(process["stdout"], process["stderr"])
+    if quota_error:
+        provider_execution_status = "QUOTA_EXHAUSTED"
+    elif process["timed_out"]:
+        provider_execution_status = "TIMEOUT"
+    elif process["returncode"] != 0 or not process["started"]:
+        provider_execution_status = "PROCESS_ERROR"
+    else:
+        provider_execution_status = "OK"
+
+    compliance_types = {
+        "required_skill_reads", "forbidden_skill_reads",
+        "available_skill_reads", "max_expert_reference_reads",
+    }
+    functional_assertions = [item for item in assertions if item["type"] not in compliance_types]
+    compliance_assertions = [item for item in assertions if item["type"] in compliance_types]
+    if provider_execution_status == "QUOTA_EXHAUSTED":
+        functional_correctness = "NOT_RUN"
+    elif (
+        process["returncode"] == 0
+        and not process["timed_out"]
+        and all(item["passed"] for item in functional_assertions)
+    ):
+        functional_correctness = "PASS"
+    else:
+        functional_correctness = "FAIL"
+    regression_result = (
+        "NOT_APPLICABLE" if scenario["validation_command"] is None
+        else ("PASS" if validation_exit == 0 else "FAIL")
+    )
+    skill_read_compliance = (
+        "NOT_APPLICABLE" if not compliance_assertions
+        else ("PASS" if all(item["passed"] for item in compliance_assertions) else "FAIL")
+    )
+    mcp_calls_count = sum(1 for item in parsed["tool_events"] if item.get("event_type") == "item.completed" and item.get("type") == "mcp_tool_call")
+
     usage = parsed["usage"]
     input_tokens = usage.get("input_tokens")
     cached_input_tokens = usage.get("cached_input_tokens")
     output_tokens = usage.get("output_tokens")
+    measurement_coverage = (
+        "NOT_EXECUTED" if provider_execution_status != "OK"
+        else ("COMPLETE" if input_tokens is not None and output_tokens is not None else "MISSING_USAGE")
+    )
     derived_input_output_tokens = (
         input_tokens + output_tokens
         if input_tokens is not None and output_tokens is not None else None
@@ -1431,6 +1492,24 @@ def run_cell(
         "random_seed": seed,
         "isolated_skills": active_skills,
         "capability_config": capabilities,
+        "capability_availability": {
+            "skills": active_skills,
+            "graph": bool(capabilities.get("graph")),
+            "ace": bool(capabilities.get("ace")),
+            "forge": bool(capabilities.get("forge")),
+        },
+        "capability_utilization": {
+            "observed_skill_reads": observed_skill_reads,
+            "mcp_calls": mcp_calls_count,
+            "tool_calls": parsed["tool_calls"],
+        },
+        "provider_execution_status": provider_execution_status,
+        "provider_error_message": quota_error,
+        "measurement_coverage": measurement_coverage,
+        "functional_correctness": functional_correctness,
+        "regression_result": regression_result,
+        "skill_read_compliance": skill_read_compliance,
+        "overall_acceptance": "PASS" if passed else "FAIL",
         "observed_skill_reads": observed_skill_reads,
         "activation_evidence": activation,
         "runtime_overhead_ms": None,
@@ -1873,7 +1952,9 @@ def main() -> int:
             atomic_write_json(RESULTS_ROOT / "latest-summary.json", summary)
             print(json.dumps({k: summary[k] for k in ("mode", "random_seed", "pass_count", "total_count")}, indent=2))
             return 2
-        for scenario, config, repetition in cells:
+        quota_exhausted = False
+        not_run_cells: dict[str, str] = {}
+        for idx, (scenario, config, repetition) in enumerate(cells):
             cell_key = f"{scenario['scenario_id']}::{config}::r{repetition}"
             if ledger and ledger.is_cell_completed(cell_key):
                 continue
@@ -1898,15 +1979,29 @@ def main() -> int:
                 atomic_write_json(RESULTS_ROOT / "latest-summary.json", summary)
                 break
             if ledger and cell_inv:
-                ledger.finalize(cell_inv, "COMPLETED", cell_key, run_id, RESULTS_ROOT / run_id / "result.json")
+                final_status = "FAILED" if record.get("provider_execution_status") == "QUOTA_EXHAUSTED" else "COMPLETED"
+                ledger.finalize(cell_inv, final_status, cell_key, run_id, RESULTS_ROOT / run_id / "result.json")
             records.append(record)
+            if record.get("provider_execution_status") == "QUOTA_EXHAUSTED":
+                quota_exhausted = True
+                for rem_scenario, rem_cfg, rem_rep in cells[idx + 1:]:
+                    rem_key = f"{rem_scenario['scenario_id']}::{rem_cfg}::r{rem_rep}"
+                    if not (ledger and ledger.is_cell_completed(rem_key)):
+                        not_run_cells[rem_key] = "NOT_RUN_PROVIDER_LIMIT"
+                summary = build_summary(
+                    provenance, args.mode, seed, repetitions, len(cells), records,
+                    "INCOMPLETE", "PROVIDER_QUOTA_EXHAUSTED",
+                )
+                summary["not_run_cells"] = not_run_cells
+                atomic_write_json(RESULTS_ROOT / "latest-summary.json", summary)
+                break
             summary = build_summary(
                 provenance, args.mode, seed, repetitions, len(cells), records, "INCOMPLETE"
             )
             atomic_write_json(RESULTS_ROOT / "latest-summary.json", summary)
         else:
             # Bounded adaptive confirmation when ambiguous outcomes occur and budget remains
-            if ledger and ledger.remaining > 0:
+            if ledger and ledger.remaining > 0 and not quota_exhausted:
                 scenario_map = {s["scenario_id"]: s for s in manifest.get("scenarios", [])}
                 for sid, cfg in select_confirmation_cells(records, ledger.remaining):
                     conf_key = f"{sid}::{cfg}::r2"
@@ -1919,8 +2014,12 @@ def main() -> int:
                             manifest, scenario_map[sid], cfg, 2, args.timeout,
                             provenance, seed, conf_run_id, mode=args.mode,
                         )
-                        ledger.finalize(conf_inv, "COMPLETED", conf_key, conf_run_id, RESULTS_ROOT / conf_run_id / "result.json")
+                        final_status = "FAILED" if conf_rec.get("provider_execution_status") == "QUOTA_EXHAUSTED" else "COMPLETED"
+                        ledger.finalize(conf_inv, final_status, conf_key, conf_run_id, RESULTS_ROOT / conf_run_id / "result.json")
                         records.append(conf_rec)
+                        if conf_rec.get("provider_execution_status") == "QUOTA_EXHAUSTED":
+                            quota_exhausted = True
+                            break
                     except (Exception, KeyboardInterrupt) as error:
                         ledger.finalize(conf_inv, "INTERRUPTED", conf_key, conf_run_id)
                         records.append(incomplete_cell_record(provenance, scenario_map[sid], cfg, 2, seed, conf_run_id, error))

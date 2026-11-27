@@ -37,7 +37,7 @@
     {
       "path": "afyx-context/src/cli.js",
       "classification": "PUBLIC_API_BARREL",
-      "reviewedSha256": "ead9525e788dbe4ab8fac70d242721a9d70bee1be1eb978def79ddd640b6bac1",
+      "reviewedSha256": "19dbc56a63d259fd052305a216c097d4691704cb29a599eb5ed6caff5ee23891",
       "evidence": "AFYX native source: authored from AFYX functional requirements; verified clean room implementation with zero third-party code import."
     },
     {
@@ -79,7 +79,7 @@
     {
       "path": "afyx-context/src/engine.js",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "7dd447c4cfb3c929a23e4a95bfa4a2ef98a27baae6ac5378f1a06afb86eff947",
+      "reviewedSha256": "7dbf7ea2031f0644b1ed306b0a244cb0ac4520eb758c455addff716ca9f48cdb",
       "evidence": "AFYX native source: authored from AFYX functional requirements; verified clean room implementation with zero third-party code import."
     },
     {
@@ -157,7 +157,7 @@
     {
       "path": "afyx-context/src/storage.js",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "23a8c27cc40a40f51f66720c198fc05d14ebd550f54a4fc3dfaaa9974e65b2e7",
+      "reviewedSha256": "a8d731d9c71f543af6353b3f6ab9fdb72f0a74d60c6e9c4b74b6b9df7172f96e",
       "evidence": "AFYX native source: authored from AFYX functional requirements; verified clean room implementation with zero third-party code import."
     },
     {
@@ -2781,7 +2781,7 @@
     {
       "path": "scripts/afyx-capability-orchestrator.mjs",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "ba1a1c47964a90a97d1896ceef8ed931371f5c3713976a4c8607e4881d0da4eb",
+      "reviewedSha256": "951b70aff2e20051164bb43e90cd94a783fa8444f6ae96a971d6005e34b4fd3e",
       "evidence": "Universal capability orchestrator supporting all 8 modular tools with lazy activation, SCHEMA_INSPECTED / HEADER_ONLY_FALLBACK interop, and strict single primary domain budget (AFYX-329)."
     },
     {
@@ -2871,7 +2871,7 @@
     {
       "path": "scripts/afyx-host-adapters.mjs",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "b5f523ee5e2e68691393c112479aee9aabfaf5d3584e9da36aa3fb3d6643fd8f",
+      "reviewedSha256": "6c34b482835344baa018926ea49a4b615405f6f8cfe7ea42c367f4fa2c330066",
       "evidence": "MB16 AFYX-283: reviewed bounded Engineering Expert selection, lexical domain hints, and host ceiling consumption; no external logic imported."
     },
     {
