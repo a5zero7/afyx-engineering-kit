@@ -38,3 +38,11 @@ export { DbInspector, DB_INSPECTION_CONTRACT } from './db-inspector.js';
 export { EnvPreflight, ENV_PREFLIGHT_CONTRACT } from './env-preflight.js';
 export { CliCompactor, CLI_COMPACTOR_CONTRACT, COMPACTED_OUTPUT_MARKER } from './cli-compactor.js';
 export { MassiveContextNavigator, MASSIVE_CONTEXT_CONTRACT, readStructuredDocument } from './massive-context.js';
+export {
+  TRACE_CONTRACT,
+  defaultTracePath,
+  isTraceEnabled,
+  recordInvocationTrace,
+  readInvocationTraces,
+  summarizeInvocationTraces,
+} from './invocation-trace.js';

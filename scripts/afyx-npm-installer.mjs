@@ -68,7 +68,7 @@ export function getPackageVersion() {
   return '1.2.0';
 }
 
-export const SUPPORTED_COMMANDS = ['install', 'verify', 'doctor', 'update', 'uninstall', 'clean'];
+export const SUPPORTED_COMMANDS = ['install', 'verify', 'doctor', 'update', 'uninstall', 'clean', 'trace'];
 
 // Explicit per-command option allowlist
 export const COMMAND_ALLOWED_OPTIONS = {
@@ -85,6 +85,7 @@ export const COMMAND_ALLOWED_OPTIONS = {
     'customComponents', 'skipProviderConfiguration'
   ]),
   clean: new Set(['dryRun', 'json', 'maxAgeHours']),
+  trace: new Set(['json', 'limit', 'traceComponent', 'traceFile', 'traceSubcommand']),
   doctor: new Set([
     'skillsRoot', 'project'
   ]),
@@ -140,6 +141,9 @@ const OPTIONS = {
     return action === undefined ? value : resolveComponentId(id) + '=' + action;
   } },
   'max-age-hours': { key: 'maxAgeHours', type: 'string' },
+  limit: { key: 'limit', type: 'string' },
+  'trace-component': { key: 'traceComponent', type: 'string' },
+  'trace-file': { key: 'traceFile', type: 'string' },
 };
 const PARSE_OPTIONS = Object.fromEntries(Object.entries(OPTIONS).map(([name, spec]) => [name, { type: spec.type }]));
 const OPTION_NAMES = new Map(Object.entries(OPTIONS).flatMap(([name, spec]) =>
@@ -253,6 +257,10 @@ export function parseCliArgs(rawArgs) {
   if (SUPPORTED_COMMANDS.includes(first)) {
     result.command = first;
     args.shift();
+    if (first === 'trace' && args.length > 0 && args[0] === 'summary') {
+      result.options.traceSubcommand = 'summary';
+      args.shift();
+    }
   } else if (first.startsWith('-')) {
     result.errors.push(`Missing command. Expected one of: ${SUPPORTED_COMMANDS.join(', ')}`);
     return result;

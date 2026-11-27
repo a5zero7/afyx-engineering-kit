@@ -14,6 +14,7 @@ import {
 } from '../scripts/afyx-npm-installer.mjs';
 import { tmpdir } from 'node:os';
 import { cleanTempArtifacts } from '../afyx-context/src/temp-artifacts.js';
+import { readInvocationTraces, summarizeInvocationTraces } from '../afyx-context/src/invocation-trace.js';
 import { runMidnightCircuit, terminalMode, recordInstallerDiagnostic } from '../scripts/afyx-midnight-circuit.mjs';
 
 function verifyNodeRuntime() {
@@ -53,6 +54,25 @@ async function main() {
     console.log(parsed.options.json ? JSON.stringify(report) :
       `AFYX clean${report.dryRun ? ' (dry-run)' : ''}: ${report.discovered} discovered, ${report.eligible} eligible, ${report.removed} removed, ${report.skipped} skipped, ${report.failed} failed`);
     process.exitCode = report.failed ? 1 : 0;
+    return;
+  }
+
+  if (parsed.command === 'trace') {
+    const traceOpts = {
+      traceFile: parsed.options.traceFile,
+      component: parsed.options.traceComponent,
+      limit: parsed.options.limit ? Number(parsed.options.limit) : undefined,
+    };
+    const isSummary = parsed.options.traceSubcommand === 'summary';
+    const report = isSummary ? summarizeInvocationTraces(traceOpts) : readInvocationTraces(traceOpts);
+    if (parsed.options.json) {
+      console.log(JSON.stringify(report));
+    } else if (isSummary) {
+      console.log(`AFYX trace summary (${report.status}): ${report.count} invocations, p50=${report.durationMs.p50 ?? 'unavailable'}ms, p95=${report.durationMs.p95 ?? 'unavailable'}ms, cache(hit=${report.cache.hit}, miss=${report.cache.miss})`);
+    } else {
+      console.log(`AFYX trace (${report.status}): ${report.count} record(s)`);
+    }
+    process.exitCode = report.status === 'ERROR' ? 1 : 0;
     return;
   }
 

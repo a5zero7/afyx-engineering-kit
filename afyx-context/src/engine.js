@@ -1,6 +1,7 @@
 import { AceError, assertNonEmpty } from './errors.js';
 import { ContextStore, sha256 } from './storage.js';
 import { canPersistSegment } from './privacy.js';
+import { isTraceEnabled, recordInvocationTrace } from './invocation-trace.js';
 
 const CLASSIFICATIONS = new Set(['normal', 'diagnostic', 'security', 'source-evidence']);
 const PRESERVED = new Set(['diagnostic', 'security', 'source-evidence']);
@@ -125,66 +126,120 @@ export class AfyxContextEngine {
   }
 
   reduce(request = {}) {
-    const { normalized, budgetChars } = normalizeRequest(request);
+    const tracing = isTraceEnabled();
+    const startMs = tracing ? performance.now() : 0;
+    try {
+      const { normalized, budgetChars } = normalizeRequest(request);
 
-    // Validate everything before the first state mutation. Original bytes are
-    // persisted before reduction so every emitted reference is recoverable.
-    const knownBefore = this.store.snapshotAndPersist(normalized);
-    const mandatoryChars = normalized
-      .filter((segment) => PRESERVED.has(segment.classification))
-      .reduce((total, segment) => total + originalLine(segment).length + 2, 0);
-    if (mandatoryChars > budgetChars) return passthrough(normalized, 'protected-content-exceeds-budget');
-
-    const seen = new Set();
-    const rendered = [];
-    const items = [];
-    let used = 0;
-    for (const segment of normalized) {
-      const digest = sha256(segment.content);
-      const reference = canPersistSegment(segment) ? this.store.reference(segment.content) : undefined;
-      const original = originalLine(segment);
-      const repeated = seen.has(digest) || knownBefore.has(digest);
-      const preserve = PRESERVED.has(segment.classification);
-      const refReason = repeated ? 'repeated' : 'budgeted';
-      const reduced = reference ? referenceLine(segment, reference, refReason) : original;
-      const separator = rendered.length === 0 ? 0 : 2;
-      const reservedLater = normalized.slice(items.length + 1)
-        .filter((candidate) => PRESERVED.has(candidate.classification))
-        .reduce((total, candidate) => total + originalLine(candidate).length + 2, 0);
-      const mayReference = Boolean(reference) && !preserve && reduced.length < original.length;
-      const chooseReference = mayReference && (repeated || used + separator + original.length + reservedLater > budgetChars);
-      const selected = chooseReference ? reduced : original;
-      if (used + separator + selected.length + reservedLater > budgetChars) {
-        return passthrough(normalized, 'safe-budget-fallback');
+      // Validate everything before the first state mutation. Original bytes are
+      // persisted before reduction so every emitted reference is recoverable.
+      const knownBefore = this.store.snapshotAndPersist(normalized);
+      const mandatoryChars = normalized
+        .filter((segment) => PRESERVED.has(segment.classification))
+        .reduce((total, segment) => total + originalLine(segment).length + 2, 0);
+      if (mandatoryChars > budgetChars) {
+        const out = passthrough(normalized, 'protected-content-exceeds-budget');
+        if (tracing) {
+          recordInvocationTrace({
+            component: 'afyx-context',
+            operation: 'reduce',
+            status: 'success',
+            durationMs: performance.now() - startMs,
+            inputBytes: out.metrics.rawChars,
+            outputBytes: out.metrics.outputChars,
+            aceCost: { retrievedBytes: 0, reducedBytes: out.metrics.savedChars, durationMs: performance.now() - startMs },
+          });
+        }
+        return out;
       }
-      rendered.push(selected);
-      used += separator + selected.length;
-      items.push({
-        id: segment.id,
-        classification: segment.classification,
-        disposition: chooseReference ? 'reference' : 'original',
-        digest,
-        reference,
-        provenance: segment.provenance,
-        ...(chooseReference ? { reason: refReason } : { content: segment.content }),
-      });
-      seen.add(digest);
-    }
 
-    const rawContext = normalized.map(originalLine).join('\n\n');
-    const renderedContext = rendered.join('\n\n');
-    return {
-      contract: 'ace.result/v1',
-      mode: 'optimized',
-      renderedContext,
-      items,
-      metrics: {
-        rawChars: rawContext.length,
-        outputChars: renderedContext.length,
-        savedChars: rawContext.length - renderedContext.length,
-        reductionRatio: rawContext.length === 0 ? 0 : (rawContext.length - renderedContext.length) / rawContext.length,
-      },
-    };
+      const seen = new Set();
+      const rendered = [];
+      const items = [];
+      let used = 0;
+      for (const segment of normalized) {
+        const digest = sha256(segment.content);
+        const reference = canPersistSegment(segment) ? this.store.reference(segment.content) : undefined;
+        const original = originalLine(segment);
+        const repeated = seen.has(digest) || knownBefore.has(digest);
+        const preserve = PRESERVED.has(segment.classification);
+        const refReason = repeated ? 'repeated' : 'budgeted';
+        const reduced = reference ? referenceLine(segment, reference, refReason) : original;
+        const separator = rendered.length === 0 ? 0 : 2;
+        const reservedLater = normalized.slice(items.length + 1)
+          .filter((candidate) => PRESERVED.has(candidate.classification))
+          .reduce((total, candidate) => total + originalLine(candidate).length + 2, 0);
+        const mayReference = Boolean(reference) && !preserve && reduced.length < original.length;
+        const chooseReference = mayReference && (repeated || used + separator + original.length + reservedLater > budgetChars);
+        const selected = chooseReference ? reduced : original;
+        if (used + separator + selected.length + reservedLater > budgetChars) {
+          const out = passthrough(normalized, 'safe-budget-fallback');
+          if (tracing) {
+            recordInvocationTrace({
+              component: 'afyx-context',
+              operation: 'reduce',
+              status: 'success',
+              durationMs: performance.now() - startMs,
+              inputBytes: out.metrics.rawChars,
+              outputBytes: out.metrics.outputChars,
+              aceCost: { retrievedBytes: 0, reducedBytes: out.metrics.savedChars, durationMs: performance.now() - startMs },
+            });
+          }
+          return out;
+        }
+        rendered.push(selected);
+        used += separator + selected.length;
+        items.push({
+          id: segment.id,
+          classification: segment.classification,
+          disposition: chooseReference ? 'reference' : 'original',
+          digest,
+          reference,
+          provenance: segment.provenance,
+          ...(chooseReference ? { reason: refReason } : { content: segment.content }),
+        });
+        seen.add(digest);
+      }
+
+      const rawContext = normalized.map(originalLine).join('\n\n');
+      const renderedContext = rendered.join('\n\n');
+      const out = {
+        contract: 'ace.result/v1',
+        mode: 'optimized',
+        renderedContext,
+        items,
+        metrics: {
+          rawChars: rawContext.length,
+          outputChars: renderedContext.length,
+          savedChars: rawContext.length - renderedContext.length,
+          reductionRatio: rawContext.length === 0 ? 0 : (rawContext.length - renderedContext.length) / rawContext.length,
+        },
+      };
+      if (tracing) {
+        const dur = performance.now() - startMs;
+        recordInvocationTrace({
+          component: 'afyx-context',
+          operation: 'reduce',
+          status: 'success',
+          durationMs: dur,
+          inputBytes: out.metrics.rawChars,
+          outputBytes: out.metrics.outputChars,
+          cache: knownBefore.size > 0 ? 'hit' : 'miss',
+          aceCost: { retrievedBytes: 0, reducedBytes: out.metrics.savedChars, durationMs: dur },
+        });
+      }
+      return out;
+    } catch (err) {
+      if (tracing) {
+        recordInvocationTrace({
+          component: 'afyx-context',
+          operation: 'reduce',
+          status: 'failure',
+          durationMs: performance.now() - startMs,
+        });
+      }
+      throw err;
+    }
   }
 
   collectExpired(options) {
@@ -192,7 +247,35 @@ export class AfyxContextEngine {
   }
 
   retrieve(reference) {
-    return this.store.retrieve(reference);
+    const tracing = isTraceEnabled();
+    const startMs = tracing ? performance.now() : 0;
+    try {
+      const result = this.store.retrieve(reference);
+      if (tracing) {
+        const dur = performance.now() - startMs;
+        const outBytes = Buffer.byteLength(result, 'utf8');
+        recordInvocationTrace({
+          component: 'afyx-context',
+          operation: 'retrieve',
+          status: 'success',
+          durationMs: dur,
+          outputBytes: outBytes,
+          cache: 'hit',
+          aceCost: { retrievedBytes: outBytes, reducedBytes: 0, durationMs: dur },
+        });
+      }
+      return result;
+    } catch (err) {
+      if (tracing) {
+        recordInvocationTrace({
+          component: 'afyx-context',
+          operation: 'retrieve',
+          status: 'failure',
+          durationMs: performance.now() - startMs,
+        });
+      }
+      throw err;
+    }
   }
 
   retrieveRecord(reference) {
