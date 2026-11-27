@@ -273,6 +273,14 @@ export class ContextStore {
     return this.withExclusiveAccess(() => new Set(this.#readSession().content));
   }
 
+  knownActiveDigests() {
+    return this.withExclusiveAccess(() => {
+      const session = this.#readSession();
+      const now = Date.now();
+      return new Set(session.content.filter((digest) => (session.expiresAt?.[digest] ?? Infinity) > now));
+    });
+  }
+
   snapshotAndPersist(segments) {
     return this.withExclusiveAccess(() => {
       const session = this.#readSession();

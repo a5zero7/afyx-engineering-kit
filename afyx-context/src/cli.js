@@ -102,7 +102,7 @@ function main() {
     if (parsed.budget !== undefined) request.budgetChars = Number(parsed.budget);
     validateContextRequest(request);
     const engine = engineFrom(parsed);
-    process.stdout.write(`${JSON.stringify(engine.reduce(request), null, 2)}\n`);
+    process.stdout.write(`${JSON.stringify(engine.reduce(request))}\n`);
     return;
   }
   if (command === 'get') {

@@ -63,8 +63,8 @@ async function simultaneousWriters(t, configurations) {
 }
 
 test('serializes simultaneous first initialization and writers for one session without lost updates', async (t) => {
-  const first = 'first concurrent original';
-  const second = 'second concurrent original';
+  const first = 'first concurrent original payload '.repeat(4);
+  const second = 'second concurrent original payload '.repeat(4);
   const { stateDir } = await simultaneousWriters(t, [
     { payload: first, id: 'first' },
     { payload: second, id: 'second' },
@@ -79,7 +79,7 @@ test('serializes simultaneous first initialization and writers for one session w
 });
 
 test('coordinates different sessions sharing one owner content store', async (t) => {
-  const shared = 'content shared safely by two sessions';
+  const shared = 'content shared safely by two sessions '.repeat(4);
   const { stateDir } = await simultaneousWriters(t, [
     { sessionId: 'session-a', payload: shared, id: 'a' },
     { sessionId: 'session-b', payload: shared, id: 'b' },
@@ -96,8 +96,8 @@ test('times out during a concurrent write, hides partial evidence, then safely r
   const root = lab(t);
   const stateDir = path.join(root, 'state');
   const engine = new AfyxContextEngine({ stateDir, ownerId: 'owner', sessionId: 'session', lockTimeoutMs: 150, lockRetryMs: 10 });
-  const content = 'stable original before interrupted owner';
-  const interruptedContent = 'complete orphan blob from interrupted writer';
+  const content = 'stable original before interrupted owner '.repeat(4);
+  const interruptedContent = 'complete orphan blob from interrupted writer '.repeat(4);
   const result = engine.reduce({ segments: [{ id: 'stable', content }] });
   const reference = result.items[0].reference;
   const sessionPath = path.join(stateDir, 'sessions', crypto.createHash('sha256').update('session').digest('hex'), 'session.json');

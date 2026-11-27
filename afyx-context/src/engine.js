@@ -83,7 +83,7 @@ function referenceLine(segment, reference, reason) {
   return `[${segment.id}] ${reason} ${reference}`;
 }
 
-function passthrough(segments, reason) {
+function passthrough(segments, reason, { includeItemContent = true } = {}) {
   const renderedContext = segments.map(originalLine).join('\n\n');
   return {
     contract: 'ace.result/v1',
@@ -96,7 +96,7 @@ function passthrough(segments, reason) {
       disposition: 'original',
       digest: sha256(segment.content),
       provenance: segment.provenance,
-      content: segment.content,
+      ...(includeItemContent ? { content: segment.content } : {}),
     })),
     metrics: {
       rawChars: renderedContext.length,
@@ -105,6 +105,12 @@ function passthrough(segments, reason) {
       reductionRatio: 0,
     },
   };
+}
+
+function isReferenceEligible(segment, reference, { benefitAware = false } = {}) {
+  if (!reference || PRESERVED.has(segment.classification)) return false;
+  if (!benefitAware) return true;
+  return referenceLine(segment, reference, 'repeated').length < originalLine(segment).length;
 }
 
 function normalizeRequest({ segments, budgetChars = 32_000 } = {}) {
@@ -125,15 +131,13 @@ export class AfyxContextEngine {
     this.store = new ContextStore(options);
   }
 
-  reduce(request = {}) {
+  reduce(request = {}, options = {}) {
+    const benefitAware = Boolean(options?.benefitAware ?? request?.benefitAware);
     const tracing = isTraceEnabled();
     const startMs = tracing ? performance.now() : 0;
     try {
       const { normalized, budgetChars } = normalizeRequest(request);
 
-      // Validate everything before the first state mutation. Original bytes are
-      // persisted before reduction so every emitted reference is recoverable.
-      const knownBefore = this.store.snapshotAndPersist(normalized);
       const mandatoryChars = normalized
         .filter((segment) => PRESERVED.has(segment.classification))
         .reduce((total, segment) => total + originalLine(segment).length + 2, 0);
@@ -158,23 +162,28 @@ export class AfyxContextEngine {
         return out;
       }
 
+      // Inspect known active digests read-only first; persist only reference-eligible
+      // normal segments after confirming we will not fall back to passthrough.
+      const knownBefore = this.store.knownActiveDigests();
       const seen = new Set();
       const rendered = [];
       const items = [];
+      const eligibleToPersist = [];
       let used = 0;
       for (const segment of normalized) {
         const digest = sha256(segment.content);
-        const reference = canPersistSegment(segment) ? this.store.reference(segment.content) : undefined;
+        const candidateRef = canPersistSegment(segment) ? this.store.reference(segment.content) : undefined;
+        const eligible = isReferenceEligible(segment, candidateRef, { benefitAware });
+        const reference = eligible ? candidateRef : undefined;
         const original = originalLine(segment);
         const repeated = seen.has(digest) || knownBefore.has(digest);
-        const preserve = PRESERVED.has(segment.classification);
         const refReason = repeated ? 'repeated' : 'budgeted';
         const reduced = reference ? referenceLine(segment, reference, refReason) : original;
         const separator = rendered.length === 0 ? 0 : 2;
         const reservedLater = normalized.slice(items.length + 1)
           .filter((candidate) => PRESERVED.has(candidate.classification))
           .reduce((total, candidate) => total + originalLine(candidate).length + 2, 0);
-        const mayReference = Boolean(reference) && !preserve && reduced.length < original.length;
+        const mayReference = eligible && reduced.length < original.length;
         const chooseReference = mayReference && (repeated || used + separator + original.length + reservedLater > budgetChars);
         const selected = chooseReference ? reduced : original;
         if (used + separator + selected.length + reservedLater > budgetChars) {
@@ -197,6 +206,7 @@ export class AfyxContextEngine {
           }
           return out;
         }
+        if (eligible) eligibleToPersist.push(segment);
         rendered.push(selected);
         used += separator + selected.length;
         items.push({
@@ -204,11 +214,36 @@ export class AfyxContextEngine {
           classification: segment.classification,
           disposition: chooseReference ? 'reference' : 'original',
           digest,
-          reference,
+          ...(reference ? { reference } : {}),
           provenance: segment.provenance,
-          ...(chooseReference ? { reason: refReason } : { content: segment.content }),
+          ...(chooseReference ? { reason: refReason } : (benefitAware ? {} : { content: segment.content })),
         });
         seen.add(digest);
+      }
+
+      if (benefitAware && eligibleToPersist.length === 0) {
+        const out = passthrough(normalized, 'no-net-reduction', { includeItemContent: false });
+        if (tracing) {
+          const origBytes = Buffer.byteLength(out.renderedContext, 'utf8');
+          const payBytes = Buffer.byteLength(JSON.stringify(out), 'utf8');
+          const dur = performance.now() - startMs;
+          recordInvocationTrace({
+            component: 'afyx-context',
+            operation: 'reduce',
+            status: 'success',
+            durationMs: dur,
+            inputBytes: origBytes,
+            outputBytes: origBytes,
+            payloadBytes: payBytes,
+            cache: 'bypass',
+            aceCost: { retrievedBytes: 0, originalBytes: origBytes, renderedBytes: origBytes, savedBytes: 0, durationMs: dur },
+          });
+        }
+        return out;
+      }
+
+      if (eligibleToPersist.length > 0) {
+        this.store.persist(eligibleToPersist);
       }
 
       const rawContext = normalized.map(originalLine).join('\n\n');

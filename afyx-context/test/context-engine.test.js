@@ -167,7 +167,7 @@ test('recovers complete orphan blob after injected metadata-commit interruption'
   const ownerId = 'owner';
   const sessionId = 'interrupted';
   const engine = new AfyxContextEngine({ stateDir, ownerId, sessionId });
-  const content = 'complete original written before interrupted session commit';
+  const content = 'complete original written before interrupted session commit\n'.repeat(3);
   const digest = crypto.createHash('sha256').update(content).digest('hex');
   const blob = path.join(stateDir, 'content', `${digest}.txt`);
   const sessionHash = crypto.createHash('sha256').update(sessionId).digest('hex');
@@ -221,10 +221,10 @@ test('fails closed on truncated session metadata without rewriting it', (t) => {
 test('preflights corrupt existing blobs before writing unrelated originals', (t) => {
   const stateDir = lab(t);
   const engine = new AfyxContextEngine({ stateDir, ownerId: 'owner', sessionId: 'preflight' });
-  const expected = 'expected original';
+  const expected = 'expected original content for preflight check\n'.repeat(3);
   const expectedDigest = crypto.createHash('sha256').update(expected).digest('hex');
   fs.writeFileSync(path.join(stateDir, 'content', `${expectedDigest}.txt`), 'corrupt bytes');
-  const newContent = 'must not be written before preflight completes';
+  const newContent = 'must not be written before preflight completes\n'.repeat(3);
   const newDigest = crypto.createHash('sha256').update(newContent).digest('hex');
   assert.throws(
     () => engine.reduce({ segments: [{ id: 'new', content: newContent }, { id: 'existing', content: expected }] }),
@@ -232,4 +232,39 @@ test('preflights corrupt existing blobs before writing unrelated originals', (t)
   );
   assert.equal(fs.existsSync(path.join(stateDir, 'content', `${newDigest}.txt`)), false);
   assert.equal(fs.readFileSync(path.join(stateDir, 'content', `${expectedDigest}.txt`), 'utf8'), 'corrupt bytes');
+});
+
+test('skips persistence and duplicate item content for small, diagnostic, unicode, and source-evidence passthrough', (t) => {
+  const stateDir = lab(t);
+  const engine = new AfyxContextEngine({ stateDir, ownerId: 'owner', sessionId: 'passthrough-opt' });
+  const contentDir = path.join(stateDir, 'content');
+  const sessionHash = crypto.createHash('sha256').update('passthrough-opt').digest('hex');
+  const sessionPath = path.join(stateDir, 'sessions', sessionHash, 'session.json');
+  const sessionBefore = fs.readFileSync(sessionPath, 'utf8');
+
+  const cases = [
+    { segments: [{ id: 'small-1', content: 'hello world short snippet' }] },
+    {
+      segments: [
+        { id: 'diag-1', content: 'ERROR: connection refused\nTraceback: line 42' },
+        { id: 'norm-1', content: 'normal status line' },
+      ],
+    },
+    { segments: [{ id: 'uni-1', content: JSON.stringify({ pesan: 'Halo 🚀', status: 'ok', catatan: '测试' }) }] },
+    { segments: [{ id: 'src-1', provenance: { exactSource: true, path: 'a.js' }, content: 'x'.repeat(3000) }] },
+  ];
+
+  for (const req of cases) {
+    const res = engine.reduce(req, { benefitAware: true });
+    assert.equal(res.mode, 'passthrough');
+    assert.equal(res.reason, 'no-net-reduction');
+    assert.equal(res.metrics.savedChars, 0);
+    for (const item of res.items) {
+      assert.equal(item.disposition, 'original');
+      assert.equal(item.reference, undefined);
+      assert.equal(item.content, undefined);
+    }
+  }
+  assert.deepEqual(fs.readdirSync(contentDir), []);
+  assert.equal(fs.readFileSync(sessionPath, 'utf8'), sessionBefore);
 });
