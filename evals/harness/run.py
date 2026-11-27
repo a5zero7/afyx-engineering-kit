@@ -67,10 +67,11 @@ def atomic_write_json(path: Path, payload: dict) -> None:
         temporary.unlink(missing_ok=True)
 
 
-def evaluation_provenance(manifest: dict, environment: dict) -> dict:
+def evaluation_provenance(manifest: dict, environment: dict, *, env_rel: str | None = None) -> dict:
     """Create correlation metadata; a shared UUID is not cryptographic attestation."""
     evaluation_run_id = uuid.uuid4().hex
-    environment_path = EVAL_ROOT / manifest["environment"]
+    selected_env = env_rel or manifest["environment"]
+    environment_path = EVAL_ROOT / selected_env
     revision = subprocess.run(
         ["git", "-C", str(REPO_ROOT), "rev-parse", "HEAD"],
         text=True, encoding="utf-8", errors="replace", capture_output=True,
@@ -85,7 +86,7 @@ def evaluation_provenance(manifest: dict, environment: dict) -> dict:
         "source_revision": revision.stdout.strip(),
         "benchmark_subject_commit": environment["repository"]["benchmark_subject_commit"],
         "environment_fingerprint": {
-            "path": manifest["environment"],
+            "path": selected_env,
             "sha256": hashlib.sha256(environment_path.read_bytes()).hexdigest(),
         },
     }
@@ -467,7 +468,7 @@ def bounded_process(command: list[str], cwd: Path, timeout: int, env: dict[str, 
         launch_command, executable, launcher_kind = resolve_process_command(command)
         process = subprocess.Popen(
             launch_command, cwd=cwd, text=True, encoding="utf-8", errors="replace",
-            stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+            stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
             env=env, creationflags=creationflags, **popen_kwargs,
         )
     except OSError as error:
@@ -1733,7 +1734,7 @@ def main() -> int:
         return 0
     RESULTS_ROOT.mkdir(parents=True, exist_ok=True)
     try:
-        provenance = evaluation_provenance(manifest, environment)
+        provenance = evaluation_provenance(manifest, environment, env_rel=env_rel)
     except (KeyError, OSError, RuntimeError) as error:
         print(f"ERROR: {error}", file=sys.stderr)
         return 2
