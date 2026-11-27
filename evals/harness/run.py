@@ -1135,7 +1135,12 @@ def build_campaign_a_plan(
 
     cells = []
     for scenario in all_scenarios:
-        for cfg in target_configs:
+        scen_configs = (
+            [c for c in scenario.get("configurations", []) if c in target_configs]
+            if (scenario.get("stage") == "b7-targeted" and configs is None)
+            else target_configs
+        )
+        for cfg in scen_configs:
             if len(cells) >= max_discovery:
                 break
             cells.append((scenario, cfg, 1))
@@ -1806,6 +1811,8 @@ def main() -> int:
     parser.add_argument("--config", action="append", help="filter configurations (e.g. N, S, G, F)")
     parser.add_argument("--budget", type=int, default=27, help="hard invocation cap for campaign-a (max 27)")
     parser.add_argument("--resume", action="store_true", help="resume campaign-a from persisted budget ledger")
+    parser.add_argument("--ledger-path", help="optional custom budget ledger path (defaults to results/campaign-a-budget.json)")
+    parser.add_argument("--environment", help="optional relative environment fingerprint path under evals/")
     parser.add_argument(
         "--isolation-canary-only", action="store_true",
         help="run the actual-session ground-truth access canary and no scenarios",
@@ -1825,7 +1832,9 @@ def main() -> int:
     args = parser.parse_args()
     manifest = load_json(MANIFEST_PATH)
     env_rel = (
-        manifest.get("campaign_a_environment") or manifest["environment"]
+        args.environment
+        if args.environment
+        else (manifest.get("campaign_a_environment") or manifest["environment"])
         if args.mode == "campaign-a"
         else manifest["environment"]
     )
@@ -1862,7 +1871,7 @@ def main() -> int:
                 manifest, max_budget=min(27, args.budget), configs=args.config, scenario_filter=args.scenario
             )
             c_fingerprint = compute_campaign_fingerprint(manifest, environment, campaign_plan, args.mode)
-            ledger_path = RESULTS_ROOT / "campaign-a-budget.json"
+            ledger_path = Path(args.ledger_path) if args.ledger_path else (RESULTS_ROOT / "campaign-a-budget.json")
             ledger = CampaignBudgetLedger(
                 ledger_path,
                 max_invocations=min(27, args.budget),
@@ -2001,9 +2010,11 @@ def main() -> int:
             atomic_write_json(RESULTS_ROOT / "latest-summary.json", summary)
         else:
             # Bounded adaptive confirmation when ambiguous outcomes occur and budget remains
+            confirmation_error: str | None = None
             if ledger and ledger.remaining > 0 and not quota_exhausted:
                 scenario_map = {s["scenario_id"]: s for s in manifest.get("scenarios", [])}
-                for sid, cfg in select_confirmation_cells(records, ledger.remaining):
+                conf_candidates = select_confirmation_cells(records, ledger.remaining)
+                for c_idx, (sid, cfg) in enumerate(conf_candidates):
                     conf_key = f"{sid}::{cfg}::r2"
                     if ledger.is_cell_completed(conf_key):
                         continue
@@ -2019,21 +2030,47 @@ def main() -> int:
                         records.append(conf_rec)
                         if conf_rec.get("provider_execution_status") == "QUOTA_EXHAUSTED":
                             quota_exhausted = True
+                            confirmation_error = "PROVIDER_QUOTA_EXHAUSTED"
+                            for rem_sid, rem_cfg in conf_candidates[c_idx + 1:]:
+                                rem_conf_key = f"{rem_sid}::{rem_cfg}::r2"
+                                if not ledger.is_cell_completed(rem_conf_key):
+                                    not_run_cells[rem_conf_key] = "NOT_RUN_PROVIDER_LIMIT"
                             break
                     except (Exception, KeyboardInterrupt) as error:
                         ledger.finalize(conf_inv, "INTERRUPTED", conf_key, conf_run_id)
                         records.append(incomplete_cell_record(provenance, scenario_map[sid], cfg, 2, seed, conf_run_id, error))
+                        confirmation_error = type(error).__name__
                         break
 
+            resume_verified = (
+                ledger is not None
+                and args.resume
+                and bool(ledger.campaign_id)
+                and bool(ledger.data.get("campaign_fingerprint"))
+                and all(
+                    isinstance(r.get("evaluation_run_id"), str)
+                    and bool(r.get("evaluation_run_id"))
+                    and bool(r.get("source_revision"))
+                    for r in [health, canary, *records]
+                )
+                and all(
+                    isinstance(r.get("run_id"), str) and bool(r.get("run_id"))
+                    for r in records
+                )
+            )
             correlation = (
                 {"result": "VERIFIED", "reason": None, "record_indexes": []}
-                if (ledger and args.resume and all(
-                    isinstance(r.get("evaluation_run_id"), str) and bool(r.get("evaluation_run_id"))
-                    for r in [health, canary, *records]
-                ))
+                if resume_verified
                 else correlation_status(provenance["evaluation_run_id"], [health, canary, *records])
             )
-            if correlation["result"] == "VERIFIED":
+            if quota_exhausted or confirmation_error:
+                summary = build_summary(
+                    provenance, args.mode, seed, repetitions, len(records), records,
+                    "INCOMPLETE", confirmation_error or "PROVIDER_QUOTA_EXHAUSTED",
+                )
+                if not_run_cells:
+                    summary["not_run_cells"] = not_run_cells
+            elif correlation["result"] == "VERIFIED":
                 summary = build_summary(
                     provenance, args.mode, seed, repetitions, len(records), records, "COMPLETE"
                 )

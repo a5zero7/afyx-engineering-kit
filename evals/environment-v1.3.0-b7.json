@@ -1,0 +1,70 @@
+{
+  "schema_version": 3,
+  "frozen_at": "2026-11-28T06:03:00+07:00",
+  "purpose": "V1.3.0-B7 targeted capability utility & efficiency confirmation (WSL2 Ubuntu)",
+  "repository": {
+    "benchmark_subject_commit": "35be7b69e4bc6d388e46e32fc42bccc8d763fd32",
+    "branch": "dev"
+  },
+  "skills": {
+    "efficient-coding": {
+      "version": "1.2.1",
+      "source": "repository",
+      "content_sha256": "4e398332dccbd5e0887d15b88096f8fe72912326a4f14610be536ea95ae17b12"
+    },
+    "odoo-engineering": {
+      "version": "1.2.1",
+      "source": "repository",
+      "content_sha256": "5fd19359705f4b17b465b275d894987f82fda1b51b5d4066ca148a1374f69e96"
+    },
+    "afyx-engineering-expert": {
+      "version": "1.2.1",
+      "source": "repository",
+      "content_sha256": "b587aeb62c2cceef7c47442f16a0bd80f84fbb78b7d596eb464d7c5a558a70f4"
+    }
+  },
+  "components": {
+    "afyx_kit": "1.2.1",
+    "afyx_graph": "1.2.1",
+    "afyx_context": "0.1.0"
+  },
+  "runtime": {
+    "os": "Linux 6.6.114.1-microsoft-standard-WSL2 x86_64 (Ubuntu)",
+    "codex_cli": "0.167.0",
+    "model": "gpt-5.6-sol",
+    "reasoning_effort": "medium",
+    "provider": "openai",
+    "service_tier": null,
+    "runtime_flags": [
+      "exec",
+      "--ephemeral",
+      "--ignore-user-config",
+      "--skip-git-repo-check",
+      "default_permissions=afyx-evaluation",
+      "sandbox=linux-bwrap-landlock",
+      "approval_policy=never",
+      "--json"
+    ]
+  },
+  "execution": {
+    "sandbox": "Linux bwrap/landlock permission profile afyx-evaluation",
+    "approval": "never",
+    "network_requested": false,
+    "filesystem_policy": "root deny; minimal runtime read; evaluated workspace write; OS temp outside workspace deny",
+    "writable_scope": "external disposable evaluated workspace",
+    "available_tools_observable": [
+      "command_execution",
+      "file_change"
+    ]
+  },
+  "b7_budget": {
+    "max_runs": 16,
+    "planned_controls": 2,
+    "planned_discovery_pairs": 5,
+    "planned_discovery_invocations": 10,
+    "max_confirmation_invocations": 4
+  },
+  "fixtures_sha256": "d00a7e117d64efe03a14a2cdcd161328163a772c765134ccf9c104767a76629f",
+  "b7_fixtures_sha256": "25aeee30fcae4b065e46bd6f483461830dbbe9da5fb16d0a59671276d2dd59ea",
+  "secrets_recorded": false
+}

@@ -321,6 +321,53 @@ class BenchmarkReadinessTests(unittest.TestCase):
             self.assertEqual(rec["result"], "FAIL")
             self.assertEqual(rec["measurement_coverage"], "COMPLETE")
 
+    def test_confirmation_quota_exhaustion_marks_summary_incomplete(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_results = Path(tmp) / "results"
+            calls = {"n": 0}
+
+            def fake_bounded(command, cwd, timeout, env=None):
+                calls["n"] += 1
+                cmd_str = " ".join(command)
+                if calls["n"] <= 2:
+                    # First 2 discovery cells: one PASS (N) and one FAIL (F) -> ambiguous triggers confirmation
+                    ok = calls["n"] == 1
+                    out = "\n".join([
+                        json.dumps({"type": "item.completed", "item": {"type": "agent_message", "text": "contract rollback" if ok else "incomplete"}}),
+                        json.dumps({"type": "turn.completed", "usage": {"input_tokens": 20, "cached_input_tokens": 0, "output_tokens": 10}}),
+                    ])
+                    return {"started": True, "pid": 1, "returncode": 0, "stdout": out, "stderr": "", "timed_out": False, "cleanup_required": False, "cleanup_succeeded": True, "cleanup_method": "none", "elapsed_seconds": 0.01, "executable": "codex", "launcher_kind": "mock"}
+                out = "\n".join([
+                    json.dumps({"type": "thread.started", "thread_id": "t-conf-q"}),
+                    json.dumps({"type": "turn.failed", "error": {"message": "You've hit your usage limit."}}),
+                ])
+                return {"started": True, "pid": 1, "returncode": 1, "stdout": out, "stderr": "", "timed_out": False, "cleanup_required": False, "cleanup_succeeded": True, "cleanup_method": "none", "elapsed_seconds": 0.02, "executable": "codex", "launcher_kind": "mock"}
+
+            def fake_health(timeout, provenance):
+                return {**provenance, "result": "PASS", "classification": "PASS", "elapsed_seconds": 0.01}
+
+            def fake_canary(timeout, provenance):
+                return {**provenance, "result": "PASS", "canary_exposed": False, "external_read_succeeded": False, "elapsed_seconds": 0.01}
+
+            with mock.patch.object(run, "RESULTS_ROOT", tmp_results), \
+                 mock.patch.object(run, "verify_runtime_fingerprint", return_value={"codex_cli": "0.167.0"}), \
+                 mock.patch.object(run, "run_child_health_probe", side_effect=fake_health), \
+                 mock.patch.object(run, "run_isolation_canary", side_effect=fake_canary), \
+                 mock.patch.object(run, "bounded_process", side_effect=fake_bounded), \
+                 mock.patch.object(sys, "argv", [
+                     "run.py", "--mode", "campaign-a",
+                     "--scenario", "campaign-a-validation-plan-001",
+                     "--config", "N", "--config", "F", "--budget", "6",
+                 ]):
+                rc = run.main()
+
+            self.assertEqual(rc, 2)
+            self.assertEqual(calls["n"], 3)
+            summary = json.loads((tmp_results / "latest-summary.json").read_text(encoding="utf-8"))
+            self.assertEqual(summary["completion_state"], "INCOMPLETE")
+            self.assertEqual(summary["error_classification"], "PROVIDER_QUOTA_EXHAUSTED")
+            self.assertEqual(summary["results"][-1]["provider_execution_status"], "QUOTA_EXHAUSTED")
+
 
 if __name__ == "__main__":
     unittest.main()
