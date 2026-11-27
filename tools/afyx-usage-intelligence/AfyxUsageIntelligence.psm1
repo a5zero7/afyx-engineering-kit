@@ -32,6 +32,12 @@ if (Test-Path $codexModule) {
     Import-Module $codexModule -Force -ErrorAction SilentlyContinue | Out-Null
 }
 
+function Get-AfyxUserHome {
+    if ($env:USERPROFILE) { return $env:USERPROFILE }
+    if ($env:HOME) { return $env:HOME }
+    return [Environment]::GetFolderPath('UserProfile')
+}
+
 function Get-AfyxProviderStatus {
     [CmdletBinding()]
     param(
@@ -39,9 +45,10 @@ function Get-AfyxProviderStatus {
         [ValidateSet('codex', 'antigravity', 'claude')][string]$Provider
     )
 
+    $userHome = Get-AfyxUserHome
     switch ($Provider) {
         'codex' {
-            $codexHome = if ($env:CODEX_HOME) { $env:CODEX_HOME } else { Join-Path $env:USERPROFILE '.codex' }
+            $codexHome = if ($env:CODEX_HOME) { $env:CODEX_HOME } else { Join-Path $userHome '.codex' }
             $hasHome = Test-Path $codexHome
             $hasSessions = Test-Path (Join-Path $codexHome 'sessions')
             $hasCommand = [bool](Get-Command 'codex' -ErrorAction SilentlyContinue)
@@ -63,7 +70,7 @@ function Get-AfyxProviderStatus {
             }
         }
         'antigravity' {
-            $agyHome = Join-Path $env:USERPROFILE '.gemini\antigravity'
+            $agyHome = Join-Path $userHome '.gemini\antigravity'
             $hasAgy = Test-Path $agyHome
             $hasCommand = [bool](Get-Command 'agy' -ErrorAction SilentlyContinue) -or [bool](Get-Command 'antigravity' -ErrorAction SilentlyContinue)
 
@@ -85,7 +92,7 @@ function Get-AfyxProviderStatus {
             }
         }
         'claude' {
-            $claudeHome = Join-Path $env:USERPROFILE '.claude'
+            $claudeHome = Join-Path $userHome '.claude'
             $hasClaude = Test-Path $claudeHome
             $hasCommand = [bool](Get-Command 'claude' -ErrorAction SilentlyContinue)
 
@@ -127,7 +134,7 @@ function Get-AfyxUniversalUsageReport {
             $reason = 'CONTEXT_CLI_UNAVAILABLE'
             $node = Get-Command node -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
             $context = if ($env:AFYX_CONTEXT_RUNTIME_ROOT) { $env:AFYX_CONTEXT_RUNTIME_ROOT }
-                else { Join-Path $env:USERPROFILE '.afyx/context' }
+                else { Join-Path (Get-AfyxUserHome) '.afyx/context' }
             $cli = Join-Path $context 'current/dist/cli.js'
             if ($node -and (Test-Path -LiteralPath $cli -PathType Leaf)) {
                 $arguments = @($cli, 'usage', '--provider', $prov, '--authorized', 'yes')
@@ -157,19 +164,33 @@ function Get-AfyxUniversalUsageReport {
         }
         $status = Get-AfyxProviderStatus -Provider $prov
         if ($prov -eq 'codex' -and $status.InstallationStatus -eq 'INSTALLED') {
-            $codexHome = if ($env:CODEX_HOME) { $env:CODEX_HOME } else { Join-Path $env:USERPROFILE '.codex' }
+            $codexHome = if ($env:CODEX_HOME) { $env:CODEX_HOME } else { Join-Path (Get-AfyxUserHome) '.codex' }
             $latestPath = Join-Path $codexHome 'tools\codex-usage-latest.json'
             $latestData = $null
-            if (Test-Path $latestPath) {
+            $reportStatus = $status.TelemetryStatus
+            $reportReason = $null
+            if (Test-Path -LiteralPath $latestPath -PathType Leaf) {
                 try {
-                    $latestData = Get-Content $latestPath -Raw | ConvertFrom-Json
-                } catch {}
+                    $latestData = Get-Content -LiteralPath $latestPath -Raw | ConvertFrom-Json -ErrorAction Stop
+                    if ($null -eq $latestData) {
+                        $reportStatus = 'PARTIAL'
+                        $reportReason = 'EMPTY_LATEST_SNAPSHOT'
+                    }
+                } catch {
+                    $latestData = $null
+                    $reportStatus = 'PARTIAL'
+                    $reportReason = 'CORRUPT_LATEST_SNAPSHOT'
+                }
+            } elseif ($reportStatus -eq 'OK') {
+                $reportStatus = 'PARTIAL'
+                $reportReason = 'NO_LATEST_SNAPSHOT'
             }
 
             $reports.Add([pscustomobject]@{
                 Contract               = 'afyx-usage/v1'
                 Provider               = 'codex'
-                Status                 = $status.TelemetryStatus
+                Status                 = $reportStatus
+                Reason                 = $reportReason
                 ObservedTokens         = if ($latestData) {
                     [pscustomobject]@{
                         InputTokens  = $latestData.input_tokens
@@ -225,7 +246,7 @@ function Invoke-AfyxUsagePresentation {
     }
 
     # Execute verified terminal presentation
-    $codexHome = if ($env:CODEX_HOME) { $env:CODEX_HOME } else { Join-Path $env:USERPROFILE '.codex' }
+    $codexHome = if ($env:CODEX_HOME) { $env:CODEX_HOME } else { Join-Path (Get-AfyxUserHome) '.codex' }
     $presentScript = Join-Path $codexHome 'tools\codex-usage-present.ps1'
     if (Test-Path $presentScript) {
         & $presentScript

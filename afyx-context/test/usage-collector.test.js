@@ -157,8 +157,49 @@ test('collectCodexLocalUsage handles missing, corrupted, or unreadable files cle
     latestUsagePath: path.join(toolsDir, 'codex-usage-latest.json'),
   });
 
-  assert.equal(result.status, 'OK');
+  assert.equal(result.status, 'PARTIAL');
+  assert.equal(result.reason, 'INCOMPLETE_COVERAGE');
+  assert.ok(result.coverage.malformed >= 1);
   assert.equal(result.count, 0, 'Corrupt files should be skipped cleanly');
+});
+
+test('collectCodexLocalUsage sums multiple incremental usage records per turn and selects newest files before maxFiles', (t) => {
+  const root = createTempDir();
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+
+  const sessionsDir = path.join(root, 'sessions');
+  fs.mkdirSync(sessionsDir, { recursive: true });
+
+  const oldPath = path.join(sessionsDir, 'rollout-2026-11-01T01-00-00-old.jsonl');
+  fs.writeFileSync(oldPath, JSON.stringify({
+    type: 'token_usage_record', turn_id: 'turn-old',
+    usage: { input_tokens: 10, output_tokens: 5 },
+  }), 'utf8');
+  fs.utimesSync(oldPath, new Date('2026-11-01T01:00:00Z'), new Date('2026-11-01T01:00:00Z'));
+
+  const newPath = path.join(sessionsDir, 'rollout-2026-11-20T09-00-00-new.jsonl');
+  fs.writeFileSync(newPath, [
+    JSON.stringify({ type: 'turn_context', turn_id: 'turn-multi', model: 'gpt-5.6-sol', timestamp: '2026-11-20T09:00:00.000Z' }),
+    JSON.stringify({ type: 'token_usage_record', turn_id: 'turn-multi', usage: { input_tokens: 100, output_tokens: 20, cached_input_tokens: 40 } }),
+    JSON.stringify({ type: 'token_usage_record', turn_id: 'turn-multi', usage: { input_tokens: 50, output_tokens: 15, cached_input_tokens: 10 } }),
+    JSON.stringify({ type: 'event_msg', payload: { type: 'task_complete', turn_id: 'turn-multi', completed_at: '2026-11-20T09:01:00.000Z' } }),
+  ].join('\n'), 'utf8');
+  fs.utimesSync(newPath, new Date('2026-11-20T09:01:00Z'), new Date('2026-11-20T09:01:00Z'));
+
+  const result = collectCodexLocalUsage({
+    codexHome: root,
+    sessionRoot: sessionsDir,
+    latestUsagePath: path.join(root, 'missing-latest.json'),
+    maxFiles: 1,
+  });
+
+  assert.equal(result.status, 'PARTIAL');
+  assert.equal(result.coverage.bounded, true);
+  assert.equal(result.count, 1);
+  assert.equal(result.events[0].eventId, 'turn-multi');
+  assert.equal(result.events[0].inputTokens, 150);
+  assert.equal(result.events[0].outputTokens, 35);
+  assert.equal(result.events[0].cachedInputTokens, 50);
 });
 
 test('Claude and Antigravity collectors truthfully report NOT_AVAILABLE without inventing telemetry', () => {
@@ -284,4 +325,23 @@ test('aggregateUsage idempotently deduplicates repeated events without double-co
   assert.equal(aggregate.groups[0].totals.inputTokens, 100);
   assert.equal(aggregate.groups[0].totals.outputTokens, 20);
   assert.equal(aggregate.groups[0].totals.totalTokens, 120);
+});
+
+test('aggregateUsage respects IANA timezone boundaries for daily grouping', () => {
+  const event = normalizeUsageEvent({
+    provider: 'codex',
+    sessionId: 'sess-tz',
+    eventId: 'evt-tz',
+    source: 'codex-rollout',
+    timestamp: Date.parse('2026-11-20T20:00:00.000Z'), // 2026-11-21T03:00:00+07:00 in Asia/Jakarta
+    mode: 'delta',
+    model: 'gpt-5.6-sol',
+    inputTokens: 40,
+    outputTokens: 10,
+  });
+
+  const utc = aggregateUsage([event], { period: 'day', timezone: 'UTC' });
+  const jakarta = aggregateUsage([event], { period: 'day', timezone: 'Asia/Jakarta' });
+  assert.equal(utc.groups[0].periodKey, '2026-11-20');
+  assert.equal(jakarta.groups[0].periodKey, '2026-11-21');
 });

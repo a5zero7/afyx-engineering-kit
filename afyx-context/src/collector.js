@@ -17,19 +17,41 @@ function safeId(value, fallback = 'unknown') {
   return fallback;
 }
 
-function formatPeriodKey(timestampMs, period) {
+function formatPeriodKey(timestampMs, period, timezone = 'UTC') {
   const d = new Date(timestampMs);
   if (Number.isNaN(d.getTime())) return 'unknown-period';
-  const y = d.getUTCFullYear();
-  const m = String(d.getUTCMonth() + 1).padStart(2, '0');
-  const day = String(d.getUTCDate()).padStart(2, '0');
+  if (period === 'total') {
+    return 'all-time';
+  }
+  let y, m, day;
+  if (timezone === 'UTC') {
+    y = d.getUTCFullYear();
+    m = String(d.getUTCMonth() + 1).padStart(2, '0');
+    day = String(d.getUTCDate()).padStart(2, '0');
+  } else {
+    let parts;
+    try {
+      parts = new Intl.DateTimeFormat('en-CA', {
+        timeZone: timezone,
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+      }).formatToParts(d);
+    } catch {
+      fail('USAGE_INVALID_TIMEZONE', `Unsupported timezone: ${timezone}`);
+    }
+    const map = Object.fromEntries(parts.map((p) => [p.type, p.value]));
+    y = Number(map.year);
+    m = map.month;
+    day = map.day;
+  }
 
   if (period === 'month') {
     return `${y}-${m}`;
   }
   if (period === 'week') {
-    // ISO 8601 week number calculation in UTC
-    const target = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
+    // ISO 8601 week number calculation for the resolved calendar date
+    const target = new Date(Date.UTC(y, Number(m) - 1, Number(day)));
     const dayNr = (target.getUTCDay() + 6) % 7;
     target.setUTCDate(target.getUTCDate() - dayNr + 3);
     const firstThursday = target.getTime();
@@ -38,10 +60,7 @@ function formatPeriodKey(timestampMs, period) {
       target.setUTCMonth(0, 1 + ((4 - target.getUTCDay() + 7) % 7));
     }
     const weekNr = 1 + Math.ceil((firstThursday - target.getTime()) / 604800000);
-    return `${y}-W${String(weekNr).padStart(2, '0')}`;
-  }
-  if (period === 'total') {
-    return 'all-time';
+    return `${target.getUTCFullYear()}-W${String(weekNr).padStart(2, '0')}`;
   }
   // default: day
   return `${y}-${m}-${day}`;
@@ -63,9 +82,13 @@ export function collectCodexLocalUsage(options = {}) {
 
   const collectedEvents = [];
   const seenKeys = new Set();
+  const coverage = { files: 0, records: 0, malformed: 0, skipped: 0, bounded: false };
 
   function pushEvent(raw) {
-    if (collectedEvents.length >= maxEvents) return false;
+    if (collectedEvents.length >= maxEvents) {
+      coverage.bounded = true;
+      return false;
+    }
     try {
       const normalized = normalizeUsageEvent(raw);
       const key = `${normalized.provider}:${normalized.sessionId}:${normalized.eventId}`;
@@ -75,7 +98,7 @@ export function collectCodexLocalUsage(options = {}) {
         return true;
       }
     } catch {
-      // Skip invalid or unclassifiable event cleanly
+      coverage.malformed++;
     }
     return false;
   }
@@ -121,9 +144,11 @@ export function collectCodexLocalUsage(options = {}) {
             costUsd,
           });
         }
+      } else if (stat.isFile() && stat.size > 1_048_576) {
+        coverage.skipped++;
       }
     } catch {
-      // Diagnostic safe ignore: corrupt or inaccessible latest.json must not fail collection
+      coverage.malformed++;
     }
   }
 
@@ -133,12 +158,19 @@ export function collectCodexLocalUsage(options = {}) {
       const rootStat = statSync(sessionRoot);
       if (rootStat.isDirectory()) {
         const rolloutFiles = [];
+        const maxDiscovery = Math.max(maxFiles * 10, 2000);
 
         function scanSessionDir(dir, depth = 0) {
-          if (depth > 3 || rolloutFiles.length >= maxFiles) return;
+          if (depth > 3 || rolloutFiles.length >= maxDiscovery) {
+            if (rolloutFiles.length >= maxDiscovery) coverage.bounded = true;
+            return;
+          }
           const entries = readdirSync(dir);
           for (const entry of entries) {
-            if (rolloutFiles.length >= maxFiles) break;
+            if (rolloutFiles.length >= maxDiscovery) {
+              coverage.bounded = true;
+              break;
+            }
             const fullPath = join(dir, entry);
             try {
               const st = statSync(fullPath);
@@ -148,21 +180,32 @@ export function collectCodexLocalUsage(options = {}) {
                 rolloutFiles.push({ path: fullPath, mtimeMs: st.mtimeMs, size: st.size });
               }
             } catch {
-              // skip unreadable file
+              coverage.skipped++;
             }
           }
         }
 
         scanSessionDir(sessionRoot);
-        // Sort by modification time descending
-        rolloutFiles.sort((a, b) => b.mtimeMs - a.mtimeMs);
+        // Sort by modification time descending BEFORE enforcing maxFiles
+        rolloutFiles.sort((a, b) => b.mtimeMs - a.mtimeMs || b.path.localeCompare(a.path));
+        if (rolloutFiles.length > maxFiles) {
+          coverage.bounded = true;
+        }
+        const selectedFiles = rolloutFiles.slice(0, maxFiles);
 
-        for (const fileInfo of rolloutFiles) {
-          if (collectedEvents.length >= maxEvents) break;
+        for (const fileInfo of selectedFiles) {
+          if (collectedEvents.length >= maxEvents) {
+            coverage.bounded = true;
+            break;
+          }
           // Guard against excessively large telemetry files (max 10MB)
-          if (fileInfo.size > 10_485_760) continue;
+          if (fileInfo.size > 10_485_760) {
+            coverage.skipped++;
+            continue;
+          }
 
           try {
+            coverage.files++;
             const fileContent = readFileSync(fileInfo.path, 'utf8');
             const lines = fileContent.split(/\r?\n/);
             const fileName = basename(fileInfo.path);
@@ -170,11 +213,22 @@ export function collectCodexLocalUsage(options = {}) {
             const sessionId = safeId(match ? match[1] : fileName.replace(/\.jsonl$/, ''));
 
             const turnContexts = new Map(); // turnId -> { model, timestamp }
-            const turnUsages = new Map(); // turnId -> usage object
+            const turnUsages = new Map(); // turnId -> { input_tokens, output_tokens, cached_input_tokens, cache_write_input_tokens, timestamp, authoritative }
             const turnCompletions = new Map(); // turnId -> completedAt
 
+            function addCounter(current, next) {
+              if (!Number.isSafeInteger(next) || next < 0) return current;
+              return (current ?? 0) + next;
+            }
+
             for (const line of lines) {
-              if (!line || line.length > 65_536 || !line.includes('"type"')) continue;
+              if (!line || !line.trim()) continue;
+              if (line.length > 65_536) {
+                coverage.malformed++;
+                continue;
+              }
+              if (!line.includes('"type"')) continue;
+              coverage.records++;
               // Strict schema allowlist: never inspect message content or tools
               try {
                 const record = JSON.parse(line);
@@ -190,15 +244,30 @@ export function collectCodexLocalUsage(options = {}) {
                   }
                 } else if (type === 'token_usage_record') {
                   const turnId = safeId(record.turn_id || payload.turn_id, null);
-                  const usage = record.usage || payload.usage;
-                  if (turnId && usage && typeof usage === 'object') {
+                  const cumulativeTurn = record.turn_token_usage || payload.turn_token_usage;
+                  const deltaUsage = record.usage || payload.usage;
+                  if (turnId && cumulativeTurn && typeof cumulativeTurn === 'object') {
+                    // Authoritative cumulative turn counter: replace prior delta/snapshot for this turn
                     turnUsages.set(turnId, {
-                      input_tokens: usage.input_tokens,
-                      output_tokens: usage.output_tokens,
-                      cached_input_tokens: usage.cached_input_tokens,
-                      cache_write_input_tokens: usage.cache_write_input_tokens,
+                      input_tokens: Number.isSafeInteger(cumulativeTurn.input_tokens) && cumulativeTurn.input_tokens >= 0 ? cumulativeTurn.input_tokens : null,
+                      output_tokens: Number.isSafeInteger(cumulativeTurn.output_tokens) && cumulativeTurn.output_tokens >= 0 ? cumulativeTurn.output_tokens : null,
+                      cached_input_tokens: Number.isSafeInteger(cumulativeTurn.cached_input_tokens) && cumulativeTurn.cached_input_tokens >= 0 ? cumulativeTurn.cached_input_tokens : null,
+                      cache_write_input_tokens: Number.isSafeInteger(cumulativeTurn.cache_write_input_tokens) && cumulativeTurn.cache_write_input_tokens >= 0 ? cumulativeTurn.cache_write_input_tokens : null,
                       timestamp: eventTimestamp,
+                      authoritative: true,
                     });
+                  } else if (turnId && deltaUsage && typeof deltaUsage === 'object') {
+                    const prev = turnUsages.get(turnId);
+                    if (!prev || !prev.authoritative) {
+                      turnUsages.set(turnId, {
+                        input_tokens: addCounter(prev?.input_tokens ?? null, deltaUsage.input_tokens),
+                        output_tokens: addCounter(prev?.output_tokens ?? null, deltaUsage.output_tokens),
+                        cached_input_tokens: addCounter(prev?.cached_input_tokens ?? null, deltaUsage.cached_input_tokens),
+                        cache_write_input_tokens: addCounter(prev?.cache_write_input_tokens ?? null, deltaUsage.cache_write_input_tokens),
+                        timestamp: eventTimestamp ?? prev?.timestamp ?? null,
+                        authoritative: false,
+                      });
+                    }
                   }
                 } else if (type === 'event_msg' && payload.type === 'task_complete') {
                   const turnId = safeId(payload.turn_id, null);
@@ -208,13 +277,16 @@ export function collectCodexLocalUsage(options = {}) {
                   }
                 }
               } catch {
-                // Skip malformed individual line safely
+                coverage.malformed++;
               }
             }
 
             // Synthesize completed turns into normalized events
             for (const [turnId, usage] of turnUsages.entries()) {
-              if (collectedEvents.length >= maxEvents) break;
+              if (collectedEvents.length >= maxEvents) {
+                coverage.bounded = true;
+                break;
+              }
               const ctx = turnContexts.get(turnId);
               const completedAt = turnCompletions.get(turnId);
               const timestamp = Number.isSafeInteger(completedAt) && completedAt > 0
@@ -249,21 +321,28 @@ export function collectCodexLocalUsage(options = {}) {
               }
             }
           } catch {
-            // Ignore unreadable rollout file safely
+            coverage.skipped++;
           }
         }
       }
     } catch {
-      // Ignore root session read errors
+      coverage.skipped++;
     }
   }
+
+  const partial = coverage.bounded || coverage.malformed > 0 || coverage.skipped > 0;
+  const status = partial
+    ? 'PARTIAL'
+    : (collectedEvents.length > 0 ? 'OK' : (coverage.files > 0 ? 'UNMEASURED' : 'OK'));
 
   return {
     contract: USAGE_CONTRACT,
     provider: 'codex',
-    status: 'OK',
+    status,
+    reason: partial ? 'INCOMPLETE_COVERAGE' : null,
     count: collectedEvents.length,
     events: collectedEvents,
+    coverage,
   };
 }
 
@@ -300,7 +379,7 @@ export function aggregateUsage(events = [], options = {}) {
   const groupBuckets = new Map();
 
   for (const event of uniqueMap.values()) {
-    const periodKey = formatPeriodKey(event.timestamp, period);
+    const periodKey = formatPeriodKey(event.timestamp, period, timezone);
     const keyParts = [periodKey];
     for (const field of groupBy) {
       keyParts.push(String(event[field] ?? 'unknown'));

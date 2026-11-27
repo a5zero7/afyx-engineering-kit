@@ -18,9 +18,10 @@ function model(value, provider) {
 
 function row(session, event, timestamp, modelName, metrics) {
   if (!id(session) || !id(event) || typeof timestamp !== 'string' ||
-      !/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(?:\.\d+)?Z$/.test(timestamp)) return null;
+      !/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(?:\.\d+)?(?:Z|[+-]\d\d:\d\d)$/.test(timestamp)) return null;
   const time = Date.parse(timestamp);
-  if (!Number.isSafeInteger(time) || time < 0 || new Date(time).toISOString().slice(0, 19) !== timestamp.slice(0, 19)) return null;
+  if (!Number.isSafeInteger(time) || time < 0) return null;
+  if (timestamp.endsWith('Z') && new Date(time).toISOString().slice(0, 19) !== timestamp.slice(0, 19)) return null;
   const normalized = Object.fromEntries(FIELDS.map(key => [key, count(metrics[key]) ? metrics[key] : null]));
   if (normalized.cachedInputTokens !== null && normalized.inputTokens !== null &&
       normalized.cachedInputTokens > normalized.inputTokens) {
@@ -194,6 +195,7 @@ export function collectProviderUsage(provider, options = {}) {
     } finally { closeSync(fd); }
   }
 
+  const candidates = [];
   function walk(path, depth) {
     if (stop()) return;
     if (realpathSync(path) !== path || !lstatSync(path).isDirectory()) { coverage.skipped++; return; }
@@ -215,13 +217,21 @@ export function collectProviderUsage(provider, options = {}) {
           if (depth >= 4 || realpathSync(child) !== child) { coverage.skipped++; continue; }
           walk(child, depth + 1);
         } else if (entry.isFile() && (claudeHost ? entry.name.endsWith('.jsonl') : /^session-.*\.jsonl?$/.test(entry.name))) {
-          if (coverage.files >= limits.maxFiles) { coverage.bounded = true; return; }
-          collectFile(child);
+          const st = lstatSync(child);
+          candidates.push({ path: child, mtimeMs: st.mtimeMs });
         }
       } catch { coverage.skipped++; }
     }
   }
-  try { walk(root, 0); } catch { coverage.skipped++; }
+  try {
+    walk(root, 0);
+    candidates.sort((a, b) => b.mtimeMs - a.mtimeMs || a.path.localeCompare(b.path));
+    for (const candidate of candidates) {
+      if (stop()) break;
+      if (coverage.files >= limits.maxFiles) { coverage.bounded = true; break; }
+      collectFile(candidate.path);
+    }
+  } catch { coverage.skipped++; }
   const events = [];
   for (const [eventId, record] of seen) {
     if (Object.values(record.normalized).every(value => value === null)) continue;
