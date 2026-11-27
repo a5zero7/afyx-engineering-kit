@@ -110,7 +110,8 @@ function passthrough(segments, reason, { includeItemContent = true } = {}) {
 function isReferenceEligible(segment, reference, { benefitAware = false } = {}) {
   if (!reference || PRESERVED.has(segment.classification)) return false;
   if (!benefitAware) return true;
-  return referenceLine(segment, reference, 'repeated').length < originalLine(segment).length;
+  return Buffer.byteLength(referenceLine(segment, reference, 'repeated'), 'utf8')
+    < Buffer.byteLength(originalLine(segment), 'utf8');
 }
 
 function normalizeRequest({ segments, budgetChars = 32_000 } = {}) {
@@ -142,7 +143,7 @@ export class AfyxContextEngine {
         .filter((segment) => PRESERVED.has(segment.classification))
         .reduce((total, segment) => total + originalLine(segment).length + 2, 0);
       if (mandatoryChars > budgetChars) {
-        const out = passthrough(normalized, 'protected-content-exceeds-budget');
+        const out = passthrough(normalized, 'protected-content-exceeds-budget', { includeItemContent: !benefitAware });
         if (tracing) {
           const origBytes = Buffer.byteLength(out.renderedContext, 'utf8');
           const payBytes = Buffer.byteLength(JSON.stringify(out), 'utf8');
@@ -187,7 +188,7 @@ export class AfyxContextEngine {
         const chooseReference = mayReference && (repeated || used + separator + original.length + reservedLater > budgetChars);
         const selected = chooseReference ? reduced : original;
         if (used + separator + selected.length + reservedLater > budgetChars) {
-          const out = passthrough(normalized, 'safe-budget-fallback');
+          const out = passthrough(normalized, 'safe-budget-fallback', { includeItemContent: !benefitAware });
           if (tracing) {
             const origBytes = Buffer.byteLength(out.renderedContext, 'utf8');
             const payBytes = Buffer.byteLength(JSON.stringify(out), 'utf8');
@@ -206,7 +207,7 @@ export class AfyxContextEngine {
           }
           return out;
         }
-        if (eligible) eligibleToPersist.push(segment);
+        if (benefitAware ? chooseReference : eligible) eligibleToPersist.push(segment);
         rendered.push(selected);
         used += separator + selected.length;
         items.push({

@@ -267,4 +267,18 @@ test('skips persistence and duplicate item content for small, diagnostic, unicod
   }
   assert.deepEqual(fs.readdirSync(contentDir), []);
   assert.equal(fs.readFileSync(sessionPath, 'utf8'), sessionBefore);
+
+  // Eligible large normal content that remains inline does not persist under benefitAware.
+  const inlineLarge = engine.reduce({ budgetChars: 32000, segments: [{ id: 'inline-large', content: 'ordinary inline text '.repeat(20) }] }, { benefitAware: true });
+  assert.equal(inlineLarge.mode, 'passthrough');
+  assert.equal(inlineLarge.reason, 'no-net-reduction');
+  assert.equal(inlineLarge.items[0].content, undefined);
+  assert.deepEqual(fs.readdirSync(contentDir), []);
+
+  // Protected fallback under benefitAware omits duplicate item content and skips persistence.
+  const protectedFallback = engine.reduce({ budgetChars: 10, segments: [{ id: 'sec', classification: 'security', content: longContent }] }, { benefitAware: true });
+  assert.equal(protectedFallback.mode, 'passthrough');
+  assert.equal(protectedFallback.reason, 'protected-content-exceeds-budget');
+  assert.equal(protectedFallback.items[0].content, undefined);
+  assert.deepEqual(fs.readdirSync(contentDir), []);
 });

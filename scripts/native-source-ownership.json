@@ -79,7 +79,7 @@
     {
       "path": "afyx-context/src/engine.js",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "7dbf7ea2031f0644b1ed306b0a244cb0ac4520eb758c455addff716ca9f48cdb",
+      "reviewedSha256": "40149032e21aac2d911db6d6f062f52fed91aa7af1bb06e680b84637f532eea6",
       "evidence": "AFYX native source: authored from AFYX functional requirements; verified clean room implementation with zero third-party code import."
     },
     {
