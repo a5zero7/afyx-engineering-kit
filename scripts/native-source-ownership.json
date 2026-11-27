@@ -2,12 +2,12 @@
   "schema": 1,
   "baselineRevision": "c4e4d8e29de239a2fcbc0db8ac65eea2276e7b00",
   "scope": "AFYX-320 comprehensive production source inventory",
-  "totalProductionFiles": 530,
+  "totalProductionFiles": 531,
   "entries": [
     {
       "path": "afyx-context/src/privacy.js",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "7af5797c83c77bf0e2282aefe9f68e40382bf2d66ea61ca8cf6ef414082a9395",
+      "reviewedSha256": "43ee2cb93ad9ffe0726f523de71b32b5b9ed52d27fb4cbde610aba6e24f8bc1a",
       "evidence": "AFYX-383: Native Context admission policy rejects credential-bearing segments from persistent storage."
     },
     {
@@ -43,7 +43,7 @@
     {
       "path": "afyx-context/src/collector.js",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "f9274f7557df9b740bbe67c894de7f098d238aa3905e25fb3f14413daba9ec8c",
+      "reviewedSha256": "ded076970a712b16cae30a1aba1d311396a8cb10e501f0dc238f260ab338723c",
       "evidence": "AFYX-353 review: authored from AFYX functional requirements and afyx-usage/v1 canonical contract; read-only Codex telemetry collector and bounded aggregation; no external prompts, dependencies or code imported."
     },
     {
@@ -79,7 +79,7 @@
     {
       "path": "afyx-context/src/engine.js",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "cdba8a3b5e6428e2a1120770c4fec8f13dda48dd5c10533280e102f095fd9edd",
+      "reviewedSha256": "843630ab1b56a87428335ee12f07c8b7b63694a102b89024110609fe143b5ccc",
       "evidence": "AFYX native source: authored from AFYX functional requirements; verified clean room implementation with zero third-party code import."
     },
     {
@@ -121,7 +121,7 @@
     {
       "path": "afyx-context/src/index.js",
       "classification": "PUBLIC_API_BARREL",
-      "reviewedSha256": "b7d44a1304ae9fb55e5234ed3e658c4925f156bf915ed530a08e424b52505b58",
+      "reviewedSha256": "48f65934f1e7bdbe8308eeed28c8b73334fd57bc7220db3d7f149906a8b3af58",
       "evidence": "MB12 review: authored from AFYX functional requirements and existing reviewed 251f73a contracts; no upstream implementation, prompts, assets or dependency imported. Trusted-host boundaries and negative/regression tests recorded in MB12-native-consolidation-20261114-r1."
     },
     {
@@ -151,7 +151,7 @@
     {
       "path": "afyx-context/src/provider-usage.js",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "379d8c2e30b3009111e7516f089353f9911974d75b56b65dfc16b09a1afea95d",
+      "reviewedSha256": "f9e07c0f72dcd7fbc828c438c4ecfc757153209c465c621c6d1d9e3ca9e1ecec",
       "evidence": "V1.2.0 Batch 1 native implementation extending existing AFYX contracts with bounded parsing and focused synthetic validation."
     },
     {
@@ -2763,7 +2763,7 @@
     {
       "path": "bin/afyx-engineering-kit.mjs",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "acdabce0073b9aa5d7d3e495d9447dabb98a1463aa5a48f644e386d91a7a6e7d",
+      "reviewedSha256": "de5f20ab2f42a395420c0d51e3543384cb839bcb342a72c11f08e452722fa3f1",
       "evidence": "Installer UX v2: reviewed AFYX executable lifecycle wiring for shared interactive wizard, backend event forwarding and actual verification. Uses existing AFYX modules and runtime APIs only."
     },
     {
@@ -2973,7 +2973,7 @@
     {
       "path": "scripts/afyx-npm-installer.mjs",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "8d2eb2695055e961de1b4d426af70da5d7ea57688ee4b6a2fd37221280625db3",
+      "reviewedSha256": "eed9ee02b4b00f735c6e6ab0631f30e5f662bf8dc2a74934111962bf2eab6313",
       "evidence": "Installer UX v2 with synchronized universal capability summaries, help text, and version 0.1.0-alpha.12 (AFYX-77)."
     },
     {
@@ -3159,7 +3159,7 @@
     {
       "path": "tools/afyx-usage-intelligence/AfyxUsageIntelligence.psm1",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "1790fb9809d041cef04b2483de3c31ebcdce938d8914c04fad1a96ee4b79c8c5",
+      "reviewedSha256": "2e46f3d16e032e7bc1c2794cc59fbdbeb9b76496220aff55ba8ac6c67249afc1",
       "evidence": "AFYX native source: authored from AFYX functional requirements; verified clean room implementation with zero third-party code import."
     },
     {
@@ -3191,6 +3191,12 @@
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
       "reviewedSha256": "83e1e95fdf467fc05d16225f49a7a39f0a66f511dde05ed0ad292db6d9b418e0",
       "evidence": "AFYX post-v1 audit remediation: AFYX-owned installer and lifecycle implementation maintained in this repository."
+    },
+    {
+      "path": "afyx-context/src/invocation-trace.js",
+      "classification": "AFYX_NATIVE_IMPLEMENTATION",
+      "reviewedSha256": "9a66a7fb6b94c235a26d4f137944d8db74bf1342975f464c1c94e8df46f894f9",
+      "evidence": "AFYX-375 (V1.3.0-B4): Lightweight opt-in local invocation trace with bounded retention and privacy redaction."
     }
   ]
 }

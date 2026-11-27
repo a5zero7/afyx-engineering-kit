@@ -14,7 +14,7 @@ Smoke mode uses one repetition to test isolation, fixture reset, capture, and se
 
 ### Activation semantics
 
-The configurations `N`, `E`, `O`, `P`, `EO`, `PO`, and `CORE` control which Afyx skills are available in a run. The harness applies session-only `skills.config` overrides and copies only the selected frozen skills into the fresh fixture; it does not modify the user's installed skills or production configuration.
+The configurations `N`, `E`, `O`, `P`, `EO`, `PO`, `CORE`, `X`, and `CORE_X` control which Afyx skills are available in a run. For Campaign A screening, `evals/manifest.json` also defines the four-tier `campaign_a_matrix` (`N`: Native agent without AFYX, `S`: AFYX Skills only, `G`: Skills + Graph, `F`: Full AFYX Kit) across representative scenarios (`simple coding`, `cross-file dependency analysis`, `regression diagnosis`, `long diagnostic output`, `Odoo engineering`, and `multi-module validation planning`). The harness applies session-only `skills.config` overrides and copies only the selected frozen skills into the fresh fixture; it does not modify the user's installed skills or production configuration.
 
 Availability is not treated as proof of activation. Each scenario explicitly declares required and forbidden skill reads. The evaluator records three independent conditions:
 

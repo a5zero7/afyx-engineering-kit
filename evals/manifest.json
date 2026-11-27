@@ -19,6 +19,28 @@
     "B0": "X",
     "B1": "CORE_X"
   },
+  "campaign_a_matrix": {
+    "N": {"description": "Native agent without AFYX", "skills": [], "graph": false, "ace": false, "forge": false},
+    "S": {"description": "AFYX Skills only", "skills": ["efficient-coding", "odoo-engineering", "afyx-engineering-expert"], "graph": false, "ace": false, "forge": false},
+    "G": {"description": "AFYX Skills + Graph", "skills": ["efficient-coding", "odoo-engineering", "afyx-engineering-expert"], "graph": true, "ace": false, "forge": false},
+    "F": {"description": "Full AFYX Kit", "skills": ["efficient-coding", "odoo-engineering", "afyx-engineering-expert"], "graph": true, "ace": true, "forge": true}
+  },
+  "campaign_a_budget": {
+    "max_runs": 27,
+    "round_1_discovery_reps": 1,
+    "round_2_confirmation_on_ambiguity": true
+  },
+  "measurement_fields": [
+    "task_correctness",
+    "regression_rate",
+    "total_session_tokens",
+    "tool_calls",
+    "capability_activation",
+    "end_to_end_duration_ms",
+    "afyx_runtime_overhead_ms",
+    "ace_retrieval_cost",
+    "graph_extraction_accuracy"
+  ],
   "scenarios": [
     {
       "scenario_id": "smoke-python-001",
@@ -197,6 +219,73 @@
         "evidence_quality": ["no unsupported performance claim"],
         "security": ["no irrelevant security workflow"]
       }
+    },
+    {
+      "scenario_id": "campaign-a-cross-file-001",
+      "stage": "campaign-a-ready",
+      "category": "cross-file-dependency-analysis",
+      "fixture": "fixtures/campaign-a-cross-file",
+      "user_prompt": "Fix the currency conversion bug in billing.py using fetch_rate in rates.py so the existing tests pass.",
+      "configurations": ["N", "E", "CORE", "CORE_X"],
+      "required_skill_reads": [],
+      "forbidden_skill_reads": [],
+      "expected_assertions": [{"type": "validation_exit", "value": 0}],
+      "forbidden_patterns": ["eval(", "exec("],
+      "validation_command": ["python", "-m", "unittest", "test_deps.py"],
+      "allowed_file_scope": ["billing.py"],
+      "expected_file_scope": ["billing.py"],
+      "output_kind": "coding"
+    },
+    {
+      "scenario_id": "campaign-a-regression-001",
+      "stage": "campaign-a-ready",
+      "category": "regression-diagnosis",
+      "fixture": "fixtures/campaign-a-regression",
+      "user_prompt": "Diagnose and fix the regression in pricing.py so 0% discount is accepted while negative discounts still raise ValueError.",
+      "configurations": ["N", "E", "CORE", "CORE_X"],
+      "required_skill_reads": [],
+      "forbidden_skill_reads": [],
+      "expected_assertions": [{"type": "validation_exit", "value": 0}],
+      "forbidden_patterns": ["eval(", "exec("],
+      "validation_command": ["python", "-m", "unittest", "test_regression.py"],
+      "allowed_file_scope": ["pricing.py"],
+      "expected_file_scope": ["pricing.py"],
+      "output_kind": "coding"
+    },
+    {
+      "scenario_id": "campaign-a-long-diag-001",
+      "stage": "campaign-a-ready",
+      "category": "long-diagnostic-output",
+      "fixture": "fixtures/campaign-a-long-diag",
+      "user_prompt": "Run test_diag.py and verify extract_error_code in diag_parser.py accurately extracts the FATAL error code from long diagnostic logs.",
+      "configurations": ["N", "E", "CORE", "CORE_X"],
+      "required_skill_reads": [],
+      "forbidden_skill_reads": [],
+      "expected_assertions": [{"type": "validation_exit", "value": 0}],
+      "forbidden_patterns": ["eval(", "exec("],
+      "validation_command": ["python", "-m", "unittest", "test_diag.py"],
+      "allowed_file_scope": [],
+      "expected_file_scope": [],
+      "output_kind": "coding"
+    },
+    {
+      "scenario_id": "campaign-a-validation-plan-001",
+      "stage": "campaign-a-ready",
+      "category": "multi-module-validation-planning",
+      "fixture": "fixtures/campaign-a-validation-plan",
+      "user_prompt": "Advisory only. Based on context.md, produce a bounded multi-module validation plan covering contract checks, regression gates, and rollback triggers. Do not modify files.",
+      "configurations": ["N", "X", "CORE_X"],
+      "required_skill_reads": [],
+      "forbidden_skill_reads": [],
+      "expected_assertions": [
+        {"type": "output_contains", "value": "contract"},
+        {"type": "output_contains", "value": "rollback"}
+      ],
+      "forbidden_patterns": ["files modified", "tests passed"],
+      "validation_command": null,
+      "allowed_file_scope": [],
+      "expected_file_scope": [],
+      "output_kind": "advisory"
     }
   ]
 }
