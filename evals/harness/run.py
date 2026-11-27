@@ -73,7 +73,7 @@ def evaluation_provenance(manifest: dict, environment: dict, *, env_rel: str | N
     selected_env = env_rel or manifest["environment"]
     environment_path = EVAL_ROOT / selected_env
     revision = subprocess.run(
-        ["git", "-C", str(REPO_ROOT), "rev-parse", "HEAD"],
+        ["git", "-c", f"safe.directory={REPO_ROOT.as_posix()}", "-C", str(REPO_ROOT), "rev-parse", "HEAD"],
         text=True, encoding="utf-8", errors="replace", capture_output=True,
     )
     if revision.returncode != 0 or not revision.stdout.strip():
@@ -250,12 +250,40 @@ def skills_override() -> str:
     return f"skills.config=[{entries}]"
 
 
+def _posix_runtime_read_roots() -> list[str]:
+    """Return read-only runtime binary roots outside :minimal needed by Linux bwrap."""
+    if os.name == "nt":
+        return []
+    roots: list[str] = []
+    system_prefixes = ("/usr/", "/bin/", "/sbin/", "/lib/", "/lib64/")
+    for tool in ("codex", "node"):
+        found = shutil.which(tool)
+        if not found:
+            continue
+        resolved = Path(found).resolve()
+        resolved_str = resolved.as_posix()
+        if any(resolved_str.startswith(prefix) for prefix in system_prefixes):
+            continue
+        if tool == "codex" and "node_modules" in resolved.parts:
+            idx = resolved.parts.index("node_modules")
+            root = Path(*resolved.parts[:idx])
+        elif resolved.parent.name == "bin":
+            root = resolved.parent.parent
+        else:
+            root = resolved.parent
+        root_str = root.as_posix()
+        if root_str not in roots and root_str != "/":
+            roots.append(root_str)
+    return roots
+
+
 def evaluation_permissions_override() -> str:
     """Least-privilege profile for evaluated commands and descendants."""
+    extra_reads = "".join(f'"{root}" = "read", ' for root in _posix_runtime_read_roots())
     return (
         f"permissions.{EVALUATION_PERMISSION_PROFILE}={{ "
         'extends = ":workspace", filesystem = { '
-        '":root" = "deny", ":minimal" = "read", '
+        f'":root" = "deny", ":minimal" = "read", {extra_reads}'
         '":tmpdir" = "deny", ":slash_tmp" = "deny" }, '
         "network = { enabled = false } }"
     )
@@ -1304,9 +1332,12 @@ def run_cell(
         validation_output = None
         validation_commands = []
         if scenario["validation_command"]:
-            validation_commands.append(scenario["validation_command"])
+            val_cmd = list(scenario["validation_command"])
+            if val_cmd and val_cmd[0] == "python" and shutil.which("python") is None:
+                val_cmd[0] = sys.executable
+            validation_commands.append(val_cmd)
             validation = subprocess.run(
-                scenario["validation_command"], cwd=work, text=True,
+                val_cmd, cwd=work, text=True,
                 encoding="utf-8", errors="replace",
                 capture_output=True, timeout=timeout,
             )

@@ -1,7 +1,7 @@
 {
   "schema_version": 3,
-  "frozen_at": "2026-11-27T19:05:00+07:00",
-  "purpose": "V1.3.0-B4 Campaign A measurement readiness fingerprint (benchmark unexecuted)",
+  "frozen_at": "2026-11-27T22:55:00+07:00",
+  "purpose": "V1.3.0-B5 Campaign A comparative benchmark fingerprint (WSL2 Ubuntu Linux sandbox recovery)",
   "repository": {
     "benchmark_subject_commit": "c48129ec16af6d70072a11d900f025bdd6d85644",
     "branch": "dev"
@@ -29,7 +29,7 @@
     "afyx_context": "0.1.0"
   },
   "runtime": {
-    "os": "Windows 11",
+    "os": "Linux 6.6.114.1-microsoft-standard-WSL2 x86_64 (Ubuntu)",
     "codex_cli": "0.167.0",
     "model": "gpt-5.6-sol",
     "reasoning_effort": "medium",
@@ -41,13 +41,13 @@
       "--ignore-user-config",
       "--skip-git-repo-check",
       "default_permissions=afyx-evaluation",
-      "windows.sandbox=mxc",
+      "sandbox=linux-bwrap-landlock",
       "approval_policy=never",
       "--json"
     ]
   },
   "execution": {
-    "sandbox": "MXC permission profile afyx-evaluation",
+    "sandbox": "Linux bwrap/landlock permission profile afyx-evaluation",
     "approval": "never",
     "network_requested": false,
     "filesystem_policy": "root deny; minimal runtime read; evaluated workspace write; OS temp outside workspace deny",
