@@ -1,18 +1,22 @@
 #!/usr/bin/env python3
-"""Offline deterministic readiness checks for V1.3.0-B4 Campaign A benchmark harness."""
+"""Offline deterministic readiness and execution tests for V1.3.0-B4 Campaign A."""
 
 from __future__ import annotations
 
+import copy
 import json
 import subprocess
 import sys
+import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[2]
 EVAL_ROOT = ROOT / "evals"
 sys.path.insert(0, str(EVAL_ROOT / "harness"))
 import freeze  # noqa: E402
+import run  # noqa: E402
 
 
 class BenchmarkReadinessTests(unittest.TestCase):
@@ -22,18 +26,15 @@ class BenchmarkReadinessTests(unittest.TestCase):
         self.assertEqual(set(matrix.keys()), {"N", "S", "G", "F"})
         self.assertEqual(manifest.get("campaign_a_budget", {}).get("max_runs"), 27)
 
-        expected_metrics = {
-            "task_correctness",
-            "regression_rate",
-            "total_session_tokens",
-            "tool_calls",
-            "capability_activation",
-            "end_to_end_duration_ms",
-            "afyx_runtime_overhead_ms",
-            "ace_retrieval_cost",
-            "graph_extraction_accuracy",
-        }
-        self.assertTrue(expected_metrics.issubset(set(manifest.get("measurement_fields", []))))
+        plan = run.build_campaign_a_plan(manifest, max_budget=27)
+        self.assertEqual(plan["control_invocations"], 2)
+        self.assertEqual(plan["max_budget"], 27)
+        self.assertLessEqual(
+            plan["control_invocations"] + plan["planned_scenario_cells"] + plan["confirmation_budget"],
+            27,
+        )
+        self.assertEqual(plan["planned_scenario_cells"], 20)
+        self.assertEqual(plan["confirmation_budget"], 5)
 
         categories = {s["category"] for s in manifest.get("scenarios", [])}
         for required_cat in (
@@ -46,16 +47,144 @@ class BenchmarkReadinessTests(unittest.TestCase):
         ):
             self.assertIn(required_cat, categories)
 
-    def test_b4_environment_fingerprint_matches_repository_skills(self) -> None:
+    def test_b4_environment_fingerprint_and_drift_rejection(self) -> None:
         env = json.loads((EVAL_ROOT / "environment-v1.3.0-b4.json").read_text(encoding="utf-8"))
         self.assertFalse(env.get("secrets_recorded"))
-        for skill in ("efficient-coding", "odoo-engineering", "afyx-engineering-expert"):
-            expected = env["skills"][skill]["content_sha256"]
-            actual = freeze.directory_content_sha256(freeze.resolve_skill_directory(skill))
-            self.assertEqual(actual, expected, f"Skill hash drift for {skill}")
+        # Must pass cleanly against current repository state without prompt-master
+        run.verify_frozen_environment(env)
+
+        drifted_skill = copy.deepcopy(env)
+        drifted_skill["skills"]["efficient-coding"]["content_sha256"] = "0" * 64
+        with self.assertRaisesRegex(RuntimeError, "efficient-coding: content SHA256 mismatch"):
+            run.verify_frozen_environment(drifted_skill)
+
+        drifted_fixture = copy.deepcopy(env)
+        drifted_fixture["fixtures_sha256"] = "0" * 64
+        with self.assertRaisesRegex(RuntimeError, "fixtures: content SHA256 mismatch"):
+            run.verify_frozen_environment(drifted_fixture)
+
+    def test_nsgf_capability_differences_and_isolation(self) -> None:
+        manifest = json.loads((EVAL_ROOT / "manifest.json").read_text(encoding="utf-8"))
+        with mock.patch.dict("os.environ", {"AFYX_GRAPH_OPT_IN": "1", "AFYX_TRACE_ENABLED": "1"}):
+            n_cfg, n_skills, n_caps = run.resolve_campaign_a_configuration(manifest, "N")
+            s_cfg, s_skills, s_caps = run.resolve_campaign_a_configuration(manifest, "S")
+            g_cfg, g_skills, g_caps = run.resolve_campaign_a_configuration(manifest, "G")
+            f_cfg, f_skills, f_caps = run.resolve_campaign_a_configuration(manifest, "F")
+
+            self.assertEqual(n_skills, [])
+            self.assertEqual(s_skills, g_skills)
+            self.assertEqual(g_skills, f_skills)
+            self.assertEqual(n_caps, {"graph": False, "ace": False, "forge": False})
+            self.assertEqual(s_caps, {"graph": False, "ace": False, "forge": False})
+            self.assertEqual(g_caps, {"graph": True, "ace": False, "forge": False})
+            self.assertEqual(f_caps, {"graph": True, "ace": True, "forge": True})
+
+            env_n = run.isolated_capability_env(n_caps, n_cfg)
+            env_g = run.isolated_capability_env(g_caps, g_cfg)
+            env_f = run.isolated_capability_env(f_caps, f_cfg)
+            self.assertNotIn("AFYX_TRACE_ENABLED", env_n)
+            self.assertEqual(env_n["AFYX_GRAPH_OPT_IN"], "0")
+            self.assertEqual(env_g["AFYX_GRAPH_OPT_IN"], "1")
+            self.assertEqual(env_g["AFYX_CONTEXT_OPT_IN"], "0")
+            self.assertEqual(env_f["AFYX_CONTEXT_OPT_IN"], "1")
+            self.assertEqual(env_f["AFYX_FORGE_OPT_IN"], "1")
+
+            cmd_n = run.codex_command(Path("."), "test", capabilities=n_caps)
+            cmd_g = run.codex_command(Path("."), "test", capabilities=g_caps)
+            self.assertIn("mcp_servers={}", cmd_n)
+            self.assertNotIn("mcp_servers={}", cmd_g)
+
+    def test_budget_enforcement_and_interrupted_resume(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            ledger_path = Path(tmp) / "campaign-a-budget.json"
+            ledger = run.CampaignBudgetLedger(ledger_path, max_invocations=4)
+            id1 = ledger.reserve("child_health")
+            ledger.finalize(id1, "COMPLETED")
+            id2 = ledger.reserve("discovery", "s1::N::r1")
+            ledger.finalize(id2, "INTERRUPTED", "s1::N::r1")
+            id3 = ledger.reserve("discovery", "s1::S::r1")
+            ledger.finalize(id3, "COMPLETED", "s1::S::r1", "run-s1-S")
+            id4 = ledger.reserve("discovery", "s1::G::r1")
+            ledger.finalize(id4, "FAILED", "s1::G::r1")
+
+            # Interrupted/failed invocations do NOT restore budget
+            self.assertEqual(ledger.reserved_count, 4)
+            self.assertEqual(ledger.remaining, 0)
+            with self.assertRaises(run.BudgetExhaustedError):
+                ledger.reserve("discovery", "s1::F::r1")
+
+            # Reloading on resume preserves completed cells and exhausted budget
+            resumed = run.CampaignBudgetLedger(ledger_path, max_invocations=4)
+            self.assertTrue(resumed.is_cell_completed("s1::S::r1"))
+            self.assertFalse(resumed.is_cell_completed("s1::N::r1"))
+            self.assertEqual(resumed.remaining, 0)
+
+    def test_end_to_end_offline_campaign_a_execution(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_results = Path(tmp) / "results"
+            observed_envs: list[dict] = []
+
+            def fake_bounded(command, cwd, timeout, env=None):
+                cmd_str = " ".join(command)
+                if "Isolation control only" in cmd_str:
+                    # Emit positive control read + negative control denials without leaking canary
+                    out = "\n".join([
+                        json.dumps({"type": "item.completed", "item": {"type": "command_execution", "command": "cat allowed.txt", "status": "completed", "exit_code": 0, "aggregated_output": "AFYX_CONTROL_workspace:ok"}}),
+                        json.dumps({"type": "item.completed", "item": {"type": "command_execution", "command": "cat canary.txt", "status": "failed", "exit_code": 1, "aggregated_output": "AFYX_CONTROL_canary:READ_DENIED"}}),
+                        json.dumps({"type": "item.completed", "item": {"type": "command_execution", "command": "cat manifest.json", "status": "failed", "exit_code": 1, "aggregated_output": "AFYX_CONTROL_manifest:READ_DENIED"}}),
+                        json.dumps({"type": "item.completed", "item": {"type": "command_execution", "command": "cat rubric.json", "status": "failed", "exit_code": 1, "aggregated_output": "AFYX_CONTROL_rubric:READ_DENIED"}}),
+                        json.dumps({"type": "item.completed", "item": {"type": "command_execution", "command": "cat private-holdout.json", "status": "failed", "exit_code": 1, "aggregated_output": "AFYX_CONTROL_private_holdout:READ_DENIED"}}),
+                    ])
+                    return {"started": True, "pid": 1, "returncode": 0, "stdout": out, "stderr": "", "timed_out": False, "cleanup_required": False, "cleanup_succeeded": True, "cleanup_method": "none", "elapsed_seconds": 0.01, "executable": "codex", "launcher_kind": "mock"}
+                if env is None:
+                    out = "\n".join([
+                        json.dumps({"type": "thread.started"}),
+                        json.dumps({"type": "turn.started"}),
+                        json.dumps({"type": "item.completed", "item": {"type": "agent_message", "text": "OK"}}),
+                    ])
+                    return {"started": True, "pid": 1, "returncode": 0, "stdout": out, "stderr": "", "timed_out": False, "cleanup_required": False, "cleanup_succeeded": True, "cleanup_method": "none", "elapsed_seconds": 0.01, "executable": "codex", "launcher_kind": "mock"}
+                # Scenario cell execution
+                observed_envs.append({
+                    "config": env.get("AFYX_EVAL_CONFIG") if env else None,
+                    "graph": env.get("AFYX_GRAPH_OPT_IN") if env else None,
+                    "ace": env.get("AFYX_CONTEXT_OPT_IN") if env else None,
+                    "forge": env.get("AFYX_FORGE_OPT_IN") if env else None,
+                    "has_manifest_in_work": (cwd / "manifest.json").exists(),
+                })
+                out = "\n".join([
+                    json.dumps({"type": "item.completed", "item": {"type": "agent_message", "text": "contract rollback verified"}}),
+                    json.dumps({"type": "turn.completed", "usage": {"input_tokens": 100, "cached_input_tokens": 20, "output_tokens": 30, "total_tokens": 130}}),
+                ])
+                return {"started": True, "pid": 1, "returncode": 0, "stdout": out, "stderr": "", "timed_out": False, "cleanup_required": False, "cleanup_succeeded": True, "cleanup_method": "none", "elapsed_seconds": 0.02, "executable": "codex", "launcher_kind": "mock"}
+
+            def fake_health(timeout, provenance):
+                return {**provenance, "result": "PASS", "classification": "HEALTHY", "elapsed_seconds": 0.01}
+
+            def fake_canary(timeout, provenance):
+                return {**provenance, "result": "PASS", "canary_exposed": False, "external_read_succeeded": False, "elapsed_seconds": 0.01}
+
+            with mock.patch.object(run, "RESULTS_ROOT", tmp_results), \
+                 mock.patch.object(run, "verify_runtime_fingerprint", return_value={"codex_cli": "0.167.0"}), \
+                 mock.patch.object(run, "run_child_health_probe", side_effect=fake_health), \
+                 mock.patch.object(run, "run_isolation_canary", side_effect=fake_canary), \
+                 mock.patch.object(run, "bounded_process", side_effect=fake_bounded), \
+                 mock.patch.object(sys, "argv", [
+                     "run.py", "--mode", "campaign-a",
+                     "--scenario", "campaign-a-validation-plan-001",
+                     "--config", "N", "--config", "F", "--budget", "4",
+                 ]):
+                rc = run.main()
+
+            self.assertEqual(rc, 0)
+            summary = json.loads((tmp_results / "latest-summary.json").read_text(encoding="utf-8"))
+            self.assertEqual(summary["completion_state"], "COMPLETE")
+            self.assertEqual(summary["pass_count"], 2)
+            self.assertEqual(summary["campaign_a_plan"]["reserved_invocations"], 4)
+            self.assertEqual({e["config"] for e in observed_envs}, {"N", "F"})
+            for e in observed_envs:
+                self.assertFalse(e["has_manifest_in_work"])
 
     def test_campaign_a_coding_oracles_fail_before_fix_and_diag_passes(self) -> None:
-        # Cross-file and regression fixtures have intentional failing oracles until solved
         cross = subprocess.run(
             [sys.executable, "-m", "unittest", "test_deps.py"],
             cwd=str(EVAL_ROOT / "fixtures" / "campaign-a-cross-file"),

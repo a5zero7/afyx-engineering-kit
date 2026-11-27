@@ -1,9 +1,9 @@
 {
   "schema_version": 3,
-  "frozen_at": "2026-11-27T08:18:00+07:00",
+  "frozen_at": "2026-11-27T19:05:00+07:00",
   "purpose": "V1.3.0-B4 Campaign A measurement readiness fingerprint (benchmark unexecuted)",
   "repository": {
-    "benchmark_subject_commit": "f786e6bf71b833ecc69b4aea346499068fa95b7f",
+    "benchmark_subject_commit": "c48129ec16af6d70072a11d900f025bdd6d85644",
     "branch": "dev"
   },
   "skills": {
@@ -28,9 +28,44 @@
     "afyx_graph": "1.2.1",
     "afyx_context": "0.1.0"
   },
+  "runtime": {
+    "os": "Windows 11",
+    "codex_cli": "0.167.0",
+    "model": "gpt-5.6-sol",
+    "reasoning_effort": "medium",
+    "provider": "openai",
+    "service_tier": null,
+    "runtime_flags": [
+      "exec",
+      "--ephemeral",
+      "--ignore-user-config",
+      "--skip-git-repo-check",
+      "default_permissions=afyx-evaluation",
+      "windows.sandbox=mxc",
+      "approval_policy=never",
+      "--json"
+    ]
+  },
+  "execution": {
+    "sandbox": "MXC permission profile afyx-evaluation",
+    "approval": "never",
+    "network_requested": false,
+    "filesystem_policy": "root deny; minimal runtime read; evaluated workspace write; OS temp outside workspace deny",
+    "writable_scope": "external disposable evaluated workspace",
+    "available_tools_observable": [
+      "command_execution",
+      "file_change"
+    ]
+  },
   "campaign_a_budget": {
     "max_runs": 27,
-    "configurations": ["N", "S", "G", "F"]
+    "configurations": [
+      "N",
+      "S",
+      "G",
+      "F"
+    ]
   },
+  "fixtures_sha256": "d00a7e117d64efe03a14a2cdcd161328163a772c765134ccf9c104767a76629f",
   "secrets_recorded": false
 }

@@ -202,8 +202,13 @@ def validate_environment(violations: list[str]) -> None:
     if not repository.get("branch"):
         violations.append("repository.branch is required")
     skills = environment.get("skills")
-    if not isinstance(skills, dict) or set(skills) != AFYX_SKILLS:
-        violations.append(f"{path.name} must fingerprint exactly the four Afyx skills")
+    is_campaign_a = "campaign_a_budget" in environment
+    expected_skills = (
+        {"efficient-coding", "odoo-engineering", "afyx-engineering-expert"}
+        if is_campaign_a else AFYX_SKILLS
+    )
+    if not isinstance(skills, dict) or set(skills) != expected_skills:
+        violations.append(f"{path.name} must fingerprint exactly {sorted(expected_skills)}")
     runtime = environment.get("runtime")
     if not isinstance(runtime, dict):
         violations.append(f"{path.name} requires runtime details")
@@ -213,6 +218,25 @@ def validate_environment(violations: list[str]) -> None:
                 violations.append(f"{path.name} runtime.{key} is required")
     if not isinstance(environment.get("execution"), dict):
         violations.append(f"{path.name} requires execution permissions/tooling details")
+
+    campaign_env_name = manifest.get("campaign_a_environment")
+    if campaign_env_name:
+        try:
+            cpath = (EVAL_ROOT / campaign_env_name).resolve()
+            cpath.relative_to(EVAL_ROOT.resolve())
+            cenv = json.loads(cpath.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError, ValueError) as error:
+            violations.append(f"campaign_a_environment is invalid: {error}")
+            return
+        if cenv.get("schema_version") != 3:
+            violations.append(f"{cpath.name} schema_version must be 3")
+        cskills = cenv.get("skills")
+        expected_cskills = {"efficient-coding", "odoo-engineering", "afyx-engineering-expert"}
+        if not isinstance(cskills, dict) or set(cskills) != expected_cskills:
+            violations.append(f"{cpath.name} must fingerprint {sorted(expected_cskills)}")
+        cbudget = cenv.get("campaign_a_budget", {})
+        if not isinstance(cbudget.get("max_runs"), int) or cbudget.get("max_runs") > 27:
+            violations.append(f"{cpath.name} campaign_a_budget.max_runs must be <= 27")
 
 
 def validate_odoo_headers(violations: list[str]) -> None:

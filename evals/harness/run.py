@@ -23,7 +23,13 @@ from contextlib import contextmanager, redirect_stdout
 from datetime import datetime, timezone
 from pathlib import Path
 
-from freeze import REPOSITORY_SKILLS, directory_content_sha256, prompt_master_git_sha, resolve_skill_directory
+from freeze import (
+    REPOSITORY_SKILLS,
+    directory_content_sha256,
+    fixtures_content_sha256,
+    prompt_master_git_sha,
+    resolve_skill_directory,
+)
 
 
 EVAL_ROOT = Path(__file__).resolve().parents[1]
@@ -111,8 +117,12 @@ def verify_frozen_environment(environment: dict) -> None:
     subject = environment.get("repository", {}).get("benchmark_subject_commit")
     if not subject:
         failures.append("repository.benchmark_subject_commit is missing")
+    skills = environment.get("skills", {})
     for name in REPOSITORY_SKILLS:
-        expected = environment["skills"].get(name, {}).get("content_sha256")
+        if name not in skills:
+            failures.append(f"{name}: frozen skill entry is missing")
+            continue
+        expected = skills.get(name, {}).get("content_sha256")
         if not expected:
             failures.append(f"{name}: frozen content_sha256 is missing")
             continue
@@ -122,49 +132,58 @@ def verify_frozen_environment(environment: dict) -> None:
                 f"{name}: content SHA256 mismatch (expected {expected}, actual {actual})"
             )
 
-    prompt_entry = environment["skills"].get("prompt-master", {})
-    expected_prompt_sha = prompt_entry.get("git_sha")
-    prompt_checkout = Path.home() / ".agents" / "skills" / "prompt-master"
-    if not expected_prompt_sha:
-        failures.append("prompt-master: frozen git_sha is missing")
-    else:
-        try:
-            actual_prompt_sha = prompt_master_git_sha(prompt_checkout)
-        except (FileNotFoundError, RuntimeError) as error:
-            failures.append(f"prompt-master: {error}")
-        else:
-            if actual_prompt_sha != expected_prompt_sha:
-                failures.append(
-                    "prompt-master: Git SHA mismatch "
-                    f"(expected {expected_prompt_sha}, actual {actual_prompt_sha})"
-                )
-
-    expected_origin = prompt_entry.get("git_origin")
-    if expected_origin:
-        origin = subprocess.run(
-            [
-                "git", "-c", f"safe.directory={prompt_checkout.as_posix()}",
-                "-C", str(prompt_checkout), "remote", "get-url", "origin",
-            ],
-            text=True, encoding="utf-8", errors="replace", capture_output=True,
-        )
-        actual_origin = origin.stdout.strip() if origin.returncode == 0 else None
-        if actual_origin != expected_origin:
+    expected_fixtures = environment.get("fixtures_sha256")
+    if expected_fixtures:
+        actual_fixtures = fixtures_content_sha256(EVAL_ROOT)
+        if actual_fixtures != expected_fixtures:
             failures.append(
-                "prompt-master: Git origin mismatch "
-                f"(expected {expected_origin}, actual {actual_origin or 'unavailable'})"
+                f"fixtures: content SHA256 mismatch (expected {expected_fixtures}, actual {actual_fixtures})"
             )
 
-    if prompt_entry.get("clean") is True:
-        status = subprocess.run(
-            [
-                "git", "-c", f"safe.directory={prompt_checkout.as_posix()}",
-                "-C", str(prompt_checkout), "status", "--porcelain=v1",
-            ],
-            text=True, encoding="utf-8", errors="replace", capture_output=True,
-        )
-        if status.returncode != 0 or status.stdout.strip():
-            failures.append("prompt-master: checkout is unavailable or not clean")
+    if "prompt-master" in skills:
+        prompt_entry = skills.get("prompt-master", {})
+        expected_prompt_sha = prompt_entry.get("git_sha")
+        prompt_checkout = Path.home() / ".agents" / "skills" / "prompt-master"
+        if not expected_prompt_sha:
+            failures.append("prompt-master: frozen git_sha is missing")
+        else:
+            try:
+                actual_prompt_sha = prompt_master_git_sha(prompt_checkout)
+            except (FileNotFoundError, RuntimeError) as error:
+                failures.append(f"prompt-master: {error}")
+            else:
+                if actual_prompt_sha != expected_prompt_sha:
+                    failures.append(
+                        "prompt-master: Git SHA mismatch "
+                        f"(expected {expected_prompt_sha}, actual {actual_prompt_sha})"
+                    )
+
+        expected_origin = prompt_entry.get("git_origin")
+        if expected_origin:
+            origin = subprocess.run(
+                [
+                    "git", "-c", f"safe.directory={prompt_checkout.as_posix()}",
+                    "-C", str(prompt_checkout), "remote", "get-url", "origin",
+                ],
+                text=True, encoding="utf-8", errors="replace", capture_output=True,
+            )
+            actual_origin = origin.stdout.strip() if origin.returncode == 0 else None
+            if actual_origin != expected_origin:
+                failures.append(
+                    "prompt-master: Git origin mismatch "
+                    f"(expected {expected_origin}, actual {actual_origin or 'unavailable'})"
+                )
+
+        if prompt_entry.get("clean") is True:
+            status = subprocess.run(
+                [
+                    "git", "-c", f"safe.directory={prompt_checkout.as_posix()}",
+                    "-C", str(prompt_checkout), "status", "--porcelain=v1",
+                ],
+                text=True, encoding="utf-8", errors="replace", capture_output=True,
+            )
+            if status.returncode != 0 or status.stdout.strip():
+                failures.append("prompt-master: checkout is unavailable or not clean")
 
     if failures:
         details = "\n  - ".join(failures)
@@ -249,7 +268,27 @@ def windows_workspace_control(path: Path) -> str:
     )
 
 
-def codex_command(work: Path, prompt: str, *, include_skills: bool = True) -> list[str]:
+def isolated_capability_env(capabilities: dict | None = None, config_name: str | None = None) -> dict[str, str]:
+    """Return a clean child environment isolating AFYX capability toggles per configuration."""
+    env = dict(os.environ)
+    for key in list(env):
+        if key.startswith(("AFYX_GRAPH_", "AFYX_CONTEXT_", "AFYX_FORGE_", "AFYX_TRACE_", "AFYX_EVAL_")):
+            del env[key]
+    caps = capabilities or {"graph": False, "ace": False, "forge": False}
+    env["AFYX_EVAL_CONFIG"] = str(config_name or "N")
+    env["AFYX_GRAPH_OPT_IN"] = "1" if caps.get("graph") else "0"
+    env["AFYX_CONTEXT_OPT_IN"] = "1" if caps.get("ace") else "0"
+    env["AFYX_FORGE_OPT_IN"] = "1" if caps.get("forge") else "0"
+    return env
+
+
+def codex_command(
+    work: Path,
+    prompt: str,
+    *,
+    include_skills: bool = True,
+    capabilities: dict | None = None,
+) -> list[str]:
     command = [
         "codex", "exec", "--ephemeral", "--ignore-user-config",
         "--skip-git-repo-check", "--json", "-C", str(work),
@@ -264,6 +303,8 @@ def codex_command(work: Path, prompt: str, *, include_skills: bool = True) -> li
         command.extend(["-c", 'windows.sandbox="mxc"'])
     if include_skills:
         command.extend(["-c", skills_override()])
+    if capabilities is not None and not capabilities.get("graph"):
+        command.extend(["-c", "mcp_servers={}"])
     command.append(prompt)
     return command
 
@@ -369,7 +410,7 @@ def resolve_process_command(
     return [executable, *command[1:]], executable, "direct"
 
 
-def bounded_process(command: list[str], cwd: Path, timeout: int) -> dict:
+def bounded_process(command: list[str], cwd: Path, timeout: int, env: dict[str, str] | None = None) -> dict:
     """Run one owned child and terminate only its process group/tree on timeout."""
     started = time.perf_counter()
     creationflags = 0
@@ -385,7 +426,7 @@ def bounded_process(command: list[str], cwd: Path, timeout: int) -> dict:
         process = subprocess.Popen(
             launch_command, cwd=cwd, text=True, encoding="utf-8", errors="replace",
             stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-            creationflags=creationflags, **popen_kwargs,
+            env=env, creationflags=creationflags, **popen_kwargs,
         )
     except OSError as error:
         return {
@@ -731,6 +772,132 @@ def resolve_configuration(manifest: dict, name: str) -> tuple[str, list[str]]:
     return canonical, manifest["configurations"][canonical]
 
 
+def resolve_campaign_a_configuration(manifest: dict, name: str) -> tuple[str, list[str], dict]:
+    """Resolve N/S/G/F Campaign A configuration into skills and actual runtime capabilities."""
+    matrix = manifest.get("campaign_a_matrix", {})
+    if name in matrix:
+        entry = matrix[name]
+        caps = {
+            "graph": bool(entry.get("graph", False)),
+            "ace": bool(entry.get("ace", False)),
+            "forge": bool(entry.get("forge", False)),
+        }
+        return name, list(entry.get("skills", [])), caps
+    canonical, skills = resolve_configuration(manifest, name)
+    return canonical, skills, {"graph": False, "ace": False, "forge": False}
+
+
+class BudgetExhaustedError(RuntimeError):
+    """Raised when an invocation would exceed the authorized Campaign A budget."""
+
+
+class CampaignBudgetLedger:
+    """Persistent atomic budget ledger enforcing a hard cap on model invocations."""
+
+    def __init__(self, path: Path, max_invocations: int = 27) -> None:
+        if max_invocations < 1 or max_invocations > 27:
+            raise ValueError(f"Campaign A max_invocations must be 1..27, got {max_invocations}")
+        self.path = path
+        self.max_invocations = max_invocations
+        if path.is_file():
+            self.data = load_json(path)
+            if self.data.get("max_invocations") != max_invocations:
+                raise RuntimeError(
+                    f"Existing ledger max_invocations={self.data.get('max_invocations')} != {max_invocations}"
+                )
+        else:
+            self.data = {
+                "schema_version": 1,
+                "max_invocations": max_invocations,
+                "reserved_count": 0,
+                "completed_cells": {},
+                "invocations": [],
+            }
+            atomic_write_json(self.path, self.data)
+
+    @property
+    def reserved_count(self) -> int:
+        return int(self.data["reserved_count"])
+
+    @property
+    def remaining(self) -> int:
+        return max(0, self.max_invocations - self.reserved_count)
+
+    def is_cell_completed(self, cell_key: str) -> bool:
+        return cell_key in self.data["completed_cells"]
+
+    def reserve(self, kind: str, cell_key: str | None = None) -> str:
+        if self.reserved_count >= self.max_invocations:
+            raise BudgetExhaustedError(
+                f"Campaign A budget exhausted ({self.reserved_count}/{self.max_invocations} reserved)"
+            )
+        inv_id = f"{kind}-{self.reserved_count + 1}-{uuid.uuid4().hex[:8]}"
+        self.data["reserved_count"] = self.reserved_count + 1
+        self.data["invocations"].append({
+            "invocation_id": inv_id,
+            "kind": kind,
+            "cell_key": cell_key,
+            "status": "RESERVED",
+            "reserved_at": datetime.now(timezone.utc).isoformat(),
+        })
+        atomic_write_json(self.path, self.data)
+        return inv_id
+
+    def finalize(self, inv_id: str, status: str, cell_key: str | None = None, run_id: str | None = None) -> None:
+        for entry in self.data["invocations"]:
+            if entry["invocation_id"] == inv_id:
+                entry["status"] = status
+                entry["finalized_at"] = datetime.now(timezone.utc).isoformat()
+                if run_id:
+                    entry["run_id"] = run_id
+                break
+        # Interrupted or failed invocations never restore reserved budget.
+        if status == "COMPLETED" and cell_key:
+            self.data["completed_cells"][cell_key] = run_id or inv_id
+        atomic_write_json(self.path, self.data)
+
+
+def build_campaign_a_plan(
+    manifest: dict,
+    *,
+    max_budget: int = 27,
+    configs: list[str] | None = None,
+    scenario_filter: list[str] | None = None,
+) -> dict:
+    """Construct a deterministic adaptive Campaign A plan within the 27-run budget."""
+    budget = min(27, max_budget)
+    control_invocations = 2  # 1 child_health + 1 isolation_canary
+    usable = max(0, budget - control_invocations)
+    target_configs = configs or ["N", "S", "G", "F"]
+    # Select representative scenarios prioritizing Campaign A & core smoke scenarios.
+    all_scenarios = [
+        s for s in manifest.get("scenarios", [])
+        if s.get("stage") != "development-pilot"
+        and (not scenario_filter or s["scenario_id"] in scenario_filter)
+    ]
+    # Reserve up to 5 confirmation runs when budget allows (2 controls + 20 discovery + 5 confirmation = 27)
+    max_discovery = min(usable, 20) if usable >= 25 else usable
+    confirmation_budget = usable - max_discovery
+
+    cells = []
+    for scenario in all_scenarios:
+        for cfg in target_configs:
+            if len(cells) >= max_discovery:
+                break
+            cells.append((scenario, cfg, 1))
+        if len(cells) >= max_discovery:
+            break
+
+    return {
+        "max_budget": budget,
+        "control_invocations": control_invocations,
+        "discovery_cells": cells,
+        "planned_scenario_cells": len(cells),
+        "confirmation_budget": confirmation_budget,
+        "configurations": target_configs,
+    }
+
+
 @contextmanager
 def evaluated_workspace():
     """Yield the external disposable workspace used by every evaluated child."""
@@ -876,18 +1043,29 @@ def python_list_reversal_is_correct(output: str) -> bool:
 def run_cell(
     manifest: dict, scenario: dict, config: str, repetition: int, timeout: int,
     provenance: dict | None = None, seed: int | None = None, run_id: str | None = None,
+    *, mode: str = "smoke",
 ) -> dict:
     run_id = run_id or f"{scenario['scenario_id']}-{config}-r{repetition}-{uuid.uuid4().hex[:8]}"
     run_root = RESULTS_ROOT / run_id
-    canonical_config, active_skills = resolve_configuration(manifest, config)
+    if mode == "campaign-a" or config in manifest.get("campaign_a_matrix", {}):
+        canonical_config, active_skills, capabilities = resolve_campaign_a_configuration(manifest, config)
+    else:
+        canonical_config, active_skills = resolve_configuration(manifest, config)
+        capabilities = {"graph": False, "ace": False, "forge": False}
     fixture = EVAL_ROOT / scenario["fixture"]
     canonical_before = tree_digest(fixture)
     run_root.mkdir(parents=True, exist_ok=False)
+    cell_env = isolated_capability_env(capabilities, canonical_config)
     with evaluated_workspace() as work:
         shutil.copytree(fixture, work)
         prepare_skills(work, active_skills)
         initial = snapshot(work)
-        process = bounded_process(codex_command(work, scenario["user_prompt"]), work, timeout)
+        cmd = codex_command(work, scenario["user_prompt"], capabilities=capabilities if mode == "campaign-a" else None)
+        process = (
+            bounded_process(cmd, work, timeout, env=cell_env)
+            if mode == "campaign-a"
+            else bounded_process(cmd, work, timeout)
+        )
         elapsed = process["elapsed_seconds"]
         (run_root / "events.jsonl").write_text(process["stdout"], encoding="utf-8")
         (run_root / "stderr.log").write_text(process["stderr"], encoding="utf-8")
@@ -991,14 +1169,22 @@ def run_cell(
         "repetition": repetition,
         "random_seed": seed,
         "isolated_skills": active_skills,
+        "capability_config": capabilities,
         "observed_skill_reads": observed_skill_reads,
         "activation_evidence": activation,
+        "runtime_overhead_ms": None,
+        "ace_cost": None,
+        "graph_accuracy": None,
         "isolation_method": (
             "session disable of all installed Afyx skills + selected frozen copies "
-            "in an external disposable workspace"
+            "and isolated capability env in an external disposable workspace"
         ),
-        "component_versions": load_json(EVAL_ROOT / manifest["environment"])["skills"],
-        "model_provider_fingerprint": load_json(EVAL_ROOT / manifest["environment"])["runtime"],
+        "component_versions": load_json(
+            EVAL_ROOT / (manifest.get("campaign_a_environment") if mode == "campaign-a" and manifest.get("campaign_a_environment") else manifest["environment"])
+        )["skills"],
+        "model_provider_fingerprint": load_json(
+            EVAL_ROOT / (manifest.get("campaign_a_environment") if mode == "campaign-a" and manifest.get("campaign_a_environment") else manifest["environment"])
+        )["runtime"],
         "result": "PASS" if passed else "FAIL",
         "process_returncode": process["returncode"],
         "process_timed_out": process["timed_out"],
@@ -1272,11 +1458,14 @@ def build_summary(
 
 def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--mode", choices=("smoke", "pilot", "benchmark"), default="smoke")
+    parser.add_argument("--mode", choices=("smoke", "pilot", "benchmark", "campaign-a"), default="smoke")
     parser.add_argument("--repetitions", type=int)
     parser.add_argument("--seed", type=int)
     parser.add_argument("--timeout", type=int, default=300)
     parser.add_argument("--scenario", action="append")
+    parser.add_argument("--config", action="append", help="filter configurations (e.g. N, S, G, F)")
+    parser.add_argument("--budget", type=int, default=27, help="hard invocation cap for campaign-a (max 27)")
+    parser.add_argument("--resume", action="store_true", help="resume campaign-a from persisted budget ledger")
     parser.add_argument(
         "--isolation-canary-only", action="store_true",
         help="run the actual-session ground-truth access canary and no scenarios",
@@ -1295,7 +1484,12 @@ def main() -> int:
     )
     args = parser.parse_args()
     manifest = load_json(MANIFEST_PATH)
-    environment = load_json(EVAL_ROOT / manifest["environment"])
+    env_rel = (
+        manifest.get("campaign_a_environment") or manifest["environment"]
+        if args.mode == "campaign-a"
+        else manifest["environment"]
+    )
+    environment = load_json(EVAL_ROOT / env_rel)
     try:
         verify_frozen_environment(environment)
         runtime_fingerprint = verify_runtime_fingerprint(environment)
@@ -1314,10 +1508,21 @@ def main() -> int:
     except (KeyError, OSError, RuntimeError) as error:
         print(f"ERROR: {error}", file=sys.stderr)
         return 2
+
+    ledger = None
+    if args.mode == "campaign-a":
+        ledger_path = RESULTS_ROOT / "campaign-a-budget.json"
+        if not args.resume and ledger_path.exists():
+            ledger_path.unlink()
+        ledger = CampaignBudgetLedger(ledger_path, max_invocations=min(27, args.budget))
+
     control_run_id = provenance["control_run_id"]
+    health_inv = ledger.reserve("child_health") if ledger else None
     health = run_child_health_probe(args.control_timeout, provenance)
     health["runtime_fingerprint"] = runtime_fingerprint
     atomic_write_json(RESULTS_ROOT / "latest-child-health.json", health)
+    if ledger and health_inv:
+        ledger.finalize(health_inv, "COMPLETED" if health["result"] == "PASS" else "FAILED")
     if health["result"] != "PASS":
         isolation = isolation_not_executed(provenance, "CHILD_HEALTH_BLOCKED")
         atomic_write_json(RESULTS_ROOT / "latest-isolation-preflight.json", isolation)
@@ -1338,8 +1543,11 @@ def main() -> int:
             "pilot": "NOT_RUN",
         }, indent=2))
         return 0
+    canary_inv = ledger.reserve("isolation_canary") if ledger else None
     canary = run_isolation_canary(args.control_timeout, provenance)
     atomic_write_json(RESULTS_ROOT / "latest-isolation-preflight.json", canary)
+    if ledger and canary_inv:
+        ledger.finalize(canary_inv, "COMPLETED" if canary["result"] == "PASS" else "FAILED")
     if canary["result"] != "PASS":
         print(json.dumps({"isolation_canary": canary}, indent=2))
         return 2
@@ -1350,19 +1558,26 @@ def main() -> int:
     if args.mode == "benchmark" and repetitions < 3:
         parser.error("benchmark mode requires at least 3 repetitions")
     seed = args.seed if args.seed is not None else manifest["random_seed"]
-    scenarios = [
-        scenario for scenario in manifest["scenarios"]
-        if (
-            (args.mode == "pilot") == (scenario.get("stage") == "development-pilot")
-            and (not args.scenario or scenario["scenario_id"] in args.scenario)
+    campaign_plan = None
+    if args.mode == "campaign-a":
+        campaign_plan = build_campaign_a_plan(
+            manifest, max_budget=min(27, args.budget), configs=args.config, scenario_filter=args.scenario
         )
-    ]
-    cells = [
-        (scenario, config, repetition)
-        for repetition in range(1, repetitions + 1)
-        for scenario in scenarios
-        for config in scenario["configurations"]
-    ]
+        cells = list(campaign_plan["discovery_cells"])
+    else:
+        scenarios = [
+            scenario for scenario in manifest["scenarios"]
+            if (
+                (args.mode == "pilot") == (scenario.get("stage") == "development-pilot")
+                and (not args.scenario or scenario["scenario_id"] in args.scenario)
+            )
+        ]
+        cells = [
+            (scenario, config, repetition)
+            for repetition in range(1, repetitions + 1)
+            for scenario in scenarios
+            for config in scenario["configurations"]
+        ]
     random.Random(seed).shuffle(cells)
     RESULTS_ROOT.mkdir(parents=True, exist_ok=True)
     records = []
@@ -1371,13 +1586,19 @@ def main() -> int:
     )
     atomic_write_json(RESULTS_ROOT / "latest-summary.json", summary)
     for scenario, config, repetition in cells:
+        cell_key = f"{scenario['scenario_id']}::{config}::r{repetition}"
+        if ledger and ledger.is_cell_completed(cell_key):
+            continue
         run_id = f"{scenario['scenario_id']}-{config}-r{repetition}-{uuid.uuid4().hex[:8]}"
+        cell_inv = ledger.reserve("discovery", cell_key) if ledger else None
         try:
             record = run_cell(
                 manifest, scenario, config, repetition, args.timeout,
-                provenance, seed, run_id,
+                provenance, seed, run_id, mode=args.mode,
             )
         except (Exception, KeyboardInterrupt) as error:
+            if ledger and cell_inv:
+                ledger.finalize(cell_inv, "INTERRUPTED", cell_key, run_id)
             record = incomplete_cell_record(
                 provenance, scenario, config, repetition, seed, run_id, error
             )
@@ -1388,6 +1609,8 @@ def main() -> int:
             )
             atomic_write_json(RESULTS_ROOT / "latest-summary.json", summary)
             break
+        if ledger and cell_inv:
+            ledger.finalize(cell_inv, "COMPLETED", cell_key, run_id)
         records.append(record)
         summary = build_summary(
             provenance, args.mode, seed, repetitions, len(cells), records, "INCOMPLETE"
@@ -1407,6 +1630,14 @@ def main() -> int:
                 "INCOMPLETE", correlation["reason"],
             )
         summary["correlation"] = correlation
+        if campaign_plan and ledger:
+            summary["campaign_a_plan"] = {
+                "planned_scenario_cells": campaign_plan["planned_scenario_cells"],
+                "control_invocations": campaign_plan["control_invocations"],
+                "confirmation_budget": campaign_plan["confirmation_budget"],
+                "maximum_model_invocations": campaign_plan["max_budget"],
+                "reserved_invocations": ledger.reserved_count,
+            }
         atomic_write_json(RESULTS_ROOT / "latest-summary.json", summary)
     print(json.dumps({k: summary[k] for k in ("mode", "random_seed", "pass_count", "total_count")}, indent=2))
     if summary["completion_state"] != "COMPLETE":

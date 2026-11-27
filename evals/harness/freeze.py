@@ -71,12 +71,37 @@ def selected_environment_path() -> Path:
     return EVAL_ROOT / manifest["environment"]
 
 
+def fixtures_content_sha256(eval_root: Path = EVAL_ROOT) -> str:
+    """Hash sorted POSIX-relative fixture files deterministically."""
+    fixtures_root = eval_root / "fixtures"
+    if not fixtures_root.is_dir():
+        raise FileNotFoundError(f"fixtures directory not found: {fixtures_root}")
+    digest = hashlib.sha256()
+    files = sorted(
+        (
+            path for path in fixtures_root.rglob("*")
+            if path.is_file() and "__pycache__" not in path.parts and path.suffix != ".pyc"
+        ),
+        key=lambda path: path.relative_to(fixtures_root).as_posix(),
+    )
+    for path in files:
+        relative = path.relative_to(fixtures_root).as_posix().encode("utf-8")
+        digest.update(relative)
+        digest.update(b"\0")
+        digest.update(path.read_bytes())
+        digest.update(b"\0")
+    return digest.hexdigest()
+
+
 def freeze_environment(path: Path | None = None) -> dict:
     path = path or selected_environment_path()
     environment = json.loads(path.read_text(encoding="utf-8"))
     for name in REPOSITORY_SKILLS:
-        skill_root = resolve_skill_directory(name)
-        environment["skills"][name]["content_sha256"] = directory_content_sha256(skill_root)
+        if name in environment.get("skills", {}):
+            skill_root = resolve_skill_directory(name)
+            environment["skills"][name]["content_sha256"] = directory_content_sha256(skill_root)
+    if "fixtures_sha256" in environment:
+        environment["fixtures_sha256"] = fixtures_content_sha256()
     path.write_text(json.dumps(environment, indent=2) + "\n", encoding="utf-8")
     return environment
 
