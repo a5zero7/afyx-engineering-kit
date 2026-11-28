@@ -281,4 +281,28 @@ test('skips persistence and duplicate item content for small, diagnostic, unicod
   assert.equal(protectedFallback.reason, 'protected-content-exceeds-budget');
   assert.equal(protectedFallback.items[0].content, undefined);
   assert.deepEqual(fs.readdirSync(contentDir), []);
+
+  // Mixed workload: inline segment must not emit a dangling reference or persist when another segment reduces.
+  const inlineContent = 'unique inline large segment content '.repeat(15);
+  const repeatedContent = 'repeated segment content '.repeat(15);
+  const mixed = engine.reduce({
+    budgetChars: 5000,
+    segments: [
+      { id: 'inline-1', content: inlineContent },
+      { id: 'diag-1', content: 'ERROR: keep diagnostic inline' },
+      { id: 'rep-1', content: repeatedContent },
+      { id: 'rep-2', content: repeatedContent },
+    ],
+  }, { benefitAware: true });
+  assert.equal(mixed.mode, 'optimized');
+  const inlineItem = mixed.items.find((i) => i.id === 'inline-1');
+  assert.equal(inlineItem.disposition, 'original');
+  assert.equal(inlineItem.reference, undefined);
+  const inlineDigest = crypto.createHash('sha256').update(inlineContent).digest('hex');
+  assert.equal(fs.existsSync(path.join(contentDir, `${inlineDigest}.txt`)), false);
+  for (const item of mixed.items) {
+    if (item.reference) {
+      assert.equal(engine.retrieve(item.reference), repeatedContent);
+    }
+  }
 });

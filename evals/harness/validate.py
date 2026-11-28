@@ -16,6 +16,7 @@ EVAL_ROOT = Path(__file__).resolve().parents[1]
 REPO_ROOT = EVAL_ROOT.parent
 MANIFEST_PATH = EVAL_ROOT / "manifest.json"
 FIXTURES_ROOT = (EVAL_ROOT / "fixtures").resolve()
+FIXTURES_B7_ROOT = (EVAL_ROOT / "fixtures-b7").resolve()
 ODOO_REFERENCES = (REPO_ROOT / "skills" / "afyx-odoo-engineering" / "references") if (REPO_ROOT / "skills" / "afyx-odoo-engineering" / "references").exists() else (REPO_ROOT / "skills" / "odoo-engineering" / "references")
 AFYX_SKILLS = {
     "efficient-coding", "odoo-engineering", "prompt-master",
@@ -78,6 +79,21 @@ def validate_manifest(violations: list[str]) -> None:
     if aliases != FORMAL_ALIASES:
         violations.append(f"evaluation_aliases must equal {FORMAL_ALIASES}")
 
+    campaign_matrix = manifest.get("campaign_a_matrix", {})
+    b7_matrix = manifest.get("b7_matrix", {})
+    campaign_config_names: set[str] = set()
+    for matrix_name, matrix in (("campaign_a_matrix", campaign_matrix), ("b7_matrix", b7_matrix)):
+        if matrix is not None and not isinstance(matrix, dict):
+            violations.append(f"manifest.json {matrix_name} must be an object")
+        elif isinstance(matrix, dict):
+            for cname, spec in matrix.items():
+                if not isinstance(spec, dict) or not isinstance(spec.get("skills"), list) or any(
+                    skill not in AFYX_SKILLS for skill in spec["skills"]
+                ):
+                    violations.append(f"{matrix_name} {cname!r} contains invalid skills")
+                else:
+                    campaign_config_names.add(cname)
+
     scenarios = manifest.get("scenarios")
     if not isinstance(scenarios, list):
         violations.append("manifest.json scenarios must be an array")
@@ -108,24 +124,37 @@ def validate_manifest(violations: list[str]) -> None:
         if not isinstance(fixture_value, str) or not fixture_value:
             violations.append(f"{prefix} fixture must be a non-empty string")
         else:
+            raw_fixture = Path(fixture_value)
             fixture_path = (EVAL_ROOT / fixture_value).resolve()
-            try:
-                fixture_path.relative_to(FIXTURES_ROOT)
-            except ValueError:
+            allowed_roots = [FIXTURES_ROOT]
+            if scenario.get("stage") == "b7-targeted":
+                allowed_roots.append(FIXTURES_B7_ROOT)
+            in_allowed = False
+            if not raw_fixture.is_absolute():
+                for root in allowed_roots:
+                    try:
+                        fixture_path.relative_to(root)
+                        in_allowed = True
+                        break
+                    except ValueError:
+                        continue
+            if not in_allowed:
                 violations.append(
-                    f"{prefix} fixture must resolve under evals/fixtures: {fixture_value}"
+                    f"{prefix} fixture must resolve under an authorized fixture root: {fixture_value}"
                 )
-            else:
-                if not fixture_path.exists():
-                    violations.append(f"{prefix} fixture does not exist: {fixture_value}")
+            elif not fixture_path.exists():
+                violations.append(f"{prefix} fixture does not exist: {fixture_value}")
 
         referenced_configs = scenario.get("configurations")
         if not isinstance(referenced_configs, list):
             violations.append(f"{prefix} configurations must be an array")
         else:
+            valid_names = configuration_names | (
+                campaign_config_names if scenario.get("stage") in {"b7-targeted", "campaign-a-ready"} else set()
+            )
             for name in referenced_configs:
                 canonical = aliases.get(name, name) if isinstance(aliases, dict) else name
-                if canonical not in configuration_names:
+                if canonical not in valid_names:
                     violations.append(
                         f"{prefix} references unknown configuration: {name!r}"
                     )

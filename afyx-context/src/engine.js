@@ -208,6 +208,7 @@ export class AfyxContextEngine {
           return out;
         }
         if (benefitAware ? chooseReference : eligible) eligibleToPersist.push(segment);
+        const emitReference = benefitAware ? chooseReference : eligible;
         rendered.push(selected);
         used += separator + selected.length;
         items.push({
@@ -215,7 +216,7 @@ export class AfyxContextEngine {
           classification: segment.classification,
           disposition: chooseReference ? 'reference' : 'original',
           digest,
-          ...(reference ? { reference } : {}),
+          ...(emitReference && reference ? { reference } : {}),
           provenance: segment.provenance,
           ...(chooseReference ? { reason: refReason } : (benefitAware ? {} : { content: segment.content })),
         });
