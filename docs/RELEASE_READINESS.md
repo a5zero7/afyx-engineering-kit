@@ -179,3 +179,59 @@ The Windows Alpha source and artifact lifecycle is hermetic, idempotent, and ful
   1. Pemulihan kuota provider & eksekusi live **B7** (`14` pemanggilan tersisa) untuk bukti komparatif akhir dan penerimaan **Expert D.6** berbasis model.
   2. Pilot/penerimaan host eksternal terpasang (**Claude Code** pada host terpasang nyata, **Antigravity** sesi model terautentikasi, dan **macOS** host eksternal terpasang).
   3. Keputusan **Owner** untuk: penandatanganan executable Windows (atau cakupan waiver `OWNER_SIGNING_WAIVER_V1` untuk `v1.3.0`), kenaikan versi ke `1.3.0`, promosi `git merge --ff-only dev` ke `main`, pembuatan tag, publikasi npm/GitHub Release, dan penutupan `AFYX-375`.
+
+
+## Register penutupan FINAL-01R
+
+Basis produk awal `f684bfe7f49eb9c6731cb4405a0f0c093fe54a35`. Baseline `main` yang dilindungi `56f046638570a86b5228efd01bfdba20d392c845`. Versi publik tetap 1.2.1. Kontrol perubahan merujuk ke [checkpoint FINAL-01 #11513](https://afifbendol.atlassian.net/browse/AFYX-375?focusedCommentId=11513). Catatan ini mencakup bukti yang dapat diverifikasi dari checkout kanonik dan batas yang masih memerlukan penerimaan.
+
+| Tahap | Prasyarat dan identitas | Bukti yang digunakan atau dihasilkan | Hasil dan keputusan |
+| --- | --- | --- | --- |
+| S0 | Git kanonik, CI, ledger, artefak FINAL-01, host dan reviewer | Ref remote cocok. Enam workflow dan 21 job sukses pada `f684bfe`. MB12 attempt 2 mencakup `140874179237` di macOS Intel. AFYX-375 berstatus In Progress. | Rekonsiliasi CI selesai. Arsip historis ARTIFACT_UNAVAILABLE. Pengganti CI diperiksa dan lulus uji instalasi terfokus. Kuota aktual, host dan reviewer masih menunggu bukti. |
+| S1 | Plan B7, identitas lingkungan, oracle, isolasi dan korelasi | Sepuluh sel dan lima pasangan benar. Metadata hasil memakai lingkungan terpilih. Tes resume memeriksa sumber, reservasi, kampanye, sel, revisi dan hash bukti. Validator statis harness dan Forge lulus. | PARTIAL. Lingkungan historis dipertahankan. Lingkungan FINAL-01R mencatat subjek produk yang cocok, versi skill dan fingerprint fixture. Bukti runtime terpilih, isolasi protokol, atribusi dan migrasi anggaran masih terbuka. |
+| S2 | S1 lulus dan runtime Codex terotorisasi | Ubuntu WSL2 dan `bwrap` terdeteksi. `codex` tidak ditemukan pada PATH sesi Ubuntu yang diperiksa. Status kuota terakhir di checkpoint bersifat historis. | NOT RUN. 0/5 pasangan. 2/16 terpakai, 14 tersisa, 0 pemanggilan baru. |
+| S3 | Reviewer D.6, host provider dan host macOS | D.5 tercatat 5/5 sebagai masukan. Bukti Claude hermetik terdahulu 22/22. macOS ARM64 dan Intel CI lulus pada baseline. | D.6 PENDING_EXTERNAL_REVIEW. Claude dan macOS eksternal BLOCKED_EXTERNAL_HOST. Antigravity masih memerlukan discovery, pemanggilan dan autentikasi host. |
+| S4 | Hanya masalah material yang dikonfirmasi | Koreksi terbatas pada harness, oracle ACE dan Forge, metadata lingkungan, serta dokumentasi. Hasil task dipisahkan dari keberhasilan kapabilitas dan konfigurasi dari observasi. | Perilaku produk dan kontrak instalasi tidak diubah. Penerimaan harness tetap terbuka mengikuti S1. |
+| S5 | Penerimaan eksternal, kandidat yang terverifikasi dan keputusan distribusi | Arsip CI alternatif berasal dari build exact-commit. Checksum, inventaris dan penerimaan terfokus diverifikasi terpisah. | NO_GO untuk publikasi. Arsip staging tersedia. Freeze rilis menunggu gerbang penerimaan. |
+
+### Bukti kandidat dan CI
+
+- Arsip FINAL-01 yang tercatat adalah `afyx-engineering-kit-1.2.1.tgz`, 259 berkas, SHA-256 `7d44361ba0d722ac3b028795fb006ce7277bf81c3eff37c61d5008fa6507c1f2`. Arsip ini berstatus ARTIFACT_UNAVAILABLE setelah pencarian di lokasi staging, testing, benchmark, administrasi dan temporary. Bukti instalasi historis tetap terkait dengan checksum tersebut.
+- Artefak `installer-npm-candidate` GitHub Actions pada `f684bfe` berisi tarball dengan SHA-256 `bf11039b1ecc84a67b49832a40d4d1b326494e61e2b66fa0697f293ed41798a0`. Checksum tersebut dan SHA-512 cocok dengan log job build `140845055878`. Marker revisi dan manifest Graph cocok dengan SHA sumber. Inventaris 259 berkas mencakup lisensi dan empat bundle Graph dengan checksum yang cocok. Uji npx minimal/custom 2/2 dan instalasi Windows full, verify, uninstall 3/3 lulus pada profil sementara. Konfigurasi Codex yang tidak terkait tetap identik. Arsip serta bukti terfokus tersimpan di `testing/integration/AFYX-375-final01r-ci-f684bfe` pada workspace induk. [Artefak CI](https://github.com/a5zero7/afyx-engineering-kit/actions/runs/46101600765/artifacts/15246295093)
+- Bukti `f684bfe` mencakup [CI](https://github.com/a5zero7/afyx-engineering-kit/actions/runs/46101600867), [Graph](https://github.com/a5zero7/afyx-engineering-kit/actions/runs/46101600821), [MB12](https://github.com/a5zero7/afyx-engineering-kit/actions/runs/46101600868), [installer native](https://github.com/a5zero7/afyx-engineering-kit/actions/runs/46101600765), [installer Windows](https://github.com/a5zero7/afyx-engineering-kit/actions/runs/46101600818) dan [tool routing](https://github.com/a5zero7/afyx-engineering-kit/actions/runs/46101600823). Rerun macOS Intel sudah selesai pada attempt 2. Tidak ada rerun baru.
+
+### Register gerbang dan tindakan minimum
+
+| ID | Kontrak dan bukti saat ini | Tindakan minimum, penanggung jawab dan dampak |
+| --- | --- | --- |
+| S1-IDENTITAS | Lingkungan B7 historis tetap menunjuk `36624d614c303205b77e3a39b639341c3fb0bfbb`. `environment-v1.3.0-b7-final01r.json` memisahkan target produk `f684bfe` dari revisi harness yang dicatat saat eksekusi. | Pelaksana B7 mengikat fingerprint target ke runtime, artefak dan konfigurasi yang benar-benar diamati sebelum eksekusi live. Memblokir S1 dan B7. |
+| S1-ORACLE | Baseline rusak gagal dan referensi positif lulus pada empat fixture coding. Oracle ACE kini menolak keluaran tanpa teks diagnostik utuh. Oracle Forge B7 kini memeriksa cakupan modul, urutan verifikasi antarmuka dan regresi, respons terhadap kegagalan, dan batas tindakan produksi. Rencana yang membalik urutan, salah cakupan atau mengizinkan mutasi produksi ditolak. | Pertahankan batas oracle Forge pada keputusan terstruktur yang diuji. Bukti kualitas perencanaan aktual, akurasi struktural Graph dan biaya ACE memerlukan observasi terpisah dari kelulusan task. |
+| S1-ISOLASI | Bukti OFF terpasang berasal dari FINAL-01. Plan statis tidak membuktikan ketersediaan setiap kapabilitas lewat protokol. | Pelaksana menguji N/S/G/A/R/F pada kandidat dan runtime terpilih melalui CLI/MCP yang didukung. Catat skill aktual pada Odoo N/S. Memblokir S1. |
+| S1-ANGGARAN | B7 memiliki dua ledger dengan masing-masing satu reservasi. Campaign A tercatat 27/27 di checkpoint. Ledger aktif dan arsip MXC yang ditemukan menjelaskan 25 + 1 reservasi. | Pertahankan batas konservatif 0 sisa Campaign A. Pemilik bukti merekonsiliasi satu reservasi historis yang belum terlacak. Pelaksana B7 harus menautkan 2 reservasi sebelumnya ke kelanjutan maksimum 14. |
+| S2-B7 | Lima pasangan tersedia dan belum dieksekusi. | Setelah S1 lulus, operator menyediakan runtime dan konfirmasi kuota melalui informasi non-model. Jalankan pasangan berimbang dalam sisa otorisasi. Memblokir penerimaan komparatif. |
+| S3-D6 | [Kontrak reviewer T06.R0](AFYX_T06_R0_EVALUATOR_READINESS.md). D.5 `384826dee91d45f0a3388d5d276407ae` 5/5 tercatat. | Pemilik menunjuk reviewer independen dengan prinsipal terpisah, salinan bukti reviewer yang terisolasi, dan otorisasi biaya tersendiri jika diperlukan. Reviewer menguji kontrol pemisahan dan menilai pilihan spesialis, akurasi, referensi, komposisi Odoo, keamanan dan overhead sebelum memilih KEEP, REVISE atau REJECT. Memblokir D.6. |
+| S3-PROVIDER | Penerimaan konfigurasi dan siklus hidup yang terdahulu berlaku pada batasnya. | Operator host menjalankan discovery, inisialisasi, pemanggilan dan siklus hidup. Antigravity memerlukan sesi terautentikasi yang berwenang. Pilot macOS memerlukan host nyata. Memblokir penerimaan host. |
+| S5-DISTRIBUSI | Waiver historis AFYX-85 berlingkup versi terdahulu. Sertifikat dan cakupan V1.3.0 belum disahkan. | Pemilik memilih penandatanganan, waiver terbatas, atau penundaan artefak Windows yang terdampak. Distribusi npm dapat dinilai setelah inventaris dan kebijakan penandatanganan diperiksa. Memblokir publikasi yang terdampak. |
+| S5-T12 | [Roadmap master](AFYX_V1_MASTER_ROADMAP.md) dan [kontrak integrasi Alpha](AFYX_ALPHA_INTEGRATION_ROADMAP.md) mengharuskan bukti kandidat Unified Kit final dan gerbang yang berlaku. | Evaluator menjalankan T12 pada artefak versi final yang persis, setelah persetujuan cakupan distribusi dan seluruh prasyarat komponen. Publikasi menunggu penerimaan formal. |
+
+### Matriks kompatibilitas dan penerimaan produk
+
+| Batas | Bukti tersedia | Verifikasi yang masih diperlukan |
+| --- | --- | --- |
+| Codex / Windows dan WSL2 | Bukti konfigurasi, lifecycle dan instalasi terdahulu. | B7 live, kuota terkini dan verifikasi protokol pada runtime evaluasi yang dipilih. |
+| Claude Code | 22/22 tes hermetik adapter/readiness pada B8. | Host terpasang, discovery skill/MCP, inisialisasi, invocation deterministik, roots, OFF, error, uninstall dan preservasi konfigurasi. |
+| Antigravity | Konfigurasi dan lifecycle terdahulu. | Discovery dan pemanggilan host aktual serta sesi terautentikasi dengan otorisasi yang sesuai. |
+| macOS ARM64 / Intel | CI native pada kedua arsitektur, termasuk build dan installer. | Pilot instalasi eksternal, MCP, update atau repair, uninstall dan preservasi konfigurasi. |
+| Graph | Bukti CLI/MCP, freshness dan structural intelligence pada cakupan yang diterima. | Akurasi struktural dan atribusi manfaat B7. |
+| ACE | Bukti pengurangan, pemulihan tepat, integritas, privasi dan pemisahan state pada cakupan yang diterima. | Biaya transfer dan retrieval aktual, serta pemeriksaan diagnostik lengkap B7. |
+| Forge | Track A dan batas perencanaan asisif A8 mengikuti persetujuan terdahulu. | Kualitas substantif B7. Waiver matriks formal historis berlaku sesuai cakupan tercatat. |
+| Efficient Coding dan Odoo Engineering | Bukti lifecycle skill, panduan dan kecocokan versi terdahulu. | Bukti penggunaan skill dan perbandingan B7 pada fixture Odoo sintetis. |
+| Engineering Expert | Bukti D.5 dan kontrak pemilihan referensi terdahulu. | D.6 independen. |
+| Runtime bersama dan Usage Intelligence | Bukti integrasi opsional, OFF dan observabilitas terbatas. | Cocokkan observasi hidup dengan hasil provider. Penggunaan yang tidak teramati tetap kosong. |
+| Installer | Bukti siklus hidup FINAL-01 terkait checksum kandidat yang tercatat. | Artefak CI alternatif lulus verifikasi identitas dan uji lifecycle terfokus. Penerimaan host masih terbuka. |
+
+Phase 8 representatif dan Phase 9 memakai bukti yang sudah diterima dalam cakupan asal. Phase 10 dan Phase 11, serta T12 formal, tetap mengikuti kontrak kandidat final. Lima gerbang wajib lokal lulus. Bukti CI baseline tidak dipindahkan ke revisi harness baru secara otomatis.
+
+### Serah terima FINAL-02
+
+Status saat ini NO_GO. Selesaikan gerbang B7, D.6, provider dan kandidat yang terbuka sebelum meminta otorisasi rilis. Setelah otorisasi terpisah, naikkan versi ke 1.3.0 dan susun changelog. Bangun distribusi dari SHA bersih, terapkan keputusan penandatanganan, selesaikan T12 dan gerbang Phase 9–11 yang berlaku, lalu konfirmasi CI pada SHA final. Promosi `dev` ke `main` dilakukan fast-forward sebelum tag dan publikasi. Verifikasi checksum serta instalasi publik sebelum penutupan AFYX-375 yang diotorisasi pemilik.

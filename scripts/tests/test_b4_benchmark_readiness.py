@@ -313,7 +313,14 @@ class BenchmarkReadinessTests(unittest.TestCase):
 
             with mock.patch.object(run, "RESULTS_ROOT", tmp_results), \
                  mock.patch.object(run, "bounded_process", side_effect=fake_bounded):
-                rec = run.run_cell(manifest, scenario, "S", 1, 30, mode="campaign-a")
+                selected_env = "environment-v1.3.0-b7.json"
+                environment = json.loads((EVAL_ROOT / selected_env).read_text(encoding="utf-8"))
+                provenance = run.evaluation_provenance(manifest, environment, env_rel=selected_env)
+                rec = run.run_cell(manifest, scenario, "S", 1, 30, provenance, mode="campaign-a")
+            self.assertEqual(rec["model_provider_fingerprint"], environment["runtime"])
+            self.assertEqual(rec["component_versions"], environment["components"])
+            self.assertEqual(rec["skill_versions_and_hashes"], environment["skills"])
+            self.assertIsNone(rec["successful_capability_result"])
 
             self.assertEqual(rec["functional_correctness"], "PASS")
             self.assertEqual(rec["skill_read_compliance"], "FAIL")
@@ -368,6 +375,74 @@ class BenchmarkReadinessTests(unittest.TestCase):
             self.assertEqual(summary["error_classification"], "PROVIDER_QUOTA_EXHAUSTED")
             self.assertEqual(summary["results"][-1]["provider_execution_status"], "QUOTA_EXHAUSTED")
 
+    def test_b7_resume_binds_control_to_matching_reservation(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            ledger = run.CampaignBudgetLedger(root / "budget.json", max_invocations=16, campaign_fingerprint="fp")
+            kind = "child_health"
+            reservation = ledger.reserve(kind)
+            path = root / "control.json"
+            record = {
+                "result": "PASS",
+                "evaluation_run_id": "evaluation",
+                "campaign_id": ledger.campaign_id,
+                "campaign_fingerprint": "fp",
+                "invocation_id": reservation,
+                "source_revision": "candidate",
+                "environment_fingerprint": {"sha256": "environment"},
+            }
+            path.write_text(json.dumps(record), encoding="utf-8")
+            ledger.finalize(reservation, "COMPLETED", run_id="evaluation")
+            ledger.record_control(kind, "PASS", path, reservation)
+
+            def get_control():
+                return ledger.get_valid_control(
+                    kind, expected_env_sha="environment", expected_source_rev="candidate",
+                    require_reservation=True,
+                )
+
+            self.assertEqual(get_control(), record)
+            self.assertIsNone(ledger.get_valid_control("isolation_canary", require_reservation=True))
+            path.write_text(json.dumps({**record, "source_revision": "different"}), encoding="utf-8")
+            self.assertIsNone(get_control())
+            path.write_text("{", encoding="utf-8")
+            self.assertIsNone(get_control())
+            self.assertEqual(ledger.reserved_count, 1)
+
+    def test_b7_resume_binds_result_to_reservation_and_original_bytes(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            ledger = run.CampaignBudgetLedger(root / "budget.json", max_invocations=16, campaign_fingerprint="fp")
+            scenario = "b7-localized-edit-001"
+            cell = f"{scenario}::N::r1"
+            reservation = ledger.reserve("discovery", cell)
+            path = root / "result.json"
+            record = {
+                "schema_version": 2,
+                "evaluation_run_id": "evaluation",
+                "run_id": "result",
+                "scenario_id": scenario,
+                "configuration": "N",
+                "repetition": 1,
+                "invocation_id": reservation,
+                "campaign_id": ledger.campaign_id,
+                "campaign_fingerprint": "fp",
+                "source_revision": "candidate",
+                "environment_fingerprint": {"sha256": "environment"},
+            }
+            path.write_text(json.dumps(record), encoding="utf-8")
+            ledger.finalize(reservation, "COMPLETED", cell, "result", path)
+            verify = lambda: ledger.reconstruct_completed_records(
+                expected_env_sha="environment", expected_source_rev="candidate",
+            )
+            self.assertEqual(verify(), ([record], []))
+            path.write_text(json.dumps({**record, "result": "PASS"}), encoding="utf-8")
+            self.assertEqual(verify(), ([], [cell]))
+            path.write_text(json.dumps(record), encoding="utf-8")
+            ledger.data["invocations"][0]["run_id"] = "other-result"
+            self.assertEqual(verify(), ([], [cell]))
+            self.assertEqual(ledger.reserved_count, 1)
+
     def test_b7_resume_rejects_mismatched_env_substituted_result_and_hollow_forge_rubric(self) -> None:
         manifest = json.loads((EVAL_ROOT / "manifest.json").read_text(encoding="utf-8"))
         # 1. Selective B7 matrices isolate ACE (A) and Forge (R)
@@ -383,15 +458,25 @@ class BenchmarkReadinessTests(unittest.TestCase):
             hollow = "contract regression rollback"
             hollow_checks = run.check_assertions(forge_scen, work, hollow, None, [])
             self.assertFalse(all(c["passed"] for c in hollow_checks))
-            substantive = (
-                "Affected modules: core/tax.py, services/invoice.py, and adapters/rest_api.py.\n"
-                "Contract checks: verify public API signatures and schema invariants before merge.\n"
-                "Regression gates: run unittest suite and negative boundary checks on each module.\n"
-                "Risk mitigation: isolate feature flags and validate rollback trigger thresholds.\n"
-                "Rollback trigger: revert immediately if error rate or contract failure exceeds 0%."
-            )
-            good_checks = run.check_assertions(forge_scen, work, substantive, None, [])
-            self.assertTrue(all(c["passed"] for c in good_checks))
+            contract = forge_scen["expected_assertions"][0]["value"]
+            plan = {
+                "modules": contract["modules"],
+                "sequence": contract["sequence"],
+                "actions_on_failure": contract["actions_on_failure"],
+                "production_change": False,
+            }
+            self.assertTrue(all(c["passed"] for c in run.check_assertions(
+                forge_scen, work, json.dumps(plan), None, [],
+            )))
+            for altered in (
+                {**plan, "modules": ["deployment"]},
+                {**plan, "sequence": plan["sequence"][::-1]},
+                {**plan, "actions_on_failure": {"contract_mismatch": "continue"}},
+                {**plan, "production_change": True},
+            ):
+                self.assertFalse(all(c["passed"] for c in run.check_assertions(
+                    forge_scen, work, json.dumps(altered), None, [],
+                )))
 
         # 3. Reconstruct rejects substituted result.json and incompatible control env SHA
         with tempfile.TemporaryDirectory() as tmp:

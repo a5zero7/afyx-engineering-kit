@@ -1,4 +1,5 @@
 import unittest
+from pathlib import Path
 from extract_errors import extract_protected_errors
 
 class DiagSummaryTests(unittest.TestCase):
@@ -6,6 +7,8 @@ class DiagSummaryTests(unittest.TestCase):
         items = extract_protected_errors("app.log")
         codes = [item.get("code") for item in items]
         self.assertEqual(codes, ["E_DB_CONN", "E_AUTH_LOCK"])
+        lines = Path("app.log").read_text(encoding="utf-8").splitlines()
+        self.assertEqual([item.get("line") for item in items], [lines[41], lines[116]])
 
 if __name__ == "__main__":
     unittest.main()

@@ -1,0 +1,71 @@
+{
+  "schema_version": 3,
+  "purpose": "V1.3.0 FINAL-01R B7 target candidate and pending runtime acceptance",
+  "repository": {
+    "benchmark_subject_commit": "f684bfe7f49eb9c6731cb4405a0f0c093fe54a35",
+    "branch": "dev"
+  },
+  "skills": {
+    "efficient-coding": {
+      "version": "1.2.2",
+      "source": "repository",
+      "content_sha256": "4e398332dccbd5e0887d15b88096f8fe72912326a4f14610be536ea95ae17b12"
+    },
+    "odoo-engineering": {
+      "version": "1.2.0",
+      "source": "repository",
+      "content_sha256": "5fd19359705f4b17b465b275d894987f82fda1b51b5d4066ca148a1374f69e96"
+    },
+    "afyx-engineering-expert": {
+      "version": "0.1.1",
+      "source": "repository",
+      "content_sha256": "b587aeb62c2cceef7c47442f16a0bd80f84fbb78b7d596eb464d7c5a558a70f4"
+    }
+  },
+  "components": {
+    "afyx_kit": "1.2.1",
+    "afyx_graph": "1.2.1",
+    "afyx_context": "0.1.0",
+    "afyx_forge": "0.1.0"
+  },
+  "runtime": {
+    "os": "Linux 6.6.114.1-microsoft-standard-WSL2 x86_64 (Ubuntu)",
+    "codex_cli": "0.167.0",
+    "model": "gpt-5.6-sol",
+    "reasoning_effort": "medium",
+    "provider": "openai",
+    "service_tier": null,
+    "runtime_flags": [
+      "exec",
+      "--ephemeral",
+      "--ignore-user-config",
+      "--skip-git-repo-check",
+      "default_permissions=afyx-evaluation",
+      "sandbox=linux-bwrap-landlock",
+      "approval_policy=never",
+      "--json"
+    ]
+  },
+  "execution": {
+    "sandbox": "Linux bwrap/landlock permission profile afyx-evaluation",
+    "approval": "never",
+    "network_requested": false,
+    "filesystem_policy": "root deny; minimal runtime read; evaluated workspace write; OS temp outside workspace deny",
+    "writable_scope": "external disposable evaluated workspace",
+    "available_tools_observable": [
+      "command_execution",
+      "file_change"
+    ]
+  },
+  "b7_budget": {
+    "max_runs": 16,
+    "planned_controls": 2,
+    "planned_discovery_pairs": 5,
+    "planned_discovery_invocations": 10,
+    "max_confirmation_invocations": 2
+  },
+  "fixtures_sha256": "d00a7e117d64efe03a14a2cdcd161328163a772c765134ccf9c104767a76629f",
+  "b7_fixtures_sha256": "8720d28fcd0325c063abe1e8a8f50a06e014c471c38565c19e9c10ad492463fc",
+  "secrets_recorded": false,
+  "derived_from": "environment-v1.3.0-b7.json"
+}

@@ -85,6 +85,11 @@ def evaluation_provenance(manifest: dict, environment: dict, *, env_rel: str | N
         "correlation_guarantee": "shared run correlation only; not cryptographic attestation",
         "source_revision": revision.stdout.strip(),
         "benchmark_subject_commit": environment["repository"]["benchmark_subject_commit"],
+        "manifest_sha256": hashlib.sha256((EVAL_ROOT / "manifest.json").read_bytes()).hexdigest(),
+        "harness_revision": revision.stdout.strip(),
+        "component_versions": environment.get("components"),
+        "skill_versions_and_hashes": environment["skills"],
+        "model_provider_fingerprint": environment["runtime"],
         "environment_fingerprint": {
             "path": selected_env,
             "sha256": hashlib.sha256(environment_path.read_bytes()).hexdigest(),
@@ -747,6 +752,8 @@ def parse_events(stdout: str) -> dict:
             exit_code = item.get("exit_code")
             tool_events.append({
                 "event_type": event.get("type"),
+                "mcp_server": item.get("server") if item_type == "mcp_tool_call" else None,
+                "mcp_tool": item.get("tool") if item_type == "mcp_tool_call" else None,
                 "type": item_type,
                 "trace": trace,
                 "output": output if isinstance(output, str) else json.dumps(output),
@@ -1039,6 +1046,7 @@ class CampaignBudgetLedger:
         *,
         expected_env_sha: str | None = None,
         expected_source_rev: str | None = None,
+        require_reservation: bool = False,
     ) -> dict | None:
         entry = self.data.get("controls", {}).get(control_name)
         if not entry or entry.get("result") != "PASS":
@@ -1047,25 +1055,52 @@ class CampaignBudgetLedger:
         if not path or not path.is_file():
             return None
         try:
-            loaded = load_json(path)
-            if loaded.get("result") != "PASS":
-                return None
-            if expected_env_sha and loaded.get("environment_fingerprint", {}).get("sha256") != expected_env_sha:
-                return None
-            if expected_source_rev and loaded.get("source_revision") != expected_source_rev:
-                return None
-            return loaded
-        except Exception:
+            payload = path.read_bytes()
+            loaded = json.loads(payload)
+        except (OSError, ValueError):
             return None
+        if not isinstance(loaded, dict) or loaded.get("result") != "PASS":
+            return None
+        fingerprint = loaded.get("environment_fingerprint")
+        if expected_env_sha and (not isinstance(fingerprint, dict) or fingerprint.get("sha256") != expected_env_sha):
+            return None
+        if expected_source_rev and loaded.get("source_revision") != expected_source_rev:
+            return None
+        if require_reservation:
+            invocation_id = loaded.get("invocation_id")
+            if (
+                not invocation_id
+                or invocation_id != entry.get("invocation_id")
+                or loaded.get("campaign_id") != self.campaign_id
+                or loaded.get("campaign_fingerprint") != self.data["campaign_fingerprint"]
+                or hashlib.sha256(payload).hexdigest() != entry.get("sha256")
+                or not any(
+                    row.get("invocation_id") == invocation_id
+                    and row.get("kind") == control_name
+                    and row.get("status") == "COMPLETED"
+                    and row.get("run_id") == loaded.get("evaluation_run_id")
+                    for row in self.data["invocations"]
+                )
+            ):
+                return None
+        return loaded
 
-    def record_control(self, control_name: str, result: str, path: Path) -> None:
-        self.data.setdefault("controls", {})[control_name] = {"result": result, "path": str(path)}
+    def record_control(
+        self, control_name: str, result: str, path: Path, invocation_id: str | None = None,
+    ) -> None:
+        self.data.setdefault("controls", {})[control_name] = {
+            "result": result,
+            "path": str(path),
+            "invocation_id": invocation_id,
+            "sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
+        }
         atomic_write_json(self.path, self.data)
 
     def reconstruct_completed_records(
         self,
         *,
         expected_env_sha: str | None = None,
+        expected_source_rev: str | None = None,
     ) -> tuple[list[dict], list[str]]:
         reconstructed = []
         corrupt_or_missing = []
@@ -1075,7 +1110,37 @@ class CampaignBudgetLedger:
                 corrupt_or_missing.append(cell_key)
                 continue
             try:
-                rec = load_json(rpath)
+                payload = rpath.read_bytes()
+                result_digest = info.get("result_sha256")
+                if result_digest and hashlib.sha256(payload).hexdigest() != result_digest:
+                    corrupt_or_missing.append(cell_key)
+                    continue
+                rec = json.loads(payload)
+                if expected_source_rev is not None and cell_key.startswith("b7-"):
+                    invocation_id = info.get("invocation_id")
+                    reservation = next(
+                        (entry for entry in self.data["invocations"] if entry["invocation_id"] == invocation_id),
+                        {},
+                    )
+                    record_key = f'{rec.get("scenario_id")}::{rec.get("configuration")}::r{rec.get("repetition")}'
+                    expected = {
+                        "schema_version": 2,
+                        "invocation_id": invocation_id,
+                        "campaign_id": self.campaign_id,
+                        "campaign_fingerprint": self.data["campaign_fingerprint"],
+                        "source_revision": expected_source_rev,
+                    }
+                    if (
+                        not result_digest
+                        or not invocation_id
+                        or reservation.get("status") != "COMPLETED"
+                        or reservation.get("cell_key") != cell_key
+                        or reservation.get("run_id") != rec.get("run_id")
+                        or record_key != cell_key
+                        or any(rec.get(key) != value for key, value in expected.items())
+                    ):
+                        corrupt_or_missing.append(cell_key)
+                        continue
                 if rec.get("run_id") != info.get("run_id"):
                     corrupt_or_missing.append(cell_key)
                     continue
@@ -1132,6 +1197,8 @@ class CampaignBudgetLedger:
             self.data["completed_cells"][cell_key] = {
                 "run_id": run_id or inv_id,
                 "result_path": str(result_path) if result_path else None,
+                "result_sha256": hashlib.sha256(result_path.read_bytes()).hexdigest() if result_path else None,
+                "invocation_id": inv_id,
             }
         atomic_write_json(self.path, self.data)
 
@@ -1212,6 +1279,26 @@ def evaluated_workspace():
         yield Path(temporary) / "work"
 
 
+def forge_plan_matches_contract(output: str, contract: dict) -> bool:
+    """Check decisions represented by the fixture's structured planning contract."""
+    try:
+        plan = json.loads(output)
+    except (TypeError, ValueError):
+        return False
+    if not isinstance(plan, dict) or set(plan) != {"modules", "sequence", "actions_on_failure", "production_change"}:
+        return False
+    modules = plan["modules"]
+    expected_modules = contract["modules"]
+    return (
+        isinstance(modules, list)
+        and all(isinstance(module, str) for module in modules)
+        and sorted(modules) == sorted(expected_modules)
+        and plan["sequence"] == contract["sequence"]
+        and plan["actions_on_failure"] == contract["actions_on_failure"]
+        and plan["production_change"] is False
+    )
+
+
 def check_assertions(
     scenario: dict, work: Path, output: str, validation_exit: int | None,
     modified: list[str], tool_calls: int = 0,
@@ -1231,6 +1318,8 @@ def check_assertions(
         elif kind == "max_expert_reference_reads":
             observed = expert_reference_reads
             passed = observed is not None and len(observed) <= value
+        elif kind == "forge_plan_contract":
+            passed = forge_plan_matches_contract(output, value)
         elif kind == "substantive_planning_rubric":
             words = re.findall(r"\b\w+\b", output)
             lines = [ln for ln in output.splitlines() if ln.strip()]
@@ -1524,7 +1613,12 @@ def run_cell(
         "NOT_APPLICABLE" if not compliance_assertions
         else ("PASS" if all(item["passed"] for item in compliance_assertions) else "FAIL")
     )
-    mcp_calls_count = sum(1 for item in parsed["tool_events"] if item.get("event_type") == "item.completed" and item.get("type") == "mcp_tool_call")
+    mcp_activity = [
+        {"server": item["mcp_server"], "tool": item["mcp_tool"], "reported_status": item["status"]}
+        for item in parsed["tool_events"]
+        if item.get("event_type") == "item.completed" and item.get("type") == "mcp_tool_call"
+    ]
+    mcp_calls_count = len(mcp_activity)
 
     usage = parsed["usage"]
     input_tokens = usage.get("input_tokens")
@@ -1562,16 +1656,19 @@ def run_cell(
             "forge": bool(capabilities.get("forge")),
         },
         "configured_capability": capabilities,
-        "observed_capability_availability": {
+        "observed_capability_availability": None,
+        "configured_wiring": {
             "skills_staged": active_skills,
             "mcp_overrides": bool(capabilities.get("graph") or capabilities.get("ace") or capabilities.get("forge")),
         },
         "actual_capability_invocation": {
             "skill_reads": observed_skill_reads,
             "mcp_calls": mcp_calls_count,
+            "mcp_activity": mcp_activity,
             "tool_calls": parsed["tool_calls"],
         },
-        "successful_capability_result": passed,
+        # The task oracle does not validate the individual MCP tool result.
+        "successful_capability_result": None,
         "capability_utilization": {
             "observed_skill_reads": observed_skill_reads,
             "mcp_calls": mcp_calls_count,
@@ -1593,12 +1690,6 @@ def run_cell(
             "session disable of all installed Afyx skills + selected frozen copies "
             "and isolated capability env in an external disposable workspace"
         ),
-        "component_versions": load_json(
-            EVAL_ROOT / (manifest.get("campaign_a_environment") if mode == "campaign-a" and manifest.get("campaign_a_environment") else manifest["environment"])
-        )["skills"],
-        "model_provider_fingerprint": load_json(
-            EVAL_ROOT / (manifest.get("campaign_a_environment") if mode == "campaign-a" and manifest.get("campaign_a_environment") else manifest["environment"])
-        )["runtime"],
         "result": "PASS" if passed else "FAIL",
         "process_returncode": process["returncode"],
         "process_timed_out": process["timed_out"],
@@ -1948,18 +2039,48 @@ def main() -> int:
                 campaign_fingerprint=c_fingerprint,
             )
 
+        if ledger:
+            provenance.update(campaign_id=ledger.campaign_id, campaign_fingerprint=c_fingerprint)
+
         env_sha = provenance["environment_fingerprint"]["sha256"]
         src_rev = provenance["source_revision"]
         control_run_id = provenance["control_run_id"]
-        health = ledger.get_valid_control("child_health", expected_env_sha=env_sha, expected_source_rev=src_rev) if (ledger and args.resume) else None
+        require_control_reservation = bool(
+            campaign_plan and any(scenario.get("stage") == "b7-targeted"
+                                  for scenario, _, _ in campaign_plan["discovery_cells"])
+        )
+        if ledger and args.resume and require_control_reservation:
+            _, invalid_cells = ledger.reconstruct_completed_records(
+                expected_env_sha=env_sha, expected_source_rev=src_rev,
+            )
+            invalid_controls = [
+                name for name, entry in ledger.data.get("controls", {}).items()
+                if entry.get("result") == "PASS" and not ledger.get_valid_control(
+                    name, expected_env_sha=env_sha, expected_source_rev=src_rev, require_reservation=True,
+                )
+            ]
+            if invalid_cells or invalid_controls:
+                print(json.dumps({
+                    "status": "CORRUPT_OR_MISSING_RESUME_EVIDENCE",
+                    "invalid_cells": invalid_cells, "invalid_controls": invalid_controls,
+                }, indent=2))
+                return 2
+        health = ledger.get_valid_control(
+            "child_health", expected_env_sha=env_sha, expected_source_rev=src_rev,
+            require_reservation=require_control_reservation,
+        ) if ledger and args.resume else None
         if health is None:
             health_inv = ledger.reserve("child_health") if ledger else None
-            health = run_child_health_probe(args.control_timeout, provenance)
+            health = run_child_health_probe(
+                args.control_timeout, {**provenance, "invocation_id": health_inv} if ledger else provenance,
+            )
             health["runtime_fingerprint"] = runtime_fingerprint
             atomic_write_json(RESULTS_ROOT / "latest-child-health.json", health)
             if ledger and health_inv:
-                ledger.finalize(health_inv, "COMPLETED" if health["result"] == "PASS" else "FAILED")
-                ledger.record_control("child_health", health["result"], RESULTS_ROOT / "latest-child-health.json")
+                control_path = RESULTS_ROOT / control_run_id / "child_health.json"
+                atomic_write_json(control_path, health)
+                ledger.finalize(health_inv, "COMPLETED" if health["result"] == "PASS" else "FAILED", run_id=control_run_id)
+                ledger.record_control("child_health", health["result"], control_path, health_inv)
         if health["result"] != "PASS":
             isolation = isolation_not_executed(provenance, "CHILD_HEALTH_BLOCKED")
             atomic_write_json(RESULTS_ROOT / "latest-isolation-preflight.json", isolation)
@@ -1980,14 +2101,21 @@ def main() -> int:
                 "pilot": "NOT_RUN",
             }, indent=2))
             return 0
-        canary = ledger.get_valid_control("isolation_canary", expected_env_sha=env_sha, expected_source_rev=src_rev) if (ledger and args.resume) else None
+        canary = ledger.get_valid_control(
+            "isolation_canary", expected_env_sha=env_sha, expected_source_rev=src_rev,
+            require_reservation=require_control_reservation,
+        ) if ledger and args.resume else None
         if canary is None:
             canary_inv = ledger.reserve("isolation_canary") if ledger else None
-            canary = run_isolation_canary(args.control_timeout, provenance)
+            canary = run_isolation_canary(
+                args.control_timeout, {**provenance, "invocation_id": canary_inv} if ledger else provenance,
+            )
             atomic_write_json(RESULTS_ROOT / "latest-isolation-preflight.json", canary)
             if ledger and canary_inv:
-                ledger.finalize(canary_inv, "COMPLETED" if canary["result"] == "PASS" else "FAILED")
-                ledger.record_control("isolation_canary", canary["result"], RESULTS_ROOT / "latest-isolation-preflight.json")
+                control_path = RESULTS_ROOT / control_run_id / "isolation_canary.json"
+                atomic_write_json(control_path, canary)
+                ledger.finalize(canary_inv, "COMPLETED" if canary["result"] == "PASS" else "FAILED", run_id=control_run_id)
+                ledger.record_control("isolation_canary", canary["result"], control_path, canary_inv)
         if canary["result"] != "PASS":
             print(json.dumps({"isolation_canary": canary}, indent=2))
             return 2
@@ -2019,7 +2147,9 @@ def main() -> int:
         records = []
         corrupt_resume = []
         if ledger and args.resume:
-            records, corrupt_resume = ledger.reconstruct_completed_records(expected_env_sha=env_sha)
+            records, corrupt_resume = ledger.reconstruct_completed_records(
+                expected_env_sha=env_sha, expected_source_rev=src_rev,
+            )
         summary = build_summary(
             provenance, args.mode, seed, repetitions, len(cells), records, "INCOMPLETE"
         )
@@ -2043,7 +2173,8 @@ def main() -> int:
             try:
                 record = run_cell(
                     manifest, scenario, config, repetition, args.timeout,
-                    provenance, seed, run_id, mode=args.mode,
+                    {**provenance, "invocation_id": cell_inv} if ledger else provenance,
+                    seed, run_id, mode=args.mode,
                 )
             except (Exception, KeyboardInterrupt) as error:
                 if ledger and cell_inv:
@@ -2094,7 +2225,8 @@ def main() -> int:
                     try:
                         conf_rec = run_cell(
                             manifest, scenario_map[sid], cfg, 2, args.timeout,
-                            provenance, seed, conf_run_id, mode=args.mode,
+                            {**provenance, "invocation_id": conf_inv},
+                            seed, conf_run_id, mode=args.mode,
                         )
                         final_status = "FAILED" if conf_rec.get("provider_execution_status") == "QUOTA_EXHAUSTED" else "COMPLETED"
                         ledger.finalize(conf_inv, final_status, conf_key, conf_run_id, RESULTS_ROOT / conf_run_id / "result.json")
