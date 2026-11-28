@@ -3,7 +3,7 @@
   "frozen_at": "2026-11-28T06:03:00+07:00",
   "purpose": "V1.3.0-B7 targeted capability utility & efficiency confirmation (WSL2 Ubuntu)",
   "repository": {
-    "benchmark_subject_commit": "35be7b69e4bc6d388e46e32fc42bccc8d763fd32",
+    "benchmark_subject_commit": "36624d614c303205b77e3a39b639341c3fb0bfbb",
     "branch": "dev"
   },
   "skills": {
@@ -65,6 +65,6 @@
     "max_confirmation_invocations": 4
   },
   "fixtures_sha256": "d00a7e117d64efe03a14a2cdcd161328163a772c765134ccf9c104767a76629f",
-  "b7_fixtures_sha256": "25aeee30fcae4b065e46bd6f483461830dbbe9da5fb16d0a59671276d2dd59ea",
+  "b7_fixtures_sha256": "eeebe9b436a2a90185332956becac4f58d5ce0934ea7bd65b2a5aa672fbe8902",
   "secrets_recorded": false
 }

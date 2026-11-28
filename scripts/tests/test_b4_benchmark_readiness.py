@@ -368,6 +368,87 @@ class BenchmarkReadinessTests(unittest.TestCase):
             self.assertEqual(summary["error_classification"], "PROVIDER_QUOTA_EXHAUSTED")
             self.assertEqual(summary["results"][-1]["provider_execution_status"], "QUOTA_EXHAUSTED")
 
+    def test_b7_resume_rejects_mismatched_env_substituted_result_and_hollow_forge_rubric(self) -> None:
+        manifest = json.loads((EVAL_ROOT / "manifest.json").read_text(encoding="utf-8"))
+        # 1. Selective B7 matrices isolate ACE (A) and Forge (R)
+        _, _, ace_caps = run.resolve_campaign_a_configuration(manifest, "A")
+        _, _, forge_caps = run.resolve_campaign_a_configuration(manifest, "R")
+        self.assertEqual(ace_caps, {"graph": False, "ace": True, "forge": False})
+        self.assertEqual(forge_caps, {"graph": False, "ace": False, "forge": True})
+
+        # 2. Hollow keyword-stuffed Forge response fails substantive_planning_rubric
+        forge_scen = next(s for s in manifest["scenarios"] if s["scenario_id"] == "b7-forge-validation-plan-001")
+        with tempfile.TemporaryDirectory() as tmp:
+            work = Path(tmp)
+            hollow = "contract regression rollback"
+            hollow_checks = run.check_assertions(forge_scen, work, hollow, None, [])
+            self.assertFalse(all(c["passed"] for c in hollow_checks))
+            substantive = (
+                "Affected modules: core/tax.py, services/invoice.py, and adapters/rest_api.py.\n"
+                "Contract checks: verify public API signatures and schema invariants before merge.\n"
+                "Regression gates: run unittest suite and negative boundary checks on each module.\n"
+                "Risk mitigation: isolate feature flags and validate rollback trigger thresholds.\n"
+                "Rollback trigger: revert immediately if error rate or contract failure exceeds 0%."
+            )
+            good_checks = run.check_assertions(forge_scen, work, substantive, None, [])
+            self.assertTrue(all(c["passed"] for c in good_checks))
+
+        # 3. Reconstruct rejects substituted result.json and incompatible control env SHA
+        with tempfile.TemporaryDirectory() as tmp:
+            tpath = Path(tmp)
+            ledger_path = tpath / "b7-budget.json"
+            ledger = run.CampaignBudgetLedger(ledger_path, max_invocations=15, campaign_fingerprint="fp-b7")
+            inv = ledger.reserve("discovery", "b7-localized-edit-001::N::r1")
+            rfile = tpath / "res.json"
+            rfile.write_text(json.dumps({
+                "run_id": "r-1",
+                "evaluation_run_id": "ev-1",
+                "scenario_id": "b7-localized-edit-001",
+                "configuration": "S",  # mismatched config vs cell_key N!
+                "environment_fingerprint": {"sha256": "wrong-sha"},
+            }), encoding="utf-8")
+            ledger.finalize(inv, "COMPLETED", "b7-localized-edit-001::N::r1", "r-1", rfile)
+            recs, corrupt = ledger.reconstruct_completed_records(expected_env_sha="expected-sha")
+            self.assertEqual(recs, [])
+            self.assertEqual(corrupt, ["b7-localized-edit-001::N::r1"])
+
+            ctrl_file = tpath / "ctrl.json"
+            ctrl_file.write_text(json.dumps({
+                "result": "PASS",
+                "environment_fingerprint": {"sha256": "old-env"},
+                "source_revision": "old-rev",
+            }), encoding="utf-8")
+            ledger.record_control("child_health", "PASS", ctrl_file)
+            self.assertIsNone(ledger.get_valid_control("child_health", expected_env_sha="new-env", expected_source_rev="old-rev"))
+            self.assertIsNone(ledger.get_valid_control("child_health", expected_env_sha="old-env", expected_source_rev="new-rev"))
+            self.assertIsNotNone(ledger.get_valid_control("child_health", expected_env_sha="old-env", expected_source_rev="old-rev"))
+
+        # 4. b7_fixtures_sha256 drift is rejected by verify_frozen_environment
+        b7_env = json.loads((EVAL_ROOT / "environment-v1.3.0-b7.json").read_text(encoding="utf-8"))
+        drifted_b7 = copy.deepcopy(b7_env)
+        drifted_b7["b7_fixtures_sha256"] = "0" * 64
+        with self.assertRaisesRegex(RuntimeError, "b7_fixtures: content SHA256 mismatch"):
+            run.verify_frozen_environment(drifted_b7)
+
+    def test_validate_accepts_b7_manifest_and_rejects_fixture_escapes_and_unknown_configs(self) -> None:
+        import validate as eval_validate
+        self.assertEqual(eval_validate.main(), 0)
+        manifest = json.loads((EVAL_ROOT / "manifest.json").read_text(encoding="utf-8"))
+        bad_manifest = copy.deepcopy(manifest)
+        # Path traversal & unauthorized fixture root for non-b7 stage
+        bad_manifest["scenarios"][0]["fixture"] = "../harness"
+        bad_manifest["scenarios"][1]["fixture"] = "fixtures-b7/b7-graph-multi-module"
+        bad_manifest["scenarios"][0]["configurations"] = ["UNKNOWN_CFG"]
+        with tempfile.TemporaryDirectory() as tmp:
+            mpath = Path(tmp) / "manifest.json"
+            mpath.write_text(json.dumps(bad_manifest), encoding="utf-8")
+            violations: list[str] = []
+            with mock.patch.object(eval_validate, "MANIFEST_PATH", mpath):
+                eval_validate.validate_manifest(violations)
+            self.assertGreaterEqual(len(violations), 3)
+            self.assertTrue(any("authorized fixture root" in v for v in violations))
+            self.assertTrue(any("UNKNOWN_CFG" in v for v in violations))
+
 
 if __name__ == "__main__":
     unittest.main()

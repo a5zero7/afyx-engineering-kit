@@ -26,6 +26,10 @@
     "G": {"description": "AFYX Skills + Graph", "skills": ["efficient-coding", "odoo-engineering", "afyx-engineering-expert"], "graph": true, "ace": false, "forge": false},
     "F": {"description": "Full AFYX Kit", "skills": ["efficient-coding", "odoo-engineering", "afyx-engineering-expert"], "graph": true, "ace": true, "forge": true}
   },
+  "b7_matrix": {
+    "A": {"description": "AFYX Skills + ACE", "skills": ["efficient-coding", "odoo-engineering", "afyx-engineering-expert"], "graph": false, "ace": true, "forge": false},
+    "R": {"description": "AFYX Skills + Forge", "skills": ["efficient-coding", "odoo-engineering", "afyx-engineering-expert"], "graph": false, "ace": false, "forge": true}
+  },
   "campaign_a_budget": {
     "max_runs": 27,
     "round_1_discovery_reps": 1,
@@ -326,7 +330,7 @@
       "category": "repetitive-diagnostic-output",
       "fixture": "fixtures-b7/b7-ace-repetitive-diag",
       "user_prompt": "Fix extract_protected_errors in extract_errors.py to parse app.log and return all ERROR and FATAL entries with their code (preserving protected diagnostics) so test_diag_summary.py passes.",
-      "configurations": ["S", "F"],
+      "configurations": ["S", "A"],
       "required_skill_reads": [],
       "forbidden_skill_reads": [],
       "expected_assertions": [{"type": "validation_exit", "value": 0}],
@@ -341,14 +345,15 @@
       "stage": "b7-targeted",
       "category": "engineering-validation-planning",
       "fixture": "fixtures/campaign-a-validation-plan",
-      "user_prompt": "Advisory only. Based on context.md, produce a bounded multi-module validation plan covering contract checks, regression gates, risk mitigation, and rollback triggers. Do not modify files.",
-      "configurations": ["S", "F"],
+      "user_prompt": "Advisory only. Based on context.md, produce a bounded multi-module validation plan covering affected modules, contract checks, regression gates, risk mitigation, and actionable rollback triggers. Do not modify files.",
+      "configurations": ["S", "R"],
       "required_skill_reads": [],
       "forbidden_skill_reads": [],
       "expected_assertions": [
         {"type": "output_contains", "value": "contract"},
         {"type": "output_contains", "value": "regression"},
-        {"type": "output_contains", "value": "rollback"}
+        {"type": "output_contains", "value": "rollback"},
+        {"type": "substantive_planning_rubric", "value": {"min_words": 45, "min_lines": 4, "required_concepts": ["module", "contract", "regression", "risk", "rollback", "trigger"]}}
       ],
       "forbidden_patterns": ["files modified", "tests passed"],
       "validation_command": null,

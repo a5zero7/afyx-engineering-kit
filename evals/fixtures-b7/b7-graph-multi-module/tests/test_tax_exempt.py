@@ -18,5 +18,14 @@ class TaxExemptTests(unittest.TestCase):
     def test_non_exempt_preserves_rate(self):
         self.assertEqual(total_invoice(100.0, "ID", "standard", exempt=False), 111.0)
 
+    def test_structural_caller_and_boundary_integrity(self):
+        import inspect
+        from services import invoice, quote, subscription, credit_note
+        self.assertIn("exempt", inspect.signature(compute_tax_rate).parameters)
+        for mod, fn in ((invoice, "total_invoice"), (quote, "total_quote"), (subscription, "total_subscription")):
+            src = inspect.getsource(getattr(mod, fn))
+            self.assertIn("exempt", src)
+        self.assertNotIn("compute_tax_rate", inspect.getsource(credit_note))
+
 if __name__ == "__main__":
     unittest.main()

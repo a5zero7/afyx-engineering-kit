@@ -141,6 +141,28 @@ def verify_frozen_environment(environment: dict) -> None:
                 f"fixtures: content SHA256 mismatch (expected {expected_fixtures}, actual {actual_fixtures})"
             )
 
+    expected_b7_fixtures = environment.get("b7_fixtures_sha256")
+    if expected_b7_fixtures:
+        b7_root = EVAL_ROOT / "fixtures-b7"
+        if not b7_root.is_dir():
+            failures.append("b7_fixtures: directory fixtures-b7 is missing")
+        else:
+            b7_digest = hashlib.sha256()
+            b7_files = sorted(
+                (p for p in b7_root.rglob("*") if p.is_file() and "__pycache__" not in p.parts and p.suffix != ".pyc"),
+                key=lambda p: p.relative_to(b7_root).as_posix(),
+            )
+            for p in b7_files:
+                b7_digest.update(p.relative_to(b7_root).as_posix().encode("utf-8"))
+                b7_digest.update(b"\0")
+                b7_digest.update(p.read_bytes())
+                b7_digest.update(b"\0")
+            actual_b7_fixtures = b7_digest.hexdigest()
+            if actual_b7_fixtures != expected_b7_fixtures:
+                failures.append(
+                    f"b7_fixtures: content SHA256 mismatch (expected {expected_b7_fixtures}, actual {actual_b7_fixtures})"
+                )
+
     if "prompt-master" in skills:
         prompt_entry = skills.get("prompt-master", {})
         expected_prompt_sha = prompt_entry.get("git_sha")
@@ -844,16 +866,17 @@ def resolve_configuration(manifest: dict, name: str) -> tuple[str, list[str]]:
 
 
 def resolve_campaign_a_configuration(manifest: dict, name: str) -> tuple[str, list[str], dict]:
-    """Resolve N/S/G/F Campaign A configuration into skills and actual runtime capabilities."""
-    matrix = manifest.get("campaign_a_matrix", {})
-    if name in matrix:
-        entry = matrix[name]
-        caps = {
-            "graph": bool(entry.get("graph", False)),
-            "ace": bool(entry.get("ace", False)),
-            "forge": bool(entry.get("forge", False)),
-        }
-        return name, list(entry.get("skills", [])), caps
+    """Resolve N/S/G/F/A/R matrix configuration into skills and actual runtime capabilities."""
+    for key in ("campaign_a_matrix", "b7_matrix"):
+        matrix = manifest.get(key, {})
+        if name in matrix:
+            entry = matrix[name]
+            caps = {
+                "graph": bool(entry.get("graph", False)),
+                "ace": bool(entry.get("ace", False)),
+                "forge": bool(entry.get("forge", False)),
+            }
+            return name, list(entry.get("skills", [])), caps
     canonical, skills = resolve_configuration(manifest, name)
     return canonical, skills, {"graph": False, "ace": False, "forge": False}
 
@@ -1010,7 +1033,13 @@ class CampaignBudgetLedger:
     def is_cell_completed(self, cell_key: str) -> bool:
         return cell_key in self.data["completed_cells"]
 
-    def get_valid_control(self, control_name: str) -> dict | None:
+    def get_valid_control(
+        self,
+        control_name: str,
+        *,
+        expected_env_sha: str | None = None,
+        expected_source_rev: str | None = None,
+    ) -> dict | None:
         entry = self.data.get("controls", {}).get(control_name)
         if not entry or entry.get("result") != "PASS":
             return None
@@ -1019,17 +1048,25 @@ class CampaignBudgetLedger:
             return None
         try:
             loaded = load_json(path)
-            if loaded.get("result") == "PASS":
-                return loaded
+            if loaded.get("result") != "PASS":
+                return None
+            if expected_env_sha and loaded.get("environment_fingerprint", {}).get("sha256") != expected_env_sha:
+                return None
+            if expected_source_rev and loaded.get("source_revision") != expected_source_rev:
+                return None
+            return loaded
         except Exception:
             return None
-        return None
 
     def record_control(self, control_name: str, result: str, path: Path) -> None:
         self.data.setdefault("controls", {})[control_name] = {"result": result, "path": str(path)}
         atomic_write_json(self.path, self.data)
 
-    def reconstruct_completed_records(self) -> tuple[list[dict], list[str]]:
+    def reconstruct_completed_records(
+        self,
+        *,
+        expected_env_sha: str | None = None,
+    ) -> tuple[list[dict], list[str]]:
         reconstructed = []
         corrupt_or_missing = []
         for cell_key, info in self.data.get("completed_cells", {}).items():
@@ -1040,6 +1077,17 @@ class CampaignBudgetLedger:
             try:
                 rec = load_json(rpath)
                 if rec.get("run_id") != info.get("run_id"):
+                    corrupt_or_missing.append(cell_key)
+                    continue
+                if expected_env_sha or rec.get("schema_version") == 2:
+                    if not rec.get("evaluation_run_id"):
+                        corrupt_or_missing.append(cell_key)
+                        continue
+                    parts = cell_key.split("::")
+                    if len(parts) == 3 and (rec.get("scenario_id") != parts[0] or rec.get("configuration") != parts[1]):
+                        corrupt_or_missing.append(cell_key)
+                        continue
+                if expected_env_sha and rec.get("environment_fingerprint", {}).get("sha256") != expected_env_sha:
                     corrupt_or_missing.append(cell_key)
                     continue
                 reconstructed.append(rec)
@@ -1183,6 +1231,16 @@ def check_assertions(
         elif kind == "max_expert_reference_reads":
             observed = expert_reference_reads
             passed = observed is not None and len(observed) <= value
+        elif kind == "substantive_planning_rubric":
+            words = re.findall(r"\b\w+\b", output)
+            lines = [ln for ln in output.splitlines() if ln.strip()]
+            concepts = value.get("required_concepts", [])
+            lower_out = output.lower()
+            passed = (
+                len(words) >= value.get("min_words", 40)
+                and len(lines) >= value.get("min_lines", 3)
+                and all(c.lower() in lower_out for c in concepts)
+            )
         else:
             passed = False
         check = {"type": kind, "expected": value, "passed": passed}
@@ -1503,6 +1561,17 @@ def run_cell(
             "ace": bool(capabilities.get("ace")),
             "forge": bool(capabilities.get("forge")),
         },
+        "configured_capability": capabilities,
+        "observed_capability_availability": {
+            "skills_staged": active_skills,
+            "mcp_overrides": bool(capabilities.get("graph") or capabilities.get("ace") or capabilities.get("forge")),
+        },
+        "actual_capability_invocation": {
+            "skill_reads": observed_skill_reads,
+            "mcp_calls": mcp_calls_count,
+            "tool_calls": parsed["tool_calls"],
+        },
+        "successful_capability_result": passed,
         "capability_utilization": {
             "observed_skill_reads": observed_skill_reads,
             "mcp_calls": mcp_calls_count,
@@ -1879,8 +1948,10 @@ def main() -> int:
                 campaign_fingerprint=c_fingerprint,
             )
 
+        env_sha = provenance["environment_fingerprint"]["sha256"]
+        src_rev = provenance["source_revision"]
         control_run_id = provenance["control_run_id"]
-        health = ledger.get_valid_control("child_health") if (ledger and args.resume) else None
+        health = ledger.get_valid_control("child_health", expected_env_sha=env_sha, expected_source_rev=src_rev) if (ledger and args.resume) else None
         if health is None:
             health_inv = ledger.reserve("child_health") if ledger else None
             health = run_child_health_probe(args.control_timeout, provenance)
@@ -1909,7 +1980,7 @@ def main() -> int:
                 "pilot": "NOT_RUN",
             }, indent=2))
             return 0
-        canary = ledger.get_valid_control("isolation_canary") if (ledger and args.resume) else None
+        canary = ledger.get_valid_control("isolation_canary", expected_env_sha=env_sha, expected_source_rev=src_rev) if (ledger and args.resume) else None
         if canary is None:
             canary_inv = ledger.reserve("isolation_canary") if ledger else None
             canary = run_isolation_canary(args.control_timeout, provenance)
@@ -1948,7 +2019,7 @@ def main() -> int:
         records = []
         corrupt_resume = []
         if ledger and args.resume:
-            records, corrupt_resume = ledger.reconstruct_completed_records()
+            records, corrupt_resume = ledger.reconstruct_completed_records(expected_env_sha=env_sha)
         summary = build_summary(
             provenance, args.mode, seed, repetitions, len(cells), records, "INCOMPLETE"
         )
@@ -2046,11 +2117,12 @@ def main() -> int:
                 ledger is not None
                 and args.resume
                 and bool(ledger.campaign_id)
-                and bool(ledger.data.get("campaign_fingerprint"))
+                and ledger.data.get("campaign_fingerprint") == c_fingerprint
                 and all(
                     isinstance(r.get("evaluation_run_id"), str)
                     and bool(r.get("evaluation_run_id"))
                     and bool(r.get("source_revision"))
+                    and r.get("environment_fingerprint", {}).get("sha256") == env_sha
                     for r in [health, canary, *records]
                 )
                 and all(
