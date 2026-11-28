@@ -154,3 +154,28 @@ Stable `35b89bd`. Pilot eksternal macOS masih terbuka.
 **Verdict:** **TECHNICAL ALPHA INTERNAL EVALUATION PASS (DISTRIBUTION GATED)**
 
 The Windows Alpha source and artifact lifecycle is hermetic, idempotent, and fully verified for internal developer dogfooding and technical evaluation. General public distribution remains gated pending Authenticode code-signing (G12) and interactive human visual acceptance (G11). Gate G9 (Native Ownership & Legal Clearance) is fully cleared.
+
+---
+
+## Penilaian Kesiapan Rilis V1.3.0 (Audit B9)
+
+**Tanggal:** 2026-11-28 | **Branch:** `dev` | **Baseline Sebelum Perbaikan B9:** `cf67834207eb86a9cb4dc723c9ca21dc78aed02f` | **Versi Paket:** `1.2.1` (belum dinaikkan ke `1.3.0`)
+
+### 1. Ringkasan Audit Terstruktur & Perbaikan Material (R1–R2)
+- **Tingkat Independensi Audit:** `LIMITED_STRUCTURED_INTERNAL_AUDIT` (audit terstruktur internal tanpa sesi model eksternal terpisah di luar anggaran B7).
+- **Temuan Material yang Diperbaiki (`CONFIRMED_DEFECT`):**
+  1. **Planner B7 (`evals/harness/run.py`):** Perbaikan `build_campaign_a_plan` agar skenario `b7-targeted` mempertahankan seluruh `10` sel (`5` pasangan cocok `N/F`, `S/G`, `S/A`, `S/R`, `N/S`) saat `configs=None`, alih-alih membuang konfigurasi `A` dan `R`.
+  2. **Isolasi Kapabilitas A/R (`scripts/afyx-universal-runtime.mjs`, `scripts/afyx-capability-orchestrator.mjs`):** Penegakan `AFYX_FORGE_OPT_IN=0` dan `AFYX_GRAPH_OPT_IN=0` setara dengan `AFYX_CONTEXT_OPT_IN=0` agar konfigurasi `A` (ACE saja) dan `R` (Forge saja) terisolasi secara nyata pada runtime terpadu.
+- **Observasi Reliabilitas Historis:** `afyx-graph/engine/__tests__/mcp-staleness-banner.test.ts` lulus (`7/7` tests dalam `5.65s`); `PROVIDER_BACKUP_PERMISSION_UNVERIFIED` dan guard kepemilikan (`UNVERIFIED:USER`, `SCOPE_UNSUPPORTED`, `CODEX_UNAVAILABLE`) terkonfirmasi sebagai proteksi *fail-closed* yang bekerja sesuai desain; kegagalan sandbox Windows `0xc0000142` diisolasi melalui fallback WSL2 Ubuntu.
+
+### 2. Status Benchmark & Anggaran B7 (R3)
+- **Campaign A:** `27/27` terpakai (`0` tersisa) — ledger `evals/results/campaign-a-budget.json` terjaga utuh.
+- **B7 Targeted Confirmation:** `2/16` terpakai (`b7-budget.json` `1/16`, `b7-budget-r3.json` `1/15`), **`14` otorisasi tersisa**, `0` pemanggilan model baru selama B8 dan B9. Status eksekusi live tetap **`DEFERRED_PROVIDER_QUOTA`** menunggu pemulihan kuota provider.
+- **Syarat Masuk Minimum B7:** `planner_ten_cells_verified=PASS`, `actual_capability_isolation=PASS`, `static_evaluation_validation=PASS`.
+
+### 3. Rekomendasi Keputusan Rilis Final
+- **Rekomendasi Utama:** **`CONDITIONAL_GO`** (bukan otorisasi publikasi `v1.3.0`).
+- **Gerbang Eksternal / Keputusan Owner yang Masih Tertunda:**
+  1. Pemulihan kuota provider & eksekusi live **B7** (`14` pemanggilan tersisa) untuk bukti komparatif akhir dan penerimaan **Expert D.6** berbasis model.
+  2. Pilot/penerimaan host eksternal terpasang (**Claude Code** pada host terpasang nyata, **Antigravity** sesi model terautentikasi, dan **macOS** host eksternal terpasang).
+  3. Keputusan **Owner** untuk: penandatanganan executable Windows (atau cakupan waiver `OWNER_SIGNING_WAIVER_V1` untuk `v1.3.0`), kenaikan versi ke `1.3.0`, promosi `git merge --ff-only dev` ke `main`, pembuatan tag, publikasi npm/GitHub Release, dan penutupan `AFYX-375`.

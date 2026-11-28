@@ -1184,7 +1184,7 @@ def build_campaign_a_plan(
     cells = []
     for scenario in all_scenarios:
         scen_configs = (
-            [c for c in scenario.get("configurations", []) if c in target_configs]
+            list(scenario.get("configurations", []))
             if (scenario.get("stage") == "b7-targeted" and configs is None)
             else target_configs
         )

@@ -2781,8 +2781,8 @@
     {
       "path": "scripts/afyx-capability-orchestrator.mjs",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "951b70aff2e20051164bb43e90cd94a783fa8444f6ae96a971d6005e34b4fd3e",
-      "evidence": "Universal capability orchestrator supporting all 8 modular tools with lazy activation, SCHEMA_INSPECTED / HEADER_ONLY_FALLBACK interop, and strict single primary domain budget (AFYX-329)."
+      "reviewedSha256": "7f40c2368d9afdb0ebf4bfbfb07e008a5f2170e01e2e0a5dfde436704cb4d691",
+      "evidence": "Universal capability orchestrator supporting all 8 modular tools with lazy activation, SCHEMA_INSPECTED / HEADER_ONLY_FALLBACK interop, and strict single primary domain budget (AFYX-329). | B9-R2 AFYX-375: enforce AFYX_FORGE_OPT_IN=0 and AFYX_GRAPH_OPT_IN=0 isolation"
     },
     {
       "path": "scripts/afyx-claude-integration.mjs",
@@ -3033,8 +3033,8 @@
     {
       "path": "scripts/afyx-universal-runtime.mjs",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "c58ce8a8ada59f3e626c1afe22e44a6b026d9f1749e4f5055719ec48b77188a7",
-      "evidence": "MB12 review: authored from AFYX functional requirements and existing reviewed 251f73a contracts; no upstream implementation, prompts, assets or dependency imported. Trusted-host boundaries and negative/regression tests recorded in MB12-native-consolidation-20261114-r1."
+      "reviewedSha256": "4c16708612a962280ed7dac1d2267d617772c4cfb81ba6553fdf2cfc1a11ce5a",
+      "evidence": "MB12 review: authored from AFYX functional requirements and existing reviewed 251f73a contracts; no upstream implementation, prompts, assets or dependency imported. Trusted-host boundaries and negative/regression tests recorded in MB12-native-consolidation-20261114-r1. | B9-R2 AFYX-375: enforce AFYX_FORGE_OPT_IN=0 and AFYX_GRAPH_OPT_IN=0 isolation"
     },
     {
       "path": "scripts/benchmark-graph-memory.mjs",

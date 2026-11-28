@@ -117,6 +117,12 @@ function componentEnabled(componentId, settings, environment) {
   if (componentId === 'afyx-context' && String(environment?.AFYX_CONTEXT_OPT_IN ?? '').trim() === '0') {
     return false;
   }
+  if (componentId === 'afyx-forge' && String(environment?.AFYX_FORGE_OPT_IN ?? '').trim() === '0') {
+    return false;
+  }
+  if (componentId === 'afyx-graph' && String(environment?.AFYX_GRAPH_OPT_IN ?? '').trim() === '0') {
+    return false;
+  }
   return true;
 }
 

@@ -224,6 +224,8 @@ export function discoverAfyxCapabilities({
   const normalizedProvider = typeof provider === 'string' ? provider.toLowerCase() : null;
   const providerKnown = normalizedProvider === null || ACCEPTED_PROVIDERS.includes(normalizedProvider);
   const contextEnvironmentOff = String(environment?.AFYX_CONTEXT_OPT_IN ?? '').trim() === '0';
+  const forgeEnvironmentOff = String(environment?.AFYX_FORGE_OPT_IN ?? '').trim() === '0';
+  const graphEnvironmentOff = String(environment?.AFYX_GRAPH_OPT_IN ?? '').trim() === '0';
   const capabilities = {};
 
   const localRegistry = new Map(DYNAMIC_COMPONENT_REGISTRY);
@@ -249,7 +251,9 @@ export function discoverAfyxCapabilities({
     };
     const capability = metadata.primaryCapability;
     const explicitOff = observed.enabled === false ||
-      (componentId === 'afyx-context' && contextEnvironmentOff);
+      (componentId === 'afyx-context' && contextEnvironmentOff) ||
+      (componentId === 'afyx-forge' && forgeEnvironmentOff) ||
+      (componentId === 'afyx-graph' && graphEnvironmentOff);
     const providerAuthorized = providerKnown && providerAllows(
       componentId,
       capability,
@@ -258,9 +262,8 @@ export function discoverAfyxCapabilities({
       metadata,
     );
     const installed = observed.installed === true;
-    // Default-enabled for interoperability if installed, unless explicitly set to false or context env off
-    const enabled = installed && observed.enabled !== false &&
-      !(componentId === 'afyx-context' && contextEnvironmentOff);
+    // Default-enabled for interoperability if installed, unless explicitly disabled
+    const enabled = installed && !explicitOff;
     const healthy = observed.healthy === true;
     const compatible = observed.compatible === true;
     const authorized = observed.authorized === true && providerAuthorized;

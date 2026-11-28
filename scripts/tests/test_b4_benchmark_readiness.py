@@ -449,6 +449,19 @@ class BenchmarkReadinessTests(unittest.TestCase):
             self.assertTrue(any("authorized fixture root" in v for v in violations))
             self.assertTrue(any("UNKNOWN_CFG" in v for v in violations))
 
+    def test_b7_planner_preserves_all_five_matched_pairs_and_a_r_configs(self) -> None:
+        manifest = json.loads((EVAL_ROOT / "manifest.json").read_text(encoding="utf-8"))
+        b7_ids = [s["scenario_id"] for s in manifest["scenarios"] if s.get("stage") == "b7-targeted"]
+        plan = run.build_campaign_a_plan(manifest, max_budget=16, scenario_filter=b7_ids)
+        cells = [(sc["scenario_id"], cfg) for sc, cfg, _ in plan["discovery_cells"]]
+        self.assertEqual(len(cells), 10)
+        self.assertIn(("b7-ace-repetitive-diag-001", "A"), cells)
+        self.assertIn(("b7-forge-validation-plan-001", "R"), cells)
+        # Campaign A default configs remain unchanged when non-b7 scenarios are planned.
+        ca_ids = [s["scenario_id"] for s in manifest["scenarios"] if s.get("stage") != "b7-targeted"][:1]
+        ca_plan = run.build_campaign_a_plan(manifest, max_budget=27, scenario_filter=ca_ids)
+        self.assertEqual([cfg for _, cfg, _ in ca_plan["discovery_cells"]], ["N", "S", "G", "F"])
+
 
 if __name__ == "__main__":
     unittest.main()

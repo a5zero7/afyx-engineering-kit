@@ -898,3 +898,28 @@ test('AFYX-309: standalone Context propagates task payload and classification to
   assert.equal(capturedRequest.classification, 'diagnostic');
   assert.equal(result.results[0].output, 'reduced payload');
 });
+
+test('B9-R2: AFYX_FORGE_OPT_IN=0 and AFYX_GRAPH_OPT_IN=0 enforce A/R capability isolation', () => {
+  const states = state();
+  const cfgA = discoverAfyxCapabilities({
+    componentStates: states,
+    provider: 'codex',
+    providerPermissions: { 'afyx-forge': true },
+    environment: { AFYX_CONTEXT_OPT_IN: '1', AFYX_FORGE_OPT_IN: '0', AFYX_GRAPH_OPT_IN: '0' },
+  }).capabilities;
+  assert.equal(cfgA['afyx-context'].available, true);
+  assert.equal(cfgA['afyx-forge'].available, false);
+  assert.equal(cfgA['afyx-forge'].reason, 'EXPLICITLY_DISABLED');
+  assert.equal(cfgA['afyx-graph'].available, false);
+  assert.equal(cfgA['afyx-graph'].reason, 'EXPLICITLY_DISABLED');
+
+  const cfgR = discoverAfyxCapabilities({
+    componentStates: states,
+    provider: 'codex',
+    providerPermissions: { 'afyx-forge': true },
+    environment: { AFYX_CONTEXT_OPT_IN: '0', AFYX_FORGE_OPT_IN: '1', AFYX_GRAPH_OPT_IN: '0' },
+  }).capabilities;
+  assert.equal(cfgR['afyx-context'].available, false);
+  assert.equal(cfgR['afyx-context'].reason, 'EXPLICITLY_DISABLED');
+  assert.equal(cfgR['afyx-forge'].available, true);
+});
