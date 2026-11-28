@@ -167,7 +167,8 @@ class ControlPlaneContractTests(unittest.TestCase):
             ["codex", "antigravity", "claude"],
         )
         self.assertEqual(contract["providers"][0]["configuration_policy"], "merge-afyx-owned-entries-only")
-        self.assertEqual(contract["providers"][1]["mcp_scopes"], "global;workspace")
+        self.assertEqual(contract["providers"][1]["mcp_scopes"], "global")
+        self.assertEqual(contract["providers"][1]["skill_scopes"], "ide-global;cli-global;workspace")
         by_id = {item["id"]: item for item in contract["components"]}
         self.assertNotIn("prompt-master", by_id)
         self.assertNotIn("headroom", by_id)

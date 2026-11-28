@@ -48,7 +48,7 @@ console.log(JSON.stringify({{providers: Object.keys(providerAdapters), adapters}
         methods = ["discover", "negotiate", *operations]
         expected_scopes = {
             "codex": ["global"],
-            "antigravity": ["global", "workspace"],
+            "antigravity": ["global"],
             "claude": ["global", "workspace"],
         }
 
