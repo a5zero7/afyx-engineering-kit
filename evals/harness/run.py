@@ -910,19 +910,25 @@ def compute_campaign_fingerprint(
     mode: str,
     seed: int | None = None,
 ) -> str:
-    head_proc = subprocess.run(
-        ["git", "-C", str(REPO_ROOT), "rev-parse", "HEAD"],
-        text=True, encoding="utf-8", errors="replace", capture_output=True,
-    )
-    source_rev = head_proc.stdout.strip() if head_proc.returncode == 0 else "UNKNOWN"
     graph_bin = REPO_ROOT / "afyx-graph" / "engine" / "dist" / "bin" / "afyx-graph.js"
     context_bin = REPO_ROOT / "afyx-context" / "dist" / "index.js"
+    forge_bin = REPO_ROOT / "afyx-forge" / "bin" / "afyx-forge.js"
+    runtime_mjs = REPO_ROOT / "scripts" / "afyx-universal-runtime.mjs"
+    orchestrator_mjs = REPO_ROOT / "scripts" / "afyx-capability-orchestrator.mjs"
+    product_subject = (
+        (environment.get("repository") or {}).get("benchmark_subject_commit")
+        or "UNSPECIFIED"
+    )
     payload = {
         "mode": mode,
-        "source_revision": source_rev,
+        "product_subject": product_subject,
+        "harness_sha256": _file_sha256_or_missing(Path(__file__).resolve()),
         "built_artifacts": {
             "afyx_graph_js": _file_sha256_or_missing(graph_bin),
             "afyx_context_index_js": _file_sha256_or_missing(context_bin),
+            "afyx_forge_js": _file_sha256_or_missing(forge_bin),
+            "afyx_universal_runtime_mjs": _file_sha256_or_missing(runtime_mjs),
+            "afyx_capability_orchestrator_mjs": _file_sha256_or_missing(orchestrator_mjs),
         },
         "components": environment.get("components"),
         "runtime": environment.get("runtime"),
@@ -930,6 +936,10 @@ def compute_campaign_fingerprint(
         "skills": environment.get("skills"),
         "manifest_sha256": _file_sha256_or_missing(MANIFEST_PATH),
         "fixtures_sha256": environment.get("fixtures_sha256"),
+        "b7_fixtures_sha256": environment.get("b7_fixtures_sha256"),
+        "environment_sha256": hashlib.sha256(
+            json.dumps(environment, sort_keys=True).encode("utf-8")
+        ).hexdigest(),
         "random_seed": seed if seed is not None else manifest.get("random_seed"),
         "configs": plan.get("configurations"),
         "cells": [f"{s['scenario_id']}::{c}::r{r}" for s, c, r in plan.get("discovery_cells", [])],

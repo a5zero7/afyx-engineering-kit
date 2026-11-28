@@ -567,6 +567,48 @@ class BenchmarkReadinessTests(unittest.TestCase):
         ca_plan = run.build_campaign_a_plan(manifest, max_budget=27, scenario_filter=ca_ids)
         self.assertEqual([cfg for _, cfg, _ in ca_plan["discovery_cells"]], ["N", "S", "G", "F"])
 
+    def test_campaign_fingerprint_ignores_docs_head_but_rejects_material_changes(self) -> None:
+        manifest = json.loads((EVAL_ROOT / "manifest.json").read_text(encoding="utf-8"))
+        b7_env = json.loads((EVAL_ROOT / "environment-v1.3.0-b7-final01r.json").read_text(encoding="utf-8"))
+        b7_ids = [s["scenario_id"] for s in manifest["scenarios"] if s.get("stage") == "b7-targeted"]
+        plan = run.build_campaign_a_plan(manifest, max_budget=14, scenario_filter=b7_ids)
+        fp_base = run.compute_campaign_fingerprint(manifest, b7_env, plan, "campaign-a")
+
+        # Subsequent documentation-only git HEAD change must not alter campaign_fingerprint
+        fake_head = mock.Mock(returncode=0, stdout="deadbeef" * 5 + "\n")
+        with mock.patch("subprocess.run", return_value=fake_head):
+            fp_doc = run.compute_campaign_fingerprint(manifest, b7_env, plan, "campaign-a")
+        self.assertEqual(fp_base, fp_doc)
+
+        # Material changes must invalidate campaign_fingerprint and fail closed on resume
+        changed_subject = copy.deepcopy(b7_env)
+        changed_subject["repository"]["benchmark_subject_commit"] = "0" * 40
+        self.assertNotEqual(fp_base, run.compute_campaign_fingerprint(manifest, changed_subject, plan, "campaign-a"))
+
+        changed_fixture = copy.deepcopy(b7_env)
+        changed_fixture["b7_fixtures_sha256"] = "1" * 64
+        self.assertNotEqual(fp_base, run.compute_campaign_fingerprint(manifest, changed_fixture, plan, "campaign-a"))
+
+        changed_plan = copy.deepcopy(plan)
+        changed_plan["discovery_cells"] = changed_plan["discovery_cells"][:-1]
+        self.assertNotEqual(fp_base, run.compute_campaign_fingerprint(manifest, b7_env, changed_plan, "campaign-a"))
+
+        with tempfile.TemporaryDirectory() as tmp:
+            ledger_path = Path(tmp) / "b7-ledger.json"
+            ledger = run.CampaignBudgetLedger(ledger_path, max_invocations=14, campaign_fingerprint=fp_base)
+            # Material change rejects resume
+            with self.assertRaisesRegex(RuntimeError, "fingerprint mismatch"):
+                run.CampaignBudgetLedger(
+                    ledger_path, max_invocations=14, resume=True,
+                    campaign_fingerprint=run.compute_campaign_fingerprint(manifest, changed_subject, plan, "campaign-a"),
+                )
+            # Budget replenishment / cap increase rejected
+            with self.assertRaisesRegex(RuntimeError, "max_invocations"):
+                run.CampaignBudgetLedger(ledger_path, max_invocations=15, resume=True, campaign_fingerprint=fp_base)
+            # Valid continuation succeeds
+            resumed = run.CampaignBudgetLedger(ledger_path, max_invocations=14, resume=True, campaign_fingerprint=fp_doc)
+            self.assertEqual(resumed.campaign_id, ledger.campaign_id)
+
 
 if __name__ == "__main__":
     unittest.main()
