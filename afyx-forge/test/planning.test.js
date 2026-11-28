@@ -135,3 +135,29 @@ Fix invoice rounding in src/invoice.js.
     assert.deepEqual(result.functionalRequirements, ['duplicate']);
   });
 });
+
+it('keeps explicit inspection requests within scope across the entire plan', () => {
+  for (const task of [
+    'Read-only verification plan. Inspect validate_amount callers. Do not edit files or run tests.',
+    'Susun rencana baca-saja untuk memeriksa pemanggil validate_amount. Panduan saja.',
+    'Investigation only. Implement a fix if the relationship is wrong.',
+    'Audit-only review of permissions.',
+    'Security audit of authentication and authorization.',
+    'Audit keamanan terhadap konfigurasi otorisasi.',
+    'Advisory only. Review callers using existing evidence.',
+  ]) {
+    const result = plan(task);
+    assert.deepEqual(result.executionPlan.steps.map(step => step.id), ['analysis', 'verification', 'report'], task);
+    assert.match(result.guidance.validationScope[0], /permitted read-only checks/);
+    assert.match(result.executionPlan.stoppingCondition, /exceed the requested scope/);
+    assert.deepEqual(result.executionPlan.completionCriteria, result.guidance.completionCriteria);
+    assert.equal(result.executionBudget.validationIntensity, 'read-only-evidence');
+    assert.equal(result.executionPlan.status, 'PROPOSED_NOT_EXECUTED');
+    assert.equal(result.boundedExecution.autonomousCodeExecution, false);
+    assert.doesNotMatch(JSON.stringify({
+      steps: result.executionPlan.steps, guidance: result.guidance, budget: result.executionBudget,
+    }), /edit_file|apply the|run (?:focused|targeted|regression|tests)|deploy|commit|review the diff/i, task);
+  }
+  const change = plan('Fix calculation in src/math.js and run its tests.');
+  assert.deepEqual(change.executionPlan.steps.map(step => step.id), ['analysis', 'implementation', 'validation', 'delivery']);
+});

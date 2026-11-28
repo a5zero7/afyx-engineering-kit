@@ -182,7 +182,13 @@ export function serveHostMcpBridge(serverOptions = {}) {
                     task: {
                       type: 'object',
                       description: 'Engineering task. For Graph callers/impact use e.g. {"taskType":"callers","payload":{"symbol":"createProject"}}. The symbol is a non-empty string, not an object.',
-                      properties: { taskType: { type: 'string' } },
+                      properties: {
+                        taskType: { type: 'string' },
+                        payload: {
+                          description: 'For Forge advice, supply the full request in taskText, including scope constraints. A descriptive intent is supported for existing requests without a payload.',
+                          properties: { taskText: { type: 'string', minLength: 1, maxLength: 65536 } },
+                        },
+                      },
                       allOf: [{
                         if: { properties: { taskType: { enum: ['callers', 'caller-analysis', 'impact', 'symbol-impact'] } }, required: ['taskType'] },
                         then: { properties: { payload: { type: 'object', properties: { symbol: { type: 'string', minLength: 1 } } } } },

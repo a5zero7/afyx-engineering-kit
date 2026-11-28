@@ -13,9 +13,23 @@ import { TASK_CATEGORIES } from './classifier.js';
  * @param {object} classification
  * @param {object} policy
  * @param {string} taskText
+ * @param {boolean} [inspectionOnly] Whether the request limits the plan to inspection
  * @returns {object} Structured guidance
  */
-export function generateGuidance(classification, policy, taskText) {
+export function generateGuidance(classification, policy, taskText, inspectionOnly = false) {
+  if (inspectionOnly) {
+    return {
+      investigationPriorities: [classification.primaryCategory === TASK_CATEGORIES.SECURITY_SENSITIVE
+        ? 'Inspect relevant existing evidence for trust boundaries, data flows, and authorization checks.'
+        : 'Inspect relevant existing evidence and trace the relationships needed to answer the request.'],
+      toolRecommendations: {
+        preferred: ['Inspect existing records or source within the requested scope.'],
+        avoided: ['Work outside the requested scope or host permissions.'],
+      },
+      validationScope: ['Check the findings against existing evidence using only permitted read-only checks.'],
+      completionCriteria: ['Report the supported conclusions, evidence, and limitations within the requested scope.'],
+    };
+  }
   const { primaryCategory, frameworks = [], referencedFiles = [] } = classification;
   const { executionMode, graphRouting } = policy;
 

@@ -1,5 +1,12 @@
 /** Bounded, deterministic planning facts. No source edit or tool execution occurs here. */
 
+// Scope is independent of domain classification and does not grant execution rights.
+const INSPECTION_SCOPE = /\b(?:read[\s-]+only|(?:investigation|audit|advisory|analysis|inspection)[\s-]+only|(?:investigat(?:e|ion)|analy(?:ze|se|sis)|inspect(?:ion)|review|audit)\s+only|only\s+(?:investigate|analyze|analyse|inspect|review|audit)|security audit|audit keamanan|baca[\s-]+saja|(?:investigasi|audit|analisis|inspeksi|panduan|saran)\s+saja|(?:do not|must not|without|no)\s+(?:(?:modify|edit|change|write)(?:ing)?\s+(?:the\s+)?(?:source|code|files)|(?:code|source|file)\s+(?:changes|edits))|(?:jangan|tanpa|dilarang)\s+(?:mengubah|ubah|menyunting|edit|modifikasi|perubahan)\s+(?:kode|berkas|file))\b/i;
+
+export function requiresInspectionPlan(taskText) {
+  return INSPECTION_SCOPE.test(taskText);
+}
+
 const MAX_ITEMS = 12;
 const MAX_LINE = 300;
 const SECTIONS = new Map([
@@ -63,13 +70,16 @@ const BUDGETS = Object.freeze({
 });
 
 /** Recommendations are ceilings for a proposed plan, not observed usage. */
-export function recommendExecutionBudget(policy) {
+export function recommendExecutionBudget(policy, inspectionOnly = false) {
   const [investigationDepth, toolCallCeiling, retryCeiling, elapsedTimeCeilingMs, validationIntensity] =
     BUDGETS[policy.executionMode] ?? BUDGETS.FOCUSED_INVESTIGATION;
   return {
     status: 'RECOMMENDED_NOT_ENFORCED', investigationDepth, toolCallCeiling,
-    retryCeiling, elapsedTimeCeilingMs, validationIntensity,
-    contextGuideline: 'Read only relevant source; use Context for genuinely large output when enabled.',
+    retryCeiling, elapsedTimeCeilingMs,
+    validationIntensity: inspectionOnly ? 'read-only-evidence' : validationIntensity,
+    contextGuideline: inspectionOnly
+      ? 'Use relevant existing evidence and permitted read-only checks.'
+      : 'Read only relevant source; use Context for genuinely large output when enabled.',
     observedToolCalls: null, observedProviderTokens: null,
     escalation: policy.executionMode === 'SECURITY_DEFENSE_IN_DEPTH'
       ? 'Stop at an authorization or integrity boundary; require owner decision.'

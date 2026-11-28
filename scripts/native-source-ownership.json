@@ -211,13 +211,13 @@
     {
       "path": "afyx-forge/src/guidance.js",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "25aa6e7b25dbf8be021256901bfa55f2e7dede03dcfb830b2245be9fe68e86c1",
+      "reviewedSha256": "af7c73cb13f15eb463920efe5e3a1fd2c469214e78d3a09ef334aef06e058d17",
       "evidence": "AFYX native source: authored from AFYX functional requirements; verified clean room implementation with zero third-party code import."
     },
     {
       "path": "afyx-forge/src/index.js",
       "classification": "PUBLIC_API_BARREL",
-      "reviewedSha256": "15370689155bb4c0d39b5e4bf43ed31e4922d718eccdb2e2f38543fdbdb75ab1",
+      "reviewedSha256": "e4ef5de3fc543626caacfab80686dda719953e6bafe9225d4637a094e31c3160",
       "evidence": "MB12 review: authored from AFYX functional requirements and existing reviewed 251f73a contracts; no upstream implementation, prompts, assets or dependency imported. Trusted-host boundaries and negative/regression tests recorded in MB12-native-consolidation-20261114-r1."
     },
     {
@@ -229,7 +229,7 @@
     {
       "path": "afyx-forge/src/planning.js",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "a555d30de68cf9d888df33fa26e133710ce4b011d7d9edf4d086a0c2479de4da",
+      "reviewedSha256": "13876f1ca7ad9021c32b6e82898b1bf3f1a3729fc97c306a90d70fedb4d41c3f",
       "evidence": "AFYX native source: authored from AFYX functional requirements; verified clean room implementation with zero third-party code import."
     },
     {
@@ -2871,7 +2871,7 @@
     {
       "path": "scripts/afyx-host-adapters.mjs",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "6c34b482835344baa018926ea49a4b615405f6f8cfe7ea42c367f4fa2c330066",
+      "reviewedSha256": "e4aab4152c2702727bb01385b855776b5e0d02744403f8cdac1bea26f53e18fa",
       "evidence": "MB16 AFYX-283: reviewed bounded Engineering Expert selection, lexical domain hints, and host ceiling consumption; no external logic imported."
     },
     {
@@ -2883,7 +2883,7 @@
     {
       "path": "scripts/afyx-host-bridge.mjs",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "c3c3ea3ef21f404453edc453a40cdce4f41b5f48a20508004350458bfd27a3f2",
+      "reviewedSha256": "b3f98f5a8a848160a1021aacbcbb767c44302ba3c33ff1b1dc4b2cfa538d8abe",
       "evidence": "MB18.3 AFYX-190/AFYX-105: reviewed single-tool capability discovery metadata, informative JSON-RPC -32601 tool-name hints without path disclosure, and bounded --browser-session-timeout-ms CLI validation."
     },
     {

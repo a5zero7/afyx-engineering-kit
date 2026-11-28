@@ -527,9 +527,25 @@ export function createInstalledHostAdapters({
         };
       }
 
-      const taskText = request.payload?.taskText ?? request.intent;
+      const payload = request.payload;
+      if (payload && typeof payload === 'object' && Object.hasOwn(payload, 'task')) {
+        return {
+          status: 'FAILED',
+          reason: Object.hasOwn(payload, 'taskText') ? 'FORGE_TASK_TEXT_CONFLICT' : 'FORGE_TASK_TEXT_REQUIRED',
+          output: null,
+        };
+      }
+      // Existing intent-only callers carry their task in intent. The orchestrator
+      // also uses intent for routing, so never substitute a bare route label.
+      const legacyIntent = payload == null && request.intent !== request.taskType && request.intent !== 'generic'
+        ? request.intent : undefined;
+      const taskText = payload == null ? legacyIntent : payload.taskText;
       if (typeof taskText !== 'string' || !taskText.trim() || taskText.length > 65536) {
-        return { status: 'FAILED', reason: 'FORGE_TASK_TEXT_REQUIRED', output: null };
+        return {
+          status: 'FAILED',
+          reason: taskText === undefined ? 'FORGE_TASK_TEXT_REQUIRED' : 'FORGE_TASK_TEXT_INVALID',
+          output: null,
+        };
       }
       const runResult = spawnSync(nodePath, [forgeEntrypoint, 'plan', '--stdin', '--format', 'json'], {
         input: taskText,

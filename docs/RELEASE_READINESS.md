@@ -281,3 +281,13 @@ Status saat ini NO_GO. Selesaikan gerbang B7, D.6, provider dan kandidat yang te
 - **Antigravity:** `Antigravity agy CLI` (`1.5.10`) pada workspace `$env:TEMP` terisolasi berstatus `PARTIAL` (`install`/`uninstall` PASS, autentikasi lokal terkonfirmasi `conversation_id: 9d465566-74ab-4f70-894b-7695d8d1d0f0` dengan `1` model request yang terkena `DEADLINE_EXCEEDED` pada `--print-timeout 60s`, `0` retry); `Antigravity VS Code Extension` (`google.google-antigravity`) berstatus `BLOCKED_AUTOMATION_INTERFACE` (`0` request).
 - **Claude Code:** `Claude Code VS Code Extension` (`anthropic.claude-code`) berstatus `BLOCKED_AUTOMATION_INTERFACE` (`0` model request terpakai, `0` retry; CLI `claude` tidak terpasang).
 - **Eksternal & Keputusan Final:** `macOS` eksternal (`NOT_AVAILABLE_LOCAL_ENVIRONMENT`), `Expert D.6` (`PENDING_EXTERNAL_REVIEW`), `T07` (`BLOCKED_BY_D6`). Cakupan distribusi terkunci `NPM_DISTRIBUTION` + `DEFER_STANDALONE_WINDOWS_EXE`. Putusan final: **`NO_GO`** (berhenti sebelum `FINAL-02`).
+
+
+### Koreksi batas rencana Forge dan kontrak Workflow
+
+- Rekaman Codex menunjukkan Graph dan Workflow masing-masing dipanggil satu kali. Graph menemukan dua caller langsung. Workflow mengembalikan PROPOSED_NOT_EXECUTED, tetapi saran perubahan kode dan pengujian melampaui cakupan baca-saja.
+- Workflow menerima isi tugas melalui \`task.payload.taskText\`. Nilai kosong, tipe yang salah, alias \`payload.task\`, dan kombinasi kedua kunci ditolak dengan diagnosis. Permintaan lama yang memberikan isi tugas melalui \`intent\` tanpa payload tetap didukung. Label routing saja tidak menggantikan isi tugas.
+- Forge menjaga klasifikasi domain dan membatasi rencana inspeksi pada analisis, verifikasi bukti yang diizinkan, dan pelaporan. Panduan, alat, kriteria selesai, serta intensitas verifikasi mengikuti batas itu. Status PROPOSED_NOT_EXECUTED, batas A8, dan rencana implementasi yang sah tetap berlaku.
+- Antigravity 1.13.0 memulai kedua server dari workspace terisolasi dan menyimpan skema tool. Permintaan terdahulu tercatat ketika discovery berlangsung. Penerimaan tool pada deklarasi efektif sesi baru masih menunggu observasi host. Claude tetap BLOCKED_AUTHENTICATION.
+- Artefak historis \`f684bfe\` tetap menjadi bukti historis. Penggantinya perlu identitas baru dan uji terpasang terfokus untuk Forge dan Workflow. Ledger historis B7 mencatat 3 dari 16 reservasi, dengan 13 tersisa dan 0 dari 5 pasangan selesai. Eksekusi menunggu fingerprint subjek pengganti dan kelanjutan anggaran yang terikat ke identitas tersebut.
+- Keputusan rilis tetap **NO_GO** selama penerimaan provider, B7, D.6, dan gerbang rilis yang berlaku masih terbuka.

@@ -9,7 +9,7 @@ import { classifyTask } from './classifier.js';
 import { deriveAdaptivePolicy } from './policy.js';
 import { generateGuidance } from './guidance.js';
 import { runDoctor } from './doctor.js';
-import { extractRequirementIntelligence, buildExecutionPlan, recommendExecutionBudget } from './planning.js';
+import { extractRequirementIntelligence, buildExecutionPlan, recommendExecutionBudget, requiresInspectionPlan } from './planning.js';
 
 export const FORGE_CORE_VERSION = '0.1.0';
 
@@ -126,9 +126,19 @@ export function createForgePlan(options = {}) {
   }
 
   const policy = deriveAdaptivePolicy(classification, env);
-  const guidance = generateGuidance(classification, policy, content);
-  const executionPlan = buildExecutionPlan(requirements, classification, policy);
-  const executionBudget = recommendExecutionBudget(policy);
+  const inspectionOnly = requiresInspectionPlan(content);
+  const guidance = generateGuidance(classification, policy, content, inspectionOnly);
+  const executionPlan = inspectionOnly ? {
+    status: 'PROPOSED_NOT_EXECUTED',
+    steps: [
+      { id: 'analysis', dependsOn: [], action: guidance.investigationPriorities[0] },
+      { id: 'verification', dependsOn: ['analysis'], action: guidance.validationScope[0] },
+      { id: 'report', dependsOn: ['verification'], action: guidance.completionCriteria[0] },
+    ],
+    completionCriteria: guidance.completionCriteria,
+    stoppingCondition: 'Stop when evidence is insufficient or verification would exceed the requested scope. Report the limitation.',
+  } : buildExecutionPlan(requirements, classification, policy);
+  const executionBudget = recommendExecutionBudget(policy, inspectionOnly);
 
   const planResult = {
     contract: 'afyx-forge-plan/v1',

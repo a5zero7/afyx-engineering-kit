@@ -23,6 +23,54 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 const HOST_BRIDGE = resolve(HERE, '..', 'afyx-host-bridge.mjs');
 const COMPONENTS = JSON.parse(readFileSync(resolve(HERE, '..', 'components.json'), 'utf8')).components;
 
+test('Workflow preserves Forge task text and rejects invalid or ambiguous payloads', async () => {
+  const fx = fixture();
+  try {
+    const forge = installRegistrySkeleton(fx, 'afyx-forge');
+    write(join(forge, 'metadata.json'), JSON.stringify({ product_name: 'Afyx Forge', source_revision: 'forge-rev-1' }));
+    const source = pathToFileURL(resolve(HERE, '..', '..', 'afyx-forge', 'src', 'index.js')).href;
+    const cli = pathToFileURL(resolve(HERE, '..', '..', 'afyx-forge', 'bin', 'afyx-forge.js')).href;
+    write(join(forge, 'current', 'bin', 'afyx-forge.js'), 'import ' + JSON.stringify(cli) + ';');
+    const taskText = 'Baca-saja: periksa pemanggil validate_amount. Panduan saja.';
+    const options = {
+      provider: 'codex', installRoot: fx.installRoot, projectRoot: fx.projectRoot,
+      authorizations: { 'afyx-forge': true },
+      environment: { ...process.env, AFYX_FORGE_OPT_IN: '1' },
+    };
+    const invoke = async (payload, intent) => {
+      const result = await invokeHostWorkflow({
+        ...options,
+        task: { taskType: 'forge-advice', forgeAdvice: true, manualSelection: ['afyx-forge'], payload, intent },
+      });
+      return result.results.find(row => row.componentId === 'afyx-forge');
+    };
+    const result = await invoke({ taskText }, 'Implement an unrelated change');
+    const { createForgePlan } = await import(source);
+    const standalone = createForgePlan({ taskText, environment: { hasGraph: false, hasContext: false } });
+    assert.equal(result.executionStatus, 'EXECUTED');
+    assert.equal(result.output.requirements.objective, taskText);
+    for (const key of ['executionPlan', 'guidance', 'executionBudget', 'boundedExecution']) {
+      assert.deepEqual(result.output[key], standalone[key]);
+    }
+    for (const [payload, expected] of [
+      [{ task: taskText }, 'FORGE_TASK_TEXT_REQUIRED'],
+      [undefined, 'FORGE_TASK_TEXT_REQUIRED'],
+      [{ taskText: null }, 'FORGE_TASK_TEXT_INVALID'],
+      [{ taskText: 42 }, 'FORGE_TASK_TEXT_INVALID'],
+      [{ taskText: '  ' }, 'FORGE_TASK_TEXT_INVALID'],
+      [{ taskText, task: 'Edit files' }, 'FORGE_TASK_TEXT_CONFLICT'],
+    ]) {
+      const rejected = await invoke(payload);
+      assert.equal(rejected.executionStatus, 'FAILED');
+      assert.equal(rejected.reason, expected);
+    }
+    const legacy = await invoke(undefined, 'Fix calculation in src/math.js');
+    assert.equal(legacy.output.executionPlan.steps[1].id, 'implementation');
+  } finally {
+    fx.cleanup();
+  }
+});
+
 test('Graph symbol contract rejects objects and blank values before runtime discovery', async () => {
   for (const symbol of [{ name: 'createProject' }, '', '   ', 42]) {
     await assert.rejects(invokeHostWorkflow({ task: { taskType: 'callers', payload: { symbol } },
