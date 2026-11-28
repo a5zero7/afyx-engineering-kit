@@ -353,6 +353,7 @@ def capability_mcp_overrides(
     *,
     work: Path | None = None,
     repo_root: Path = REPO_ROOT,
+    b7: bool = False,
 ) -> list[str]:
     """Return explicit Codex -c mcp_servers overrides provisioning only authorized candidate tools."""
     if capabilities is None:
@@ -367,15 +368,16 @@ def capability_mcp_overrides(
             f'mcp_servers.afyx_graph={{command="node",args=["{graph_cli.as_posix()}","serve","--mcp"]}}',
         ])
     if capabilities.get("ace") or capabilities.get("forge"):
-        runtime_cli = repo_root / "scripts" / "afyx-universal-runtime.mjs"
-        proj_arg = (work or repo_root).as_posix()
-        overrides.extend([
-            "-c",
-            (
-                'mcp_servers.afyx_workflow={command="node",'
-                f'args=["{runtime_cli.as_posix()}","serve","--mcp","--install-root","{repo_root.as_posix()}","--project-root","{proj_arg}","--provider","codex"]}}'
-            ),
-        ])
+        bridge = "afyx-host-bridge.mjs" if b7 else "afyx-universal-runtime.mjs"
+        runtime_cli = repo_root / "scripts" / bridge
+        args = [
+            runtime_cli.as_posix(), "serve", "--mcp", "--install-root", repo_root.as_posix(),
+            "--project-root", (work or repo_root).as_posix(), "--provider", "codex",
+        ]
+        if b7 and capabilities.get("forge"):
+            args.extend(["--authorize", "afyx-forge"])
+        toml_args = ",".join(json.dumps(arg, ensure_ascii=False) for arg in args)
+        overrides.extend(["-c", f'mcp_servers.afyx_workflow={{command="node",args=[{toml_args}]}}'])
     return overrides
 
 
@@ -385,6 +387,7 @@ def codex_command(
     *,
     include_skills: bool = True,
     capabilities: dict | None = None,
+    b7: bool = False,
     model: str = "gpt-5.6-sol",
     reasoning_effort: str = "medium",
 ) -> list[str]:
@@ -402,7 +405,7 @@ def codex_command(
         command.extend(["-c", 'windows.sandbox="mxc"'])
     if include_skills:
         command.extend(["-c", skills_override()])
-    command.extend(capability_mcp_overrides(capabilities, work=work))
+    command.extend(capability_mcp_overrides(capabilities, work=work, b7=b7))
     command.append(prompt)
     return command
 
@@ -1487,7 +1490,11 @@ def run_cell(
         shutil.copytree(fixture, work)
         prepare_skills(work, active_skills)
         initial = snapshot(work)
-        cmd = codex_command(work, scenario["user_prompt"], capabilities=capabilities if mode == "campaign-a" else None)
+        cmd = codex_command(
+        work, scenario["user_prompt"],
+        capabilities=capabilities if mode == "campaign-a" else None,
+        b7=scenario.get("stage") == "b7-targeted",
+    )
         process = (
             bounded_process(cmd, work, timeout, env=cell_env)
             if mode == "campaign-a"
