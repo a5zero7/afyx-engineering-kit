@@ -375,14 +375,22 @@ class BenchmarkReadinessTests(unittest.TestCase):
             self.assertEqual(summary["error_classification"], "PROVIDER_QUOTA_EXHAUSTED")
             self.assertEqual(summary["results"][-1]["provider_execution_status"], "QUOTA_EXHAUSTED")
 
-    def test_b7_grants_forge_only_in_forge_configurations(self) -> None:
+    def test_b7_grants_only_configured_capabilities(self) -> None:
         manifest = json.loads((EVAL_ROOT / "manifest.json").read_text(encoding="utf-8"))
         for config in ("N", "S", "G", "A", "R", "F"):
             with self.subTest(config=config):
                 _, _, capabilities = run.resolve_campaign_a_configuration(manifest, config)
                 overrides = " ".join(run.capability_mcp_overrides(capabilities, b7=True))
                 self.assertEqual("afyx-host-bridge.mjs" in overrides, config in {"A", "R", "F"})
-                self.assertEqual('"--authorize","afyx-forge"' in overrides, config in {"R", "F"})
+                grants = {
+                    "A": "afyx-context",
+                    "R": "afyx-forge",
+                    "F": "afyx-graph,afyx-context,afyx-forge",
+                }
+                if config in grants:
+                    self.assertIn(f'"--authorize","{grants[config]}"', overrides)
+                else:
+                    self.assertNotIn("--authorize", overrides)
         legacy = " ".join(run.capability_mcp_overrides({"ace": True, "forge": True}))
         self.assertIn("afyx-universal-runtime.mjs", legacy)
         self.assertNotIn("--authorize", legacy)

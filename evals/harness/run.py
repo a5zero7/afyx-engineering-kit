@@ -374,8 +374,16 @@ def capability_mcp_overrides(
             runtime_cli.as_posix(), "serve", "--mcp", "--install-root", repo_root.as_posix(),
             "--project-root", (work or repo_root).as_posix(), "--provider", "codex",
         ]
-        if b7 and capabilities.get("forge"):
-            args.extend(["--authorize", "afyx-forge"])
+        if b7:
+            authorized = [
+                component for flag, component in (
+                    ("graph", "afyx-graph"),
+                    ("ace", "afyx-context"),
+                    ("forge", "afyx-forge"),
+                )
+                if capabilities.get(flag)
+            ]
+            args.extend(["--authorize", ",".join(authorized)])
         toml_args = ",".join(json.dumps(arg, ensure_ascii=False) for arg in args)
         overrides.extend(["-c", f'mcp_servers.afyx_workflow={{command="node",args=[{toml_args}]}}'])
     return overrides
