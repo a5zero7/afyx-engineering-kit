@@ -180,7 +180,7 @@ Options:
                                   Recommended leaves Graph MCP opt-in.
   --ui <auto|tui|plain>           Installer terminal interface (install only)
   --provider <names>              Target AI provider host(s) (codex, antigravity, claude)
-  --provider-scope <scope>        Integration scope (global, workspace)
+  --provider-scope <scope>        Integration scope (global for Codex/Antigravity MCP; global or workspace for Claude Code MCP)
   --workspace-root <path>         Target project workspace root for local configuration
   --skills-root <path>            Explicit target directory for skill installations
   --context-runtime-root <path>   Explicit runtime root for Afyx Context Engine

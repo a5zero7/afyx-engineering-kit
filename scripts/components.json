@@ -36,7 +36,7 @@
       "capabilities": "skills;mcp",
       "host_commands": "agy;antigravity",
       "surfaces": "cli;ide",
-      "mcp_scopes": "global;workspace",
+      "mcp_scopes": "global",
       "skill_scopes": "ide-global;cli-global;workspace",
       "configuration_policy": "merge-afyx-owned-entries-only"
     },

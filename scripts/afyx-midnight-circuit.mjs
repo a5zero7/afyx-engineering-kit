@@ -416,7 +416,7 @@ export async function runMidnightCircuit({ input = process.stdin, output = proce
       step = 3;
     } else if (step === 3) {
       const scopeOptions = [{ id: 'global', label: 'Global provider scope' }];
-      if (!provider.includes('codex')) scopeOptions.push({ id: 'workspace', label: 'Workspace provider scope' });
+      if (!provider.includes('codex') && !provider.includes('antigravity')) scopeOptions.push({ id: 'workspace', label: 'Workspace provider scope' });
       const chosen = await choose({ input, output, frame: (rows, _cursor, view) => frame(2, rows, [`Preset: ${preset}`, `Components: ${selectedComponents().join(', ')}`, `Provider: ${provider.join(', ') || 'skipped'}`], '↑/↓: move  Enter: choose  Esc: back', view), options: scopeOptions, selected: Math.max(0, scopeOptions.findIndex((item) => item.id === scope)) });
       if (chosen === null) { step = 2; continue; }
       scope = chosen;

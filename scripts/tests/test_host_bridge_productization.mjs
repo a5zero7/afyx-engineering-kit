@@ -27,7 +27,7 @@ function fixture() {
 function providerOptions(fx) {
   const verified = verifyHostBridge(fx.runtimeRoot);
   return {
-    providers: ['antigravity'], scope: 'workspace', workspaceRoot: fx.workspaceRoot,
+    providers: ['antigravity'], scope: 'global', workspaceRoot: fx.workspaceRoot,
     geminiHome: join(fx.root, 'gemini'), codexHome: join(fx.root, 'codex'),
     node: process.execPath, entry: verified.entry, server: 'afyx_workflow', mode: 'workflow',
     installRoot: fx.installRoot, authorize: 'afyx-graph,afyx-context', tool: 'afyx_workflow',
@@ -79,23 +79,23 @@ test('host bridge lifecycle rejects foreign runtime and detects content drift', 
   }
 });
 
-test('workspace provider lifecycle owns only afyx_workflow and preserves foreign entries', async () => {
+test('global provider lifecycle owns only afyx_workflow without stale project-root and preserves foreign entries', async () => {
   const fx = fixture();
   try {
     mkdirSync(fx.workspaceRoot, { recursive: true });
     installHostBridge({ sourceRoot: SCRIPTS, runtimeRoot: fx.runtimeRoot, sourceRevision: 'provider-test' });
-    const config = join(fx.workspaceRoot, '.agents', 'mcp_config.json');
+    const config = join(fx.root, 'gemini', 'config', 'mcp_config.json');
     mkdirSync(dirname(config), { recursive: true });
     writeFileSync(config, JSON.stringify({ mcpServers: { foreign: { command: 'foreign-tool' } }, keep: true }), 'utf8');
 
     const applied = await runProviderLifecycle({ ...providerOptions(fx), apply: true });
-    assert.equal(applied.status, 'READY');
+    assert.equal(applied.status, 'CONFIGURED_RESTART_REQUIRED');
     const document = JSON.parse(readFileSync(config, 'utf8'));
     assert.equal(document.keep, true);
     assert.deepEqual(document.mcpServers.foreign, { command: 'foreign-tool' });
     const workflow = document.mcpServers.afyx_workflow;
     assert.ok(workflow);
-    assert.equal(workflow.args.includes('--project-root'), true);
+    assert.equal(workflow.args.includes('--project-root'), false, 'global workflow MCP must not pin a stale --project-root');
     assert.equal(workflow.args.includes('--authorize'), true);
     assert.equal(workflow.args.includes('afyx-graph,afyx-context'), true);
 
@@ -115,11 +115,11 @@ test('model arguments cannot replace trusted workflow roots, provider or authori
     mkdirSync(fx.workspaceRoot, { recursive: true });
     installHostBridge({ sourceRoot: SCRIPTS, runtimeRoot: fx.runtimeRoot });
     const applied = await runProviderLifecycle({ ...providerOptions(fx), apply: true });
-    assert.equal(applied.status, 'READY');
-    const config = JSON.parse(readFileSync(join(fx.workspaceRoot, '.agents', 'mcp_config.json'), 'utf8'));
+    assert.equal(applied.status, 'CONFIGURED_RESTART_REQUIRED');
+    const config = JSON.parse(readFileSync(join(fx.root, 'gemini', 'config', 'mcp_config.json'), 'utf8'));
     const args = config.mcpServers.afyx_workflow.args;
     assert.equal(args[args.indexOf('--provider') + 1], 'antigravity');
-    assert.equal(args[args.indexOf('--project-root') + 1], resolve(fx.workspaceRoot));
+    assert.equal(args.includes('--project-root'), false);
     assert.equal(args[args.indexOf('--install-root') + 1], resolve(fx.installRoot));
     assert.equal(args[args.indexOf('--authorize') + 1], 'afyx-graph,afyx-context');
   } finally {

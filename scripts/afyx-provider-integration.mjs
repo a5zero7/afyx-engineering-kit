@@ -34,13 +34,18 @@ function serverName(options) {
 function launchArgs(options, provider) {
   if (Array.isArray(options.args)) return options.args.map(String);
   if (options.mode === 'workflow') {
-    return [
+    const args = [
       canonicalPath(options.entry), 'serve', '--mcp',
       '--install-root', canonicalPath(options.installRoot),
-      '--project-root', canonicalPath(options.workspaceRoot),
+    ];
+    if (options.scope === 'workspace' && options.workspaceRoot) {
+      args.push('--project-root', canonicalPath(options.workspaceRoot));
+    }
+    args.push(
       '--provider', provider,
       '--authorize', options.authorize || 'afyx-graph,afyx-context',
-    ];
+    );
+    return args;
   }
   return [canonicalPath(options.entry), 'serve', '--mcp'];
 }
@@ -169,15 +174,110 @@ function restoreGuarded(file, before, lastKnown) {
   return sameBytes(snapshot(file), before);
 }
 
+function antigravityHistoricalWorkspacePaths(options) {
+  if (!options.workspaceRoot) return null;
+  const base = resolve(options.workspaceRoot);
+  return { base, config: resolve(base, '.agents', 'mcp_config.json') };
+}
+
 function antigravityPaths(options) {
   const scope = options.scope || 'global';
   if (scope === 'workspace') {
-    const base = resolve(options.workspaceRoot);
-    return { base, config: resolve(base, '.agents', 'mcp_config.json') };
+    if (options.uninstall && options.allowHistoricalWorkspaceUninstall !== false) {
+      const historical = antigravityHistoricalWorkspacePaths(options);
+      if (historical) return historical;
+    }
+    throw new Error(
+      `PROVIDER_SCOPE_UNSUPPORTED: Antigravity MCP registration only supports global scope (~/.gemini/config/mcp_config.json); workspace MCP configuration (.agents/mcp_config.json) is not discovered by Antigravity (requested scope: ${scope}).`,
+    );
   }
   if (scope !== 'global') throw new Error(`PROVIDER_SCOPE_UNSUPPORTED: ${scope}`);
   const base = resolve(options.geminiHome || resolve(homedir(), '.gemini'));
   return { base, config: resolve(base, 'config', 'mcp_config.json') };
+}
+
+export function inspectHistoricalAntigravityWorkspace(options) {
+  const server = serverName(options);
+  const paths = antigravityHistoricalWorkspacePaths(options);
+  if (!paths || !existsSync(paths.config)) {
+    return {
+      paths,
+      ownership: paths ? `${paths.config}.afyx-ownership.json` : null,
+      state: 'HISTORICAL_ABSENT',
+      owned: false,
+      actual: null,
+      hasForeignEntries: false,
+      server,
+    };
+  }
+  const ownership = `${paths.config}.afyx-ownership.json`;
+  assertSafePath(paths.base, paths.config);
+  assertSafePath(paths.base, ownership);
+  const document = parseObject(paths.config);
+  if (document.mcpServers !== undefined && (!document.mcpServers || Array.isArray(document.mcpServers) || typeof document.mcpServers !== 'object')) {
+    throw new Error(`PROVIDER_INVALID_MCP_SERVERS: ${paths.config}`);
+  }
+  const marker = parseObject(ownership);
+  const actual = document.mcpServers?.[server] ?? null;
+  const otherKeys = Object.keys(document.mcpServers || {}).filter((key) => key !== server);
+  const hasForeignEntries = otherKeys.length > 0;
+  if (!actual) {
+    return { paths, ownership, document, marker, state: 'HISTORICAL_ABSENT', owned: false, actual: null, hasForeignEntries, server };
+  }
+  const claim = marker.entries?.[server] ?? null;
+  const claimValid = claim?.provider === 'antigravity' && resolve(claim.configPath || '') === paths.config;
+  const claimed = claimValid && claimedEntryEquivalent(actual, claim.entry);
+  const isAfyx = isAfyxServerEntry(server, actual);
+  const owned = claimed || (!claim && isAfyx);
+  return {
+    paths,
+    ownership,
+    document,
+    marker,
+    state: owned ? 'HISTORICAL_OWNED' : 'HISTORICAL_FOREIGN',
+    owned,
+    actual,
+    claim,
+    hasForeignEntries,
+    server,
+  };
+}
+
+function removeHistoricalWorkspaceEntry(options, historical) {
+  if (!historical || historical.state === 'HISTORICAL_ABSENT') {
+    return { removed: false, state: 'HISTORICAL_ABSENT', detail: 'No historical workspace MCP entry found.' };
+  }
+  if (!historical.owned) {
+    return { removed: false, blocked: true, reason: 'FOREIGN_ENTRY', state: 'HISTORICAL_FOREIGN', detail: `Foreign entry '${historical.server}' in ${historical.paths.config} was preserved unchanged.` };
+  }
+  const backup = createConfigurationBackup({
+    provider: 'antigravity',
+    configPath: historical.paths.config,
+    operation: 'antigravity-historical-workspace-mcp-remove',
+  });
+  const markerBefore = snapshot(historical.ownership);
+  let markerKnown = markerBefore;
+  try {
+    delete historical.document.mcpServers[historical.server];
+    if (Object.keys(historical.document.mcpServers).length === 0) delete historical.document.mcpServers;
+    if (historical.marker.entries) {
+      delete historical.marker.entries[historical.server];
+      if (Object.keys(historical.marker.entries).length === 0) delete historical.marker.entries;
+    }
+    atomicJson(historical.paths.config, historical.document);
+    updateKnownState(backup);
+    if (historical.marker.entries) atomicJson(historical.ownership, historical.marker);
+    else rmSync(historical.ownership, { force: true });
+    markerKnown = snapshot(historical.ownership);
+    const after = inspectHistoricalAntigravityWorkspace(options);
+    if (after.state !== 'HISTORICAL_ABSENT') throw new Error('Historical workspace MCP removal read-back failed.');
+    return { removed: true, state: 'HISTORICAL_REMOVED', configPath: historical.paths.config, detail: `Removed historical AFYX-owned workspace MCP entry from ${historical.paths.config}; foreign entries preserved.` };
+  } catch (error) {
+    const rollback = rollbackConfiguration(backup, { reason: error instanceof Error ? error.message : String(error) });
+    const markerRestored = restoreGuarded(historical.ownership, markerBefore, markerKnown);
+    const restored = rollback.restored && markerRestored;
+    throw new Error(`${error instanceof Error ? error.message : String(error)}${restored ? ' (historical workspace config restored safely)' : '; historical workspace rollback incomplete'}`);
+  }
 }
 
 function expectedEntry(options, provider = 'antigravity') {
@@ -195,6 +295,7 @@ export function inspectAntigravity(options) {
     throw new Error(`PROVIDER_INVALID_MCP_SERVERS: ${paths.config}`);
   }
   const marker = parseObject(ownership);
+  let historicalWorkspace = null;
   if ((options.scope || 'global') === 'global') {
     const legacy = resolve(options.geminiHome || resolve(homedir(), '.gemini'), 'antigravity', 'mcp_config.json');
     assertSafePath(paths.base, legacy);
@@ -205,8 +306,11 @@ export function inspectAntigravity(options) {
       const isLegacyOwned = legacyMarker.entries?.[server]?.provider === 'antigravity';
       const isLegacyAfyx = isLegacyOwned || isAfyxServerEntry(server, legacyDocument.mcpServers[server]);
       if (!isLegacyAfyx) {
-        return { paths, ownership, document, marker, actual: null, expected: expectedEntry(options), claim: null, state: 'MCP_BLOCKED_LEGACY_DUPLICATE', owned: false, legacy, server };
+        return { paths, ownership, document, marker, actual: null, expected: expectedEntry(options), claim: null, state: 'MCP_BLOCKED_LEGACY_DUPLICATE', owned: false, legacy, server, historicalWorkspace: null };
       }
+    }
+    if (options.workspaceRoot) {
+      historicalWorkspace = inspectHistoricalAntigravityWorkspace(options);
     }
   }
   const actual = document.mcpServers?.[server] ?? null;
@@ -231,7 +335,7 @@ export function inspectAntigravity(options) {
       state = 'MCP_BLOCKED';
     }
   }
-  return { paths, ownership, document, marker, actual, expected, claim, state, owned, server };
+  return { paths, ownership, document, marker, actual, expected, claim, state, owned, server, historicalWorkspace };
 }
 
 function planForAntigravity(options, inspection) {
@@ -253,10 +357,29 @@ export async function integrateAntigravity(options) {
   try {
     inspection = inspectAntigravity(options);
   } catch (error) {
-    return { provider: 'antigravity', status: 'BLOCKED', changed: false, reason: 'INSPECTION_FAILED', detail: error instanceof Error ? error.message : String(error) };
+    const detail = error instanceof Error ? error.message : String(error);
+    if (detail.startsWith('PROVIDER_SCOPE_UNSUPPORTED')) {
+      return { provider: 'antigravity', scope: options.scope, status: 'INCOMPATIBLE', changed: false, reason: 'PROVIDER_SCOPE_UNSUPPORTED', detail };
+    }
+    return { provider: 'antigravity', status: 'BLOCKED', changed: false, reason: 'INSPECTION_FAILED', detail };
   }
   const plan = planForAntigravity(options, inspection);
-  const result = { ...plan, status: 'CONFIGURED_RESTART_REQUIRED', changed: false, reason: '', detail: '' };
+  const historicalSummary = inspection.historicalWorkspace && inspection.historicalWorkspace.state !== 'HISTORICAL_ABSENT'
+    ? {
+      configPath: inspection.historicalWorkspace.paths.config,
+      state: inspection.historicalWorkspace.state,
+      owned: inspection.historicalWorkspace.owned,
+      hasForeignEntries: inspection.historicalWorkspace.hasForeignEntries,
+    }
+    : undefined;
+  const result = {
+    ...plan,
+    ...(historicalSummary ? { historicalWorkspace: historicalSummary } : {}),
+    status: 'CONFIGURED_RESTART_REQUIRED',
+    changed: false,
+    reason: '',
+    detail: '',
+  };
   if (inspection.state === 'MCP_BLOCKED' || inspection.state === 'MCP_BLOCKED_LEGACY_DUPLICATE') {
     const legacy = inspection.state === 'MCP_BLOCKED_LEGACY_DUPLICATE';
     return { ...result, status: 'BLOCKED', reason: legacy ? 'LEGACY_DUPLICATE' : 'FOREIGN_ENTRY', detail: legacy ? `Legacy afyx_graph entry at ${inspection.legacy} was preserved; resolve it explicitly before unified registration.` : 'Existing unowned afyx_graph entry was preserved.' };
@@ -270,9 +393,18 @@ export async function integrateAntigravity(options) {
     };
   }
   if (options.uninstall) {
-    if (inspection.state === 'MCP_NOT_CONFIGURED') return { ...result, status: 'UNAVAILABLE', detail: 'No provider entry is configured.' };
-    if (!inspection.owned) return { ...result, status: 'BLOCKED', reason: 'UNOWNED_ENTRY', detail: 'Matching but unowned entry was preserved.' };
+    const hasHistoricalOwned = (options.scope || 'global') === 'global' && inspection.historicalWorkspace?.state === 'HISTORICAL_OWNED';
+    if (inspection.state === 'MCP_NOT_CONFIGURED' && !hasHistoricalOwned) return { ...result, status: 'UNAVAILABLE', detail: 'No provider entry is configured.' };
+    if (inspection.state !== 'MCP_NOT_CONFIGURED' && !inspection.owned) return { ...result, status: 'BLOCKED', reason: 'UNOWNED_ENTRY', detail: 'Matching but unowned entry was preserved.' };
     if (!options.apply) return { ...result, status: 'CONFIGURED', detail: 'Removal is planned but not consented.' };
+    if (inspection.state === 'MCP_NOT_CONFIGURED' && hasHistoricalOwned) {
+      try {
+        const cleaned = removeHistoricalWorkspaceEntry(options, inspection.historicalWorkspace);
+        return { ...result, status: 'UNAVAILABLE', changed: cleaned.removed, detail: cleaned.detail };
+      } catch (error) {
+        return { ...result, status: 'BLOCKED', changed: false, reason: 'HISTORICAL_CLEANUP_FAILED', detail: error instanceof Error ? error.message : String(error) };
+      }
+    }
     const backup = createConfigurationBackup({
       provider: 'antigravity',
       configPath: inspection.paths.config,
@@ -305,6 +437,9 @@ export async function integrateAntigravity(options) {
               atomicJson(legacyOwnership, legacyMarker);
             }
           }
+        }
+        if (hasHistoricalOwned) {
+          removeHistoricalWorkspaceEntry(options, inspection.historicalWorkspace);
         }
       }
       updateKnownState(backup);
@@ -394,9 +529,44 @@ export async function integrateAntigravity(options) {
       };
     }
   }
-  result.status = options.scope === 'global' ? 'CONFIGURED_RESTART_REQUIRED' : 'READY';
-  result.detail = `${probe.detail} Provider configuration read-back matched the absolute runtime entry.`;
+  if (options.apply && options.migrateHistoricalWorkspace && inspection.historicalWorkspace) {
+    if (inspection.historicalWorkspace.state === 'HISTORICAL_FOREIGN') {
+      return {
+        ...result,
+        status: 'BLOCKED',
+        reason: 'FOREIGN_ENTRY',
+        detail: `Historical workspace entry at ${inspection.historicalWorkspace.paths.config} is not AFYX-owned and was preserved unchanged.`,
+      };
+    }
+    if (inspection.historicalWorkspace.state === 'HISTORICAL_OWNED') {
+      try {
+        const cleaned = removeHistoricalWorkspaceEntry(options, inspection.historicalWorkspace);
+        if (cleaned.removed) {
+          result.changed = true;
+          result.historicalWorkspace = { ...historicalSummary, state: 'HISTORICAL_MIGRATED' };
+        }
+      } catch (error) {
+        return { ...result, status: 'BLOCKED', reason: 'HISTORICAL_MIGRATION_FAILED', detail: error instanceof Error ? error.message : String(error) };
+      }
+    }
+  }
+  result.status = 'CONFIGURED_RESTART_REQUIRED';
+  const historicalNote = result.historicalWorkspace?.state === 'HISTORICAL_OWNED'
+    ? ` Historical AFYX-owned workspace MCP entry detected at ${result.historicalWorkspace.configPath}; run with --migrate-historical-workspace or uninstall to clean it safely.`
+    : result.historicalWorkspace?.state === 'HISTORICAL_MIGRATED'
+      ? ` Historical AFYX-owned workspace MCP entry at ${result.historicalWorkspace.configPath} migrated safely.`
+      : '';
+  result.detail = `${probe.detail} Provider configuration read-back matched the absolute runtime entry.${historicalNote}`;
   return result;
+}
+
+export async function migrateHistoricalAntigravityWorkspace(options) {
+  return integrateAntigravity({
+    ...options,
+    scope: 'global',
+    apply: Boolean(options.apply),
+    migrateHistoricalWorkspace: true,
+  });
 }
 
 async function integrateCodexAdapter(options) {
@@ -480,7 +650,7 @@ function defineProviderAdapter(provider, scopes, execute) {
 
 export const providerAdapters = Object.freeze({
   codex: defineProviderAdapter('codex', ['global'], integrateCodexAdapter),
-  antigravity: defineProviderAdapter('antigravity', ['global', 'workspace'], integrateAntigravity),
+  antigravity: defineProviderAdapter('antigravity', ['global'], integrateAntigravity),
   claude: defineProviderAdapter('claude', ['global', 'workspace'], integrateClaude),
 });
 
@@ -490,14 +660,19 @@ export function getProviderAdapter(provider) {
 
 function unsupportedScopeResult(provider, scope) {
   return {
-    provider, status: 'INCOMPATIBLE', changed: false, reason: 'SCOPE_UNSUPPORTED',
+    provider,
+    status: 'INCOMPATIBLE',
+    changed: false,
+    reason: provider === 'antigravity' ? 'PROVIDER_SCOPE_UNSUPPORTED' : 'SCOPE_UNSUPPORTED',
     detail: provider === 'codex'
       ? 'Codex adapter currently supports its user-scoped native CLI configuration.'
-      : `Provider ${provider} does not support the requested ${scope} scope.`,
+      : provider === 'antigravity'
+        ? `Antigravity direct MCP registration only supports global scope (~/.gemini/config/mcp_config.json); workspace MCP configuration (.agents/mcp_config.json) is not discovered by Antigravity (requested scope: ${scope}).`
+        : `Provider ${provider} does not support the requested ${scope} scope.`,
   };
 }
 
-function prevalidateProviderSelection(selected, scope) {
+function prevalidateProviderSelection(selected, scope, options = {}) {
   return selected.map((provider) => {
     const adapter = getProviderAdapter(provider);
     if (!adapter) {
@@ -507,7 +682,8 @@ function prevalidateProviderSelection(selected, scope) {
         failure: { provider, status: 'BLOCKED', changed: false, reason: 'UNKNOWN_PROVIDER', detail: `Unknown provider: ${provider}` },
       };
     }
-    if (!adapter.capabilities.scopes.includes(scope)) {
+    const allowHistoricalAntigravityUninstall = provider === 'antigravity' && scope === 'workspace' && Boolean(options?.uninstall);
+    if (!adapter.capabilities.scopes.includes(scope) && !allowHistoricalAntigravityUninstall) {
       return { provider, adapter, failure: unsupportedScopeResult(provider, scope) };
     }
     return { provider, adapter, failure: null };
@@ -535,7 +711,11 @@ function providerRecoveryFiles(provider, options) {
   }
   if (provider === 'antigravity') {
     const inspection = inspectAntigravity(options);
-    return { base: inspection.paths.base, files: [inspection.paths.config, inspection.ownership] };
+    const files = [inspection.paths.config, inspection.ownership];
+    if (inspection.historicalWorkspace?.paths?.config && (options.uninstall || options.migrateHistoricalWorkspace)) {
+      files.push(inspection.historicalWorkspace.paths.config, inspection.historicalWorkspace.ownership);
+    }
+    return { base: inspection.paths.base, files };
   }
   if (provider === 'claude') {
     const inspection = inspectClaude(options);
@@ -657,7 +837,7 @@ async function runTransactionalLifecycle(options, selection) {
 
 export async function runProviderLifecycle(options) {
   const selected = [...new Set(options.providers?.length ? options.providers : ['codex'])];
-  const selection = prevalidateProviderSelection(selected, options.scope);
+  const selection = prevalidateProviderSelection(selected, options.scope, options);
   if (options.apply && selection.some((item) => item.failure)) {
     return {
       providers: selection.map((item) => item.failure ?? prevalidationBlockedResult(item.provider)),
@@ -706,6 +886,7 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === resolve(process.argv[1
     apply: process.argv.includes('--apply'),
     verify: process.argv.includes('--verify'),
     uninstall: process.argv.includes('--uninstall'),
+    migrateHistoricalWorkspace: process.argv.includes('--migrate-historical-workspace'),
   };
   runProviderLifecycle(options).then((result) => {
     console.log(JSON.stringify(result));

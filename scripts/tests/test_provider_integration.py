@@ -93,7 +93,7 @@ console.log(JSON.stringify({{
             payload["scopes"],
             {
                 "codex": ["global"],
-                "antigravity": ["global", "workspace"],
+                "antigravity": ["global"],
                 "claude": ["global", "workspace"],
             },
         )
@@ -123,7 +123,7 @@ console.log(JSON.stringify({{first,declared,runtime,deterministic:JSON.stringify
         self.assertEqual(discovery["provider"]["id"], "antigravity")
         self.assertEqual(discovery["host"]["version"], "1.2.3")
         self.assertEqual(discovery["surfaces"], ["cli", "ide"])
-        self.assertEqual(discovery["scopes"]["mcp"], ["global", "workspace"])
+        self.assertEqual(discovery["scopes"]["mcp"], ["global"])
         self.assertEqual(
             discovery["scopes"]["skills"],
             ["ide-global", "cli-global", "workspace"],
@@ -265,12 +265,14 @@ console.log(JSON.stringify({{planned,unknown}}));"""
         )
         self.assertEqual(blocked["status"], "BLOCKED")
         by_provider = {item["provider"]: item for item in blocked["providers"]}
+        self.assertEqual(by_provider["antigravity"]["status"], "INCOMPATIBLE")
         self.assertEqual(
-            by_provider["antigravity"]["reason"], "PREVALIDATION_FAILED"
+            by_provider["antigravity"]["reason"], "PROVIDER_SCOPE_UNSUPPORTED"
         )
         self.assertEqual(by_provider["codex"]["status"], "INCOMPATIBLE")
         self.assertEqual(by_provider["codex"]["reason"], "SCOPE_UNSUPPORTED")
         self.assertFalse(self.workspace.exists())
+        self.assertFalse(self.gemini.exists())
 
     def test_unknown_provider_blocks_owned_uninstall_without_mutation(self) -> None:
         self.run_helper("--scope", "global", "--apply")
@@ -354,21 +356,19 @@ console.log(JSON.stringify({{planned,unknown}}));"""
             json.loads(config.read_text(encoding="utf-8")).get("mcpServers", {}),
         )
 
-    def test_workspace_preserves_unrelated_config_and_uninstalls_only_owned_entry(self) -> None:
+    def test_workspace_mcp_registration_is_rejected_and_preserves_unrelated_config(self) -> None:
         config = self.workspace / ".agents/mcp_config.json"
         config.parent.mkdir(parents=True)
         original = {"theme": "preserve", "mcpServers": {"other": {"command": "other"}}}
         config.write_text(json.dumps(original), encoding="utf-8")
 
-        applied = self.run_helper("--scope", "workspace", "--apply")
-        self.assertEqual(applied["status"], "READY")
-        after = json.loads(config.read_text(encoding="utf-8"))
-        self.assertEqual(after["theme"], "preserve")
-        self.assertEqual(after["mcpServers"]["other"], {"command": "other"})
-
-        removed = self.run_helper("--scope", "workspace", "--apply", "--uninstall")
-        self.assertTrue(removed["providers"][0]["changed"])
+        rejected = self.run_helper("--scope", "workspace", "--apply", expected=2)
+        self.assertEqual(rejected["status"], "BLOCKED")
+        self.assertEqual(rejected["providers"][0]["status"], "INCOMPATIBLE")
+        self.assertEqual(rejected["providers"][0]["reason"], "PROVIDER_SCOPE_UNSUPPORTED")
+        self.assertFalse(rejected["providers"][0]["changed"])
         self.assertEqual(json.loads(config.read_text(encoding="utf-8")), original)
+        self.assertFalse(self.gemini.exists())
 
     def test_foreign_and_matching_unowned_entries_are_never_replaced_or_removed(self) -> None:
         config = self.gemini / "config/mcp_config.json"
@@ -389,12 +389,12 @@ console.log(JSON.stringify({{planned,unknown}}));"""
         self.assertEqual(json.loads(config.read_text(encoding="utf-8")), matching)
 
     def test_owned_stale_entry_updates_but_tampered_claim_fails_closed(self) -> None:
-        self.run_helper("--scope", "workspace", "--apply")
-        config = self.workspace / ".agents/mcp_config.json"
+        self.run_helper("--scope", "global", "--apply")
+        config = self.gemini / "config/mcp_config.json"
         document = json.loads(config.read_text(encoding="utf-8"))
         document["mcpServers"]["afyx_graph"]["args"][0] = str(self.base / "old/afyx-graph.js")
         config.write_text(json.dumps(document), encoding="utf-8")
-        blocked = self.run_helper("--scope", "workspace", "--apply", expected=2)
+        blocked = self.run_helper("--scope", "global", "--apply", expected=2)
         self.assertEqual(blocked["providers"][0]["reason"], "FOREIGN_ENTRY")
 
     def test_invalid_json_fails_closed_without_rewrite(self) -> None:

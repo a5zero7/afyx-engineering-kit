@@ -170,6 +170,21 @@ switch ($freshness.State) {
     default { Write-Line 'INFO' "Afyx Graph index: $($freshness.State)" $freshness.Detail }
 }
 
+$historicalWorkspaceMcp = Join-Path $project.project_root '.agents\mcp_config.json'
+if (Test-Path -LiteralPath $historicalWorkspaceMcp -PathType Leaf) {
+    try {
+        $historicalDoc = Get-Content -Raw -LiteralPath $historicalWorkspaceMcp | ConvertFrom-Json
+        if ($historicalDoc -and $historicalDoc.PSObject.Properties['mcpServers'] -and $historicalDoc.mcpServers) {
+            $afyxKeys = @('afyx_graph', 'afyx_workflow' | Where-Object { $historicalDoc.mcpServers.PSObject.Properties[$_] })
+            if ($afyxKeys.Count -gt 0) {
+                Write-Line 'WARN' 'Antigravity workspace MCP' "historical .agents/mcp_config.json contains $($afyxKeys -join ', '); Antigravity only loads global ~/.gemini/config/mcp_config.json. Migrate or uninstall owned workspace entries explicitly."
+            }
+        }
+    } catch {
+        Write-Line 'WARN' 'Antigravity workspace MCP' 'historical .agents/mcp_config.json could not be parsed (read-only)'
+    }
+}
+
 Write-Host ''
 if ($script:Failures -gt 0) { Write-Host 'NOT READY'; exit 1 }
 if ($script:Warnings -gt 0) { Write-Host 'READY (with warnings)'; exit 0 }

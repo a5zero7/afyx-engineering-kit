@@ -10,9 +10,10 @@
  * 3. JSON-RPC 2.0 Stdio MCP Server: node scripts/afyx-host-bridge.mjs serve --mcp
  */
 
-import { existsSync, readFileSync, realpathSync } from 'node:fs';
+import { existsSync, lstatSync, readFileSync, realpathSync } from 'node:fs';
 import { createHash } from 'node:crypto';
-import { resolve } from 'node:path';
+import { homedir, tmpdir } from 'node:os';
+import { dirname, isAbsolute, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import readline from 'node:readline';
 
@@ -90,6 +91,76 @@ export async function invokeHostWorkflow({
   };
 }
 
+function parseFileUri(uri) {
+  if (typeof uri !== 'string' || !uri.startsWith('file://')) return null;
+  try {
+    return fileURLToPath(uri);
+  } catch {
+    return null;
+  }
+}
+
+function normalizePathForComparison(value) {
+  const resolved = resolve(value);
+  return process.platform === 'win32' ? resolved.toLowerCase() : resolved;
+}
+
+function isWithinPath(parent, child) {
+  const rel = relative(resolve(parent), resolve(child));
+  return rel === '' || (!rel.startsWith('..') && !isAbsolute(rel));
+}
+
+function isUnscopedHostDirectory(candidate, installRoot = null) {
+  const resolved = resolve(candidate);
+  const norm = normalizePathForComparison(resolved);
+  if (dirname(resolved) === resolved) return true;
+  const blocked = [homedir(), tmpdir()];
+  if (process.platform === 'win32') {
+    const winDir = process.env.SystemRoot || process.env.WINDIR || 'C:\\Windows';
+    blocked.push(winDir, resolve(winDir, 'System32'));
+  }
+  for (const dir of blocked) {
+    if (!dir) continue;
+    if (norm === normalizePathForComparison(dir)) return true;
+  }
+  if (installRoot && isWithinPath(installRoot, resolved)) return true;
+  return false;
+}
+
+export function resolveMcpProjectRoot({
+  pinnedProjectRoot = null,
+  clientRoot = null,
+  envProjectRoot = null,
+  cwd = process.cwd(),
+  installRoot = null,
+} = {}) {
+  if (pinnedProjectRoot) {
+    const resolved = resolve(pinnedProjectRoot);
+    if (!existsSync(resolved) || !lstatSync(resolved).isDirectory()) {
+      throw new Error(`PROJECT_CONTEXT_REQUIRED: Pinned project root does not exist or is not a directory: ${resolved}`);
+    }
+    return resolved;
+  }
+  const candidates = [
+    { source: 'mcp-client-root', value: clientRoot },
+    { source: 'env', value: envProjectRoot },
+    { source: 'cwd', value: cwd },
+  ];
+  for (const candidate of candidates) {
+    if (typeof candidate.value !== 'string' || !candidate.value.trim()) continue;
+    const resolved = resolve(candidate.value);
+    if (!existsSync(resolved)) continue;
+    let stat;
+    try { stat = lstatSync(resolved); } catch { continue; }
+    if (!stat.isDirectory()) continue;
+    if (candidate.source === 'cwd' && isUnscopedHostDirectory(resolved, installRoot)) {
+      continue;
+    }
+    return resolved;
+  }
+  throw new Error('PROJECT_CONTEXT_REQUIRED: Global MCP server cannot determine an active project workspace; launch with an active project working directory, MCP rootUri, or AFYX_PROJECT_ROOT.');
+}
+
 /**
  * Runs a lightweight stdio MCP server for host environments that interact via MCP.
  *
@@ -99,7 +170,8 @@ export async function invokeHostWorkflow({
  * @param {string} [serverOptions.provider]
  */
 export function serveHostMcpBridge(serverOptions = {}) {
-  const optional = createOptionalCapabilityHost({ projectRoot: serverOptions.projectRoot,
+  let clientWorkspaceRoot = null;
+  const optional = createOptionalCapabilityHost({ projectRoot: serverOptions.projectRoot || undefined,
     browser: serverOptions.trustedCapabilities?.browser,
     document: serverOptions.trustedCapabilities?.document });
   const rl = readline.createInterface({
@@ -150,6 +222,10 @@ export function serveHostMcpBridge(serverOptions = {}) {
 
     switch (method) {
       case 'initialize': {
+        const rootFromInit = parseFileUri(params?.rootUri)
+          || parseFileUri(params?.workspaceFolders?.[0]?.uri)
+          || (typeof params?.rootPath === 'string' && params.rootPath.trim() ? params.rootPath.trim() : null);
+        if (rootFromInit) clientWorkspaceRoot = resolve(rootFromInit);
         sendResponse({
           jsonrpc: '2.0',
           id,
@@ -248,9 +324,17 @@ export function serveHostMcpBridge(serverOptions = {}) {
 
         try {
           const args = params.arguments || {};
+          const effectiveProjectRoot = resolveMcpProjectRoot({
+            pinnedProjectRoot: serverOptions.projectRoot,
+            clientRoot: clientWorkspaceRoot,
+            envProjectRoot: (serverOptions.environment ?? process.env)?.AFYX_PROJECT_ROOT,
+            cwd: process.cwd(),
+            installRoot: serverOptions.installRoot,
+          });
           const result = await invokeHostWorkflow({
             task: args.task,
             ...serverOptions,
+            projectRoot: effectiveProjectRoot,
           });
 
           sendResponse({

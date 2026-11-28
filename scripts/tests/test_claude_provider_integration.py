@@ -387,7 +387,7 @@ console.log(JSON.stringify({{caller,filesystem,runtime}}));"""
         )
         by_provider = {item["provider"]: item for item in blocked["providers"]}
         self.assertEqual(by_provider["codex"]["reason"], "SCOPE_UNSUPPORTED")
-        self.assertEqual(by_provider["antigravity"]["reason"], "PREVALIDATION_FAILED")
+        self.assertEqual(by_provider["antigravity"]["reason"], "PROVIDER_SCOPE_UNSUPPORTED")
         self.assertEqual(by_provider["claude"]["reason"], "PREVALIDATION_FAILED")
         self.assertFalse((self.workspace / ".mcp.json").exists())
         self.assertFalse((self.workspace / ".agents").exists())

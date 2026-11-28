@@ -221,9 +221,9 @@ if ($wizardMode) {
             if (-not $Provider.Count) { $SkipProviderConfiguration = $true }
         }
         if (@($Provider | Where-Object { $_ -in @('antigravity', 'claude') }).Count) {
-            $workspaceCompatible = 'codex' -notin $Provider
+            $workspaceCompatible = ('codex' -notin $Provider) -and ('antigravity' -notin $Provider)
             $scopeOptions = @(
-                [pscustomobject]@{ Id = 'workspace'; Label = 'Workspace'; Detail = $(if ($workspaceCompatible) { 'project-local provider skills and MCP configuration' } else { 'unavailable when Codex is selected; Codex MCP is user-scoped' }); Enabled = $workspaceCompatible },
+                [pscustomobject]@{ Id = 'workspace'; Label = 'Workspace'; Detail = $(if ($workspaceCompatible) { 'project-local provider skills and MCP configuration' } else { 'unavailable when Codex or Antigravity is selected; their MCP registration is global-scoped' }); Enabled = $workspaceCompatible },
                 [pscustomobject]@{ Id = 'global'; Label = 'Global'; Detail = 'user-level configuration for every selected provider'; Enabled = $true }
             )
             $ProviderScope = Read-AfyxSingleChoice -Prompt 'Choose compatible provider scope' -Options $scopeOptions -DefaultId $(if ($workspaceCompatible) { 'workspace' } else { 'global' }) -Terminal $terminal
@@ -568,7 +568,7 @@ if ($PlanJson -or $ExpectedPlan) {
     $configurationPaths = @()
     if (-not $SkipProviderConfiguration) {
         if ('codex' -in $Provider) { $configurationPaths += (Join-Path $codexHome 'config.toml') }
-        if ('antigravity' -in $Provider) { $configurationPaths += $(if ($ProviderScope -eq 'workspace') { Join-Path $WorkspaceRoot '.agents\mcp_config.json' } else { Join-Path $GeminiHome 'config\mcp_config.json' }) }
+        if ('antigravity' -in $Provider -and $ProviderScope -eq 'global') { $configurationPaths += (Join-Path $GeminiHome 'config\mcp_config.json') }
         if ('claude' -in $Provider) { $configurationPaths += $(if ($ProviderScope -eq 'workspace') { Join-Path $WorkspaceRoot '.mcp.json' } else { Join-Path $(if ($ClaudeConfigDir) { $ClaudeConfigDir } else { $env:USERPROFILE }) '.claude.json' }) }
     }
     $planInput = [ordered]@{ preset = $Preset; providers = ($Provider -join ','); scope = $ProviderScope
@@ -592,6 +592,7 @@ if ($PlanJson -or $ExpectedPlan) {
     if (-not $SkipProviderConfiguration) {
         if ('codex' -in $Provider -and -not ($codexCommandDetected -or $vscodeExtensionDetected)) { $planInput.blockers += 'Selected Codex host is unavailable.' }
         if ('antigravity' -in $Provider -and -not ($antigravityCommandDetected -or $antigravityIdeDetected)) { $planInput.blockers += 'Selected Antigravity host is unavailable.' }
+        if ('antigravity' -in $Provider -and $ProviderScope -eq 'workspace' -and -not $SkipGraphMcp) { $planInput.blockers += 'PROVIDER_SCOPE_UNSUPPORTED: Antigravity MCP registration only supports global scope (~/.gemini/config/mcp_config.json).' }
         if ('claude' -in $Provider -and -not ($claudeCommandDetected -or $claudeVsCodeDetected)) { $planInput.blockers += 'Selected Claude Code host is unavailable.' }
     }
     $previousOutputEncoding = $OutputEncoding
@@ -707,13 +708,14 @@ foreach ($providerId in $Provider) {
         elseif ($providerId -eq 'antigravity') { [bool]$antigravityCommandDetected }
         else { $claudeAvailabilityState -ne 'UNAVAILABLE' }
     $configPath = if ($providerId -eq 'codex') { Join-Path $codexHome 'config.toml' }
-        elseif ($providerId -eq 'antigravity' -and $ProviderScope -eq 'workspace') { Join-Path $WorkspaceRoot '.agents\mcp_config.json' }
+        elseif ($providerId -eq 'antigravity' -and $ProviderScope -eq 'workspace') { 'UNSUPPORTED (Antigravity MCP requires global ~/.gemini/config/mcp_config.json)' }
         elseif ($providerId -eq 'antigravity') { Join-Path $GeminiHome 'config\mcp_config.json' }
         elseif ($ProviderScope -eq 'workspace') { Join-Path $WorkspaceRoot '.mcp.json' }
         elseif ($ClaudeConfigDir) { Join-Path $ClaudeConfigDir '.claude.json' }
         else { Join-Path $env:USERPROFILE '.claude.json' }
     $effectiveScope = if ($providerId -eq 'codex') { 'global' } else { $ProviderScope }
-    Write-AfyxStatus -Status $(if ($detected) { 'PLANNED' } else { 'BLOCKED' }) -Name $providerRecord.name -Detail "detected=$detected; scope=$effectiveScope; capabilities=$($providerRecord.capabilities); planned-config=$configPath" -Terminal $terminal
+    $providerPlanStatus = if (-not $detected -or ($providerId -eq 'antigravity' -and $ProviderScope -eq 'workspace' -and -not $SkipGraphMcp)) { 'BLOCKED' } else { 'PLANNED' }
+    Write-AfyxStatus -Status $providerPlanStatus -Name $providerRecord.name -Detail "detected=$detected; scope=$effectiveScope; capabilities=$($providerRecord.capabilities); planned-config=$configPath" -Terminal $terminal
     if ($providerId -eq 'antigravity') {
         $plannedSkills = if ($ProviderScope -eq 'workspace') { Join-Path $WorkspaceRoot '.agents\skills' }
             else { @((Join-Path $GeminiHome 'config\skills'), (Join-Path $GeminiHome 'antigravity-cli\skills')) -join ';' }
@@ -753,6 +755,9 @@ function Get-AfyxWorkflowProviderArguments([string]$Entry, [string[]]$TargetProv
     elseif ($claudeVsCodeDetected) { $arguments += @('--claude-extension') }
     if ($ClaudeConfigDir) { $arguments += @('--claude-config-dir', $ClaudeConfigDir) }
     return $arguments
+}
+if (-not $ValidateOnly -and -not $SkipProviderConfiguration -and -not $SkipGraphMcp -and 'antigravity' -in $Provider -and $ProviderScope -eq 'workspace') {
+    throw 'PROVIDER_SCOPE_UNSUPPORTED: Antigravity MCP registration only supports global scope (~/.gemini/config/mcp_config.json); workspace MCP (.agents/mcp_config.json) is not discovered by Antigravity. Use -ProviderScope global for Antigravity MCP, or -SkipGraphMcp for workspace-only skills.'
 }
 if (-not $ValidateOnly -and $providerMcpRequested -and $nodeCommand -and ('codex' -notin $Provider -or $codexCliDetected)) {
     $preflightArguments = Get-AfyxProviderArguments $plannedProviderEntry
@@ -1125,7 +1130,7 @@ if ($shouldInstallHostBridge) {
         if ($bridgeResult.changed) { $changesApplied = $true }
     }
     $workflowProviders = @($Provider | Where-Object {
-        ($_ -eq 'antigravity') -or
+        ($_ -eq 'antigravity' -and $ProviderScope -eq 'global') -or
         ($_ -eq 'claude') -or
         ($_ -eq 'codex' -and $ProviderScope -eq 'global')
     })

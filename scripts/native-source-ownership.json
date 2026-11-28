@@ -2769,7 +2769,7 @@
     {
       "path": "install.sh",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "bb5acb653e00536b542a811054b6c379cd6931ed1362ef83f1751c119b149750",
+      "reviewedSha256": "6113dae8e68245ff382fbc3b59bceda7e89b3c129a2843809a511d6899df7fdb",
       "evidence": "AFYX POSIX kit installer with explicit platform, component, and provider skill-root lifecycle boundaries (AFYX-361, AFYX-362)."
     },
     {
@@ -2883,7 +2883,7 @@
     {
       "path": "scripts/afyx-host-bridge.mjs",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "b3f98f5a8a848160a1021aacbcbb767c44302ba3c33ff1b1dc4b2cfa538d8abe",
+      "reviewedSha256": "4b5bd77bc529355554f46f7c852241c25c2c1746479dd711494e1d40d09e5dba",
       "evidence": "MB18.3 AFYX-190/AFYX-105: reviewed single-tool capability discovery metadata, informative JSON-RPC -32601 tool-name hints without path disclosure, and bounded --browser-session-timeout-ms CLI validation."
     },
     {
@@ -2937,7 +2937,7 @@
     {
       "path": "scripts/afyx-midnight-circuit.mjs",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "0cece5be662bf54c17e1da0cb03984abd1f2c9574dcd67a81eabe37b7568e1f2",
+      "reviewedSha256": "76c29f228329a5688cfc1a360c6814b52328cfacda5c3c8ab96f88919692996d",
       "evidence": "MB12 native-source review retained. MB14 AFYX-328 technical delta review: six existing pre-planning callbacks now forward keyboard focus and provider scroll offsets to the existing renderer; no new UI architecture, dependency, or upstream implementation. Regression confirms focus, visible row movement, safe cancellation and zero planning; 33 focused UI/inventory tests pass. Evidence AFYX-MB14-20261116; legal clearance remains separate."
     },
     {
@@ -2973,7 +2973,7 @@
     {
       "path": "scripts/afyx-npm-installer.mjs",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "eed9ee02b4b00f735c6e6ab0631f30e5f662bf8dc2a74934111962bf2eab6313",
+      "reviewedSha256": "17a5d1b4794a54655540c7eb4944924660fd9de276728ae3ae3152d099ef36b6",
       "evidence": "Installer UX v2 with synchronized universal capability summaries, help text, and version 0.1.0-alpha.12 (AFYX-77)."
     },
     {
@@ -2997,7 +2997,7 @@
     {
       "path": "scripts/afyx-provider-integration.mjs",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "9d51bb38ab96310749ee4f3253b419e9ce887d10f9c9344ce953b7fce402d57b",
+      "reviewedSha256": "365d1ffa55bca76f241f5211414871cd7599c3b5ddda8c53159753c564a653ef",
       "evidence": "AFYX native source: authored from AFYX functional requirements; verified clean room implementation with zero third-party code import. AFYX-77: bounded installer maintenance authored against existing AFYX contracts. POSTV1-CI-AND-TRACKD-CERTIFICATION: koreksi AFYX berdasarkan log CI dan kontrak lifecycle native."
     },
     {
@@ -3189,7 +3189,7 @@
     {
       "path": "verify.sh",
       "classification": "AFYX_NATIVE_IMPLEMENTATION",
-      "reviewedSha256": "83e1e95fdf467fc05d16225f49a7a39f0a66f511dde05ed0ad292db6d9b418e0",
+      "reviewedSha256": "ac5666cfc7005ef84aa4325d77972f0ce93290bf7be35b4cdd5255c36b754bd4",
       "evidence": "AFYX post-v1 audit remediation: AFYX-owned installer and lifecycle implementation maintained in this repository."
     },
     {

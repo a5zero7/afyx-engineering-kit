@@ -433,26 +433,24 @@ describe('AFYX Native Provider MCP Lifecycle & Universal Interoperability Suite'
     assert.equal(finalGlobal.mcpServers.afyx_graph, undefined, 'afyx_graph must be removed');
     assert.ok(finalGlobal.mcpServers.user_foreign_tool, 'Foreign tool must remain');
 
-    // 8. Workspace Scope Handling
+    // 8. Workspace Scope Handling: Antigravity MCP is global-only; workspace must fail closed
     const wsOptions = {
       scope: 'workspace',
       workspaceRoot: isolatedWorkspace,
+      geminiHome: isolatedGeminiHome,
       node: process.execPath,
       entry: GRAPH_ENTRY,
       apply: true,
     };
     const wsApply = await integrateAntigravity(wsOptions);
-    assert.equal(wsApply.status, 'READY');
-    assert.equal(wsApply.changed, true);
+    assert.equal(wsApply.status, 'INCOMPATIBLE');
+    assert.equal(wsApply.reason, 'PROVIDER_SCOPE_UNSUPPORTED');
+    assert.equal(wsApply.changed, false);
 
     const wsConfigPath = join(isolatedWorkspace, '.agents', 'mcp_config.json');
-    assert.ok(existsSync(wsConfigPath), 'Workspace .agents/mcp_config.json must exist');
-    const wsConfig = JSON.parse(readFileSync(wsConfigPath, 'utf8'));
-    assert.ok(wsConfig.mcpServers.afyx_graph);
-
-    const wsUninstall = await integrateAntigravity({ ...wsOptions, uninstall: true });
-    assert.equal(wsUninstall.status, 'UNAVAILABLE');
-    assert.equal(wsUninstall.changed, true);
+    assert.equal(existsSync(wsConfigPath), false, 'Unsupported workspace MCP must not create .agents/mcp_config.json');
+    const globalAfterWsReject = JSON.parse(readFileSync(globalConfigPath, 'utf8'));
+    assert.equal(globalAfterWsReject.mcpServers.afyx_graph, undefined, 'Must not silently redirect workspace MCP into global config');
   });
 
   // ==========================================

@@ -166,19 +166,46 @@ host detection never bypasses CLI requirements for supported MCP registration.
 ## Provider-aware onboarding
 
 Codex remains the default provider. Provider adapters are not Kit components, and
-shared runtimes are installed once. PowerShell supports Codex at global/user scope,
-Antigravity at global or workspace scope, and Claude Code at user/global or
-project/workspace scope through the existing adapter. Any selection containing
-Codex must use `global`, because Codex MCP configuration is user-scoped:
+shared runtimes are installed once. MCP registration scopes and skill scopes are
+governed separately by each host's verified discovery contract:
+
+| Provider | Supported MCP Scope | MCP Config Path | Supported Skill Scopes | Skill Root(s) |
+|---|---|---|---|---|
+| **Codex** | `global` only | `~/.codex/config.toml` | `global`, `workspace` | `~/.agents/skills`, `~/.codex/skills` |
+| **Antigravity** | `global` only | `~/.gemini/config/mcp_config.json` | `global`, `workspace` (skills-only) | Global: `~/.gemini/config/skills/` (plus compatibility roots); Workspace skills-only: `<workspace>/.agents/skills/` |
+| **Claude Code** | `global`, `workspace` | Global: `~/.claude.json`; Workspace: `<workspace>/.mcp.json` | `global`, `workspace` | Global: `~/.claude/skills`; Workspace: `<workspace>/.claude/skills` |
+
+Any MCP selection containing Codex or Antigravity must use `global`. Requesting
+Antigravity MCP at `workspace` scope is rejected fail-closed with
+`PROVIDER_SCOPE_UNSUPPORTED` before any partial installation or configuration
+mutation (AFYX never silently redirects an explicit `workspace` request into
+global scope). Workspace-only skill installation for Antigravity remains
+supported when MCP registration is skipped (`-SkipGraphMcp` / `--skip-graph-mcp`
+or `--skip-provider-configuration`).
+
+Global MCP entries (`afyx_graph` and `afyx_workflow`) do not pin a stale
+`--project-root`: project context is resolved dynamically from the active
+workspace (MCP `rootUri`/`workspaceFolders`, `AFYX_PROJECT_ROOT`, or validated
+project working directory) and fails closed (`PROJECT_CONTEXT_REQUIRED`) when no
+valid project context can be established.
+
+Historical AFYX-owned workspace MCP files (`<workspace>/.agents/mcp_config.json`
+from earlier builds) are flagged by `doctor` / inspection and can be explicitly
+migrated (`--migrate-historical-workspace`) or cleaned during `uninstall` while
+preserving all foreign entries and ownership boundaries.
 
 ```powershell
 # Codex + Antigravity use the compatible global/user scope
 .\install.ps1 -Preset full -Provider codex,antigravity `
   -ProviderScope global
 
-# Antigravity and Claude Code may use project-local configuration
-.\install.ps1 -Preset full -Provider antigravity,claude `
+# Claude Code supports project-local MCP configuration
+.\install.ps1 -Preset full -Provider claude `
   -ProviderScope workspace -WorkspaceRoot (Get-Location)
+
+# Antigravity workspace-only skills (without workspace MCP)
+.\install.ps1 -Preset recommended -Provider antigravity `
+  -ProviderScope workspace -WorkspaceRoot (Get-Location) -SkipGraphMcp
 
 # Preview and verify the same global multi-provider selection
 .\install.ps1 -WhatIf -Preset full -Provider codex,antigravity,claude -ProviderScope global
@@ -191,11 +218,12 @@ Codex must use `global`, because Codex MCP configuration is user-scoped:
 ```
 
 The installer and lifecycle support Codex, Antigravity, and Claude Code (supporting both
-standalone CLI and VS Code extension-only configurations). Antigravity workspace
-scope uses `.agents/skills/` and `.agents/mcp_config.json`. Global Antigravity
-scope uses `~/.gemini/config/skills/`,
-`<GEMINI_HOME>/antigravity-cli/skills/`, and the shared
-`~/.gemini/config/mcp_config.json`. Claude Code configuration uses `~/.claude.json` or
+standalone CLI and VS Code extension-only configurations). Antigravity MCP is
+registered exclusively in global `~/.gemini/config/mcp_config.json`, while
+global Antigravity skills are projected to `~/.gemini/config/skills/` (and
+compatibility paths under `<GEMINI_HOME>`). Workspace-only Antigravity skills
+may be installed to `<workspace>/.agents/skills/` without registering workspace
+MCP. Claude Code configuration uses `~/.claude.json` or
 workspace `.mcp.json`. The installer preserves unrelated JSON and
 refuses foreign `afyx_graph`, malformed, reparse-point, or ambiguous legacy
 configuration. A global MCP change requires restarting the host. Usage Tracking

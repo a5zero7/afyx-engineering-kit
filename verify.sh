@@ -273,7 +273,7 @@ if [[ ",$provider_list," == *,antigravity,* && "$AFYX_STATE" == HEALTHY ]] && co
   provider_json="$(node "$PACKAGE_ROOT/scripts/afyx-provider-integration.mjs" --providers antigravity --scope "$provider_scope" --workspace-root "$workspace_root" --gemini-home "$gemini_home" --node "$(command -v node)" --entry "$AFYX_PATH/current/lib/dist/bin/afyx-graph.js" 2>/dev/null)"; provider_exit=$?
   set -e
   provider_state="$(printf '%s' "$provider_json" | sed -n 's/.*"status":"\([^"]*\)".*/\1/p')"
-  case "$provider_state" in READY|CONFIGURED_RESTART_REQUIRED) result OK 'Antigravity MCP' "$provider_state" ;; BLOCKED) result FAIL 'Antigravity MCP' "$provider_json"; core_failure=true ;; *) result INFO 'Antigravity MCP' "${provider_state:-UNAVAILABLE}" ;; esac
+  case "$provider_state" in READY|CONFIGURED_RESTART_REQUIRED) result OK 'Antigravity MCP' "$provider_state" ;; BLOCKED|INCOMPATIBLE) result FAIL 'Antigravity MCP' "$provider_json"; core_failure=true ;; *) result INFO 'Antigravity MCP' "${provider_state:-UNAVAILABLE}" ;; esac
   : "$provider_exit"
 fi
 

@@ -14,7 +14,7 @@ AFYX Engineering Kit operates under a singular, provider-agnostic configuration 
 > **"Native Integration First. Backup Before Modification. Validate After Changes. Restore When Needed."**
 
 ### 1.1 Authorized Configuration Modification
-AFYX is explicitly authorized to inspect, plan, register, update, and remove its owned integration entries in existing, default, or user provider configuration files (such as `config.toml`, `mcp_config.json`, `.claude.json`, `.mcp.json`) when required for supported integrations.
+AFYX is explicitly authorized to inspect, plan, register, update, and remove its owned integration entries in existing, default, or user provider configuration files (`~/.codex/config.toml` for Codex global MCP, `~/.gemini/config/mcp_config.json` for Antigravity global MCP, and `~/.claude.json` / `<workspace>/.mcp.json` for Claude Code) when required for supported integrations. Unsupported provider MCP scopes (such as Antigravity `workspace` MCP) are rejected fail-closed with `PROVIDER_SCOPE_UNSUPPORTED` without silent scope redirection or partial mutation. Historical AFYX-owned workspace MCP entries (`.agents/mcp_config.json`) are only modified during explicit migration or ownership-verified uninstall while preserving all foreign entries.
 
 ### 1.2 Normalization vs. Data Corruption
 - **Exact byte-for-byte preservation of original configuration files is NOT a default acceptance requirement**, unless explicitly required by a specialized test or contract.

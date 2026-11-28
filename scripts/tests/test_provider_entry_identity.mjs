@@ -42,29 +42,29 @@ test('Codex POSIX MCP paths remain case sensitive', { skip: process.platform ===
     args: ['/opt/afyx/bridge.mjs', 'serve', '--mcp'] } }, expected), 'MCP_BLOCKED');
 });
 
-for (const scope of ['global', 'workspace']) {
-  test(`Antigravity ${scope} rejects foreign literal arguments without mutation`, async (t) => {
-    const root = mkdtempSync(join(tmpdir(), 'afyx-provider-identity-'));
-    t.after(() => rmSync(root, { recursive: true, force: true }));
-    const options = { scope, geminiHome: join(root, 'gemini'), workspaceRoot: join(root, 'workspace'),
-      node: process.execPath, entry: join(root, 'bridge.mjs') };
-    const directory = scope === 'global' ? join(options.geminiHome, 'config') : join(options.workspaceRoot, '.agents');
-    mkdirSync(directory, { recursive: true });
-    const config = join(directory, 'mcp_config.json');
-    const variants = [[options.entry, './serve', '--mcp'], [options.entry, 'serve', './--mcp'],
-      [options.entry, 'serve', { flag: '--mcp' }]];
-    if (process.platform === 'win32') variants.push([options.entry, 'SERVE', '--MCP']);
-    for (const args of variants) {
-      writeFileSync(config, JSON.stringify({ theme: 'owner', mcpServers: {
-        afyx_graph: { command: options.node, args }, foreign: { command: 'other', args: [] } } }));
-      const before = readFileSync(config);
-      assert.equal(inspectAntigravity(options).state, 'MCP_BLOCKED');
-      const result = await providerAdapters.antigravity.verify(options);
-      assert.equal(result.status, 'BLOCKED');
-      assert.deepEqual(readFileSync(config), before);
-    }
-    writeFileSync(config, JSON.stringify({ mcpServers: { afyx_graph: {
-      command: options.node, args: [options.entry, 'serve', '--mcp'] } } }));
-    assert.equal(inspectAntigravity(options).state, 'MCP_CONFIGURED_UNOWNED');
-  });
-}
+test('Antigravity global rejects foreign literal arguments without mutation and workspace rejects scope', async (t) => {
+  const root = mkdtempSync(join(tmpdir(), 'afyx-provider-identity-'));
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  const options = { scope: 'global', geminiHome: join(root, 'gemini'), workspaceRoot: join(root, 'workspace'),
+    node: process.execPath, entry: join(root, 'bridge.mjs') };
+  const directory = join(options.geminiHome, 'config');
+  mkdirSync(directory, { recursive: true });
+  const config = join(directory, 'mcp_config.json');
+  const variants = [[options.entry, './serve', '--mcp'], [options.entry, 'serve', './--mcp'],
+    [options.entry, 'serve', { flag: '--mcp' }]];
+  if (process.platform === 'win32') variants.push([options.entry, 'SERVE', '--MCP']);
+  for (const args of variants) {
+    writeFileSync(config, JSON.stringify({ theme: 'owner', mcpServers: {
+      afyx_graph: { command: options.node, args }, foreign: { command: 'other', args: [] } } }));
+    const before = readFileSync(config);
+    assert.equal(inspectAntigravity(options).state, 'MCP_BLOCKED');
+    const result = await providerAdapters.antigravity.verify(options);
+    assert.equal(result.status, 'BLOCKED');
+    assert.deepEqual(readFileSync(config), before);
+  }
+  writeFileSync(config, JSON.stringify({ mcpServers: { afyx_graph: {
+    command: options.node, args: [options.entry, 'serve', '--mcp'] } } }));
+  assert.equal(inspectAntigravity(options).state, 'MCP_CONFIGURED_UNOWNED');
+
+  assert.throws(() => inspectAntigravity({ ...options, scope: 'workspace' }), /PROVIDER_SCOPE_UNSUPPORTED/);
+});

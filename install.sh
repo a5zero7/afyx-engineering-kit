@@ -429,7 +429,7 @@ for provider_id in $provider_list; do
   elif [[ "$provider_id" == antigravity ]]; then
     provider_name=Antigravity
     provider_detected="$antigravity_detected"
-    [[ "$provider_scope" == workspace ]] && provider_path="$workspace_root/.agents/mcp_config.json" || provider_path="$gemini_home/config/mcp_config.json"
+    [[ "$provider_scope" == workspace ]] && provider_path='UNSUPPORTED (Antigravity MCP requires global ~/.gemini/config/mcp_config.json)' || provider_path="$gemini_home/config/mcp_config.json"
   elif [[ "$provider_id" == claude ]]; then
     provider_name="Claude Code"
     if "$claude_cli_detected" || "$claude_vscode_detected"; then provider_detected=true; else provider_detected=false; fi
@@ -449,6 +449,10 @@ for provider_id in $provider_list; do
   fi
 done
 IFS=$old_ifs
+if ! "$validate_only" && ! "$plan_json" && ! "$skip_graph_mcp" && ! "$skip_provider_configuration" && [[ ",$provider_list," == *,antigravity,* && "$provider_scope" == workspace ]]; then
+  printf 'PROVIDER_SCOPE_UNSUPPORTED: Antigravity MCP registration only supports global scope (~/.gemini/config/mcp_config.json); workspace MCP (.agents/mcp_config.json) is not discovered by Antigravity. Use --provider-scope global for Antigravity MCP, or --skip-graph-mcp for workspace-only skills.\n' >&2
+  exit 1
+fi
 if ! "$skip_graph_mcp" && ! "$skip_provider_configuration" && [[ ",$provider_list," == *,antigravity,* ]] && command -v node >/dev/null 2>&1; then
   set +e
   preflight_json="$(node "$PACKAGE_ROOT/scripts/afyx-provider-integration.mjs" --providers antigravity --scope "$provider_scope" --workspace-root "$workspace_root" --gemini-home "$gemini_home" --node "$(command -v node)" --entry "$graph_root/current/lib/dist/bin/afyx-graph.js" 2>/dev/null)"; preflight_exit=$?
@@ -518,6 +522,7 @@ if "$plan_json" || [[ -n "$expected_plan" ]]; then
   if ! "$skip_provider_configuration"; then
     if [[ ",$provider_list," == *,codex,* ]] && ! "$codex_cli_detected" && ! "$vscode_extension_detected"; then contract_args+=(--block 'Selected Codex host is unavailable.'); fi
     if [[ ",$provider_list," == *,antigravity,* ]] && ! "$antigravity_detected"; then contract_args+=(--block 'Selected Antigravity host is unavailable.'); fi
+    if [[ ",$provider_list," == *,antigravity,* && "$provider_scope" == workspace ]] && ! "$skip_graph_mcp"; then contract_args+=(--block 'PROVIDER_SCOPE_UNSUPPORTED: Antigravity MCP registration only supports global scope (~/.gemini/config/mcp_config.json).'); fi
     if [[ ",$provider_list," == *,claude,* ]] && ! "$claude_cli_detected" && ! "$claude_vscode_detected"; then contract_args+=(--block 'Selected Claude Code host is unavailable.'); fi
   fi
   for plan_id in $(afyx_component_ids); do
@@ -544,9 +549,8 @@ if "$plan_json" || [[ -n "$expected_plan" ]]; then
   done
   if ! "$skip_provider_configuration"; then
     [[ ",$provider_list," != *,codex,* ]] || contract_args+=(--config "$codex_home/config.toml")
-    if [[ ",$provider_list," == *,antigravity,* ]]; then
-      if [[ "$provider_scope" == workspace ]]; then contract_args+=(--config "$workspace_root/.agents/mcp_config.json")
-      else contract_args+=(--config "$gemini_home/config/mcp_config.json"); fi
+    if [[ ",$provider_list," == *,antigravity,* && "$provider_scope" == global ]]; then
+      contract_args+=(--config "$gemini_home/config/mcp_config.json")
     fi
     if [[ ",$provider_list," == *,claude,* ]]; then
       if [[ "$provider_scope" == workspace ]]; then contract_args+=(--config "$workspace_root/.mcp.json")

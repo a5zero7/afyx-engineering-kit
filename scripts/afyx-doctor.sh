@@ -161,6 +161,13 @@ case "$FRESH_STATE" in
   *) line INFO "Afyx Graph index: $FRESH_STATE" "$FRESH_DETAIL" ;;
 esac
 
+historical_ws_mcp="$project_root/.agents/mcp_config.json"
+if [[ -f "$historical_ws_mcp" ]]; then
+  if grep -Eq '"afyx_graph"|"afyx_workflow"' "$historical_ws_mcp" 2>/dev/null; then
+    line WARN 'Antigravity workspace MCP' 'historical .agents/mcp_config.json detected; Antigravity only loads global ~/.gemini/config/mcp_config.json. Migrate or uninstall owned workspace entries explicitly.'
+  fi
+fi
+
 printf '\n'
 if ((failures > 0)); then printf 'NOT READY\n'; exit 1; fi
 if ((warnings > 0)); then printf 'READY (with warnings)\n'; exit 0; fi
