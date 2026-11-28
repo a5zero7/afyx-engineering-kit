@@ -244,3 +244,18 @@ Status saat ini NO_GO. Selesaikan gerbang B7, D.6, provider dan kandidat yang te
 - **R3 Eksekusi B7 (`DEFERRED_PROVIDER_QUOTA`):** Eksekusi B7 di WSL2 (`--budget 14 --ledger-path evals/results/b7-budget-final01r.json`) berhenti langsung pada kontrol `child_health-1-c71c86a6` akibat kuota provider habis (`You've hit your usage limit... try again at 11:32 PM`, `B7_RUN_EXIT=2`). Konsumsi kumulatif B7 menjadi **`3/16`** (`2` historis + `1` kontrol health ini), **`13` otorisasi tersisa**, `0/5` pasangan selesai.
 - **R4 Penerimaan Independen & Eksternal:** `D6_STATUS = PENDING_EXTERNAL_REVIEW` (memerlukan prinsipal evaluator terpisah sesuai `AFYX_T06_R0_EVALUATOR_READINESS.md` dan tinjauan atas D.5 `384826dee91d45f0a3388d5d276407ae`; `T07 A1/B1` menyusul setelah `D.6`); `Claude Code` & `macOS` host eksternal berstatus `BLOCKED_EXTERNAL_HOST`; `Antigravity` sesi terautentikasi tetap `PENDING_EXTERNAL_REVIEW`.
 - **R5 Rekomendasi Distribusi & Keputusan:** Kandidat tervalidasi `testing/integration/AFYX-375-final01r-ci-f684bfe/afyx-engineering-kit-1.2.1.tgz` (`sha256: bf11039b1ecc84a67b49832a40d4d1b326494e61e2b66fa0697f293ed41798a0`, `259` berkas) tetap dibekukan. Rekomendasi cakupan distribusi untuk persetujuan Owner: `NPM_DISTRIBUTION` + `DEFER_STANDALONE_WINDOWS_EXE` (tidak ada `EXE/DLL/NODE/SO/DYLIB` dalam tarball maupun 4 bundle Graph). Keputusan rilis saat ini tetap **`NO_GO`** untuk publikasi langsung hingga kuota B7 (`13` sisa), `D.6`, host eksternal, dan keputusan Owner untuk `FINAL-02` terpenuhi.
+
+### Penutupan Tata Kelola Final V1.3.0 (FINAL-ACCEPTANCE-AND-GOVERNANCE)
+
+- **Keputusan Distribusi Resmi Owner (Item #22–#23):**
+  - `distribution_scope`: **`NPM_DISTRIBUTION`** (disetujui; tarball `afyx-engineering-kit-1.2.1.tgz` dan empat bundle Graph terverifikasi memuat `0` berkas `.exe`, `.dll`, `.node`, `.so`, maupun `.dylib`).
+  - `standalone_windows_exe`: **`DEFER_STANDALONE_WINDOWS_EXE`** (saluran distribusi ditunda tanpa menghapus kode sumber maupun CI installer Windows).
+  - `unsigned_exe_publication`: **`NOT_AUTHORIZED`**; `historical_signing_waiver_extension`: **`NOT_AUTHORIZED`**.
+- **Status S0–S3 pada `ea6e07c`:**
+  - `S0`: CI `ea6e07c` (`46122746851`) lulus `3/3 jobs SUCCESS`; `codex-cli 0.167.0` + `bubblewrap 0.11.1` + `PREFLIGHT_EXIT=0` terverifikasi di WSL2 Ubuntu.
+  - `S1 (#01–#11)`: Rencana `10` sel B7 (`#02`) & isolasi protokol MCP WSL2 pada kandidat terpasang (`#03`: `A`, `R`, `N` `EXPLICITLY_DISABLED`) terverifikasi. Fingerprint resume (`#01`) berbeda (`d9ebbad1...` vs `b00fc529...`) akibat commit dokumentasi `ea6e07c`. Kuota (`#04`) tetap `DEFERRED_PROVIDER_QUOTA` (`13` sisa otorisasi di `evals/results/b7-budget-final01r.json`, `0/5` pasangan dieksekusi).
+  - `S2 (#12–#16)`: `D6 = PENDING_EXTERNAL_REVIEW`, `T07 = BLOCKED_BY_D6` (prinsipal evaluator terpisah `AFYX_T06_R0_EVALUATOR_READINESS.md` belum tersedia).
+  - `S3 (#17–#21)`: `Claude Code` & `macOS` eksternal `BLOCKED_EXTERNAL_HOST`; `Antigravity` `PARTIAL` (sesi model terautentikasi `PENDING_EXTERNAL_REVIEW`).
+- **Putusan Final & Batas `FINAL-02` (#24–#26):**
+  - Kandidat produk `f684bfe7f49eb9c6731cb4405a0f0c093fe54a35` (`sha256: bf11039b1ecc84a67b49832a40d4d1b326494e61e2b66fa0697f293ed41798a0`) tetap dibekukan.
+  - Putusan saat ini: **`NO_GO`** (gerbang wajib eksternal B7 `0/5`, `D.6`/`T07`, dan host eksternal belum tertutup; item `#26` berstatus **`AWAITING_FINAL_02_AUTHORIZATION`**). Publikasi, bump versi `1.3.0`, promosi `main`, tag, dan penutupan `AFYX-375` belum diotorisasi.
